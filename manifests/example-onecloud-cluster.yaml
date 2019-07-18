@@ -1,0 +1,11 @@
+apiVersion: "onecloud.yunion.io/v1alpha1"
+kind: OnecloudCluster
+metadata:
+  name: "example-onecloud-cluster"
+  namespace: "onecloud"
+spec:
+  mysql:
+    host: 10.168.222.218
+    username: root
+    password: "your-sql-passwd"
+  region: "region0"
