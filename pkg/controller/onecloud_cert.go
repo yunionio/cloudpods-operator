@@ -15,7 +15,7 @@
 package controller
 
 import (
-	"crypto/rsa"
+	"crypto"
 	"crypto/x509"
 	"fmt"
 
@@ -87,7 +87,7 @@ func newCertsStore() certsStore {
 	return make(map[string][]byte)
 }
 
-func (s certsStore) WriteCertAndKey(name string, cert *x509.Certificate, key *rsa.PrivateKey) error {
+func (s certsStore) WriteCertAndKey(name string, cert *x509.Certificate, key crypto.Signer) error {
 	if err := s.WriteKey(name, key); err != nil {
 		return errors.Wrapf(err, "cloudn't write %s key", name)
 	}
@@ -102,7 +102,7 @@ func nameForCert(name string) string {
 	return fmt.Sprintf("%s.crt", name)
 }
 
-func (s certsStore) WriteKey(name string, key *rsa.PrivateKey) error {
+func (s certsStore) WriteKey(name string, key crypto.Signer) error {
 	if key == nil {
 		return errors.New("private key cannot be nil when write")
 	}
@@ -158,7 +158,7 @@ func (k *OnecloudCert) GetConfig(oc *v1alpha1.OnecloudCluster) (*certutil.Config
 }
 
 // CreateFromCA makes and writes a certificate using the given CA cert and key.
-func (k *OnecloudCert) CreateFromCA(oc *v1alpha1.OnecloudCluster, caCert *x509.Certificate, caKey *rsa.PrivateKey) (*x509.Certificate, *rsa.PrivateKey, error) {
+func (k *OnecloudCert) CreateFromCA(oc *v1alpha1.OnecloudCluster, caCert *x509.Certificate, caKey crypto.Signer) (*x509.Certificate, crypto.Signer, error) {
 	cfg, err := k.GetConfig(oc)
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "couldn't create %q certificate", k.Name)
@@ -166,7 +166,7 @@ func (k *OnecloudCert) CreateFromCA(oc *v1alpha1.OnecloudCluster, caCert *x509.C
 	return pkiutil.NewCertAndKey(caCert, caKey, cfg)
 }
 
-func (k *OnecloudCert) CreateAsCA(oc *v1alpha1.OnecloudCluster) (*x509.Certificate, *rsa.PrivateKey, error) {
+func (k *OnecloudCert) CreateAsCA(oc *v1alpha1.OnecloudCluster) (*x509.Certificate, crypto.Signer, error) {
 	cfg, err := k.GetConfig(oc)
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "couldn't get configuration for %q CA certificate", k.Name)
@@ -175,7 +175,7 @@ func (k *OnecloudCert) CreateAsCA(oc *v1alpha1.OnecloudCluster) (*x509.Certifica
 }
 
 // NewCACertAndKey will generate a self signed CA.
-func NewCACertAndKey(certSpec *certutil.Config) (*x509.Certificate, *rsa.PrivateKey, error) {
+func NewCACertAndKey(certSpec *certutil.Config) (*x509.Certificate, crypto.Signer, error) {
 
 	caCert, caKey, err := pkiutil.NewCertificateAuthority(certSpec)
 	if err != nil {
@@ -231,7 +231,7 @@ func makeAltNamesMutator(
 	}
 }
 
-func newClusterCACert(oc *v1alpha1.OnecloudCluster) (*x509.Certificate, *rsa.PrivateKey, error) {
+func newClusterCACert(oc *v1alpha1.OnecloudCluster) (*x509.Certificate, crypto.Signer, error) {
 	config, err := NewClusterCACert().GetConfig(oc)
 	if err != nil {
 		return nil, nil, err
