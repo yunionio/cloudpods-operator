@@ -67,14 +67,14 @@ func NewOnecloudRCAdminConfig(oc *v1alpha1.OnecloudCluster, debug bool) *Oneclou
 		ProjectName:   constants.SysAdminProject,
 		ProjectDomain: "",
 		Insecure:      true,
-		Debug:         true,
+		Debug:         debug,
 		Timeout:       600,
 		CertFile:      "",
 		KeyFile:       "",
 	}
 }
 
-func NewOnecloudClientSession(oc *v1alpha1.OnecloudCluster) (*mcclient.ClientSession, error) {
+func NewOnecloudClientToken(oc *v1alpha1.OnecloudCluster) (*mcclient.Client, mcclient.TokenCredential, error) {
 	config := NewOnecloudRCAdminConfig(oc, SessionDebug)
 	cli := mcclient.NewClient(
 		config.AuthURL,
@@ -92,18 +92,37 @@ func NewOnecloudClientSession(oc *v1alpha1.OnecloudCluster) (*mcclient.ClientSes
 		config.ProjectDomain,
 		mcclient.AuthSourceCli,
 	)
-	if err != nil {
-		return nil, err
-	}
+	return cli, token, err
+}
+
+func NewOnecloudSessionByToken(cli *mcclient.Client, region string, token mcclient.TokenCredential) (*mcclient.ClientSession, error) {
 	session := cli.NewSession(
 		context.Background(),
-		config.Region,
+		region,
 		"",
 		constants.EndpointTypeInternal,
 		token,
 		"",
 	)
 	return session, nil
+}
+
+func NewOnecloudSimpleClientSession(oc *v1alpha1.OnecloudCluster) (*mcclient.ClientSession, error) {
+	cli, token, err := NewOnecloudClientToken(oc)
+	if err != nil {
+		return nil, err
+	}
+	token = mcclient.SimplifyToken(token)
+	cli.SetServiceCatalog(nil)
+	return NewOnecloudSessionByToken(cli, oc.Spec.Region, token)
+}
+
+func NewOnecloudClientSession(oc *v1alpha1.OnecloudCluster) (*mcclient.ClientSession, error) {
+	cli, token, err := NewOnecloudClientToken(oc)
+	if err != nil {
+		return nil, err
+	}
+	return NewOnecloudSessionByToken(cli, oc.Spec.Region, token)
 }
 
 type OnecloudControl struct {
@@ -125,6 +144,10 @@ func (w *OnecloudControl) GetSession(oc *v1alpha1.OnecloudCluster) (*mcclient.Cl
 	return NewOnecloudClientSession(oc)
 }
 
+func (w *OnecloudControl) GetSessionNoEndpoints(oc *v1alpha1.OnecloudCluster) (*mcclient.ClientSession, error) {
+	return NewOnecloudSimpleClientSession(oc)
+}
+
 type PhaseControl interface {
 	Setup() error
 	SystemInit() error
@@ -132,6 +155,7 @@ type PhaseControl interface {
 
 type ComponentManager interface {
 	GetSession() (*mcclient.ClientSession, error)
+	GetSessionNoEndpoints() (*mcclient.ClientSession, error)
 	GetController() *OnecloudControl
 	GetCluster() *v1alpha1.OnecloudCluster
 	Keystone() PhaseControl
@@ -167,6 +191,10 @@ func (c *realComponent) GetSession() (*mcclient.ClientSession, error) {
 	return c.controller.GetSession(c.oc)
 }
 
+func (c *realComponent) GetSessionNoEndpoints() (*mcclient.ClientSession, error) {
+	return c.controller.GetSessionNoEndpoints(c.oc)
+}
+
 func (c *realComponent) Keystone() PhaseControl {
 	return &keystoneComponent{newBaseComponent(c)}
 }
@@ -189,6 +217,10 @@ func newBaseComponent(manager ComponentManager) *baseComponent {
 
 func (c *baseComponent) GetSession() (*mcclient.ClientSession, error) {
 	return c.manager.GetSession()
+}
+
+func (c *baseComponent) GetSessionNoEndpoints() (*mcclient.ClientSession, error) {
+	return c.manager.GetSessionNoEndpoints()
 }
 
 func (c *baseComponent) GetCluster() *v1alpha1.OnecloudCluster {
@@ -258,17 +290,21 @@ func (c *baseComponent) RegisterCloudServiceEndpoint(
 	return c.RegisterServiceEndpoints(serviceName, serviceType, eps, true)
 }
 
-func (c *baseComponent) RegisterServiceEndpoints(serviceName, serviceType string, eps []*endpoint, enableSSL bool) error {
+func (c *baseComponent) registerServiceEndpointsBySession(s *mcclient.ClientSession, serviceName, serviceType string, eps []*endpoint, enableSSL bool) error {
 	urls := map[string]string{}
 	for _, ep := range eps {
 		urls[ep.Interface] = ep.GetUrl(enableSSL)
 	}
+	region := c.GetCluster().Spec.Region
+	return onecloud.RegisterServiceEndpoints(s, region, serviceName, serviceType, urls)
+}
+
+func (c *baseComponent) RegisterServiceEndpoints(serviceName, serviceType string, eps []*endpoint, enableSSL bool) error {
 	s, err := c.GetSession()
 	if err != nil {
 		return err
 	}
-	region := c.GetCluster().Spec.Region
-	return onecloud.RegisterServiceEndpoints(s, region, serviceName, serviceType, urls)
+	return c.registerServiceEndpointsBySession(s, serviceName, serviceType, eps, enableSSL)
 }
 
 type keystoneComponent struct {
@@ -280,7 +316,7 @@ func (c keystoneComponent) Setup() error {
 }
 
 func (c keystoneComponent) SystemInit() error {
-	s, err := c.GetSession()
+	s, err := c.GetSessionNoEndpoints()
 	if err != nil {
 		return err
 	}
@@ -289,6 +325,16 @@ func (c keystoneComponent) SystemInit() error {
 		return errors.Wrap(err, "policy role init")
 	}
 	region := oc.Spec.Region
+	if err := c.doRegisterIdentity(s, region, oc.Spec.LoadBalancerEndpoint, KeystoneComponentName(oc.GetName()), constants.KeystoneAdminPort, constants.KeystonePublicPort, true); err != nil {
+		return errors.Wrap(err, "register identity endpoint")
+	}
+
+	// refresh session when update identity url
+	s, err = c.GetSession()
+	if err != nil {
+		return err
+	}
+
 	if _, err := doCreateRegion(s, region); err != nil {
 		return errors.Wrap(err, "create region")
 	}
@@ -297,9 +343,6 @@ func (c keystoneComponent) SystemInit() error {
 	}
 	if err := doRegisterTracker(s, region); err != nil {
 		return errors.Wrap(err, "register tracker endpoint")
-	}
-	if err := c.doRegisterIdentity(s, region, oc.Spec.LoadBalancerEndpoint, KeystoneComponentName(oc.GetName()), constants.KeystoneAdminPort, constants.KeystonePublicPort, true); err != nil {
-		return errors.Wrap(err, "register identity endpoint")
 	}
 	if err := makeDomainAdminPublic(s); err != nil {
 		return errors.Wrap(err, "always share domainadmin")
@@ -382,7 +425,7 @@ func (c *keystoneComponent) doRegisterIdentity(
 		newEndpointByInterfaceType(publicAddress, adminPort, "v3", constants.EndpointTypeAdmin),
 	)
 
-	return c.RegisterServiceEndpoints(constants.ServiceNameKeystone, constants.ServiceTypeIdentity, eps, true)
+	return c.registerServiceEndpointsBySession(s, constants.ServiceNameKeystone, constants.ServiceTypeIdentity, eps, true)
 }
 
 func makeDomainAdminPublic(s *mcclient.ClientSession) error {

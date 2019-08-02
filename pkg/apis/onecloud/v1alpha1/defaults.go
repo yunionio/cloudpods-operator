@@ -17,6 +17,7 @@ package v1alpha1
 import (
 	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/rand"
 
@@ -136,6 +137,19 @@ func SetDefaults_DeploymentSpec(obj *DeploymentSpec, image string) {
 	}
 	if obj.Image == "" {
 		obj.Image = image
+	}
+	// add tolerations
+	if len(obj.Tolerations) == 0 {
+		obj.Tolerations = append(obj.Tolerations, []corev1.Toleration{
+			{
+				Key:    "node-role.kubernetes.io/master",
+				Effect: corev1.TaintEffectNoSchedule,
+			},
+			{
+				Key:    "node-role.kubernetes.io/controlplane",
+				Effect: corev1.TaintEffectNoSchedule,
+			},
+		}...)
 	}
 }
 

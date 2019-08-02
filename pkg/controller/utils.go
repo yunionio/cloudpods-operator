@@ -91,11 +91,6 @@ func KeystoneComponentName(clusterName string) string {
 	return NewClusterComponentName(clusterName, v1alpha1.KeystoneComponentType)
 }
 
-// ClimcComponentName return climc component name
-func ClimcComponentName(clusterName string) string {
-	return NewClusterComponentName(clusterName, v1alpha1.ClimcComponentType)
-}
-
 // AnnProm adds annotations for prometheus scraping metrics
 func AnnProm(port int32) map[string]string {
 	return map[string]string{

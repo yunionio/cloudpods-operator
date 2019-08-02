@@ -273,7 +273,7 @@ func (m *ComponentManager) newService(
 	serviceType corev1.ServiceType,
 	ports []corev1.ServicePort,
 ) *corev1.Service {
-	ocName := oc.Name
+	ocName := oc.GetName()
 	svcName := controller.NewClusterComponentName(ocName, componentType)
 	appLabel := m.getComponentLabel(oc, componentType)
 
