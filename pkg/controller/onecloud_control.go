@@ -161,6 +161,7 @@ type ComponentManager interface {
 	Keystone() PhaseControl
 	Region() PhaseControl
 	Glance() PhaseControl
+	YunionAgent() PhaseControl
 }
 
 func (w *OnecloudControl) Components(oc *v1alpha1.OnecloudCluster) ComponentManager {
@@ -205,6 +206,10 @@ func (c *realComponent) Region() PhaseControl {
 
 func (c *realComponent) Glance() PhaseControl {
 	return &glanceComponent{newBaseComponent(c)}
+}
+
+func (c *realComponent) YunionAgent() PhaseControl {
+	return &yunionagentComponent{newBaseComponent(c)}
 }
 
 type baseComponent struct {
@@ -594,4 +599,39 @@ func NewRegisterEndpointComponent(
 
 func (c *registerEndpointComponent) Setup() error {
 	return c.RegisterCloudServiceEndpoint(c.cType, c.serviceName, c.serviceType, c.port, c.prefix)
+}
+
+type yunionagentComponent struct {
+	*baseComponent
+}
+
+func (c yunionagentComponent) Setup() error {
+	return c.RegisterCloudServiceEndpoint(
+		v1alpha1.YunionagentComponentType,
+		constants.ServiceNameYunionAgent, constants.ServiceTypeYunionAgent,
+		constants.YunionAgentPort, "")
+}
+
+func (c yunionagentComponent) SystemInit() error {
+	return c.addWelcomeNotice()
+}
+
+func (c yunionagentComponent) addWelcomeNotice() error {
+	s, err := c.GetSession()
+	if err != nil {
+		return err
+	}
+	ret, err := modules.Notice.List(s, nil)
+	if err != nil {
+		return err
+	}
+	if ret.Total > 0 {
+		return nil
+	}
+	params := jsonutils.NewDict()
+	params.Add(jsonutils.NewString("欢迎使用云管平台"), "title")
+	params.Add(jsonutils.NewString("欢迎使用OneCloud多云云管平台。这里告栏。您可以在这里发布需要告知所有用户的消息。"), "content")
+
+	_, err = modules.Notice.Create(s, params)
+	return err
 }

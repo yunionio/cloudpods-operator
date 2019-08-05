@@ -77,6 +77,11 @@ const (
 	BaremetalAdminProject = SysAdminProject
 	BaremetalPort         = 8879
 
+	KubeServerAdminUser = "kubeserver"
+	KubeServerPort      = 8443
+	KubeServerDB        = "kubeserver"
+	KubeServerDBUser    = "kubeserver"
+
 	WebconsoleAdminUser    = "webconsole"
 	WebconsoleAdminProject = SysAdminProject
 	WebconsolePort         = 8899
@@ -139,6 +144,9 @@ const (
 
 	ServiceNameInfluxdb = "influxdb"
 	ServiceTypeInfluxdb = "influxdb"
+
+	ServiceNameKubeServer = "k8s"
+	ServiceTypeKubeServer = "k8s"
 
 	ServiceURLCloudmeta  = "https://meta.yunion.cn"
 	ServiceNameCloudmeta = "cloudmeta"

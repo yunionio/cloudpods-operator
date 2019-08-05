@@ -55,6 +55,7 @@ const (
 	WebComponentType         ComponentType = "web"
 	YunionagentComponentType ComponentType = "yunionagent"
 	YunionconfComponentType  ComponentType = "yunionconf"
+	KubeServerComponentType  ComponentType = "kubeserver"
 )
 
 // ComponentPhase is the current state of component
@@ -99,6 +100,10 @@ type OnecloudClusterSpec struct {
 	Mysql Mysql `json:"mysql"`
 	// Version is onecloud components version
 	Version string `json:"version"`
+	// CertSANs sets extra Subject Alternative Names for the Cluster signing cert.
+	CertSANs []string
+	// Services list non-headless services type used in OnecloudCluster
+	Services []Service `json:"services,omitempty"`
 	// ImageRepository defines default image registry
 	ImageRepository string `json:"imageRepository"`
 	// Region is cluster region
@@ -127,14 +132,12 @@ type OnecloudClusterSpec struct {
 	Influxdb StatefulDeploymentSpec `json:"influxdb"`
 	// LoadBalancerEndpoint is upstream loadbalancer virtual ip address or DNS domain
 	LoadBalancerEndpoint string `json:"loadBalancerEndpoint"`
-	// CertSANs sets extra Subject Alternative Names for the Cluster signing cert.
-	CertSANs []string
-	// Services list non-headless services type used in OnecloudCluster
-	Services []Service `json:"services,omitempty"`
-	// apiGateway holds configuration for yunoinapi
+	// APIGateway holds configuration for yunoinapi
 	APIGateway DeploymentSpec `json:"apiGateway"`
-	// web holds configuration for web
+	// Web holds configuration for web
 	Web DeploymentSpec `json:"web"`
+	// KubeServer holds configuration for kube-server service
+	KubeServer DeploymentSpec `json:"kubeserver"`
 }
 
 // OnecloudClusterStatus
@@ -151,6 +154,7 @@ type OnecloudClusterStatus struct {
 	Web          DeploymentStatus `json:"web,omitempty"`
 	Yunionconf   DeploymentStatus `json:"yunionconf,omitempty"`
 	Yunionagent  DeploymentStatus `json:"yunionagent,omitempty"`
+	KubeServer   DeploymentStatus `json:"kubeserver,omitempty"`
 }
 
 // Etcd describes an etcd cluster
@@ -300,5 +304,6 @@ type OnecloudClusterConfig struct {
 	Logger       ServiceDBCommonOptions `json:"logger"`
 	Yunionconf   ServiceDBCommonOptions `json:"yunionconf"`
 	Yunionagent  ServiceDBCommonOptions `json:"yunionagent"`
+	KubeServer   ServiceDBCommonOptions `json:"kubeserver"`
 	APIGateway   ServiceCommonOptions   `json:"apiGateway"`
 }

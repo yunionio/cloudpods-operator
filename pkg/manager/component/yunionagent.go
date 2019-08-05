@@ -52,10 +52,7 @@ func (m *yunionagentManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *
 }
 
 func (m *yunionagentManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
-	// TODO: add others phase
-	return controller.NewRegisterEndpointComponent(man, v1alpha1.YunionagentComponentType,
-		constants.ServiceNameYunionAgent, constants.ServiceTypeYunionAgent,
-		constants.YunionAgentPort, "")
+	return man.YunionAgent()
 }
 
 func (m *yunionagentManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {

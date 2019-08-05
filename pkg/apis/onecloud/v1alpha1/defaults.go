@@ -77,6 +77,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec) {
 		YunionconfComponentType:  &obj.Yunionconf,
 		APIGatewayComponentType:  &obj.APIGateway,
 		WebComponentType:         &obj.Web,
+		KubeServerComponentType:  &obj.KubeServer,
 	} {
 		SetDefaults_DeploymentSpec(spec, getImage(obj.ImageRepository, cType, obj.Version))
 	}
@@ -185,6 +186,7 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		&obj.Logger:                              {constants.LoggerAdminUser, constants.LoggerPort, constants.LoggerDB, constants.LoggerDBUser},
 		&obj.Yunionagent:                         {constants.YunionAgentAdminUser, constants.YunionAgentPort, constants.YunionAgentDB, constants.YunionAgentDBUser},
 		&obj.Yunionconf:                          {constants.YunionConfAdminUser, constants.YunionConfPort, constants.YunionConfDB, constants.YunionConfDBUser},
+		&obj.KubeServer:                          {constants.KubeServerAdminUser, constants.KubeServerPort, constants.KubeServerDB, constants.KubeServerDBUser},
 	} {
 		SetDefaults_ServiceDBCommonOptions(opt, tmp.db, tmp.dbUser, tmp.user, tmp.port)
 	}

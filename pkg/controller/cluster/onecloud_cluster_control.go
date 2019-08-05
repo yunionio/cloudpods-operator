@@ -97,6 +97,7 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 		components.Influxdb(),
 		components.Yunionagent(),
 		components.Yunionconf(),
+		components.KubeServer(),
 		components.APIGateway(),
 		components.Web(),
 	} {

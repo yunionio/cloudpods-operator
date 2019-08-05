@@ -577,6 +577,10 @@ func (m *ComponentManager) Yunionconf() manager.Manager {
 	return newYunionconfManager(m)
 }
 
+func (m *ComponentManager) KubeServer() manager.Manager {
+	return newKubeManager(m)
+}
+
 func (m *ComponentManager) APIGateway() manager.Manager {
 	return newAPIGatewayManager(m)
 }
