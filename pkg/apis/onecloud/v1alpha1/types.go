@@ -49,6 +49,12 @@ const (
 	LoggerComponentType ComponentType = "logger"
 	// InfluxdbComponentType is influxdb component type
 	InfluxdbComponentType ComponentType = "influxdb"
+	// APIGatewayComponentType is apiGateway component type
+	APIGatewayComponentType ComponentType = "apigateway"
+	// WebComponentType is web frontent component type
+	WebComponentType         ComponentType = "web"
+	YunionagentComponentType ComponentType = "yunionagent"
+	YunionconfComponentType  ComponentType = "yunionconf"
 )
 
 // ComponentPhase is the current state of component
@@ -113,6 +119,10 @@ type OnecloudClusterSpec struct {
 	Webconsole DeploymentSpec `json:"webconsole"`
 	// Logger holds configuration for log service
 	Logger DeploymentSpec `json:"logger"`
+	// Yunionconf holds configuration for yunionconf service
+	Yunionconf DeploymentSpec `json:"yunionconf"`
+	// Yunionagent holds configuration for yunionagent service
+	Yunionagent DeploymentSpec `json:"yunionagent"`
 	// Influxdb holds configuration for influxdb
 	Influxdb StatefulDeploymentSpec `json:"influxdb"`
 	// LoadBalancerEndpoint is upstream loadbalancer virtual ip address or DNS domain
@@ -121,6 +131,10 @@ type OnecloudClusterSpec struct {
 	CertSANs []string
 	// Services list non-headless services type used in OnecloudCluster
 	Services []Service `json:"services,omitempty"`
+	// apiGateway holds configuration for yunoinapi
+	APIGateway DeploymentSpec `json:"apiGateway"`
+	// web holds configuration for web
+	Web DeploymentSpec `json:"web"`
 }
 
 // OnecloudClusterStatus
@@ -133,18 +147,22 @@ type OnecloudClusterStatus struct {
 	Webconsole   DeploymentStatus `json:"webconsole,omitempty"`
 	Influxdb     DeploymentStatus `json:"influxdb,omitempty"`
 	Logger       DeploymentStatus `json:"logger,omitempty"`
+	APIGateway   DeploymentStatus `json:"apiGateway,omitempty"`
+	Web          DeploymentStatus `json:"web,omitempty"`
+	Yunionconf   DeploymentStatus `json:"yunionconf,omitempty"`
+	Yunionagent  DeploymentStatus `json:"yunionagent,omitempty"`
 }
 
 // Etcd describes an etcd cluster
 type Etcd struct {
 	// Endpoints of etcd members
-	Endpoints []string
+	Endpoints []string `json:"endpoints"`
 	// CA is an SSL Certificate Authority data used to secure etcd communication
-	CA string
+	CA string `json:"ca"`
 	// CertFile is an SSL certification data used to secure etcd communication
-	Cert string
+	Cert string `json:"cert"`
 	// Key is an SSL key data used to secure etcd communication
-	Key string
+	Key string `json:"key"`
 }
 
 // Mysql describes an mysql server
@@ -280,4 +298,7 @@ type OnecloudClusterConfig struct {
 	Glance       GlanceConfig           `json:"glance"`
 	Webconsole   ServiceCommonOptions   `json:"webconsole"`
 	Logger       ServiceDBCommonOptions `json:"logger"`
+	Yunionconf   ServiceDBCommonOptions `json:"yunionconf"`
+	Yunionagent  ServiceDBCommonOptions `json:"yunionagent"`
+	APIGateway   ServiceCommonOptions   `json:"apiGateway"`
 }

@@ -568,3 +568,19 @@ func (m *ComponentManager) Scheduler() manager.Manager {
 func (m *ComponentManager) Influxdb() manager.Manager {
 	return newInfluxdbManager(m)
 }
+
+func (m *ComponentManager) Yunionagent() manager.Manager {
+	return newYunionagentManager(m)
+}
+
+func (m *ComponentManager) Yunionconf() manager.Manager {
+	return newYunionconfManager(m)
+}
+
+func (m *ComponentManager) APIGateway() manager.Manager {
+	return newAPIGatewayManager(m)
+}
+
+func (m *ComponentManager) Web() manager.Manager {
+	return newWebManager(m)
+}
