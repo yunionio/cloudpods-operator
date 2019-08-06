@@ -18,6 +18,7 @@ import (
 	"github.com/pkg/errors"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
@@ -35,6 +36,10 @@ type serviceFactory interface {
 	getService(*v1alpha1.OnecloudCluster) *corev1.Service
 }
 
+type ingressFactory interface {
+	getIngress(*v1alpha1.OnecloudCluster) *extensions.Ingress
+}
+
 type configMapFactory interface {
 	getConfigMap(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error)
 }
@@ -50,6 +55,7 @@ type deploymentFactory interface {
 type cloudComponentFactory interface {
 	syncManager
 	serviceFactory
+	ingressFactory
 	configMapFactory
 	deploymentFactory
 	pvcFactory
@@ -58,6 +64,9 @@ type cloudComponentFactory interface {
 func syncComponent(factory cloudComponentFactory, oc *v1alpha1.OnecloudCluster) error {
 	m := factory.getComponentManager()
 	if err := m.syncService(oc, factory.getService); err != nil {
+		return err
+	}
+	if err := m.syncIngress(oc, factory.getIngress); err != nil {
 		return err
 	}
 	if err := m.syncConfigMap(oc, factory.getDBConfig, factory.getCloudUser, factory.getConfigMap); err != nil {

@@ -19,6 +19,7 @@ import (
 
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
@@ -239,6 +240,43 @@ func (m *webManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {
 		},
 	}
 	return m.newService(v1alpha1.WebComponentType, oc, corev1.ServiceTypeClusterIP, ports)
+}
+
+func (m *webManager) getIngress(oc *v1alpha1.OnecloudCluster) *extensions.Ingress {
+	svc := m.getService(oc)
+	ocName := oc.GetName()
+	svcName := controller.NewClusterComponentName(ocName, v1alpha1.WebComponentType)
+	appLabel := m.getComponentLabel(oc, v1alpha1.WebComponentType)
+	secretName := controller.ClustercertSecretName(oc)
+
+	ing := &extensions.Ingress{
+		ObjectMeta: m.getObjectMeta(oc, svcName, appLabel),
+		Spec: extensions.IngressSpec{
+			TLS: []extensions.IngressTLS{
+				{
+					SecretName: secretName,
+				},
+			},
+			Rules: []extensions.IngressRule{
+				{
+					IngressRuleValue: extensions.IngressRuleValue{
+						HTTP: &extensions.HTTPIngressRuleValue{
+							Paths: []extensions.HTTPIngressPath{
+								{
+									Path: "/",
+									Backend: extensions.IngressBackend{
+										ServiceName: svc.GetName(),
+										ServicePort: intstr.FromInt(80),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	return ing
 }
 
 func (m *webManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {

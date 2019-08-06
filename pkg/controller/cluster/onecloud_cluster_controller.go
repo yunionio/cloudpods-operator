@@ -17,7 +17,6 @@ package cluster
 import (
 	"fmt"
 	"time"
-	"yunion.io/x/onecloud-operator/pkg/manager/certs"
 
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -40,6 +39,7 @@ import (
 	informers "yunion.io/x/onecloud-operator/pkg/client/informers/externalversions"
 	listers "yunion.io/x/onecloud-operator/pkg/client/listers/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
+	"yunion.io/x/onecloud-operator/pkg/manager/certs"
 	"yunion.io/x/onecloud-operator/pkg/manager/component"
 	"yunion.io/x/onecloud-operator/pkg/manager/config"
 	k8sutil "yunion.io/x/onecloud-operator/pkg/util/k8s"
@@ -93,11 +93,13 @@ func NewController(
 	//nodeInformer := kubeInformerFactory.Core().V1().Nodes()
 	cfgInformer := kubeInformerFactory.Core().V1().ConfigMaps()
 	pvcInformer := kubeInformerFactory.Core().V1().PersistentVolumeClaims()
+	ingInformer := kubeInformerFactory.Extensions().V1beta1().Ingresses()
 
 	ocControl := controller.NewClusterControl(cli, ocInformer.Lister(), recorder)
 	deployControl := controller.NewDeploymentControl(kubeCli, deployInformer.Lister(), recorder)
 	svcControl := controller.NewServiceControl(kubeCli, svcInformer.Lister(), recorder)
 	cfgControl := controller.NewConfigMapControl(kubeCli, cfgInformer.Lister(), recorder)
+	ingControl := controller.NewIngressControl(kubeCli, ingInformer.Lister(), recorder)
 
 	configer := config.NewConfigManager(cfgControl, cfgInformer.Lister())
 	certControl := controller.NewOnecloudCertControl(kubeCli, secretInformer.Lister(), recorder)
@@ -108,6 +110,7 @@ func NewController(
 		deployControl, deployInformer.Lister(),
 		svcControl, svcInformer.Lister(),
 		pvcControl, pvcInformer.Lister(),
+		ingControl, ingInformer.Lister(),
 		configer, onecloudControl)
 
 	c := &Controller{

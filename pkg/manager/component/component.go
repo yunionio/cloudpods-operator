@@ -19,11 +19,13 @@ import (
 
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	appv1 "k8s.io/client-go/listers/apps/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
+	extensionlisters "k8s.io/client-go/listers/extensions/v1beta1"
 
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/onecloud-operator/pkg/label"
@@ -40,6 +42,8 @@ type ComponentManager struct {
 	svcLister     corelisters.ServiceLister
 	pvcControl    controller.PVCControlInterface
 	pvcLister     corelisters.PersistentVolumeClaimLister
+	ingControl    controller.IngressControlInterface
+	ingLister     extensionlisters.IngressLister
 
 	configer        Configer
 	onecloudControl *controller.OnecloudControl
@@ -53,6 +57,8 @@ func NewComponentManager(
 	svcLister corelisters.ServiceLister,
 	pvcControl controller.PVCControlInterface,
 	pvcLister corelisters.PersistentVolumeClaimLister,
+	ingControl controller.IngressControlInterface,
+	ingLister extensionlisters.IngressLister,
 	configer Configer,
 	onecloudControl *controller.OnecloudControl,
 ) *ComponentManager {
@@ -63,6 +69,8 @@ func NewComponentManager(
 		svcLister:       svcLister,
 		pvcControl:      pvcControl,
 		pvcLister:       pvcLister,
+		ingControl:      ingControl,
+		ingLister:       ingLister,
 		configer:        configer,
 		onecloudControl: onecloudControl,
 	}
@@ -107,6 +115,46 @@ func (m *ComponentManager) syncService(
 		return err
 	}
 
+	return nil
+}
+
+func (m *ComponentManager) syncIngress(
+	oc *v1alpha1.OnecloudCluster,
+	ingFactory func(*v1alpha1.OnecloudCluster) *extensions.Ingress,
+) error {
+	ns := oc.GetNamespace()
+	newIng := ingFactory(oc)
+	if newIng == nil {
+		return nil
+	}
+	oldIngTmp, err := m.ingLister.Ingresses(ns).Get(newIng.GetName())
+	if errors.IsNotFound(err) {
+		err = SetIngressLastAppliedConfigAnnotation(newIng)
+		if err != nil {
+			return err
+		}
+		return m.ingControl.CreateIngress(oc, newIng)
+	}
+	if err != nil {
+		return err
+	}
+
+	oldIng := oldIngTmp.DeepCopy()
+
+	equal, err := ingressEqual(newIng, oldIng)
+	if err != nil {
+		return err
+	}
+	if !equal {
+		ing := *oldIng
+		ing.Spec = newIng.Spec
+		err = SetIngressLastAppliedConfigAnnotation(&ing)
+		if err != nil {
+			return err
+		}
+		_, err = m.ingControl.UpdateIngress(oc, &ing)
+		return err
+	}
 	return nil
 }
 
@@ -522,6 +570,10 @@ func (m *ComponentManager) getDeploymentStatus(_ *v1alpha1.OnecloudCluster) *v1a
 }
 
 func (m *ComponentManager) getService(_ *v1alpha1.OnecloudCluster) *corev1.Service {
+	return nil
+}
+
+func (m *ComponentManager) getIngress(_ *v1alpha1.OnecloudCluster) *extensions.Ingress {
 	return nil
 }
 

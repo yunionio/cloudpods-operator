@@ -24,6 +24,7 @@ import (
 	"github.com/pkg/errors"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	clientset "k8s.io/client-go/kubernetes"
@@ -78,6 +79,18 @@ func SetServiceLastAppliedConfigAnnotation(svc *corev1.Service) error {
 	return nil
 }
 
+func SetIngressLastAppliedConfigAnnotation(ing *extensions.Ingress) error {
+	ingApply, err := encode(ing.Spec)
+	if err != nil {
+		return err
+	}
+	if ing.Annotations == nil {
+		ing.Annotations = map[string]string{}
+	}
+	ing.Annotations[LastAppliedConfigAnnotation] = ingApply
+	return nil
+}
+
 func SetDeploymentLastAppliedConfigAnnotation(deploy *apps.Deployment) error {
 	deployApply, err := encode(deploy.Spec)
 	if err != nil {
@@ -106,6 +119,18 @@ func serviceEqual(new, old *corev1.Service) (bool, error) {
 		err := json.Unmarshal([]byte(lastAppliedConfig), &oldSpec)
 		if err != nil {
 			klog.Errorf("unmarshal ServiceSpec: [%s/%s]'s applied config failed,error: %v", old.GetNamespace(), old.GetName(), err)
+			return false, err
+		}
+		return apiequality.Semantic.DeepEqual(oldSpec, new.Spec), nil
+	}
+	return false, nil
+}
+
+func ingressEqual(new, old *extensions.Ingress) (bool, error) {
+	oldSpec := extensions.IngressSpec{}
+	if lastAppliedConfig, ok := old.Annotations[LastAppliedConfigAnnotation]; ok {
+		err := json.Unmarshal([]byte(lastAppliedConfig), &oldSpec)
+		if err != nil {
 			return false, err
 		}
 		return apiequality.Semantic.DeepEqual(oldSpec, new.Spec), nil

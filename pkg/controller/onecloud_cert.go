@@ -76,6 +76,8 @@ func (c *realOnecloudCertControl) CreateCert(oc *v1alpha1.OnecloudCluster) error
 		return err
 	}
 	store.WriteCertAndKey(svcCerts.BaseName, svcCert, svcKey)
+	// for web ingress
+	store.WriteCertAndKey("tls", svcCert, svcKey)
 	certSecret := newSecretFromStore(oc, store)
 	_, err = c.kubeCli.CoreV1().Secrets(oc.GetNamespace()).Create(certSecret)
 	return err
