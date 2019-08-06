@@ -95,6 +95,8 @@ const (
 	APIGatewayPort      = 9300
 	APIWebsocketPort    = 10443
 
+	CloudMonitorAdminUser = "cloudmon"
+
 	YunionAgentAdminUser = "yunionagent"
 	YunionAgentPort      = 9899
 	YunionAgentDB        = "yunionagent"

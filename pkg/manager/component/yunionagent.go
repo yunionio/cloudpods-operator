@@ -70,9 +70,47 @@ func (m *yunionagentManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1a
 }
 
 func (m *yunionagentManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {
-	return m.newSingleNodePortService(v1alpha1.YunionagentComponentType, oc, constants.YunionAgentPort)
+	// use headless service
+	svcName := controller.NewClusterComponentName(oc.GetName(), v1alpha1.YunionagentComponentType)
+	appLabel := m.getComponentLabel(oc, v1alpha1.YunionagentComponentType)
+	svc := &corev1.Service{
+		ObjectMeta: m.getObjectMeta(oc, svcName, appLabel),
+		Spec: corev1.ServiceSpec{
+			ClusterIP: corev1.ClusterIPNone,
+			Selector:  appLabel,
+		},
+	}
+	return svc
+}
+
+// use local volume pvc avoid pod migrate
+func (m *yunionagentManager) getPVC(oc *v1alpha1.OnecloudCluster) (*corev1.PersistentVolumeClaim, error) {
+	cfg := oc.Spec.Yunionagent
+	return m.newPVC(v1alpha1.YunionagentComponentType, oc, cfg)
 }
 
 func (m *yunionagentManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
-	return m.newCloudServiceSinglePortDeployment(v1alpha1.YunionagentComponentType, oc, oc.Spec.Yunionagent, constants.YunionAgentPort, false)
+	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.YunionagentComponentType, oc, oc.Spec.Yunionagent.DeploymentSpec, constants.YunionAgentPort, false)
+	if err != nil {
+		return nil, err
+	}
+	podSpec := &deploy.Spec.Template.Spec
+	podSpec.HostNetwork = true
+	podSpec.DNSPolicy = corev1.DNSClusterFirstWithHostNet
+	podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
+		Name: "data",
+		VolumeSource: corev1.VolumeSource{
+			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+				ClaimName: controller.NewClusterComponentName(oc.GetName(), v1alpha1.YunionagentComponentType),
+				ReadOnly:  false,
+			},
+		},
+	})
+	volMounts := podSpec.Containers[0].VolumeMounts
+	volMounts = append(volMounts, corev1.VolumeMount{
+		Name:      "data",
+		MountPath: "/mnt",
+	})
+	podSpec.Containers[0].VolumeMounts = volMounts
+	return deploy, nil
 }

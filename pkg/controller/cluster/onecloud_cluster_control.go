@@ -90,16 +90,17 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 		components.Keystone(),
 		components.Logger(),
 		components.Climc(),
+		components.Influxdb(),
 		components.Region(),
 		components.Scheduler(),
 		components.Glance(),
 		components.Webconsole(),
-		components.Influxdb(),
 		components.Yunionagent(),
 		components.Yunionconf(),
 		components.KubeServer(),
 		components.APIGateway(),
 		components.Web(),
+		components.CloudMonitor(),
 	} {
 		if err := component.Sync(oc); err != nil {
 			return err

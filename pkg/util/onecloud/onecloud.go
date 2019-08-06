@@ -159,6 +159,12 @@ func EnsureEndpoint(s *mcclient.ClientSession, svcId, regionId, interfaceType, u
 	if err != nil {
 		return nil, err
 	}
+	epUrl, _ := ep.GetString("url")
+	enabled, _ := ep.Bool("enabled")
+	if epUrl == url && enabled {
+		// same endpoint exists and already exists
+		return ep, nil
+	}
 	updateParams := jsonutils.NewDict()
 	updateParams.Add(jsonutils.NewString(url), "url")
 	updateParams.Add(jsonutils.JSONTrue, "enabled")

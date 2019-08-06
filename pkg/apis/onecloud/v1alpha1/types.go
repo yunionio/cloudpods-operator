@@ -52,10 +52,11 @@ const (
 	// APIGatewayComponentType is apiGateway component type
 	APIGatewayComponentType ComponentType = "apigateway"
 	// WebComponentType is web frontent component type
-	WebComponentType         ComponentType = "web"
-	YunionagentComponentType ComponentType = "yunionagent"
-	YunionconfComponentType  ComponentType = "yunionconf"
-	KubeServerComponentType  ComponentType = "kubeserver"
+	WebComponentType          ComponentType = "web"
+	YunionagentComponentType  ComponentType = "yunionagent"
+	YunionconfComponentType   ComponentType = "yunionconf"
+	KubeServerComponentType   ComponentType = "kubeserver"
+	CloudMonitorComponentType ComponentType = "cloudmon"
 )
 
 // ComponentPhase is the current state of component
@@ -127,7 +128,7 @@ type OnecloudClusterSpec struct {
 	// Yunionconf holds configuration for yunionconf service
 	Yunionconf DeploymentSpec `json:"yunionconf"`
 	// Yunionagent holds configuration for yunionagent service
-	Yunionagent DeploymentSpec `json:"yunionagent"`
+	Yunionagent StatefulDeploymentSpec `json:"yunionagent"`
 	// Influxdb holds configuration for influxdb
 	Influxdb StatefulDeploymentSpec `json:"influxdb"`
 	// LoadBalancerEndpoint is upstream loadbalancer virtual ip address or DNS domain
@@ -138,6 +139,8 @@ type OnecloudClusterSpec struct {
 	Web DeploymentSpec `json:"web"`
 	// KubeServer holds configuration for kube-server service
 	KubeServer DeploymentSpec `json:"kubeserver"`
+	// CloudMonitor holds configuration for cloudmonitor service
+	CloudMonitor DeploymentSpec `json:"cloudmon"`
 }
 
 // OnecloudClusterStatus
@@ -306,4 +309,5 @@ type OnecloudClusterConfig struct {
 	Yunionagent  ServiceDBCommonOptions `json:"yunionagent"`
 	KubeServer   ServiceDBCommonOptions `json:"kubeserver"`
 	APIGateway   ServiceCommonOptions   `json:"apiGateway"`
+	CloudMonitor ServiceCommonOptions   `json:"cloudmon"`
 }

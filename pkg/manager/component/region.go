@@ -60,6 +60,8 @@ func (m *regionManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
 	SetOptionsServiceTLS(&opt.BaseOptions)
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceDBCommonOptions.ServiceCommonOptions)
+	// TODO: fix this, currently init container can't sync table
+	opt.AutoSyncTable = true
 
 	opt.PortV2 = constants.RegionPort
 	return m.newServiceConfigMap(v1alpha1.RegionComponentType, oc, opt), nil

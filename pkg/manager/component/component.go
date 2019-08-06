@@ -195,6 +195,17 @@ func (m *ComponentManager) syncConfigMap(
 	if cfgMap == nil {
 		return nil
 	}
+	if err := SetConfigMapLastAppliedConfigAnnotation(cfgMap); err != nil {
+		return err
+	}
+	oldCfgMap, _ := m.configer.Lister().ConfigMaps(oc.GetNamespace()).Get(cfgMap.GetName())
+	if oldCfgMap != nil {
+		if equal, err := configMapEqual(cfgMap, oldCfgMap); err != nil {
+			return err
+		} else if equal {
+			return nil
+		}
+	}
 	return m.configer.CreateOrUpdateConfigMap(oc, cfgMap)
 }
 
@@ -639,4 +650,8 @@ func (m *ComponentManager) APIGateway() manager.Manager {
 
 func (m *ComponentManager) Web() manager.Manager {
 	return newWebManager(m)
+}
+
+func (m *ComponentManager) CloudMonitor() manager.Manager {
+	return newCloudMonitorManager(m)
 }

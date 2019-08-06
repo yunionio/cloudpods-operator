@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
+	"reflect"
 	"text/template"
 
 	"github.com/pkg/errors"
@@ -91,6 +92,18 @@ func SetIngressLastAppliedConfigAnnotation(ing *extensions.Ingress) error {
 	return nil
 }
 
+func SetConfigMapLastAppliedConfigAnnotation(cfg *corev1.ConfigMap) error {
+	cfgApply, err := encode(cfg.Data)
+	if err != nil {
+		return err
+	}
+	if cfg.Annotations == nil {
+		cfg.Annotations = map[string]string{}
+	}
+	cfg.Annotations[LastAppliedConfigAnnotation] = cfgApply
+	return nil
+}
+
 func SetDeploymentLastAppliedConfigAnnotation(deploy *apps.Deployment) error {
 	deployApply, err := encode(deploy.Spec)
 	if err != nil {
@@ -134,6 +147,18 @@ func ingressEqual(new, old *extensions.Ingress) (bool, error) {
 			return false, err
 		}
 		return apiequality.Semantic.DeepEqual(oldSpec, new.Spec), nil
+	}
+	return false, nil
+}
+
+func configMapEqual(new, old *corev1.ConfigMap) (bool, error) {
+	oldData := map[string]string{}
+	if lastAppliedConfig, ok := old.Annotations[LastAppliedConfigAnnotation]; ok {
+		err := json.Unmarshal([]byte(lastAppliedConfig), &oldData)
+		if err != nil {
+			return false, err
+		}
+		return reflect.DeepEqual(oldData, new.Data), nil
 	}
 	return false, nil
 }
@@ -221,6 +246,10 @@ func EnsureDBUser(conn *mysql.Connection, dbName string, username string, passwo
 	return nil
 }
 
+func LoginByServiceAccount(s *mcclient.ClientSession, account v1alpha1.CloudUser) (mcclient.TokenCredential, error) {
+	return s.GetClient().AuthenticateWithSource(account.Username, account.Password, constants.DefaultDomain, constants.SysAdminProject, "", "operator")
+}
+
 func EnsureServiceAccount(s *mcclient.ClientSession, account v1alpha1.CloudUser) error {
 	username := account.Username
 	password := account.Password
@@ -229,6 +258,10 @@ func EnsureServiceAccount(s *mcclient.ClientSession, account v1alpha1.CloudUser)
 		return err
 	}
 	if exists {
+		// password not change
+		if _, err := LoginByServiceAccount(s, account); err == nil {
+			return nil
+		}
 		id, _ := obj.GetString("id")
 		if _, err := onecloud.ChangeUserPassword(s, id, password); err != nil {
 			return errors.Wrapf(err, "user %s already exists, update password", username)

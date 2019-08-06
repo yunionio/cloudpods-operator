@@ -45,6 +45,10 @@ func NewConfigManager(
 	}
 }
 
+func (c *ConfigManager) Lister() corelisters.ConfigMapLister {
+	return c.cfgLister
+}
+
 func (c *ConfigManager) CreateOrUpdate(oc *v1alpha1.OnecloudCluster) (*v1alpha1.OnecloudClusterConfig, error) {
 	ns := oc.GetNamespace()
 	cfgMapName := controller.ClusterConfigMapName(oc)

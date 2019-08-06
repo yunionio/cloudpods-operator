@@ -14,16 +14,24 @@
 
 package component
 
-import (
-	corev1 "k8s.io/api/core/v1"
-	corelisters "k8s.io/client-go/listers/core/v1"
-
-	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
-)
-
-// Configer implements the logic to get cluster config.
-type Configer interface {
-	GetClusterConfig(cluster *v1alpha1.OnecloudCluster) (*v1alpha1.OnecloudClusterConfig, error)
-	CreateOrUpdateConfigMap(cluster *v1alpha1.OnecloudCluster, newCfgMap *corev1.ConfigMap) error
-	Lister() corelisters.ConfigMapLister
+const (
+	RegionDNSConfigTemplate = `
+.:53 {
+    cache 30
+    yunion . {
+        sql_connection mysql+pymysql://{{.DBUser}}:{{.DBPassword}}@{{.DBHost}}:{{.DBPort}}/{{.DBName}}?charset=utf8
+        dns_domain {{.Domain}}
+        region {{.Region}}
+        auth_url {{.AuthURL}}
+        admin_project system
+        admin_user {{.AdminUser}}
+        admin_password {{.AdminPassword}}
+        fallthrough .
+    }
+    proxy . {{.ProxyServer}}:53
+    log {
+        class error
+    }
 }
+`
+)

@@ -90,7 +90,7 @@ func NewOnecloudClientToken(oc *v1alpha1.OnecloudCluster) (*mcclient.Client, mcc
 		config.DomainName,
 		config.ProjectName,
 		config.ProjectDomain,
-		mcclient.AuthSourceCli,
+		"operator",
 	)
 	return cli, token, err
 }

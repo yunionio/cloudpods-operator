@@ -69,15 +69,15 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec) {
 	SetDefaults_RegionSpec(&obj.RegionServer, obj.ImageRepository, obj.Version)
 
 	for cType, spec := range map[ComponentType]*DeploymentSpec{
-		ClimcComponentType:       &obj.Climc,
-		WebconsoleComponentType:  &obj.Webconsole,
-		SchedulerComponentType:   &obj.Scheduler,
-		LoggerComponentType:      &obj.Logger,
-		YunionagentComponentType: &obj.Yunionagent,
-		YunionconfComponentType:  &obj.Yunionconf,
-		APIGatewayComponentType:  &obj.APIGateway,
-		WebComponentType:         &obj.Web,
-		KubeServerComponentType:  &obj.KubeServer,
+		ClimcComponentType:        &obj.Climc,
+		WebconsoleComponentType:   &obj.Webconsole,
+		SchedulerComponentType:    &obj.Scheduler,
+		LoggerComponentType:       &obj.Logger,
+		YunionconfComponentType:   &obj.Yunionconf,
+		APIGatewayComponentType:   &obj.APIGateway,
+		WebComponentType:          &obj.Web,
+		KubeServerComponentType:   &obj.KubeServer,
+		CloudMonitorComponentType: &obj.CloudMonitor,
 	} {
 		SetDefaults_DeploymentSpec(spec, getImage(obj.ImageRepository, cType, obj.Version))
 	}
@@ -88,8 +88,9 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec) {
 		version string
 	}
 	for cType, spec := range map[ComponentType]*stateDeploy{
-		GlanceComponentType:   &stateDeploy{&obj.Glance, DefaultGlanceStoreageSize, obj.Version},
-		InfluxdbComponentType: &stateDeploy{&obj.Influxdb, DefaultInfluxdbStorageSize, DefaultInfluxdbImageVersion},
+		GlanceComponentType:      &stateDeploy{&obj.Glance, DefaultGlanceStoreageSize, obj.Version},
+		InfluxdbComponentType:    &stateDeploy{&obj.Influxdb, DefaultInfluxdbStorageSize, DefaultInfluxdbImageVersion},
+		YunionagentComponentType: &stateDeploy{&obj.Yunionagent, "1G", obj.Version},
 	} {
 		SetDefaults_StatefulDeploymentSpec(cType, spec.obj, spec.size, obj.ImageRepository, spec.version)
 	}
@@ -167,8 +168,9 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 	}
 
 	for opt, userPort := range map[*ServiceCommonOptions]userPort{
-		&obj.Webconsole: {constants.WebconsoleAdminUser, constants.WebconsolePort},
-		&obj.APIGateway: {constants.APIGatewayAdminUser, constants.APIGatewayPort},
+		&obj.Webconsole:   {constants.WebconsoleAdminUser, constants.WebconsolePort},
+		&obj.APIGateway:   {constants.APIGatewayAdminUser, constants.APIGatewayPort},
+		&obj.CloudMonitor: {constants.CloudMonitorAdminUser, 0},
 	} {
 		SetDefaults_ServiceCommonOptions(opt, userPort.user, userPort.port)
 	}
