@@ -94,6 +94,7 @@ func (m *apiGatewayManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1a
 	}
 	podSpec := &deploy.Spec.Template.Spec
 	apiContainer := &podSpec.Containers[0]
+	wsContainer := &podSpec.Containers[1]
 	podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
 		Name: "data",
 		VolumeSource: corev1.VolumeSource{
@@ -101,6 +102,11 @@ func (m *apiGatewayManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1a
 		},
 	})
 	apiContainer.VolumeMounts = append(apiContainer.VolumeMounts, corev1.VolumeMount{
+		Name:      "data",
+		ReadOnly:  false,
+		MountPath: "/etc/yunion/data/",
+	})
+	wsContainer.VolumeMounts = append(wsContainer.VolumeMounts, corev1.VolumeMount{
 		Name:      "data",
 		ReadOnly:  false,
 		MountPath: "/etc/yunion/data/",
