@@ -100,7 +100,6 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 		components.KubeServer(),
 		components.APIGateway(),
 		components.Web(),
-		components.CloudMonitor(),
 	} {
 		if err := component.Sync(oc); err != nil {
 			return err

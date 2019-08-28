@@ -18,8 +18,6 @@ import (
 	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	corelisters "k8s.io/client-go/listers/core/v1"
-	"k8s.io/klog"
-
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 )
@@ -42,7 +40,7 @@ func NewCertsManager(
 func (c *CertsManager) CreateOrUpdate(oc *v1alpha1.OnecloudCluster) error {
 	ns := oc.GetNamespace()
 	certSecretName := controller.ClustercertSecretName(oc)
-	secretObj, err := c.secretLister.Secrets(ns).Get(certSecretName)
+	_, err := c.secretLister.Secrets(ns).Get(certSecretName)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return err
@@ -54,7 +52,6 @@ func (c *CertsManager) CreateOrUpdate(oc *v1alpha1.OnecloudCluster) error {
 	} else {
 		// already exists, update it
 		// TODO
-		klog.Infof("===secretobj: %s", secretObj.GetName())
 		return nil
 	}
 }
