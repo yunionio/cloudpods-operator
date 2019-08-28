@@ -37,7 +37,7 @@ type IngressControlInterface interface {
 
 type realIngressControl struct {
 	*baseControl
-	kubeCli  kubernetes.Interface
+	kubeCli       kubernetes.Interface
 	ingressLister listers.IngressLister
 }
 

@@ -651,7 +651,3 @@ func (m *ComponentManager) APIGateway() manager.Manager {
 func (m *ComponentManager) Web() manager.Manager {
 	return newWebManager(m)
 }
-
-func (m *ComponentManager) CloudMonitor() manager.Manager {
-	return newCloudMonitorManager(m)
-}

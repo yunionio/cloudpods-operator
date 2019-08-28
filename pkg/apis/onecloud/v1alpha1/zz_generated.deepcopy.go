@@ -308,6 +308,10 @@ func (in *OnecloudClusterConfig) DeepCopyInto(out *OnecloudClusterConfig) {
 	out.Glance = in.Glance
 	out.Webconsole = in.Webconsole
 	out.Logger = in.Logger
+	out.Yunionconf = in.Yunionconf
+	out.Yunionagent = in.Yunionagent
+	out.KubeServer = in.KubeServer
+	out.APIGateway = in.APIGateway
 	return
 }
 
@@ -367,14 +371,6 @@ func (in *OnecloudClusterSpec) DeepCopyInto(out *OnecloudClusterSpec) {
 	*out = *in
 	in.Etcd.DeepCopyInto(&out.Etcd)
 	out.Mysql = in.Mysql
-	in.Keystone.DeepCopyInto(&out.Keystone)
-	in.RegionServer.DeepCopyInto(&out.RegionServer)
-	in.Scheduler.DeepCopyInto(&out.Scheduler)
-	in.Glance.DeepCopyInto(&out.Glance)
-	in.Climc.DeepCopyInto(&out.Climc)
-	in.Webconsole.DeepCopyInto(&out.Webconsole)
-	in.Logger.DeepCopyInto(&out.Logger)
-	in.Influxdb.DeepCopyInto(&out.Influxdb)
 	if in.CertSANs != nil {
 		in, out := &in.CertSANs, &out.CertSANs
 		*out = make([]string, len(*in))
@@ -385,6 +381,19 @@ func (in *OnecloudClusterSpec) DeepCopyInto(out *OnecloudClusterSpec) {
 		*out = make([]Service, len(*in))
 		copy(*out, *in)
 	}
+	in.Keystone.DeepCopyInto(&out.Keystone)
+	in.RegionServer.DeepCopyInto(&out.RegionServer)
+	in.Scheduler.DeepCopyInto(&out.Scheduler)
+	in.Glance.DeepCopyInto(&out.Glance)
+	in.Climc.DeepCopyInto(&out.Climc)
+	in.Webconsole.DeepCopyInto(&out.Webconsole)
+	in.Logger.DeepCopyInto(&out.Logger)
+	in.Yunionconf.DeepCopyInto(&out.Yunionconf)
+	in.Yunionagent.DeepCopyInto(&out.Yunionagent)
+	in.Influxdb.DeepCopyInto(&out.Influxdb)
+	in.APIGateway.DeepCopyInto(&out.APIGateway)
+	in.Web.DeepCopyInto(&out.Web)
+	in.KubeServer.DeepCopyInto(&out.KubeServer)
 	return
 }
 
@@ -408,6 +417,11 @@ func (in *OnecloudClusterStatus) DeepCopyInto(out *OnecloudClusterStatus) {
 	in.Webconsole.DeepCopyInto(&out.Webconsole)
 	in.Influxdb.DeepCopyInto(&out.Influxdb)
 	in.Logger.DeepCopyInto(&out.Logger)
+	in.APIGateway.DeepCopyInto(&out.APIGateway)
+	in.Web.DeepCopyInto(&out.Web)
+	in.Yunionconf.DeepCopyInto(&out.Yunionconf)
+	in.Yunionagent.DeepCopyInto(&out.Yunionagent)
+	in.KubeServer.DeepCopyInto(&out.KubeServer)
 	return
 }
 

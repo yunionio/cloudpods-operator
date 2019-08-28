@@ -52,11 +52,10 @@ const (
 	// APIGatewayComponentType is apiGateway component type
 	APIGatewayComponentType ComponentType = "apigateway"
 	// WebComponentType is web frontent component type
-	WebComponentType          ComponentType = "web"
-	YunionagentComponentType  ComponentType = "yunionagent"
-	YunionconfComponentType   ComponentType = "yunionconf"
-	KubeServerComponentType   ComponentType = "kubeserver"
-	CloudMonitorComponentType ComponentType = "cloudmon"
+	WebComponentType         ComponentType = "web"
+	YunionagentComponentType ComponentType = "yunionagent"
+	YunionconfComponentType  ComponentType = "yunionconf"
+	KubeServerComponentType  ComponentType = "kubeserver"
 )
 
 // ComponentPhase is the current state of component
@@ -139,8 +138,6 @@ type OnecloudClusterSpec struct {
 	Web DeploymentSpec `json:"web"`
 	// KubeServer holds configuration for kube-server service
 	KubeServer DeploymentSpec `json:"kubeserver"`
-	// CloudMonitor holds configuration for cloudmonitor service
-	CloudMonitor DeploymentSpec `json:"cloudmon"`
 }
 
 // OnecloudClusterStatus
@@ -187,6 +184,7 @@ type Mysql struct {
 // DeploymentSpec constains defails of deployment resource service
 type DeploymentSpec struct {
 	ContainerSpec
+	Disable      bool                `json:"disable"`
 	Replicas     int32               `json:"replicas"`
 	Affinity     *corev1.Affinity    `json:"affinity,omitempty"`
 	NodeSelector map[string]string   `json:"nodeSelector,omitempty"`
@@ -234,6 +232,9 @@ type RegionSpec struct {
 // ContainerSpec is the container spec of a pod
 type ContainerSpec struct {
 	Image           string               `json:"image"`
+	Repository      string               `json:"repository,omitempty"`
+	ImageName       string               `json:"imageName,omitempty"`
+	Tag             string               `json:"tag,omitempty"`
 	ImagePullPolicy corev1.PullPolicy    `json:"imagePullPolicy,omitempty"`
 	Requests        *ResourceRequirement `json:"requests,omitempty"`
 	Limits          *ResourceRequirement `json:"limits,omitempty"`
@@ -309,5 +310,4 @@ type OnecloudClusterConfig struct {
 	Yunionagent  ServiceDBCommonOptions `json:"yunionagent"`
 	KubeServer   ServiceDBCommonOptions `json:"kubeserver"`
 	APIGateway   ServiceCommonOptions   `json:"apiGateway"`
-	CloudMonitor ServiceCommonOptions   `json:"cloudmon"`
 }
