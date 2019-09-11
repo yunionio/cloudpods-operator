@@ -130,7 +130,7 @@ func (conn *Connection) Grant(username string, password string, database string,
 	if database == "" {
 		database = "*"
 	}
-	_, err := conn.db.Exec(fmt.Sprintf("GRANT ALL ON %s.* to '%s'@'%s' IDENTIFIED BY '%s'", database, username, address, password))
+	_, err := conn.db.Exec(fmt.Sprintf("GRANT ALL ON `%s`.* to '%s'@'%s' IDENTIFIED BY '%s'", database, username, address, password))
 	return err
 }
 
@@ -151,12 +151,12 @@ func (conn *Connection) CreateUser(username string, password string, database st
 }
 
 func (conn *Connection) CreateDatabase(db string) error {
-	_, err := conn.db.Exec(fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", db))
+	_, err := conn.db.Exec(fmt.Sprintf("CREATE DATABASE IF NOT EXISTS `%s`", db))
 	return err
 }
 
 func (conn *Connection) DropDatabase(db string) error {
-	_, err := conn.db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", db))
+	_, err := conn.db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS `%s`", db))
 	return err
 }
 
