@@ -401,3 +401,19 @@ func CompileTemplateFromMap(tmplt string, configMap interface{}) (string, error)
 	}
 	return out.String(), nil
 }
+
+func GetEdition(spec *v1alpha1.DeploymentSpec) string {
+	edition := constants.OnecloudCommunityEdition
+	if spec.Annotations == nil {
+		return edition
+	}
+	curEdition := spec.Annotations[constants.OnecloudEditionAnnotationKey]
+	if curEdition == constants.OnecloudEnterpriseEdition {
+		return curEdition
+	}
+	return edition
+}
+
+func IsEnterpriseEdition(spec *v1alpha1.DeploymentSpec) bool {
+	return GetEdition(spec) == constants.OnecloudEnterpriseEdition
+}

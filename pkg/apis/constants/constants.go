@@ -36,6 +36,12 @@ const (
 )
 
 const (
+	OnecloudEditionAnnotationKey string = "onecloud.yunion.io/edition"
+	OnecloudCommunityEdition     string = "ce"
+	OnecloudEnterpriseEdition    string = "ee"
+)
+
+const (
 	OnecloudClusterKind               = "OnecloudCluster"
 	OnecloudClusterConfigKind         = "OnecloudClusterConfig"
 	OnecloudClusterConfigConfigMapKey = OnecloudClusterConfigKind

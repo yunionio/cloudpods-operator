@@ -70,21 +70,30 @@ func (m *apiGatewayManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Ser
 }
 
 func (m *apiGatewayManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
+	spec := &oc.Spec.APIGateway
+	isEE := IsEnterpriseEdition(spec)
 	cf := func(volMounts []corev1.VolumeMount) []corev1.Container {
-		return []corev1.Container{
+		cmd := "/opt/yunion/bin/apigateway"
+		if isEE {
+			cmd = "/opt/yunion/bin/yunionapi"
+		}
+		cs := []corev1.Container{
 			{
 				Name:         "api",
 				Image:        oc.Spec.APIGateway.Image,
-				Command:      []string{"/opt/yunion/bin/yunionapi", "--config", "/etc/yunion/apigateway.conf"},
+				Command:      []string{cmd, "--config", "/etc/yunion/apigateway.conf"},
 				VolumeMounts: volMounts,
 			},
-			{
+		}
+		if isEE {
+			cs = append(cs, corev1.Container{
 				Name:         "ws",
 				Image:        oc.Spec.APIGateway.Image,
 				Command:      []string{"/opt/yunion/bin/ws", "--config", "/etc/yunion/apigateway.conf"},
 				VolumeMounts: volMounts,
-			},
+			})
 		}
+		return cs
 	}
 	deploy, err := m.newDefaultDeploymentNoInit(v1alpha1.APIGatewayComponentType, oc,
 		NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.APIGatewayComponentType), v1alpha1.APIGatewayComponentType),
@@ -94,7 +103,6 @@ func (m *apiGatewayManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1a
 	}
 	podSpec := &deploy.Spec.Template.Spec
 	apiContainer := &podSpec.Containers[0]
-	wsContainer := &podSpec.Containers[1]
 	podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
 		Name: "data",
 		VolumeSource: corev1.VolumeSource{
@@ -106,11 +114,14 @@ func (m *apiGatewayManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1a
 		ReadOnly:  false,
 		MountPath: "/etc/yunion/data/",
 	})
-	wsContainer.VolumeMounts = append(wsContainer.VolumeMounts, corev1.VolumeMount{
-		Name:      "data",
-		ReadOnly:  false,
-		MountPath: "/etc/yunion/data/",
-	})
+	if isEE {
+		wsContainer := &podSpec.Containers[1]
+		wsContainer.VolumeMounts = append(wsContainer.VolumeMounts, corev1.VolumeMount{
+			Name:      "data",
+			ReadOnly:  false,
+			MountPath: "/etc/yunion/data/",
+		})
+	}
 	return deploy, nil
 }
 

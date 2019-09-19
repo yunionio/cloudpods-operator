@@ -81,6 +81,13 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec) {
 		SetDefaults_DeploymentSpec(spec, getImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag))
 	}
 
+	for cType, spec := range map[ComponentType]*DeploymentSpec{
+		APIGatewayComponentType: &obj.APIGateway,
+		WebComponentType:        &obj.Web,
+	} {
+		SetDefaults_DeploymentSpecEdition(spec, cType)
+	}
+
 	type stateDeploy struct {
 		obj     *StatefulDeploymentSpec
 		size    string
@@ -167,6 +174,15 @@ func SetDefaults_DeploymentSpec(obj *DeploymentSpec, image string) {
 				Effect: corev1.TaintEffectNoSchedule,
 			},
 		}...)
+	}
+}
+
+func SetDefaults_DeploymentSpecEdition(obj *DeploymentSpec, cType ComponentType) {
+	if obj.Annotations == nil {
+		obj.Annotations = map[string]string{}
+	}
+	if _, ok := obj.Annotations[constants.OnecloudEditionAnnotationKey]; !ok {
+		obj.Annotations[constants.OnecloudEditionAnnotationKey] = constants.OnecloudCommunityEdition
 	}
 }
 

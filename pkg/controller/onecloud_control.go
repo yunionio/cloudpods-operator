@@ -613,7 +613,10 @@ func (c yunionagentComponent) Setup() error {
 }
 
 func (c yunionagentComponent) SystemInit() error {
-	return c.addWelcomeNotice()
+	if err := c.addWelcomeNotice(); err != nil {
+		klog.Errorf("yunion agent add notices error: %v", err)
+	}
+	return nil
 }
 
 func (c yunionagentComponent) addWelcomeNotice() error {
