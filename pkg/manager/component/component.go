@@ -17,6 +17,7 @@ package component
 import (
 	"fmt"
 
+	errorswrap "github.com/pkg/errors"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
@@ -166,13 +167,13 @@ func (m *ComponentManager) syncConfigMap(
 ) error {
 	clustercfg, err := m.configer.GetClusterConfig(oc)
 	if err != nil {
-		return err
+		return errorswrap.Wrap(err, "get cluster config")
 	}
 	if dbConfigFactory != nil {
 		dbConfig := dbConfigFactory(clustercfg)
 		if dbConfig != nil {
 			if err := EnsureClusterDBUser(oc, *dbConfig); err != nil {
-				return err
+				return errorswrap.Wrap(err, "ensure cluster db user")
 			}
 		}
 	}
@@ -181,10 +182,10 @@ func (m *ComponentManager) syncConfigMap(
 		if account != nil {
 			s, err := m.onecloudControl.GetSession(oc)
 			if err != nil {
-				return err
+				return errorswrap.Wrap(err, "get cloud session")
 			}
 			if err := EnsureServiceAccount(s, *account); err != nil {
-				return err
+				return errorswrap.Wrapf(err, "ensure service account %#v", *account)
 			}
 		}
 	}
@@ -650,4 +651,8 @@ func (m *ComponentManager) APIGateway() manager.Manager {
 
 func (m *ComponentManager) Web() manager.Manager {
 	return newWebManager(m)
+}
+
+func (m *ComponentManager) Notify() manager.Manager {
+	return newNotifyManager(m)
 }

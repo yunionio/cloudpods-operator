@@ -56,6 +56,7 @@ const (
 	YunionagentComponentType ComponentType = "yunionagent"
 	YunionconfComponentType  ComponentType = "yunionconf"
 	KubeServerComponentType  ComponentType = "kubeserver"
+	NotifyComponentType      ComponentType = "notify"
 )
 
 // ComponentPhase is the current state of component
@@ -138,9 +139,11 @@ type OnecloudClusterSpec struct {
 	Web DeploymentSpec `json:"web"`
 	// KubeServer holds configuration for kube-server service
 	KubeServer DeploymentSpec `json:"kubeserver"`
+	// Notify holds configuration for notify service
+	Notify StatefulDeploymentSpec `json:"notify"`
 }
 
-// OnecloudClusterStatus
+// OnecloudClusterStatus describes cluster status
 type OnecloudClusterStatus struct {
 	ClusterID    string           `json:"clusterID,omitempty"`
 	Keystone     KeystoneStatus   `json:"keystone,omitempty"`
@@ -155,6 +158,7 @@ type OnecloudClusterStatus struct {
 	Yunionconf   DeploymentStatus `json:"yunionconf,omitempty"`
 	Yunionagent  DeploymentStatus `json:"yunionagent,omitempty"`
 	KubeServer   DeploymentStatus `json:"kubeserver,omitempty"`
+	Notify       DeploymentStatus `json:"notify,omitempty"`
 }
 
 // Etcd describes an etcd cluster
@@ -310,4 +314,5 @@ type OnecloudClusterConfig struct {
 	Yunionagent  ServiceDBCommonOptions `json:"yunionagent"`
 	KubeServer   ServiceDBCommonOptions `json:"kubeserver"`
 	APIGateway   ServiceCommonOptions   `json:"apiGateway"`
+	Notify       ServiceDBCommonOptions `json:"notify"`
 }

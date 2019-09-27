@@ -23,6 +23,7 @@ import (
 
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/onecloud/pkg/mcclient"
+	"yunion.io/x/onecloud/pkg/mcclient/modulebase"
 	"yunion.io/x/onecloud/pkg/mcclient/modules"
 	"yunion.io/x/onecloud/pkg/util/httputils"
 
@@ -45,7 +46,7 @@ func IsNotFoundError(err error) bool {
 	return false
 }
 
-func IsResourceExists(s *mcclient.ClientSession, manager modules.Manager, name string) (jsonutils.JSONObject, bool, error) {
+func IsResourceExists(s *mcclient.ClientSession, manager modulebase.Manager, name string) (jsonutils.JSONObject, bool, error) {
 	obj, err := manager.Get(s, name, nil)
 	if err == nil {
 		return obj, true, nil
@@ -58,7 +59,7 @@ func IsResourceExists(s *mcclient.ClientSession, manager modules.Manager, name s
 
 func EnsureResource(
 	s *mcclient.ClientSession,
-	man modules.Manager,
+	man modulebase.Manager,
 	name string,
 	createFunc func() (jsonutils.JSONObject, error),
 ) (jsonutils.JSONObject, error) {
@@ -74,7 +75,7 @@ func EnsureResource(
 
 func DeleteResource(
 	s *mcclient.ClientSession,
-	man modules.Manager,
+	man modulebase.Manager,
 	name string,
 ) error {
 	obj, exists, err := IsResourceExists(s, man, name)
@@ -190,7 +191,7 @@ func ChangeUserPassword(s *mcclient.ClientSession, username string, password str
 
 func ProjectAddUser(s *mcclient.ClientSession, projectId string, userId string, roleId string) error {
 	_, err := modules.RolesV3.PutInContexts(s, roleId, nil,
-		[]modules.ManagerContext{
+		[]modulebase.ManagerContext{
 			{InstanceManager: &modules.Projects, InstanceId: projectId},
 			{InstanceManager: &modules.UsersV3, InstanceId: userId},
 		})

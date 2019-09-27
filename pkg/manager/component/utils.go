@@ -417,3 +417,38 @@ func GetEdition(spec *v1alpha1.DeploymentSpec) string {
 func IsEnterpriseEdition(spec *v1alpha1.DeploymentSpec) bool {
 	return GetEdition(spec) == constants.OnecloudEnterpriseEdition
 }
+
+type PVCVolumePair struct {
+	name      string
+	mountPath string
+	claimName string
+	component v1alpha1.ComponentType
+}
+
+func NewPVCVolumePair(name, mountPath string, oc *v1alpha1.OnecloudCluster, comp v1alpha1.ComponentType) *PVCVolumePair {
+	return &PVCVolumePair{
+		name:      name,
+		mountPath: mountPath,
+		claimName: controller.NewClusterComponentName(oc.GetName(), comp),
+		component: comp,
+	}
+}
+
+func (p PVCVolumePair) GetVolume() corev1.Volume {
+	return corev1.Volume{
+		Name: p.name,
+		VolumeSource: corev1.VolumeSource{
+			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+				ClaimName: p.claimName,
+				ReadOnly:  false,
+			},
+		},
+	}
+}
+
+func (p PVCVolumePair) GetVolumeMount() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      p.name,
+		MountPath: p.mountPath,
+	}
+}

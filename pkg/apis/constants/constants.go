@@ -111,6 +111,11 @@ const (
 	YunionConfDB        = "yunionconf"
 	YunionConfDBUser    = "yunionconf"
 
+	NotifyAdminUser = "notify"
+	NotifyPort      = 7777
+	NotifyDB        = "notify"
+	NotifyDBUser    = "notify"
+
 	InfluxdbPort      = 8086
 	InfluxdbDataStore = "/var/lib/influxdb"
 
@@ -153,6 +158,9 @@ const (
 
 	ServiceNameKubeServer = "k8s"
 	ServiceTypeKubeServer = "k8s"
+
+	ServiceNameNotify = "notify"
+	ServiceTypeNotify = "notify"
 
 	ServiceURLCloudmeta  = "https://meta.yunion.cn"
 	ServiceNameCloudmeta = "cloudmeta"

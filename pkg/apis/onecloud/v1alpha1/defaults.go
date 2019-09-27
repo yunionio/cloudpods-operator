@@ -33,6 +33,7 @@ const (
 	DefaultVPCId               = "default"
 	DefaultGlanceStoreageSize  = "100G"
 	DefaultInfluxdbStorageSize = "20G"
+	DefaultNotifyStorageSize   = "1G" // for plugin template
 	// rancher local-path-provisioner: https://github.com/rancher/local-path-provisioner
 	DefaultStorageClass = "local-path"
 
@@ -97,6 +98,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec) {
 		GlanceComponentType:      {&obj.Glance, DefaultGlanceStoreageSize, obj.Version},
 		InfluxdbComponentType:    {&obj.Influxdb, DefaultInfluxdbStorageSize, DefaultInfluxdbImageVersion},
 		YunionagentComponentType: {&obj.Yunionagent, "1G", obj.Version},
+		NotifyComponentType:      {&obj.Notify, DefaultNotifyStorageSize, obj.Version},
 	} {
 		SetDefaults_StatefulDeploymentSpec(cType, spec.obj, spec.size, obj.ImageRepository, spec.version)
 	}
@@ -215,6 +217,7 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		&obj.Yunionagent:                         {constants.YunionAgentAdminUser, constants.YunionAgentPort, constants.YunionAgentDB, constants.YunionAgentDBUser},
 		&obj.Yunionconf:                          {constants.YunionConfAdminUser, constants.YunionConfPort, constants.YunionConfDB, constants.YunionConfDBUser},
 		&obj.KubeServer:                          {constants.KubeServerAdminUser, constants.KubeServerPort, constants.KubeServerDB, constants.KubeServerDBUser},
+		&obj.Notify:                              {constants.NotifyAdminUser, constants.NotifyPort, constants.NotifyDB, constants.NotifyDBUser},
 	} {
 		SetDefaults_ServiceDBCommonOptions(opt, tmp.db, tmp.dbUser, tmp.user, tmp.port)
 	}

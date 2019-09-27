@@ -64,18 +64,21 @@ type cloudComponentFactory interface {
 func syncComponent(factory cloudComponentFactory, oc *v1alpha1.OnecloudCluster) error {
 	m := factory.getComponentManager()
 	if err := m.syncService(oc, factory.getService); err != nil {
-		return err
+		return errors.Wrap(err, "sync service")
 	}
 	if err := m.syncIngress(oc, factory.getIngress); err != nil {
-		return err
+		return errors.Wrap(err, "sync ingress")
 	}
 	if err := m.syncConfigMap(oc, factory.getDBConfig, factory.getCloudUser, factory.getConfigMap); err != nil {
-		return err
+		return errors.Wrap(err, "sync configmap")
 	}
 	if err := m.syncPVC(oc, factory.getPVC); err != nil {
-		return err
+		return errors.Wrapf(err, "sync pvc")
 	}
-	return m.syncDeployment(oc, factory.getDeployment, newPostSyncComponent(factory))
+	if err := m.syncDeployment(oc, factory.getDeployment, newPostSyncComponent(factory)); err != nil {
+		return errors.Wrapf(err, "sync deployment")
+	}
+	return nil
 }
 
 func newPostSyncComponent(f cloudComponentFactory) func(*v1alpha1.OnecloudCluster, *apps.Deployment) error {

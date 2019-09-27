@@ -20,6 +20,9 @@ controller-manager:
 image: build
 	docker build -f images/onecloud-operator/Dockerfile -t $(REGISTRY)/onecloud-operator:$(VERSION) .
 
+image-push: image
+	docker push $(REGISTRY)/onecloud-operator:$(VERSION)
+
 fmt:
 	find . -type f -name "*.go" -not -path "./_output/*" \
 		-not -path "./vendor/*" | xargs gofmt -s -w
