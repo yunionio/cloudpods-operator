@@ -34,7 +34,7 @@ func newClimcComponentManager(base *ComponentManager) manager.Manager {
 }
 
 func (m *climcManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc)
+	return syncComponent(m, oc, oc.Spec.Climc.Disable)
 }
 
 func (m *climcManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {

@@ -37,7 +37,7 @@ func newWebconsoleManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *webconsoleManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc)
+	return syncComponent(m, oc, oc.Spec.Webconsole.Disable)
 }
 
 func (m *webconsoleManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {

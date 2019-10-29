@@ -36,7 +36,7 @@ func newRegionManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *regionManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc)
+	return syncComponent(m, oc, oc.Spec.RegionServer.Disable)
 }
 
 func (m *regionManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

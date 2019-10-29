@@ -35,7 +35,7 @@ func newSchedulerManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *schedulerManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc)
+	return syncComponent(m, oc, oc.Spec.Scheduler.Disable)
 }
 
 func (m *schedulerManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {

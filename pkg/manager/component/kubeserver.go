@@ -45,7 +45,7 @@ type kubeOptions struct {
 }
 
 func (m *kubeManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc)
+	return syncComponent(m, oc, oc.Spec.KubeServer.Disable)
 }
 
 func (m *kubeManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

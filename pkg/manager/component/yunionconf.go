@@ -35,7 +35,7 @@ func newYunionconfManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *yunoinconfManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc)
+	return syncComponent(m, oc, oc.Spec.Yunionconf.Disable)
 }
 
 func (m *yunoinconfManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

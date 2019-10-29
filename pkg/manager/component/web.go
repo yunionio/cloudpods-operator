@@ -32,14 +32,19 @@ const (
 	WebNginxConfigTemplate = `
 server {
     location / {
-        root /usr/share/nginx/html/web;
+        return 301 https://$host/v1/;
+    }
+
+    location ^~/v1 {
+        alias /usr/share/nginx/html/web;
         index index.html;
-        add_header Cache-Control no-cache;
-        expires 1s;
-        if (!-e $request_filename) {
-            rewrite ^/(.*) /index.html last;
-            break;
-        }
+        try_files $uri $uri/ /index.html last;
+    }
+
+    location ^~/v2 {
+        alias /usr/share/nginx/html/dashboard;
+        index index.html;
+        try_files $uri $uri/ /index.html last;
     }
 
     location /static/ {
@@ -227,7 +232,7 @@ func newWebManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *webManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc)
+	return syncComponent(m, oc, oc.Spec.Web.Disable)
 }
 
 func (m *webManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {

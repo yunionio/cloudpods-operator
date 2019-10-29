@@ -37,7 +37,7 @@ func newKeystoneComponentManager(baseMan *ComponentManager) manager.Manager {
 }
 
 func (m *keystoneManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc)
+	return syncComponent(m, oc, oc.Spec.Keystone.Disable)
 }
 
 func (m *keystoneManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

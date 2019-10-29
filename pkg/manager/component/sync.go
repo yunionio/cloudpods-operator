@@ -19,6 +19,7 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
+	"k8s.io/klog"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
@@ -61,7 +62,11 @@ type cloudComponentFactory interface {
 	pvcFactory
 }
 
-func syncComponent(factory cloudComponentFactory, oc *v1alpha1.OnecloudCluster) error {
+func syncComponent(factory cloudComponentFactory, oc *v1alpha1.OnecloudCluster, isDisable bool) error {
+	if isDisable {
+		klog.Infof("component %#v is disable, skip sync", factory)
+		return nil
+	}
 	m := factory.getComponentManager()
 	if err := m.syncService(oc, factory.getService); err != nil {
 		return errors.Wrap(err, "sync service")

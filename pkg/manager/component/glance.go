@@ -34,7 +34,7 @@ func newGlanceManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *glanceManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc)
+	return syncComponent(m, oc, oc.Spec.Glance.Disable)
 }
 
 func (m *glanceManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

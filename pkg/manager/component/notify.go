@@ -51,7 +51,7 @@ func newNotifyManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *notifyManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc)
+	return syncComponent(m, oc, oc.Spec.Notify.Disable)
 }
 
 func (m *notifyManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

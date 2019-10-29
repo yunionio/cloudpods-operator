@@ -35,7 +35,7 @@ func newLoggerManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *loggerManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc)
+	return syncComponent(m, oc, oc.Spec.Logger.Disable)
 }
 
 func (m *loggerManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

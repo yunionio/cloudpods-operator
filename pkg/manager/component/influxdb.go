@@ -75,7 +75,7 @@ func newInfluxdbManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *influxdbManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc)
+	return syncComponent(m, oc, oc.Spec.Influxdb.Disable)
 }
 
 func (m *influxdbManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {

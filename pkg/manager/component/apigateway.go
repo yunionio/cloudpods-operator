@@ -35,7 +35,7 @@ func newAPIGatewayManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *apiGatewayManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc)
+	return syncComponent(m, oc, oc.Spec.APIGateway.Disable)
 }
 
 type apiOptions struct {
