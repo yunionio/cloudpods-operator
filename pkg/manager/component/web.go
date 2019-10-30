@@ -29,8 +29,19 @@ import (
 )
 
 const (
-	WebNginxConfigTemplate = `
-server {
+	CEConfig = `
+    location / {
+        root /usr/share/nginx/html/web;
+		index index.html;
+		add_header Cache-Control no-cache;
+		expires 1s;
+		if (!-e $request_filename) {
+
+		}
+    }
+`
+
+	EEConfig = `
     location / {
         return 301 https://$host/v1/;
     }
@@ -46,29 +57,15 @@ server {
         index index.html;
         try_files $uri $uri/ /index.html last;
     }
+`
+
+	WebNginxConfigTemplate = `
+server {
+{{.EditionConfig}}
 
     location /static/ {
         # Some basic cache-control for static files to be sent to the browser
         root /usr/share/nginx/html/web;
-        expires max;
-        add_header Pragma public;
-        add_header Cache-Control "public, must-revalidate, proxy-revalidate";
-    }
-
-    location /auth {
-        alias /usr/share/nginx/html/login;
-        index index.html;
-        add_header Cache-Control no-cache;
-        expires 1s;
-        if (!-e $request_filename) {
-            rewrite ^/(.*) /auth/index.html last;
-            break;
-        }
-    }
-
-    # location ~* ^static-auth/.*(?:js|css|png|jpg|jpeg|gif|ico|swf|woff|tff|ttf|json|txt)$ {
-    location /static-auth/ {
-        root /usr/share/nginx/html/login;
         expires max;
         add_header Pragma public;
         add_header Cache-Control "public, must-revalidate, proxy-revalidate";
@@ -214,6 +211,7 @@ server {
 )
 
 type WebNginxConfig struct {
+	EditionConfig   string
 	WebconsoleURL   string
 	APIGatewayWsURL string
 	APIGatewayURL   string
@@ -288,7 +286,13 @@ func (m *webManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.On
 	urlF := func(ct v1alpha1.ComponentType, port int) string {
 		return fmt.Sprintf("https://%s:%d", controller.NewClusterComponentName(oc.GetName(), ct), port)
 	}
+	conf := CEConfig
+	isEE := IsEnterpriseEdition(&oc.Spec.Web)
+	if isEE {
+		conf = EEConfig
+	}
 	config := WebNginxConfig{
+		EditionConfig:   conf,
 		WebconsoleURL:   urlF(v1alpha1.WebconsoleComponentType, constants.WebconsolePort),
 		APIGatewayWsURL: urlF(v1alpha1.APIGatewayComponentType, constants.APIWebsocketPort),
 		APIGatewayURL:   urlF(v1alpha1.APIGatewayComponentType, constants.APIGatewayPort),
