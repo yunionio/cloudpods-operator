@@ -125,6 +125,8 @@ server {
         proxy_buffers   32 16k;
         proxy_busy_buffers_size 16k;
         proxy_temp_file_write_size 16k;
+
+        client_max_body_size 10g;
     }
 
     location /api/v1/imageutils/upload {
