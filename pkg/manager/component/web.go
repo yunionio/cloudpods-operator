@@ -61,6 +61,17 @@ const (
 
 	WebNginxConfigTemplate = `
 server {
+    gzip_static on;
+    gzip on;
+    gzip_proxied any;
+    gzip_min_length  1k;
+    gzip_buffers     4 16k;
+    gzip_http_version 1.0;
+    gzip_comp_level 5;
+    gzip_types text/plain application/javascript application/css text/css application/xml text/javascript application/x-httpd-php image/jpeg image/gif image/png;
+    gzip_vary on;
+    chunked_transfer_encoding off;
+
 {{.EditionConfig}}
 
     location /static/ {
