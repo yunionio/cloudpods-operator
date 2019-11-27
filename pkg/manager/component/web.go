@@ -36,7 +36,8 @@ const (
 		add_header Cache-Control no-cache;
 		expires 1s;
 		if (!-e $request_filename) {
-
+			rewrite ^/(.*) /index.html last;
+			break;
 		}
     }
 `
