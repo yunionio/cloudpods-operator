@@ -70,14 +70,15 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec) {
 	SetDefaults_RegionSpec(&obj.RegionServer, obj.ImageRepository, obj.Version)
 
 	for cType, spec := range map[ComponentType]*DeploymentSpec{
-		ClimcComponentType:      &obj.Climc,
-		WebconsoleComponentType: &obj.Webconsole,
-		SchedulerComponentType:  &obj.Scheduler,
-		LoggerComponentType:     &obj.Logger,
-		YunionconfComponentType: &obj.Yunionconf,
-		APIGatewayComponentType: &obj.APIGateway,
-		WebComponentType:        &obj.Web,
-		KubeServerComponentType: &obj.KubeServer,
+		ClimcComponentType:         &obj.Climc,
+		WebconsoleComponentType:    &obj.Webconsole,
+		SchedulerComponentType:     &obj.Scheduler,
+		LoggerComponentType:        &obj.Logger,
+		YunionconfComponentType:    &obj.Yunionconf,
+		APIGatewayComponentType:    &obj.APIGateway,
+		WebComponentType:           &obj.Web,
+		KubeServerComponentType:    &obj.KubeServer,
+		AnsibleServerComponentType: &obj.AnsibleServer,
 	} {
 		SetDefaults_DeploymentSpec(spec, getImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag))
 	}
@@ -217,6 +218,7 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		&obj.Yunionagent:                         {constants.YunionAgentAdminUser, constants.YunionAgentPort, constants.YunionAgentDB, constants.YunionAgentDBUser},
 		&obj.Yunionconf:                          {constants.YunionConfAdminUser, constants.YunionConfPort, constants.YunionConfDB, constants.YunionConfDBUser},
 		&obj.KubeServer:                          {constants.KubeServerAdminUser, constants.KubeServerPort, constants.KubeServerDB, constants.KubeServerDBUser},
+		&obj.AnsibleServer:                       {constants.AnsibleServerAdminUser, constants.AnsibleServerPort, constants.AnsibleServerDB, constants.AnsibleServerDBUser},
 		&obj.Notify:                              {constants.NotifyAdminUser, constants.NotifyPort, constants.NotifyDB, constants.NotifyDBUser},
 	} {
 		SetDefaults_ServiceDBCommonOptions(opt, tmp.db, tmp.dbUser, tmp.user, tmp.port)

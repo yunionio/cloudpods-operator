@@ -123,6 +123,7 @@ const (
 	AnsibleServerAdminProject = SysAdminProject
 	AnsibleServerPort         = 8890
 	AnsibleServerDB           = "yunionansible"
+	AnsibleServerDBUser       = "yunionansible"
 
 	EndpointTypeInternal = "internal"
 	EndpointTypePublic   = "public"
@@ -158,6 +159,9 @@ const (
 
 	ServiceNameKubeServer = "k8s"
 	ServiceTypeKubeServer = "k8s"
+
+	ServiceNameAnsibleServer = "ansible"
+	ServiceTypeAnsibleServer = "ansible"
 
 	ServiceNameNotify = "notify"
 	ServiceTypeNotify = "notify"

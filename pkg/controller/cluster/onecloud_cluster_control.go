@@ -98,6 +98,7 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 		components.Yunionagent(),
 		components.Yunionconf(),
 		components.KubeServer(),
+		components.AnsibleServer(),
 		components.APIGateway(),
 		components.Web(),
 		components.Notify(),
