@@ -1,6 +1,6 @@
 # onecloud-operator 工作原理
 
-onecloud operator 作为一个长期运行的服务运行再 kubernetes 集群内部，作用是自动搭建和维护 onecloud 所有服务。
+onecloud operator 作为一个长期运行的服务运行在 kubernetes 集群内部，作用是自动搭建和维护 onecloud 所有服务。
 
 原理是 watch [OnecloudCluster](https://github.com/yunionio/onecloud-operator/blob/4c871ae1d3d6774a827834464c480287b7b8b433/pkg/apis/onecloud/v1alpha1/types.go#L76) 自定义资源(CRD) 的创建、更新和删除，然后对应 onecloud 不同服务做不同的操作。
 
