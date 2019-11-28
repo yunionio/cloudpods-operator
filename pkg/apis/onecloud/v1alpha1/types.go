@@ -57,6 +57,7 @@ const (
 	YunionconfComponentType    ComponentType = "yunionconf"
 	KubeServerComponentType    ComponentType = "kubeserver"
 	AnsibleServerComponentType ComponentType = "ansibleserver"
+	CloudnetComponentType      ComponentType = "cloudnet"
 	NotifyComponentType        ComponentType = "notify"
 )
 
@@ -142,6 +143,8 @@ type OnecloudClusterSpec struct {
 	KubeServer DeploymentSpec `json:"kubeserver"`
 	// AnsibleServer holds configuration for ansibleserver service
 	AnsibleServer DeploymentSpec `json:"ansibleserver"`
+	// Cloudnet holds configuration for cloudnet service
+	Cloudnet DeploymentSpec `json:"cloudnet"`
 	// Notify holds configuration for notify service
 	Notify StatefulDeploymentSpec `json:"notify"`
 }
@@ -162,6 +165,7 @@ type OnecloudClusterStatus struct {
 	Yunionagent   DeploymentStatus `json:"yunionagent,omitempty"`
 	KubeServer    DeploymentStatus `json:"kubeserver,omitempty"`
 	AnsibleServer DeploymentStatus `json:"ansibleserver,omitempty"`
+	Cloudnet      DeploymentStatus `json:"cloudnet,omitempty"`
 	Notify        DeploymentStatus `json:"notify,omitempty"`
 }
 
@@ -318,6 +322,7 @@ type OnecloudClusterConfig struct {
 	Yunionagent   ServiceDBCommonOptions `json:"yunionagent"`
 	KubeServer    ServiceDBCommonOptions `json:"kubeserver"`
 	AnsibleServer ServiceDBCommonOptions `json:"ansibleserver"`
+	Cloudnet      ServiceDBCommonOptions `json:"cloudnet"`
 	APIGateway    ServiceCommonOptions   `json:"apiGateway"`
 	Notify        ServiceDBCommonOptions `json:"notify"`
 }

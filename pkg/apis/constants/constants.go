@@ -125,6 +125,12 @@ const (
 	AnsibleServerDB           = "yunionansible"
 	AnsibleServerDBUser       = "yunionansible"
 
+	CloudnetAdminUser    = "cloudnetadmin"
+	CloudnetAdminProject = SysAdminProject
+	CloudnetPort         = 8891
+	CloudnetDB           = "yunioncloudnet"
+	CloudnetDBUser       = "yunioncloudnet"
+
 	EndpointTypeInternal = "internal"
 	EndpointTypePublic   = "public"
 	EndpointTypeAdmin    = "admin"
@@ -162,6 +168,9 @@ const (
 
 	ServiceNameAnsibleServer = "ansible"
 	ServiceTypeAnsibleServer = "ansible"
+
+	ServiceNameCloudnet = "cloudnet"
+	ServiceTypeCloudnet = "cloudnet"
 
 	ServiceNameNotify = "notify"
 	ServiceTypeNotify = "notify"

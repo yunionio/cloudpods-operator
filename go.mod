@@ -4,17 +4,15 @@ go 1.12
 
 require (
 	github.com/go-sql-driver/mysql v1.4.1
-	github.com/google/gofuzz v1.0.0 // indirect
 	github.com/googleapis/gnostic v0.3.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.1 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
-	github.com/json-iterator/go v1.1.6 // indirect
 	github.com/onsi/ginkgo v1.8.0 // indirect
 	github.com/onsi/gomega v1.5.0 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/ugorji/go/codec v1.1.7 // indirect
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45 // indirect
-	golang.org/x/sync v0.0.0-20190227155943-e225da77a7e6
+	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
 	k8s.io/api v0.0.0
 	k8s.io/apiextensions-apiserver v0.0.0
@@ -24,9 +22,9 @@ require (
 	k8s.io/kube-openapi v0.0.0-20190603182131-db7b694dc208 // indirect
 	k8s.io/kubernetes v1.15.1
 	k8s.io/utils v0.0.0-20190607212802-c55fbcfc754a // indirect
-	yunion.io/x/jsonutils v0.0.0-20190625054549-a964e1e8a051
-	yunion.io/x/onecloud v0.0.0-20190925132930-49a2c10dec96
-	yunion.io/x/pkg v0.0.0-20190917154624-e89986e4e4d8
+	yunion.io/x/jsonutils v0.0.0-20191005115334-bb1c187fc0e7
+	yunion.io/x/onecloud v0.0.0-20191128102229-9b27b0d7bf0e
+	yunion.io/x/pkg v0.0.0-20191121110824-e03b47b93fe0
 	yunion.io/x/structarg v0.0.0-20190809075558-115bed041de3
 )
 
@@ -53,5 +51,4 @@ replace (
 	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.0.0-20190620090156-2138f2c9de18
 	k8s.io/metrics => k8s.io/metrics v0.0.0-20190620085625-3b22d835f165
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.0.0-20190620085408-1aef9010884e
-	yunion.io/x/onecloud => yunion.io/x/onecloud v0.0.0-20190925132930-49a2c10dec96
 )
