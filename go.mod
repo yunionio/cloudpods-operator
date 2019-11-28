@@ -25,7 +25,6 @@ require (
 	k8s.io/kubernetes v1.15.1
 	k8s.io/utils v0.0.0-20190607212802-c55fbcfc754a // indirect
 	yunion.io/x/jsonutils v0.0.0-20190625054549-a964e1e8a051
-	yunion.io/x/log v0.0.0-20190629062853-9f6483a7103d
 	yunion.io/x/onecloud v0.0.0-20190925132930-49a2c10dec96
 	yunion.io/x/pkg v0.0.0-20190917154624-e89986e4e4d8
 	yunion.io/x/structarg v0.0.0-20190809075558-115bed041de3
