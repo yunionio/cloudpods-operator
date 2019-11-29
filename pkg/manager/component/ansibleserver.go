@@ -50,7 +50,7 @@ func (m *ansibleManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1al
 func (m *ansibleManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
 	return controller.NewRegisterEndpointComponent(man, v1alpha1.AnsibleServerComponentType,
 		constants.ServiceNameAnsibleServer, constants.ServiceTypeAnsibleServer,
-		constants.AnsibleServerPort, "api")
+		constants.AnsibleServerPort, "")
 }
 
 func (m *ansibleManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
