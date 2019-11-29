@@ -1,0 +1,4 @@
+git:
+  changelog: "git log --pretty=format:\"* %s (%h)\" ${latestTag}...HEAD --no-merges"
+github:
+  release: true
