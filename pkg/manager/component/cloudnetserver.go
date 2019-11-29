@@ -50,7 +50,7 @@ func (m *cloudnetManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1a
 func (m *cloudnetManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
 	return controller.NewRegisterEndpointComponent(man, v1alpha1.CloudnetComponentType,
 		constants.ServiceNameCloudnet, constants.ServiceTypeCloudnet,
-		constants.CloudnetPort, "api")
+		constants.CloudnetPort, "")
 }
 
 func (m *cloudnetManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
