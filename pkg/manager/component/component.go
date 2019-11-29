@@ -645,6 +645,14 @@ func (m *ComponentManager) KubeServer() manager.Manager {
 	return newKubeManager(m)
 }
 
+func (m *ComponentManager) AnsibleServer() manager.Manager {
+	return newAnsibleManager(m)
+}
+
+func (m *ComponentManager) Cloudnet() manager.Manager {
+	return newCloudnetManager(m)
+}
+
 func (m *ComponentManager) APIGateway() manager.Manager {
 	return newAPIGatewayManager(m)
 }

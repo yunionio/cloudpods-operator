@@ -200,7 +200,7 @@ func (m *keystoneManager) getConfigMap(oc *v1alpha1.OnecloudCluster, clusterCfg 
 func (m *keystoneManager) getDeployment(oc *v1alpha1.OnecloudCluster, _ *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error)
 ```
 
-这些 get 函数的作用是生成对应的 k8s 资源或者配置，外层的 sync 机制会周期性的调用这些方法拿到返回值，如果对应资源不存在就创建，存在则更具差异更新。
+这些 get 函数的作用是生成对应的 k8s 资源或者配置，外层的 sync 机制会周期性的调用这些方法拿到返回值，如果对应资源不存在就创建，存在则根据差异更新。
 还有一些其他的函数像 getPVC，getIngress，机制都和 keystone 上面的 get 函数一样，如果该服务需要这些 k8s 资源，则实现对应的函数即可。
 
 ### 添加新服务
@@ -213,6 +213,6 @@ func (m *keystoneManager) getDeployment(oc *v1alpha1.OnecloudCluster, _ *v1alpha
 
 3. 调用 **hack/codegen.sh** 脚本自动生成更新代码。
 
-4. 到 **pkg/manager/component/** 目录编写服务相关服务依赖资源和配置的代码，然后像 **pkg/manager/component/component.go** 里面的 ComponentManager 绑定 *func (m *ComponentManager) YourService() manager.Manager { return newYourServiceManager(m) }* 方法。
+4. 到 **pkg/manager/component/** 目录编写服务相关服务依赖资源和配置的代码，然后像 **pkg/manager/component/component.go** 里面的 ComponentManager 绑定 `func (m *ComponentManager) YourService() manager.Manager { return newYourServiceManager(m) }` 方法。
 
 5. 到 **pkg/controller/cluster/onecloud_cluster_control.go** 里面的 updateOnecloudCluster 函数里面添加 **components.YourService()** 方法。

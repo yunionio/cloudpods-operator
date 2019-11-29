@@ -123,6 +123,13 @@ const (
 	AnsibleServerAdminProject = SysAdminProject
 	AnsibleServerPort         = 8890
 	AnsibleServerDB           = "yunionansible"
+	AnsibleServerDBUser       = "yunionansible"
+
+	CloudnetAdminUser    = "cloudnetadmin"
+	CloudnetAdminProject = SysAdminProject
+	CloudnetPort         = 8891
+	CloudnetDB           = "yunioncloudnet"
+	CloudnetDBUser       = "yunioncloudnet"
 
 	EndpointTypeInternal = "internal"
 	EndpointTypePublic   = "public"
@@ -158,6 +165,12 @@ const (
 
 	ServiceNameKubeServer = "k8s"
 	ServiceTypeKubeServer = "k8s"
+
+	ServiceNameAnsibleServer = "ansible"
+	ServiceTypeAnsibleServer = "ansible"
+
+	ServiceNameCloudnet = "cloudnet"
+	ServiceTypeCloudnet = "cloudnet"
 
 	ServiceNameNotify = "notify"
 	ServiceTypeNotify = "notify"
