@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
 	"path"
 	"reflect"
 	"text/template"
@@ -125,6 +126,26 @@ func SetDeploymentLastAppliedConfigAnnotation(deploy *apps.Deployment) error {
 	return nil
 }
 
+func SetDaemonSetLastAppliedConfigAnnotation(ds *apps.DaemonSet) error {
+	dsApply, err := encode(ds.Spec)
+	if err != nil {
+		return err
+	}
+	if ds.Annotations == nil {
+		ds.Annotations = map[string]string{}
+	}
+	ds.Annotations[LastAppliedConfigAnnotation] = dsApply
+	templateApply, err := encode(ds.Spec.Template.Spec)
+	if err != nil {
+		return err
+	}
+	if ds.Spec.Template.Annotations == nil {
+		ds.Spec.Template.Annotations = map[string]string{}
+	}
+	ds.Spec.Template.Annotations[LastAppliedConfigAnnotation] = templateApply
+	return nil
+}
+
 // serviceEqual compares the new Service's spec with old Service's last applied config
 func serviceEqual(new, old *corev1.Service) (bool, error) {
 	oldSpec := corev1.ServiceSpec{}
@@ -168,12 +189,27 @@ func deploymentEqual(new apps.Deployment, old apps.Deployment) bool {
 	if lastAppliedConfig, ok := old.Annotations[LastAppliedConfigAnnotation]; ok {
 		err := json.Unmarshal([]byte(lastAppliedConfig), &oldConfig)
 		if err != nil {
-			klog.Errorf("unmarshal Deployment: [%s/%s]'s applied config failed, error: %v", old.GetNamespace(), old.GetName(), err)
+			klog.Errorf("unmarshal Deployment: [%s/%s]'s applied config failed, error: %v",
+				old.GetNamespace(), old.GetName(), err)
 			return false
 		}
 		return apiequality.Semantic.DeepEqual(oldConfig.Replicas, new.Spec.Replicas) &&
 			apiequality.Semantic.DeepEqual(oldConfig.Template, new.Spec.Template) &&
 			apiequality.Semantic.DeepEqual(oldConfig.Strategy, new.Spec.Strategy)
+	}
+	return false
+}
+
+func daemonSetEqual(new, old *apps.DaemonSet) bool {
+	oldConfig := apps.DaemonSetSpec{}
+	if lastAppliedConfig, ok := old.Annotations[LastAppliedConfigAnnotation]; ok {
+		err := json.Unmarshal([]byte(lastAppliedConfig), &oldConfig)
+		if err != nil {
+			klog.Errorf("unmarshal DaemonSet: [%s/%s]'s applied config failed, error: %v",
+				old.GetNamespace(), old.GetName(), err)
+			return false
+		}
+		return apiequality.Semantic.DeepEqual(oldConfig.Template, new.Spec.Template)
 	}
 	return false
 }
@@ -451,4 +487,220 @@ func (p PVCVolumePair) GetVolumeMount() corev1.VolumeMount {
 		Name:      p.name,
 		MountPath: p.mountPath,
 	}
+}
+
+func ensureOptCloudExist() error {
+	if f, err := os.Stat("/opt/cloud"); os.IsNotExist(err) {
+		if err = os.MkdirAll("/opt/cloud", os.ModePerm); err != nil {
+			return errors.Wrap(err, "mkdir opt cloud")
+		}
+	} else if err != nil {
+		return errors.Wrap(err, "stat opt cloud")
+	} else {
+		if !f.Mode().IsDir() {
+			return errors.New("/opt/cloud is regular file")
+		}
+	}
+	return nil
+}
+
+func NewHostVolume(
+	cType v1alpha1.ComponentType,
+	oc *v1alpha1.OnecloudCluster,
+	configMap string,
+) *VolumeHelper {
+	h := &VolumeHelper{
+		cluster:      oc,
+		optionCfgMap: configMap,
+		component:    cType,
+	}
+
+	// volumes mounts
+	var bidirectional = corev1.MountPropagationBidirectional
+	h.volumeMounts = []corev1.VolumeMount{
+		{
+			Name:      "etc",
+			ReadOnly:  false,
+			MountPath: "/etc",
+		},
+		{
+			Name:      constants.VolumeCertsName,
+			ReadOnly:  true,
+			MountPath: constants.CertDir,
+		},
+		{
+			Name:      constants.VolumeConfigName,
+			ReadOnly:  true,
+			MountPath: path.Join(constants.ConfigDir, "common"),
+		},
+		{
+			Name:      "opt",
+			ReadOnly:  false,
+			MountPath: "/opt/cloud",
+		},
+		{
+			Name:      "usr",
+			ReadOnly:  false,
+			MountPath: "/usr/local",
+		},
+		{
+			Name:      "proc",
+			ReadOnly:  false,
+			MountPath: "/proc",
+		},
+		{
+			Name:      "dev",
+			ReadOnly:  false,
+			MountPath: "/dev",
+		},
+		{
+			Name:      "run",
+			ReadOnly:  false,
+			MountPath: "/var/run",
+		},
+		{
+			Name:      "sys",
+			ReadOnly:  false,
+			MountPath: "/sys",
+		},
+		{
+			Name:             "tmp",
+			ReadOnly:         false,
+			MountPath:        "/tmp",
+			MountPropagation: &bidirectional,
+		},
+		{
+			Name:      "modules",
+			ReadOnly:  false,
+			MountPath: "/lib/modules",
+		},
+		{
+			Name:      "modprobes",
+			ReadOnly:  false,
+			MountPath: "/lib/modprobe.d",
+		},
+	}
+
+	// volumes
+	var hostPathDirectory = corev1.HostPathDirectory
+	h.volumes = []corev1.Volume{
+		{
+			Name: "etc",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/etc",
+					Type: &hostPathDirectory,
+				},
+			},
+		},
+		{
+			Name: constants.VolumeCertsName,
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: controller.ClustercertSecretName(h.cluster),
+					Items: []corev1.KeyToPath{
+						{Key: constants.CACertName, Path: constants.CACertName},
+						{Key: constants.ServiceCertName, Path: constants.ServiceCertName},
+						{Key: constants.ServiceKeyName, Path: constants.ServiceKeyName},
+					},
+				},
+			},
+		},
+		{
+			Name: constants.VolumeConfigName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: h.optionCfgMap,
+					},
+					Items: []corev1.KeyToPath{
+						{Key: constants.VolumeConfigName, Path: "common.conf"},
+					},
+				},
+			},
+		},
+		{
+			Name: "opt",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/opt/cloud",
+					Type: &hostPathDirectory,
+				},
+			},
+		},
+		{
+			Name: "usr",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/usr/local",
+					Type: &hostPathDirectory,
+				},
+			},
+		},
+		{
+			Name: "proc",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/proc",
+					Type: &hostPathDirectory,
+				},
+			},
+		},
+		{
+			Name: "dev",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/dev",
+					Type: &hostPathDirectory,
+				},
+			},
+		},
+		{
+			Name: "run",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/var/run",
+					Type: &hostPathDirectory,
+				},
+			},
+		},
+		{
+			Name: "sys",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/sys",
+					Type: &hostPathDirectory,
+				},
+			},
+		},
+		{
+			Name: "tmp",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/tmp",
+					Type: &hostPathDirectory,
+				},
+			},
+		},
+		{
+			Name: "modules",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/lib/modules",
+					Type: &hostPathDirectory,
+				},
+			},
+		},
+		{
+			Name: "modprobes",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/lib/modprobe.d",
+					Type: &hostPathDirectory,
+				},
+			},
+		},
+	}
+
+	return h
 }

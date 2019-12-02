@@ -53,6 +53,10 @@ type deploymentFactory interface {
 	getDeployment(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error)
 }
 
+type daemonSetFactory interface {
+	getDaemonSet(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig) (*apps.DaemonSet, error)
+}
+
 type cloudComponentFactory interface {
 	syncManager
 	serviceFactory
@@ -60,6 +64,7 @@ type cloudComponentFactory interface {
 	configMapFactory
 	deploymentFactory
 	pvcFactory
+	daemonSetFactory
 }
 
 func syncComponent(factory cloudComponentFactory, oc *v1alpha1.OnecloudCluster, isDisable bool) error {
@@ -82,6 +87,9 @@ func syncComponent(factory cloudComponentFactory, oc *v1alpha1.OnecloudCluster, 
 	}
 	if err := m.syncDeployment(oc, factory.getDeployment, newPostSyncComponent(factory)); err != nil {
 		return errors.Wrapf(err, "sync deployment")
+	}
+	if err := m.syncDaemonSet(oc, factory.getDaemonSet); err != nil {
+		return errors.Wrapf(err, "sync daemonset")
 	}
 	return nil
 }
