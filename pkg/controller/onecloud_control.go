@@ -349,6 +349,9 @@ func (c keystoneComponent) SystemInit() error {
 	if err := doRegisterTracker(s, region); err != nil {
 		return errors.Wrap(err, "register tracker endpoint")
 	}
+	if err := doRegisterFakeAutoUpdate(s, region); err != nil {
+		return errors.Wrap(err, "register fake autoupdate endpoint")
+	}
 	if err := makeDomainAdminPublic(s); err != nil {
 		return errors.Wrap(err, "always share domainadmin")
 	}
@@ -408,6 +411,14 @@ func doRegisterTracker(s *mcclient.ClientSession, regionId string) error {
 		constants.ServiceNameTorrentTracker,
 		constants.ServiceTypeTorrentTracker,
 		constants.ServiceURLTorrentTracker)
+}
+
+func doRegisterFakeAutoUpdate(s *mcclient.ClientSession, regionId string) error {
+	return onecloud.RegisterServicePublicInternalEndpoint(
+		s, regionId,
+		constants.ServiceNameAutoUpdate,
+		constants.ServiceTypeAutoUpdate,
+		constants.ServiceURLFakeAutoUpdate)
 }
 
 func (c *keystoneComponent) doRegisterIdentity(
