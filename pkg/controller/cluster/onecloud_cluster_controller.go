@@ -94,12 +94,14 @@ func NewController(
 	cfgInformer := kubeInformerFactory.Core().V1().ConfigMaps()
 	pvcInformer := kubeInformerFactory.Core().V1().PersistentVolumeClaims()
 	ingInformer := kubeInformerFactory.Extensions().V1beta1().Ingresses()
+	dsInformer := kubeInformerFactory.Apps().V1().DaemonSets()
 
 	ocControl := controller.NewClusterControl(cli, ocInformer.Lister(), recorder)
 	deployControl := controller.NewDeploymentControl(kubeCli, deployInformer.Lister(), recorder)
 	svcControl := controller.NewServiceControl(kubeCli, svcInformer.Lister(), recorder)
 	cfgControl := controller.NewConfigMapControl(kubeCli, cfgInformer.Lister(), recorder)
 	ingControl := controller.NewIngressControl(kubeCli, ingInformer.Lister(), recorder)
+	dsControl := controller.NewDaemonSetControl(kubeCli, dsInformer.Lister(), recorder)
 
 	configer := config.NewConfigManager(cfgControl, cfgInformer.Lister())
 	certControl := controller.NewOnecloudCertControl(kubeCli, secretInformer.Lister(), recorder)
@@ -111,6 +113,7 @@ func NewController(
 		svcControl, svcInformer.Lister(),
 		pvcControl, pvcInformer.Lister(),
 		ingControl, ingInformer.Lister(),
+		dsControl, dsInformer.Lister(),
 		configer, onecloudControl)
 
 	c := &Controller{

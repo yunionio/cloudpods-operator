@@ -45,6 +45,8 @@ type ComponentManager struct {
 	pvcLister     corelisters.PersistentVolumeClaimLister
 	ingControl    controller.IngressControlInterface
 	ingLister     extensionlisters.IngressLister
+	dsControl     controller.DaemonSetControlInterface
+	dsLister      appv1.DaemonSetLister
 
 	configer        Configer
 	onecloudControl *controller.OnecloudControl
@@ -60,6 +62,8 @@ func NewComponentManager(
 	pvcLister corelisters.PersistentVolumeClaimLister,
 	ingControl controller.IngressControlInterface,
 	ingLister extensionlisters.IngressLister,
+	dsControl controller.DaemonSetControlInterface,
+	dsLister appv1.DaemonSetLister,
 	configer Configer,
 	onecloudControl *controller.OnecloudControl,
 ) *ComponentManager {
@@ -72,6 +76,8 @@ func NewComponentManager(
 		pvcLister:       pvcLister,
 		ingControl:      ingControl,
 		ingLister:       ingLister,
+		dsControl:       dsControl,
+		dsLister:        dsLister,
 		configer:        configer,
 		onecloudControl: onecloudControl,
 	}
@@ -210,6 +216,51 @@ func (m *ComponentManager) syncConfigMap(
 	return m.configer.CreateOrUpdateConfigMap(oc, cfgMap)
 }
 
+func (m *ComponentManager) syncDaemonSet(
+	oc *v1alpha1.OnecloudCluster,
+	dsFactory func(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig) (*apps.DaemonSet, error),
+) error {
+	//ocName := oc.GetName()
+	ns := oc.GetNamespace()
+	cfg, err := m.configer.GetClusterConfig(oc)
+	if err != nil {
+		return err
+	}
+	newDs, err := dsFactory(oc, cfg)
+	if err != nil {
+		return err
+	}
+	if newDs == nil {
+		return nil
+	}
+	oldDsTmp, err := m.dsLister.DaemonSets(ns).Get(newDs.GetName())
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+	if errors.IsNotFound(err) {
+		return m.dsControl.CreateDaemonSet(oc, newDs)
+	}
+	oldDs := oldDsTmp.DeepCopy()
+	if err = m.updateDaemonSet(oc, newDs, oldDs); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *ComponentManager) updateDaemonSet(oc *v1alpha1.OnecloudCluster, newDs, oldDs *apps.DaemonSet) error {
+	if !daemonSetEqual(newDs, oldDs) {
+		ds := *oldDs
+		ds.Spec.Template = newDs.Spec.Template
+		err := SetDaemonSetLastAppliedConfigAnnotation(&ds)
+		if err != nil {
+			return err
+		}
+		_, err = m.dsControl.UpdateDaemonSet(oc, &ds)
+		return err
+	}
+	return nil
+}
+
 func (m *ComponentManager) syncDeployment(
 	oc *v1alpha1.OnecloudCluster,
 	deploymentFactory func(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error),
@@ -225,17 +276,19 @@ func (m *ComponentManager) syncDeployment(
 	if err != nil {
 		return err
 	}
+	if newDeploy == nil {
+		return nil
+	}
 
 	oldDeployTmp, err := m.deployLister.Deployments(ns).Get(newDeploy.GetName())
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
 	if errors.IsNotFound(err) {
-		err = SetDeploymentLastAppliedConfigAnnotation(newDeploy)
-		if err != nil {
+		if err = SetDeploymentLastAppliedConfigAnnotation(newDeploy); err != nil {
 			return err
 		}
-		if err := m.deployControl.CreateDeployment(oc, newDeploy); err != nil {
+		if err = m.deployControl.CreateDeployment(oc, newDeploy); err != nil {
 			return err
 		}
 		oc.Status.Keystone.Deployment = &apps.DeploymentStatus{}
@@ -511,6 +564,54 @@ func (m *ComponentManager) deploymentIsUpgrading(deploy *apps.Deployment, oc *v1
 	return false, nil
 }
 
+func (m *ComponentManager) newDaemonSet(
+	componentType v1alpha1.ComponentType,
+	oc *v1alpha1.OnecloudCluster,
+	cfg *v1alpha1.OnecloudClusterConfig,
+	volHelper *VolumeHelper,
+	spec v1alpha1.DaemonSetSpec,
+	containersFactory func([]corev1.VolumeMount) []corev1.Container,
+) (*apps.DaemonSet, error) {
+	ns := oc.GetNamespace()
+	ocName := oc.GetName()
+	appLabel := m.getComponentLabel(oc, componentType)
+	vols := volHelper.GetVolumes()
+	volMounts := volHelper.GetVolumeMounts()
+	podAnnotations := spec.Annotations
+
+	dsName := controller.NewClusterComponentName(ocName, componentType)
+	appDaemonSet := &apps.DaemonSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            dsName,
+			Namespace:       ns,
+			Labels:          appLabel.Labels(),
+			OwnerReferences: []metav1.OwnerReference{controller.GetOwnerRef(oc)},
+		},
+		Spec: apps.DaemonSetSpec{
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels:      appLabel.Labels(),
+					Annotations: podAnnotations,
+				},
+				Spec: corev1.PodSpec{
+					Affinity:      spec.Affinity,
+					NodeSelector:  spec.NodeSelector,
+					Containers:    containersFactory(volMounts),
+					RestartPolicy: corev1.RestartPolicyAlways,
+					Tolerations:   spec.Tolerations,
+					Volumes:       vols,
+					HostNetwork:   true,
+					HostPID:       true,
+					HostIPC:       true,
+					DNSPolicy:     corev1.DNSClusterFirstWithHostNet,
+				},
+			},
+			Selector: appLabel.LabelSelector(),
+		},
+	}
+	return appDaemonSet, nil
+}
+
 func (m *ComponentManager) newPVC(cType v1alpha1.ComponentType, oc *v1alpha1.OnecloudCluster, spec v1alpha1.StatefulDeploymentSpec) (*corev1.PersistentVolumeClaim, error) {
 	ocName := oc.GetName()
 	pvcName := controller.NewClusterComponentName(ocName, cType)
@@ -600,6 +701,13 @@ func (m *ComponentManager) getComponentManager() *ComponentManager {
 func (m *ComponentManager) getPVC(_ *v1alpha1.OnecloudCluster) (*corev1.PersistentVolumeClaim, error) {
 	return nil, nil
 }
+func (m *ComponentManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
+	return nil, nil
+}
+
+func (m *ComponentManager) getDaemonSet(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig) (*apps.DaemonSet, error) {
+	return nil, nil
+}
 
 func (m *ComponentManager) Keystone() manager.Manager {
 	return newKeystoneComponentManager(m)
@@ -663,4 +771,12 @@ func (m *ComponentManager) Web() manager.Manager {
 
 func (m *ComponentManager) Notify() manager.Manager {
 	return newNotifyManager(m)
+}
+
+func (m *ComponentManager) Host() manager.Manager {
+	return newHostManager(m)
+}
+
+func (m *ComponentManager) HostDeployer() manager.Manager {
+	return newHostDeployerManger(m)
 }

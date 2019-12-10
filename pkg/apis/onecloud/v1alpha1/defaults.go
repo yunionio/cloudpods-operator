@@ -91,6 +91,13 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec) {
 		SetDefaults_DeploymentSpecEdition(spec, cType)
 	}
 
+	for cType, spec := range map[ComponentType]*DaemonSetSpec{
+		HostComponentType:         &obj.HostAgent,
+		HostDeployerComponentType: &obj.HostDeployer,
+	} {
+		SetDefaults_DaemonSetSpec(spec, getImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag))
+	}
+
 	type stateDeploy struct {
 		obj     *StatefulDeploymentSpec
 		size    string
@@ -181,6 +188,22 @@ func SetDefaults_DeploymentSpec(obj *DeploymentSpec, image string) {
 	}
 }
 
+func SetDefaults_DaemonSetSpec(obj *DaemonSetSpec, image string) {
+	obj.Image = image
+	if len(obj.Tolerations) == 0 {
+		obj.Tolerations = append(obj.Tolerations, []corev1.Toleration{
+			{
+				Key:    "node-role.kubernetes.io/master",
+				Effect: corev1.TaintEffectNoSchedule,
+			},
+			{
+				Key:    "node-role.kubernetes.io/controlplane",
+				Effect: corev1.TaintEffectNoSchedule,
+			},
+		}...)
+	}
+}
+
 func SetDefaults_DeploymentSpecEdition(obj *DeploymentSpec, cType ComponentType) {
 	if obj.Annotations == nil {
 		obj.Annotations = map[string]string{}
@@ -199,8 +222,9 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 	}
 
 	for opt, userPort := range map[*ServiceCommonOptions]userPort{
-		&obj.Webconsole: {constants.WebconsoleAdminUser, constants.WebconsolePort},
-		&obj.APIGateway: {constants.APIGatewayAdminUser, constants.APIGatewayPort},
+		&obj.Webconsole:                     {constants.WebconsoleAdminUser, constants.WebconsolePort},
+		&obj.APIGateway:                     {constants.APIGatewayAdminUser, constants.APIGatewayPort},
+		&obj.HostAgent.ServiceCommonOptions: {constants.HostAdminUser, constants.HostPort},
 	} {
 		SetDefaults_ServiceCommonOptions(opt, userPort.user, userPort.port)
 	}

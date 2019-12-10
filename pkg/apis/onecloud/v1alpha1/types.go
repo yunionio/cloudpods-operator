@@ -59,6 +59,8 @@ const (
 	AnsibleServerComponentType ComponentType = "ansibleserver"
 	CloudnetComponentType      ComponentType = "cloudnet"
 	NotifyComponentType        ComponentType = "notify"
+	HostComponentType          ComponentType = "host"
+	HostDeployerComponentType  ComponentType = "host-deployer"
 )
 
 // ComponentPhase is the current state of component
@@ -147,6 +149,10 @@ type OnecloudClusterSpec struct {
 	Cloudnet DeploymentSpec `json:"cloudnet"`
 	// Notify holds configuration for notify service
 	Notify StatefulDeploymentSpec `json:"notify"`
+	// HostAgent holds configuration for host
+	HostAgent DaemonSetSpec `json:"hostagent"`
+	// HostDeployer holds configuration for host-deployer
+	HostDeployer DaemonSetSpec `json:"hostdeployer"`
 }
 
 // OnecloudClusterStatus describes cluster status
@@ -198,6 +204,15 @@ type DeploymentSpec struct {
 	ContainerSpec
 	Disable      bool                `json:"disable"`
 	Replicas     int32               `json:"replicas"`
+	Affinity     *corev1.Affinity    `json:"affinity,omitempty"`
+	NodeSelector map[string]string   `json:"nodeSelector,omitempty"`
+	Tolerations  []corev1.Toleration `json:"tolerations,omitempty"`
+	Annotations  map[string]string   `json:"annotations,omitempty"`
+}
+
+type DaemonSetSpec struct {
+	ContainerSpec
+	Disable      bool                `json:"disable"`
 	Affinity     *corev1.Affinity    `json:"affinity,omitempty"`
 	NodeSelector map[string]string   `json:"nodeSelector,omitempty"`
 	Tolerations  []corev1.Toleration `json:"tolerations,omitempty"`
@@ -308,6 +323,10 @@ type GlanceConfig struct {
 	ServiceDBCommonOptions
 }
 
+type HostConfig struct {
+	ServiceCommonOptions
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type OnecloudClusterConfig struct {
@@ -325,4 +344,5 @@ type OnecloudClusterConfig struct {
 	Cloudnet      ServiceDBCommonOptions `json:"cloudnet"`
 	APIGateway    ServiceCommonOptions   `json:"apiGateway"`
 	Notify        ServiceDBCommonOptions `json:"notify"`
+	HostAgent     HostConfig             `json:"host"`
 }

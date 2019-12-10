@@ -98,6 +98,24 @@ func (m *glanceManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 		Name:      "data",
 		MountPath: constants.GlanceDataStore,
 	})
+
+	// var run
+	var hostPathDirectory = corev1.HostPathDirectory
+	podVols = append(podVols, corev1.Volume{
+		Name: "run",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: "/var/run",
+				Type: &hostPathDirectory,
+			},
+		},
+	})
+	volMounts = append(volMounts, corev1.VolumeMount{
+		Name:      "run",
+		ReadOnly:  false,
+		MountPath: "/var/run",
+	})
+
 	podTemplate.Containers[0].VolumeMounts = volMounts
 	podTemplate.Volumes = podVols
 	return deploy, nil

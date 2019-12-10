@@ -37,6 +37,7 @@ const (
 
 const (
 	OnecloudEditionAnnotationKey string = "onecloud.yunion.io/edition"
+	OnecloudEnableHostLabelKey   string = "onecloud.yunion.io/host"
 	OnecloudCommunityEdition     string = "ce"
 	OnecloudEnterpriseEdition    string = "ee"
 )
@@ -78,6 +79,10 @@ const (
 	SchedulerPort      = 8897
 	RegionDB           = "yunioncloud"
 	RegionDBUser       = "yunioncloud"
+
+	HostAdminUser    = "hostadmin"
+	HostAdminProject = SysAdminProject
+	HostPort         = 8885
 
 	BaremetalAdminUser    = "baremetal"
 	BaremetalAdminProject = SysAdminProject
