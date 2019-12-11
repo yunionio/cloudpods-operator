@@ -773,6 +773,10 @@ func (m *ComponentManager) Notify() manager.Manager {
 	return newNotifyManager(m)
 }
 
+func (m *ComponentManager) Baremetal() manager.Manager {
+	return newBaremetalManager(m)
+}
+
 func (m *ComponentManager) Host() manager.Manager {
 	return newHostManager(m)
 }

@@ -71,16 +71,17 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec) {
 	SetDefaults_RegionSpec(&obj.RegionServer, obj.ImageRepository, obj.Version)
 
 	for cType, spec := range map[ComponentType]*DeploymentSpec{
-		ClimcComponentType:         &obj.Climc,
-		WebconsoleComponentType:    &obj.Webconsole,
-		SchedulerComponentType:     &obj.Scheduler,
-		LoggerComponentType:        &obj.Logger,
-		YunionconfComponentType:    &obj.Yunionconf,
-		APIGatewayComponentType:    &obj.APIGateway,
-		WebComponentType:           &obj.Web,
-		KubeServerComponentType:    &obj.KubeServer,
-		AnsibleServerComponentType: &obj.AnsibleServer,
-		CloudnetComponentType:      &obj.Cloudnet,
+		ClimcComponentType:          &obj.Climc,
+		WebconsoleComponentType:     &obj.Webconsole,
+		SchedulerComponentType:      &obj.Scheduler,
+		LoggerComponentType:         &obj.Logger,
+		YunionconfComponentType:     &obj.Yunionconf,
+		APIGatewayComponentType:     &obj.APIGateway,
+		WebComponentType:            &obj.Web,
+		KubeServerComponentType:     &obj.KubeServer,
+		AnsibleServerComponentType:  &obj.AnsibleServer,
+		CloudnetComponentType:       &obj.Cloudnet,
+		BaremetalAgentComponentType: &obj.BaremetalAgent,
 	} {
 		SetDefaults_DeploymentSpec(spec, getImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag))
 	}
@@ -223,9 +224,10 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 	}
 
 	for opt, userPort := range map[*ServiceCommonOptions]userPort{
-		&obj.Webconsole:                     {constants.WebconsoleAdminUser, constants.WebconsolePort},
-		&obj.APIGateway:                     {constants.APIGatewayAdminUser, constants.APIGatewayPort},
-		&obj.HostAgent.ServiceCommonOptions: {constants.HostAdminUser, constants.HostPort},
+		&obj.Webconsole:                          {constants.WebconsoleAdminUser, constants.WebconsolePort},
+		&obj.APIGateway:                          {constants.APIGatewayAdminUser, constants.APIGatewayPort},
+		&obj.HostAgent.ServiceCommonOptions:      {constants.HostAdminUser, constants.HostPort},
+		&obj.BaremetalAgent.ServiceCommonOptions: {constants.BaremetalAdminUser, constants.BaremetalPort},
 	} {
 		SetDefaults_ServiceCommonOptions(opt, userPort.user, userPort.port)
 	}

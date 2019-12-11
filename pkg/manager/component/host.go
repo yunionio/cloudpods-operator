@@ -72,8 +72,6 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 					Image: dsSpec.Image,
 					Command: []string{
 						fmt.Sprintf("/opt/yunion/bin/%s", cType.String()),
-						"--config",
-						fmt.Sprintf("/etc/yunion/%s.conf", cType.String()),
 						"--common-config-file",
 						"/etc/yunion/common/common.conf",
 					},

@@ -183,6 +183,9 @@ const (
 	ServiceNameNotify = "notify"
 	ServiceTypeNotify = "notify"
 
+	ServiceNameBaremetal = "baremetal"
+	ServiceTypeBaremetal = "baremetal"
+
 	ServiceURLCloudmeta  = "https://meta.yunion.cn"
 	ServiceNameCloudmeta = "cloudmeta"
 	ServiceTypeCloudmeta = "cloudmeta"
