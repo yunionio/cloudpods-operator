@@ -21,7 +21,8 @@ import (
 )
 
 const (
-	duration365d = time.Hour * 24 * 365
+	oneday       = time.Hour * 24
+	duration365d = oneday * 365
 )
 
 var (
@@ -74,6 +75,7 @@ func NewSignedCert(cfg *certutil.Config, key crypto.Signer, caCert *x509.Certifi
 		return nil, errors.New("must specify at least one ExtKeyUsage")
 	}
 
+	// see: https://support.apple.com/en-us/HT210176
 	certTmpl := x509.Certificate{
 		Subject: pkix.Name{
 			CommonName:   cfg.CommonName,
@@ -83,7 +85,7 @@ func NewSignedCert(cfg *certutil.Config, key crypto.Signer, caCert *x509.Certifi
 		IPAddresses:  cfg.AltNames.IPs,
 		SerialNumber: serial,
 		NotBefore:    caCert.NotBefore,
-		NotAfter:     time.Now().Add(duration365d * 10).UTC(),
+		NotAfter:     time.Now().Add(oneday * 800).UTC(),
 		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:  cfg.Usages,
 	}
