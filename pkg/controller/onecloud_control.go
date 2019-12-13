@@ -476,11 +476,11 @@ func (c *regionComponent) SystemInit() error {
 	if err := ensureZone(s, zone); err != nil {
 		return errors.Wrapf(err, "create zone %s", zone)
 	}
-	/*if err := ensureAdminNetwork(s, oc.Spec.Zone, localCfg.ManagementNetInterface); err != nil {
-		return errors.Wrapf(err, "create admin network")
-	}*/
 	if err := ensureRegionZone(s, region, zone); err != nil {
 		return errors.Wrapf(err, "create region-zone %s-%s", region, zone)
+	}
+	if err := ensureWire(s, oc.Spec.Zone, v1alpha1.DefaultOnecloudWire, 1000); err != nil {
+		return errors.Wrapf(err, "create default wire")
 	}
 	if err := initScheduleData(s); err != nil {
 		return errors.Wrap(err, "init sched data")

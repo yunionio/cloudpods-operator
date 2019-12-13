@@ -220,6 +220,14 @@ server {
 
         proxy_read_timeout 86400;
     }
+
+    location /baremetal-prepare/ {
+        # Some basic cache-control for static files to be sent to the browser
+        root /opt/cloud/yunion/baremetal/;
+        expires max;
+        add_header Pragma public;
+        add_header Cache-Control "public, must-revalidate, proxy-revalidate";
+    }
 }
 `
 )
