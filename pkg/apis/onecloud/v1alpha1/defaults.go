@@ -26,15 +26,16 @@ import (
 )
 
 const (
-	DefaultVersion             = "latest"
-	DefaultOnecloudRegion      = "region0"
-	DefaultOnecloudZone        = "zone0"
-	DefaultOnecloudWire        = "bcast0"
-	DefaultImageRepository     = "registry.hub.docker.com/yunion"
-	DefaultVPCId               = "default"
-	DefaultGlanceStoreageSize  = "100G"
-	DefaultInfluxdbStorageSize = "20G"
-	DefaultNotifyStorageSize   = "1G" // for plugin template
+	DefaultVersion              = "latest"
+	DefaultOnecloudRegion       = "region0"
+	DefaultOnecloudZone         = "zone0"
+	DefaultOnecloudWire         = "bcast0"
+	DefaultImageRepository      = "registry.hub.docker.com/yunion"
+	DefaultVPCId                = "default"
+	DefaultGlanceStoreageSize   = "100G"
+	DefaultInfluxdbStorageSize  = "20G"
+	DefaultNotifyStorageSize    = "1G" // for plugin template
+	DefaultBaremetalStorageSize = "1G"
 	// rancher local-path-provisioner: https://github.com/rancher/local-path-provisioner
 	DefaultStorageClass = "local-path"
 
@@ -71,17 +72,16 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec) {
 	SetDefaults_RegionSpec(&obj.RegionServer, obj.ImageRepository, obj.Version)
 
 	for cType, spec := range map[ComponentType]*DeploymentSpec{
-		ClimcComponentType:          &obj.Climc,
-		WebconsoleComponentType:     &obj.Webconsole,
-		SchedulerComponentType:      &obj.Scheduler,
-		LoggerComponentType:         &obj.Logger,
-		YunionconfComponentType:     &obj.Yunionconf,
-		APIGatewayComponentType:     &obj.APIGateway,
-		WebComponentType:            &obj.Web,
-		KubeServerComponentType:     &obj.KubeServer,
-		AnsibleServerComponentType:  &obj.AnsibleServer,
-		CloudnetComponentType:       &obj.Cloudnet,
-		BaremetalAgentComponentType: &obj.BaremetalAgent,
+		ClimcComponentType:         &obj.Climc,
+		WebconsoleComponentType:    &obj.Webconsole,
+		SchedulerComponentType:     &obj.Scheduler,
+		LoggerComponentType:        &obj.Logger,
+		YunionconfComponentType:    &obj.Yunionconf,
+		APIGatewayComponentType:    &obj.APIGateway,
+		WebComponentType:           &obj.Web,
+		KubeServerComponentType:    &obj.KubeServer,
+		AnsibleServerComponentType: &obj.AnsibleServer,
+		CloudnetComponentType:      &obj.Cloudnet,
 	} {
 		SetDefaults_DeploymentSpec(spec, getImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag))
 	}
@@ -106,10 +106,11 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec) {
 		version string
 	}
 	for cType, spec := range map[ComponentType]*stateDeploy{
-		GlanceComponentType:      {&obj.Glance, DefaultGlanceStoreageSize, obj.Version},
-		InfluxdbComponentType:    {&obj.Influxdb, DefaultInfluxdbStorageSize, DefaultInfluxdbImageVersion},
-		YunionagentComponentType: {&obj.Yunionagent, "1G", obj.Version},
-		NotifyComponentType:      {&obj.Notify, DefaultNotifyStorageSize, obj.Version},
+		GlanceComponentType:         {&obj.Glance, DefaultGlanceStoreageSize, obj.Version},
+		InfluxdbComponentType:       {&obj.Influxdb, DefaultInfluxdbStorageSize, DefaultInfluxdbImageVersion},
+		YunionagentComponentType:    {&obj.Yunionagent, "1G", obj.Version},
+		NotifyComponentType:         {&obj.Notify, DefaultNotifyStorageSize, obj.Version},
+		BaremetalAgentComponentType: {&obj.BaremetalAgent, DefaultBaremetalStorageSize, obj.Version},
 	} {
 		SetDefaults_StatefulDeploymentSpec(cType, spec.obj, spec.size, obj.ImageRepository, spec.version)
 	}

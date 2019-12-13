@@ -60,6 +60,24 @@ func (m *hostDeployerManager) newHostPrivilegedDaemonSet(
 				},
 			}
 		}
+		initContainerF = func() []corev1.Container {
+			return []corev1.Container{
+				{
+					Name:  "init",
+					Image: dsSpec.Image,
+					Command: []string{
+						"mkdir", "-p", "/opt/cloud",
+					},
+					VolumeMounts: []corev1.VolumeMount{
+						{
+							Name:      "opt",
+							ReadOnly:  false,
+							MountPath: "/opt",
+						},
+					},
+				},
+			}
+		}
 	)
-	return m.newDaemonSet(cType, oc, cfg, NewHostVolume(cType, oc, configMap), dsSpec, containersF)
+	return m.newDaemonSet(cType, oc, cfg, NewHostVolume(cType, oc, configMap), dsSpec, initContainerF, containersF)
 }

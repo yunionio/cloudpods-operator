@@ -34,7 +34,7 @@ func (m *baremetalManager) getConfigMap(
 	oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig,
 ) (*corev1.ConfigMap, error) {
 	opt := &options.Options
-	if err := SetOptionsDefault(opt, constants.ServiceTypeBaremetal); err != nil {
+	if err := SetOptionsDefault(opt, ""); err != nil {
 		return nil, err
 	}
 	config := cfg.BaremetalAgent
@@ -42,6 +42,11 @@ func (m *baremetalManager) getConfigMap(
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 	opt.Port = constants.BaremetalPort
 	return m.newServiceConfigMap(v1alpha1.BaremetalAgentComponentType, oc, opt), nil
+}
+
+func (m *baremetalManager) getPVC(oc *v1alpha1.OnecloudCluster) (*corev1.PersistentVolumeClaim, error) {
+	cfg := oc.Spec.BaremetalAgent
+	return m.ComponentManager.newPVC(v1alpha1.BaremetalAgentComponentType, oc, cfg)
 }
 
 func (m *baremetalManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
@@ -54,7 +59,7 @@ func (m *baremetalManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1al
 		return nil, err
 	}
 	cType := v1alpha1.BaremetalAgentComponentType
-	dmSpec := oc.Spec.BaremetalAgent
+	dmSpec := oc.Spec.BaremetalAgent.DeploymentSpec
 	privileged := true
 	containersF := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		return []corev1.Container{
@@ -87,29 +92,31 @@ func (m *baremetalManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	// set braemetal use host network
 	dm.Spec.Template.Spec.HostNetwork = true
 	dm.Spec.Template.Spec.DNSPolicy = corev1.DNSClusterFirstWithHostNet
+	// if dm.Spec
+	if dm.Spec.Template.Spec.NodeSelector == nil {
+		dm.Spec.Template.Spec.NodeSelector = make(map[string]string)
+	}
+	dm.Spec.Template.Spec.NodeSelector[constants.OnecloudEanbleBaremetalLabelKey] = "enable"
 	return dm, nil
 }
 
 func newBaremetalVolHelper(oc *v1alpha1.OnecloudCluster, optCfgMap string, component v1alpha1.ComponentType) *VolumeHelper {
 	volHelper := NewVolumeHelper(oc, optCfgMap, component)
-	var hostPathDirectory = corev1.HostPathDirectory
 	volHelper.volumeMounts = append(volHelper.volumeMounts,
 		corev1.VolumeMount{
 			Name:      "opt",
 			ReadOnly:  false,
-			MountPath: "/opt/cloud/workspace",
+			MountPath: constants.BaremetalDataStore,
 		},
 	)
-	volHelper.volumes = append(volHelper.volumes,
-		corev1.Volume{
-			Name: "opt",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/opt/cloud/workspace",
-					Type: &hostPathDirectory,
-				},
+	volHelper.volumes = append(volHelper.volumes, corev1.Volume{
+		Name: "opt",
+		VolumeSource: corev1.VolumeSource{
+			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+				ClaimName: controller.NewClusterComponentName(oc.GetName(), v1alpha1.BaremetalAgentComponentType),
+				ReadOnly:  false,
 			},
 		},
-	)
+	})
 	return volHelper
 }

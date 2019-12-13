@@ -155,7 +155,7 @@ type OnecloudClusterSpec struct {
 	// HostDeployer holds configuration for host-deployer
 	HostDeployer DaemonSetSpec `json:"hostdeployer"`
 	// BaremetalAgent holds configuration for baremetal agent
-	BaremetalAgent DeploymentSpec `json:"baremetalagent"`
+	BaremetalAgent StatefulDeploymentSpec `json:"baremetalagent"`
 }
 
 // OnecloudClusterStatus describes cluster status
