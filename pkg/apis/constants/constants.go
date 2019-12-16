@@ -53,17 +53,18 @@ const (
 	SysAdminProject  = "system"
 	DefaultDomain    = "Default"
 
+	// note: service node port in range 30000-32767
 	KeystoneDB         = "keystone"
 	KeystoneDBUser     = "keystone"
-	KeystonePublicPort = 5000
-	KeystoneAdminPort  = 35357
+	KeystonePublicPort = 30500
+	KeystoneAdminPort  = 30357
 
 	GlanceDB           = "glance"
 	GlanceDBUser       = "glance"
 	GlanceAdminUser    = "glance"
 	GlanceAdminProject = SysAdminProject
-	GlanceRegistryPort = 9191
-	GlanceAPIPort      = 9292
+	GlanceRegistryPort = 30191
+	GlanceAPIPort      = 30292
 	ServiceNameGlance  = "glance"
 	ServiceTypeGlance  = "image"
 	GlanceDataStore    = "/opt/cloud/workspace/data/glance"
@@ -75,64 +76,66 @@ const (
 
 	RegionAdminUser    = "regionadmin"
 	RegionAdminProject = SysAdminProject
-	RegionPort         = 8889
-	SchedulerPort      = 8897
+	RegionPort         = 30888
+	SchedulerPort      = 30887
 	RegionDB           = "yunioncloud"
 	RegionDBUser       = "yunioncloud"
 
 	HostAdminUser    = "hostadmin"
 	HostAdminProject = SysAdminProject
-	HostPort         = 8885
+	// Host not use node port
+	HostPort = 8885
 
 	BaremetalAdminUser    = "baremetal"
 	BaremetalAdminProject = SysAdminProject
-	BaremetalPort         = 8879
+	// Baremetal not use node port
+	BaremetalPort = 8879
 
 	KubeServerAdminUser = "kubeserver"
-	KubeServerPort      = 8443
+	KubeServerPort      = 30442
 	KubeServerDB        = "kubeserver"
 	KubeServerDBUser    = "kubeserver"
 
 	WebconsoleAdminUser    = "webconsole"
 	WebconsoleAdminProject = SysAdminProject
-	WebconsolePort         = 8899
+	WebconsolePort         = 30899
 
 	LoggerAdminUser = "loggeradmin"
-	LoggerPort      = 9999
+	LoggerPort      = 30999
 	LoggerDB        = "yunionlogger"
 	LoggerDBUser    = "yunionlogger"
 
 	APIGatewayAdminUser = "yunionapi"
-	APIGatewayPort      = 9300
-	APIWebsocketPort    = 10443
+	APIGatewayPort      = 30300
+	APIWebsocketPort    = 30443
 
 	YunionAgentAdminUser = "yunionagent"
-	YunionAgentPort      = 9899
+	YunionAgentPort      = 30898
 	YunionAgentDB        = "yunionagent"
 	YunionAgentDBUser    = "yunionagent"
 
 	YunionConfAdminUser = "yunionconf"
-	YunionConfPort      = 9889
+	YunionConfPort      = 30889
 	YunionConfDB        = "yunionconf"
 	YunionConfDBUser    = "yunionconf"
 
 	NotifyAdminUser = "notify"
-	NotifyPort      = 7777
+	NotifyPort      = 30777
 	NotifyDB        = "notify"
 	NotifyDBUser    = "notify"
 
-	InfluxdbPort      = 8086
+	InfluxdbPort      = 30086
 	InfluxdbDataStore = "/var/lib/influxdb"
 
 	AnsibleServerAdminUser    = "ansibleadmin"
 	AnsibleServerAdminProject = SysAdminProject
-	AnsibleServerPort         = 8890
+	AnsibleServerPort         = 30890
 	AnsibleServerDB           = "yunionansible"
 	AnsibleServerDBUser       = "yunionansible"
 
 	CloudnetAdminUser    = "cloudnetadmin"
 	CloudnetAdminProject = SysAdminProject
-	CloudnetPort         = 8891
+	CloudnetPort         = 30891
 	CloudnetDB           = "yunioncloudnet"
 	CloudnetDBUser       = "yunioncloudnet"
 

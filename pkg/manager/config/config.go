@@ -21,6 +21,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 	corelisters "k8s.io/client-go/listers/core/v1"
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 
@@ -87,6 +88,16 @@ func (c *ConfigManager) CreateOrUpdate(oc *v1alpha1.OnecloudCluster) (*v1alpha1.
 func newClusterConfig() *v1alpha1.OnecloudClusterConfig {
 	config := &v1alpha1.OnecloudClusterConfig{}
 	return fillClusterConfigDefault(config)
+}
+
+func GetClusterConfigByClient(k8sCli kubernetes.Interface, oc *v1alpha1.OnecloudCluster) (*v1alpha1.OnecloudClusterConfig, error) {
+	cfgMapName := controller.ClusterConfigMapName(oc)
+	ns := oc.GetNamespace()
+	obj, err := k8sCli.CoreV1().ConfigMaps(ns).Get(cfgMapName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return newClusterConfigFromConfigMapNoDefault(obj)
 }
 
 func newClusterConfigFromConfigMapNoDefault(cfgMap *corev1.ConfigMap) (*v1alpha1.OnecloudClusterConfig, error) {

@@ -73,6 +73,7 @@ func (m *keystoneManager) getConfigMap(oc *v1alpha1.OnecloudCluster, clusterCfg 
 
 	opt.BootstrapAdminUserPassword = oc.Spec.Keystone.BootstrapPassword
 	opt.AdminPort = constants.KeystoneAdminPort
+	opt.Port = constants.KeystonePublicPort
 
 	return m.newServiceConfigMap(v1alpha1.KeystoneComponentType, oc, opt), nil
 }
@@ -112,12 +113,12 @@ func (m *keystoneManager) getDeployment(oc *v1alpha1.OnecloudCluster, _ *v1alpha
 				Ports: []corev1.ContainerPort{
 					{
 						Name:          "public",
-						ContainerPort: int32(5000),
+						ContainerPort: int32(constants.KeystonePublicPort),
 						Protocol:      corev1.ProtocolTCP,
 					},
 					{
 						Name:          "admin",
-						ContainerPort: int32(35357),
+						ContainerPort: int32(constants.KeystoneAdminPort),
 						Protocol:      corev1.ProtocolTCP,
 					},
 				},

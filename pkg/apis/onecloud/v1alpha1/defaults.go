@@ -29,6 +29,7 @@ const (
 	DefaultVersion             = "latest"
 	DefaultOnecloudRegion      = "region0"
 	DefaultOnecloudZone        = "zone0"
+	DefaultOnecloudWire        = "bcast0"
 	DefaultImageRepository     = "registry.hub.docker.com/yunion"
 	DefaultVPCId               = "default"
 	DefaultGlanceStoreageSize  = "100G"
