@@ -80,6 +80,7 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 					SecurityContext: &corev1.SecurityContext{
 						Privileged: &privileged,
 					},
+					WorkingDir: "/opt/cloud",
 				},
 			}
 		}
