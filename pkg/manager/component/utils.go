@@ -534,7 +534,7 @@ func NewHostVolume(
 			MountPath: path.Join(constants.ConfigDir, "common"),
 		},
 		{
-			Name:      "opt",
+			Name:      "cloud",
 			ReadOnly:  false,
 			MountPath: "/opt/cloud",
 		},
@@ -620,10 +620,19 @@ func NewHostVolume(
 			},
 		},
 		{
-			Name: "opt",
+			Name: "cloud",
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: "/opt/cloud",
+					Type: &hostPathDirectory,
+				},
+			},
+		},
+		{
+			Name: "opt",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/opt",
 					Type: &hostPathDirectory,
 				},
 			},

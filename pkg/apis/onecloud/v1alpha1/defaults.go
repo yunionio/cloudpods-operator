@@ -26,15 +26,16 @@ import (
 )
 
 const (
-	DefaultVersion             = "latest"
-	DefaultOnecloudRegion      = "region0"
-	DefaultOnecloudZone        = "zone0"
-	DefaultOnecloudWire        = "bcast0"
-	DefaultImageRepository     = "registry.hub.docker.com/yunion"
-	DefaultVPCId               = "default"
-	DefaultGlanceStoreageSize  = "100G"
-	DefaultInfluxdbStorageSize = "20G"
-	DefaultNotifyStorageSize   = "1G" // for plugin template
+	DefaultVersion              = "latest"
+	DefaultOnecloudRegion       = "region0"
+	DefaultOnecloudZone         = "zone0"
+	DefaultOnecloudWire         = "bcast0"
+	DefaultImageRepository      = "registry.hub.docker.com/yunion"
+	DefaultVPCId                = "default"
+	DefaultGlanceStoreageSize   = "100G"
+	DefaultInfluxdbStorageSize  = "20G"
+	DefaultNotifyStorageSize    = "1G" // for plugin template
+	DefaultBaremetalStorageSize = "1G"
 	// rancher local-path-provisioner: https://github.com/rancher/local-path-provisioner
 	DefaultStorageClass = "local-path"
 
@@ -105,10 +106,11 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec) {
 		version string
 	}
 	for cType, spec := range map[ComponentType]*stateDeploy{
-		GlanceComponentType:      {&obj.Glance, DefaultGlanceStoreageSize, obj.Version},
-		InfluxdbComponentType:    {&obj.Influxdb, DefaultInfluxdbStorageSize, DefaultInfluxdbImageVersion},
-		YunionagentComponentType: {&obj.Yunionagent, "1G", obj.Version},
-		NotifyComponentType:      {&obj.Notify, DefaultNotifyStorageSize, obj.Version},
+		GlanceComponentType:         {&obj.Glance, DefaultGlanceStoreageSize, obj.Version},
+		InfluxdbComponentType:       {&obj.Influxdb, DefaultInfluxdbStorageSize, DefaultInfluxdbImageVersion},
+		YunionagentComponentType:    {&obj.Yunionagent, "1G", obj.Version},
+		NotifyComponentType:         {&obj.Notify, DefaultNotifyStorageSize, obj.Version},
+		BaremetalAgentComponentType: {&obj.BaremetalAgent, DefaultBaremetalStorageSize, obj.Version},
 	} {
 		SetDefaults_StatefulDeploymentSpec(cType, spec.obj, spec.size, obj.ImageRepository, spec.version)
 	}
@@ -223,9 +225,10 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 	}
 
 	for opt, userPort := range map[*ServiceCommonOptions]userPort{
-		&obj.Webconsole:                     {constants.WebconsoleAdminUser, constants.WebconsolePort},
-		&obj.APIGateway:                     {constants.APIGatewayAdminUser, constants.APIGatewayPort},
-		&obj.HostAgent.ServiceCommonOptions: {constants.HostAdminUser, constants.HostPort},
+		&obj.Webconsole:                          {constants.WebconsoleAdminUser, constants.WebconsolePort},
+		&obj.APIGateway:                          {constants.APIGatewayAdminUser, constants.APIGatewayPort},
+		&obj.HostAgent.ServiceCommonOptions:      {constants.HostAdminUser, constants.HostPort},
+		&obj.BaremetalAgent.ServiceCommonOptions: {constants.BaremetalAdminUser, constants.BaremetalPort},
 	} {
 		SetDefaults_ServiceCommonOptions(opt, userPort.user, userPort.port)
 	}

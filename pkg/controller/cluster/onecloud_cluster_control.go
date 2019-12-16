@@ -105,6 +105,7 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 		components.Notify(),
 		components.Host(),
 		components.HostDeployer(),
+		components.Baremetal(),
 	} {
 		if err := component.Sync(oc); err != nil {
 			return err

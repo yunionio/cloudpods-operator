@@ -36,10 +36,11 @@ const (
 )
 
 const (
-	OnecloudEditionAnnotationKey string = "onecloud.yunion.io/edition"
-	OnecloudEnableHostLabelKey   string = "onecloud.yunion.io/host"
-	OnecloudCommunityEdition     string = "ce"
-	OnecloudEnterpriseEdition    string = "ee"
+	OnecloudEditionAnnotationKey    string = "onecloud.yunion.io/edition"
+	OnecloudEnableHostLabelKey      string = "onecloud.yunion.io/host"
+	OnecloudEanbleBaremetalLabelKey string = "onecloud.yunion.io/baremetal"
+	OnecloudCommunityEdition        string = "ce"
+	OnecloudEnterpriseEdition       string = "ee"
 )
 
 const (
@@ -182,6 +183,8 @@ const (
 
 	ServiceNameNotify = "notify"
 	ServiceTypeNotify = "notify"
+
+	BaremetalDataStore = "/opt/cloud/workspace"
 
 	ServiceURLCloudmeta  = "https://meta.yunion.cn"
 	ServiceNameCloudmeta = "cloudmeta"

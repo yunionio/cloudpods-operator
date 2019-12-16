@@ -72,8 +72,6 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 					Image: dsSpec.Image,
 					Command: []string{
 						fmt.Sprintf("/opt/yunion/bin/%s", cType.String()),
-						"--config",
-						fmt.Sprintf("/etc/yunion/%s.conf", cType.String()),
 						"--common-config-file",
 						"/etc/yunion/common/common.conf",
 					},
@@ -85,10 +83,28 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 				},
 			}
 		}
+		initContainerF = func() []corev1.Container {
+			return []corev1.Container{
+				{
+					Name:  "init",
+					Image: dsSpec.Image,
+					Command: []string{
+						"mkdir", "-p", "/opt/cloud",
+					},
+					VolumeMounts: []corev1.VolumeMount{
+						{
+							Name:      "opt",
+							ReadOnly:  false,
+							MountPath: "/opt",
+						},
+					},
+				},
+			}
+		}
 	)
 	if dsSpec.NodeSelector == nil {
 		dsSpec.NodeSelector = make(map[string]string)
 	}
 	dsSpec.NodeSelector[constants.OnecloudEnableHostLabelKey] = "enable"
-	return m.newDaemonSet(cType, oc, cfg, NewHostVolume(cType, oc, configMap), dsSpec, containersF)
+	return m.newDaemonSet(cType, oc, cfg, NewHostVolume(cType, oc, configMap), dsSpec, initContainerF, containersF)
 }

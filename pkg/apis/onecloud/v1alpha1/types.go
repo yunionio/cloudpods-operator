@@ -52,15 +52,16 @@ const (
 	// APIGatewayComponentType is apiGateway component type
 	APIGatewayComponentType ComponentType = "apigateway"
 	// WebComponentType is web frontent component type
-	WebComponentType           ComponentType = "web"
-	YunionagentComponentType   ComponentType = "yunionagent"
-	YunionconfComponentType    ComponentType = "yunionconf"
-	KubeServerComponentType    ComponentType = "kubeserver"
-	AnsibleServerComponentType ComponentType = "ansibleserver"
-	CloudnetComponentType      ComponentType = "cloudnet"
-	NotifyComponentType        ComponentType = "notify"
-	HostComponentType          ComponentType = "host"
-	HostDeployerComponentType  ComponentType = "host-deployer"
+	WebComponentType            ComponentType = "web"
+	YunionagentComponentType    ComponentType = "yunionagent"
+	YunionconfComponentType     ComponentType = "yunionconf"
+	KubeServerComponentType     ComponentType = "kubeserver"
+	AnsibleServerComponentType  ComponentType = "ansibleserver"
+	CloudnetComponentType       ComponentType = "cloudnet"
+	NotifyComponentType         ComponentType = "notify"
+	HostComponentType           ComponentType = "host"
+	HostDeployerComponentType   ComponentType = "host-deployer"
+	BaremetalAgentComponentType ComponentType = "baremetal-agent"
 )
 
 // ComponentPhase is the current state of component
@@ -153,26 +154,29 @@ type OnecloudClusterSpec struct {
 	HostAgent DaemonSetSpec `json:"hostagent"`
 	// HostDeployer holds configuration for host-deployer
 	HostDeployer DaemonSetSpec `json:"hostdeployer"`
+	// BaremetalAgent holds configuration for baremetal agent
+	BaremetalAgent StatefulDeploymentSpec `json:"baremetalagent"`
 }
 
 // OnecloudClusterStatus describes cluster status
 type OnecloudClusterStatus struct {
-	ClusterID     string           `json:"clusterID,omitempty"`
-	Keystone      KeystoneStatus   `json:"keystone,omitempty"`
-	RegionServer  RegionStatus     `json:"region,omitempty"`
-	Glance        GlanceStatus     `json:"glance,omitempty"`
-	Scheduler     DeploymentStatus `json:"scheduler,omitempty"`
-	Webconsole    DeploymentStatus `json:"webconsole,omitempty"`
-	Influxdb      DeploymentStatus `json:"influxdb,omitempty"`
-	Logger        DeploymentStatus `json:"logger,omitempty"`
-	APIGateway    DeploymentStatus `json:"apiGateway,omitempty"`
-	Web           DeploymentStatus `json:"web,omitempty"`
-	Yunionconf    DeploymentStatus `json:"yunionconf,omitempty"`
-	Yunionagent   DeploymentStatus `json:"yunionagent,omitempty"`
-	KubeServer    DeploymentStatus `json:"kubeserver,omitempty"`
-	AnsibleServer DeploymentStatus `json:"ansibleserver,omitempty"`
-	Cloudnet      DeploymentStatus `json:"cloudnet,omitempty"`
-	Notify        DeploymentStatus `json:"notify,omitempty"`
+	ClusterID      string           `json:"clusterID,omitempty"`
+	Keystone       KeystoneStatus   `json:"keystone,omitempty"`
+	RegionServer   RegionStatus     `json:"region,omitempty"`
+	Glance         GlanceStatus     `json:"glance,omitempty"`
+	Scheduler      DeploymentStatus `json:"scheduler,omitempty"`
+	Webconsole     DeploymentStatus `json:"webconsole,omitempty"`
+	Influxdb       DeploymentStatus `json:"influxdb,omitempty"`
+	Logger         DeploymentStatus `json:"logger,omitempty"`
+	APIGateway     DeploymentStatus `json:"apiGateway,omitempty"`
+	Web            DeploymentStatus `json:"web,omitempty"`
+	Yunionconf     DeploymentStatus `json:"yunionconf,omitempty"`
+	Yunionagent    DeploymentStatus `json:"yunionagent,omitempty"`
+	KubeServer     DeploymentStatus `json:"kubeserver,omitempty"`
+	AnsibleServer  DeploymentStatus `json:"ansibleserver,omitempty"`
+	Cloudnet       DeploymentStatus `json:"cloudnet,omitempty"`
+	Notify         DeploymentStatus `json:"notify,omitempty"`
+	BaremetalAgent DeploymentStatus `json:"baremetalagent,omitempty"`
 }
 
 // Etcd describes an etcd cluster
@@ -327,22 +331,27 @@ type HostConfig struct {
 	ServiceCommonOptions
 }
 
+type BaremetalConfig struct {
+	ServiceCommonOptions
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type OnecloudClusterConfig struct {
 	metav1.TypeMeta
 
-	Keystone      KeystoneConfig         `json:"keystone"`
-	RegionServer  RegionConfig           `json:"region"`
-	Glance        GlanceConfig           `json:"glance"`
-	Webconsole    ServiceCommonOptions   `json:"webconsole"`
-	Logger        ServiceDBCommonOptions `json:"logger"`
-	Yunionconf    ServiceDBCommonOptions `json:"yunionconf"`
-	Yunionagent   ServiceDBCommonOptions `json:"yunionagent"`
-	KubeServer    ServiceDBCommonOptions `json:"kubeserver"`
-	AnsibleServer ServiceDBCommonOptions `json:"ansibleserver"`
-	Cloudnet      ServiceDBCommonOptions `json:"cloudnet"`
-	APIGateway    ServiceCommonOptions   `json:"apiGateway"`
-	Notify        ServiceDBCommonOptions `json:"notify"`
-	HostAgent     HostConfig             `json:"host"`
+	Keystone       KeystoneConfig         `json:"keystone"`
+	RegionServer   RegionConfig           `json:"region"`
+	Glance         GlanceConfig           `json:"glance"`
+	Webconsole     ServiceCommonOptions   `json:"webconsole"`
+	Logger         ServiceDBCommonOptions `json:"logger"`
+	Yunionconf     ServiceDBCommonOptions `json:"yunionconf"`
+	Yunionagent    ServiceDBCommonOptions `json:"yunionagent"`
+	KubeServer     ServiceDBCommonOptions `json:"kubeserver"`
+	AnsibleServer  ServiceDBCommonOptions `json:"ansibleserver"`
+	Cloudnet       ServiceDBCommonOptions `json:"cloudnet"`
+	APIGateway     ServiceCommonOptions   `json:"apiGateway"`
+	Notify         ServiceDBCommonOptions `json:"notify"`
+	HostAgent      HostConfig             `json:"host"`
+	BaremetalAgent BaremetalConfig        `json:"baremetal"`
 }

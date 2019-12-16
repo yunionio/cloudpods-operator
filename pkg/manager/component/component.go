@@ -570,6 +570,7 @@ func (m *ComponentManager) newDaemonSet(
 	cfg *v1alpha1.OnecloudClusterConfig,
 	volHelper *VolumeHelper,
 	spec v1alpha1.DaemonSetSpec,
+	initContainersFactory func() []corev1.Container,
 	containersFactory func([]corev1.VolumeMount) []corev1.Container,
 ) (*apps.DaemonSet, error) {
 	ns := oc.GetNamespace()
@@ -578,6 +579,11 @@ func (m *ComponentManager) newDaemonSet(
 	vols := volHelper.GetVolumes()
 	volMounts := volHelper.GetVolumeMounts()
 	podAnnotations := spec.Annotations
+
+	var initContainers []corev1.Container
+	if initContainersFactory != nil {
+		initContainers = initContainersFactory()
+	}
 
 	dsName := controller.NewClusterComponentName(ocName, componentType)
 	appDaemonSet := &apps.DaemonSet{
@@ -597,6 +603,7 @@ func (m *ComponentManager) newDaemonSet(
 					Affinity:      spec.Affinity,
 					NodeSelector:  spec.NodeSelector,
 					Containers:    containersFactory(volMounts),
+					InitContainers: initContainers,
 					RestartPolicy: corev1.RestartPolicyAlways,
 					Tolerations:   spec.Tolerations,
 					Volumes:       vols,
@@ -771,6 +778,10 @@ func (m *ComponentManager) Web() manager.Manager {
 
 func (m *ComponentManager) Notify() manager.Manager {
 	return newNotifyManager(m)
+}
+
+func (m *ComponentManager) Baremetal() manager.Manager {
+	return newBaremetalManager(m)
 }
 
 func (m *ComponentManager) Host() manager.Manager {
