@@ -355,6 +355,15 @@ func (c keystoneComponent) SystemInit() error {
 	if err := makeDomainAdminPublic(s); err != nil {
 		return errors.Wrap(err, "always share domainadmin")
 	}
+	if err := doCreateExternalService(s); err != nil {
+		return errors.Wrap(err, "create external service")
+	}
+	if err := doRegisterOfflineCloudMeta(s, region); err != nil {
+		return errors.Wrap(err, "register offlinecloudmeta endpoint")
+	}
+	if err := doCreateCommonService(s); err != nil {
+		return errors.Wrap(err, "create common service")
+	}
 	return nil
 }
 
@@ -452,6 +461,23 @@ func makeDomainAdminPublic(s *mcclient.ClientSession) error {
 		return err
 	}
 	return nil
+}
+
+func doCreateExternalService(s *mcclient.ClientSession) error {
+	_, err := onecloud.EnsureService(s, constants.ServiceNameExternal, constants.ServiceTypeExternal)
+	return err
+}
+
+func doCreateCommonService(s *mcclient.ClientSession) error {
+	_, err := onecloud.EnsureService(s, constants.ServiceNameCommon, constants.ServiceTypeCommon)
+	return err
+}
+
+func doRegisterOfflineCloudMeta(s *mcclient.ClientSession, regionId string) error {
+	return onecloud.RegisterServicePublicInternalEndpoint(s, regionId,
+		constants.ServiceNameOfflineCloudmeta,
+		constants.ServiceTypeOfflineCloudmeta,
+		constants.ServiceURLOfflineCloudmeta)
 }
 
 type regionComponent struct {

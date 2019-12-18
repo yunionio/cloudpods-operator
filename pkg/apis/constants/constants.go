@@ -201,6 +201,16 @@ const (
 
 	NetworkTypeBaremetal = "baremetal"
 	NetworkTypeServer    = "server"
+
+	ServiceNameExternal = "external-service"
+	ServiceTypeExternal = ServiceNameExternal
+
+	ServiceNameCommon = "common"
+	ServiceTypeCommon = ServiceNameCommon
+
+	ServiceNameOfflineCloudmeta = "offlinecloudmeta"
+	ServiceTypeOfflineCloudmeta = "offlinecloudmeta"
+	ServiceURLOfflineCloudmeta  = "https://yunionmeta.oss-cn-beijing.aliyuncs.com"
 )
 
 const (
