@@ -63,6 +63,7 @@ func (m *webconsoleManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	opt.IpmitoolPath = "/usr/sbin/ipmitool"
 	opt.EnableAutoLogin = true
 	address := oc.Spec.LoadBalancerEndpoint
+	opt.Port = constants.WebconsolePort
 	opt.ApiServer = fmt.Sprintf("https://%s:%d", address, constants.WebconsolePort)
 
 	return m.newServiceConfigMap(v1alpha1.WebconsoleComponentType, oc, opt), nil

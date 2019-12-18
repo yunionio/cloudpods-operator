@@ -62,6 +62,7 @@ func (m *yunoinconfManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	SetOptionsServiceTLS(&opt.BaseOptions)
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 	opt.AutoSyncTable = true
+	opt.Port = constants.YunionConfPort
 
 	return m.newServiceConfigMap(v1alpha1.YunionconfComponentType, oc, opt), nil
 }

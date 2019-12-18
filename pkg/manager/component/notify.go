@@ -99,6 +99,7 @@ func (m *notifyManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	opt.UpdateInterval = 30
 	opt.VerifyEmailUrl = fmt.Sprintf("https://%s/resource/email-verification/id/{0}/token/{1}?region=%s", oc.Spec.LoadBalancerEndpoint, oc.Spec.Region)
 	opt.ReSendScope = 30
+	opt.Port = constants.NotifyPort
 
 	cfgMap := m.newServiceConfigMap(v1alpha1.NotifyComponentType, oc, opt)
 	pluginBaseOpt := &NotifyPluginBaseConfig{

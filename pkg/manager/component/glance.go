@@ -68,6 +68,7 @@ func (m *glanceManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	opt.EnableTorrentService = false
 	// TODO: fix this
 	opt.AutoSyncTable = true
+	opt.Port = constants.GlanceAPIPort
 
 	return m.newServiceConfigMap(v1alpha1.GlanceComponentType, oc, opt), nil
 }

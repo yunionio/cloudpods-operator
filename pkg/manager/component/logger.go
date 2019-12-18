@@ -61,6 +61,7 @@ func (m *loggerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
 	SetOptionsServiceTLS(&opt.BaseOptions)
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
+	opt.Port = constants.LoggerPort
 
 	return m.newServiceConfigMap(v1alpha1.LoggerComponentType, oc, opt), nil
 }
