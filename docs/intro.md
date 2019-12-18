@@ -88,7 +88,7 @@ spec:
 # 找到 onecloud-operator deployment
 $ kubectl get deployments -n onecloud | grep operator
 
-# 扎到 operator 对应的容器
+# 找到 operator 对应的容器
 $ kubectl get pods -n onecloud | grep operator
 ```
 
@@ -101,7 +101,7 @@ $ kubectl get pods -n onecloud | grep operator
 $ REGISTRY=zexi VERSION=dev make image-push
 
 # 更新 deployment
-$ kubectl set image deployment/onecloud-operator onecloud-operator=zexi/onecloud-operator:dev
+$ kubectl set image -n onecloud deployment/onecloud-operator onecloud-operator=zexi/onecloud-operator:dev
 
 # 如果每次 make 都是同一个镜像名，push 完镜像后，直接删除对应的 operator 就会自动拉取新的景象了
 $ kubectl get pods -n onecloud | grep operator
