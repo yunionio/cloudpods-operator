@@ -51,6 +51,7 @@ const (
   https-enabled = true
   https-certificate = "{{.CertPath}}"
   https-private-key = "{{.KeyPath}}"
+  bind-address = ":{{.Port}}"
 
 [subscriber]
   insecure-skip-verify = true
@@ -58,6 +59,7 @@ const (
 )
 
 type InfluxdbConfig struct {
+	Port     int
 	CertPath string
 	KeyPath  string
 }
@@ -96,6 +98,7 @@ func (m *influxdbManager) getPVC(oc *v1alpha1.OnecloudCluster) (*corev1.Persiste
 
 func (m *influxdbManager) getConfigMap(oc *v1alpha1.OnecloudCluster, clusterCfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
 	config := InfluxdbConfig{
+		Port:     constants.InfluxdbPort,
 		CertPath: path.Join(constants.CertDir, constants.ServiceCertName),
 		KeyPath:  path.Join(constants.CertDir, constants.ServiceKeyName),
 	}
