@@ -21,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/rand"
 
+	"yunion.io/x/log"
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/util/passwd"
 )
@@ -82,6 +83,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec) {
 		KubeServerComponentType:    &obj.KubeServer,
 		AnsibleServerComponentType: &obj.AnsibleServer,
 		CloudnetComponentType:      &obj.Cloudnet,
+		CloudeventComponentType:    &obj.Cloudevent,
 	} {
 		SetDefaults_DeploymentSpec(spec, getImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag))
 	}
@@ -240,6 +242,8 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		dbUser string
 	}
 
+	registryPorts := map[int]string{}
+
 	for opt, tmp := range map[*ServiceDBCommonOptions]userDBPort{
 		&obj.RegionServer.ServiceDBCommonOptions: {constants.RegionAdminUser, constants.RegionPort, constants.RegionDB, constants.RegionDBUser},
 		&obj.Glance.ServiceDBCommonOptions:       {constants.GlanceAdminUser, constants.GlanceAPIPort, constants.GlanceDB, constants.GlanceDBUser},
@@ -249,8 +253,13 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		&obj.KubeServer:                          {constants.KubeServerAdminUser, constants.KubeServerPort, constants.KubeServerDB, constants.KubeServerDBUser},
 		&obj.AnsibleServer:                       {constants.AnsibleServerAdminUser, constants.AnsibleServerPort, constants.AnsibleServerDB, constants.AnsibleServerDBUser},
 		&obj.Cloudnet:                            {constants.CloudnetAdminUser, constants.CloudnetPort, constants.CloudnetDB, constants.CloudnetDBUser},
+		&obj.Cloudevent:                          {constants.CloudeventAdminUser, constants.CloudeventPort, constants.CloudeventDB, constants.CloudeventDBUser},
 		&obj.Notify:                              {constants.NotifyAdminUser, constants.NotifyPort, constants.NotifyDB, constants.NotifyDBUser},
 	} {
+		if user, ok := registryPorts[tmp.port]; ok {
+			log.Fatalf("port %d has been registered by %s", tmp.port, user)
+		}
+		registryPorts[tmp.port] = tmp.user
 		SetDefaults_ServiceDBCommonOptions(opt, tmp.db, tmp.dbUser, tmp.user, tmp.port)
 	}
 }

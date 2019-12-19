@@ -600,17 +600,17 @@ func (m *ComponentManager) newDaemonSet(
 					Annotations: podAnnotations,
 				},
 				Spec: corev1.PodSpec{
-					Affinity:      spec.Affinity,
-					NodeSelector:  spec.NodeSelector,
-					Containers:    containersFactory(volMounts),
+					Affinity:       spec.Affinity,
+					NodeSelector:   spec.NodeSelector,
+					Containers:     containersFactory(volMounts),
 					InitContainers: initContainers,
-					RestartPolicy: corev1.RestartPolicyAlways,
-					Tolerations:   spec.Tolerations,
-					Volumes:       vols,
-					HostNetwork:   true,
-					HostPID:       true,
-					HostIPC:       true,
-					DNSPolicy:     corev1.DNSClusterFirstWithHostNet,
+					RestartPolicy:  corev1.RestartPolicyAlways,
+					Tolerations:    spec.Tolerations,
+					Volumes:        vols,
+					HostNetwork:    true,
+					HostPID:        true,
+					HostIPC:        true,
+					DNSPolicy:      corev1.DNSClusterFirstWithHostNet,
 				},
 			},
 			Selector: appLabel.LabelSelector(),
@@ -790,4 +790,8 @@ func (m *ComponentManager) Host() manager.Manager {
 
 func (m *ComponentManager) HostDeployer() manager.Manager {
 	return newHostDeployerManger(m)
+}
+
+func (m *ComponentManager) Cloudevent() manager.Manager {
+	return newCloudeventManager(m)
 }

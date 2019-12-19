@@ -140,6 +140,12 @@ const (
 	CloudnetDB           = "yunioncloudnet"
 	CloudnetDBUser       = "yunioncloudnet"
 
+	CloudeventAdminUser    = "cloudeventadmin"
+	CloudeventAdminProject = SysAdminProject
+	CloudeventPort         = 30892
+	CloudeventDB           = "yunioncloudevent"
+	CloudeventDBUser       = "yunioncloudevent"
+
 	EndpointTypeInternal = "internal"
 	EndpointTypePublic   = "public"
 	EndpointTypeAdmin    = "admin"
@@ -180,6 +186,9 @@ const (
 
 	ServiceNameCloudnet = "cloudnet"
 	ServiceTypeCloudnet = "cloudnet"
+
+	ServiceNameCloudevent = "cloudevent"
+	ServiceTypeCloudevent = "cloudevent"
 
 	ServiceNameNotify = "notify"
 	ServiceTypeNotify = "notify"
