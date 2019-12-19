@@ -64,7 +64,8 @@ func (m *webconsoleManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	opt.EnableAutoLogin = true
 	address := oc.Spec.LoadBalancerEndpoint
 	opt.Port = constants.WebconsolePort
-	opt.ApiServer = fmt.Sprintf("https://%s:%d", address, constants.WebconsolePort)
+	// opt.ApiServer = fmt.Sprintf("https://%s:%d", address, constants.WebconsolePort)
+	opt.ApiServer = fmt.Sprintf("https://%s", address)
 
 	return m.newServiceConfigMap(v1alpha1.WebconsoleComponentType, oc, opt), nil
 }
