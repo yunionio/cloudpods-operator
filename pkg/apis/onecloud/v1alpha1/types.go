@@ -58,6 +58,7 @@ const (
 	KubeServerComponentType     ComponentType = "kubeserver"
 	AnsibleServerComponentType  ComponentType = "ansibleserver"
 	CloudnetComponentType       ComponentType = "cloudnet"
+	CloudeventComponentType     ComponentType = "cloudevent"
 	NotifyComponentType         ComponentType = "notify"
 	HostComponentType           ComponentType = "host"
 	HostDeployerComponentType   ComponentType = "host-deployer"
@@ -148,6 +149,8 @@ type OnecloudClusterSpec struct {
 	AnsibleServer DeploymentSpec `json:"ansibleserver"`
 	// Cloudnet holds configuration for cloudnet service
 	Cloudnet DeploymentSpec `json:"cloudnet"`
+	// Cloudevent holds configuration for cloudevent service
+	Cloudevent DeploymentSpec `json:"cloudevent"`
 	// Notify holds configuration for notify service
 	Notify StatefulDeploymentSpec `json:"notify"`
 	// HostAgent holds configuration for host
@@ -175,6 +178,7 @@ type OnecloudClusterStatus struct {
 	KubeServer     DeploymentStatus `json:"kubeserver,omitempty"`
 	AnsibleServer  DeploymentStatus `json:"ansibleserver,omitempty"`
 	Cloudnet       DeploymentStatus `json:"cloudnet,omitempty"`
+	Cloudevent     DeploymentStatus `json:"cloudevent,omitempty"`
 	Notify         DeploymentStatus `json:"notify,omitempty"`
 	BaremetalAgent DeploymentStatus `json:"baremetalagent,omitempty"`
 }
@@ -350,6 +354,7 @@ type OnecloudClusterConfig struct {
 	KubeServer     ServiceDBCommonOptions `json:"kubeserver"`
 	AnsibleServer  ServiceDBCommonOptions `json:"ansibleserver"`
 	Cloudnet       ServiceDBCommonOptions `json:"cloudnet"`
+	Cloudevent     ServiceDBCommonOptions `json:"cloudevent"`
 	APIGateway     ServiceCommonOptions   `json:"apiGateway"`
 	Notify         ServiceDBCommonOptions `json:"notify"`
 	HostAgent      HostConfig             `json:"host"`

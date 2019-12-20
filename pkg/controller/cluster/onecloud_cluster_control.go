@@ -100,6 +100,7 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 		components.KubeServer(),
 		components.AnsibleServer(),
 		components.Cloudnet(),
+		components.Cloudevent(),
 		components.APIGateway(),
 		components.Web(),
 		components.Notify(),
