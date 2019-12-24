@@ -5,6 +5,7 @@ import (
 
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -84,28 +85,27 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 				},
 			}
 		}
-		initContainerF = func() []corev1.Container {
-			return []corev1.Container{
-				{
-					Name:  "init",
-					Image: dsSpec.Image,
-					Command: []string{
-						"mkdir", "-p", "/opt/cloud",
-					},
-					VolumeMounts: []corev1.VolumeMount{
-						{
-							Name:      "opt",
-							ReadOnly:  false,
-							MountPath: "/opt",
-						},
-					},
-				},
-			}
-		}
 	)
 	if dsSpec.NodeSelector == nil {
 		dsSpec.NodeSelector = make(map[string]string)
 	}
 	dsSpec.NodeSelector[constants.OnecloudEnableHostLabelKey] = "enable"
-	return m.newDaemonSet(cType, oc, cfg, NewHostVolume(cType, oc, configMap), dsSpec, initContainerF, containersF)
+	ds, err := m.newDaemonSet(cType, oc, cfg, NewHostVolume(cType, oc, configMap), dsSpec, nil, containersF)
+	if err != nil {
+		return nil, err
+	}
+
+	// add pod label for pod affinity
+	if ds.Spec.Template.ObjectMeta.Labels == nil {
+		ds.Spec.Template.ObjectMeta.Labels = make(map[string]string)
+	}
+	ds.Spec.Template.ObjectMeta.Labels[constants.OnecloudHostDeployerLabelKey] = ""
+	if ds.Spec.Selector == nil {
+		ds.Spec.Selector = &metav1.LabelSelector{}
+	}
+	if ds.Spec.Selector.MatchLabels == nil {
+		ds.Spec.Selector.MatchLabels = make(map[string]string)
+	}
+	ds.Spec.Selector.MatchLabels[constants.OnecloudHostDeployerLabelKey] = ""
+	return ds, nil
 }

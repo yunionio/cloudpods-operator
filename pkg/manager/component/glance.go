@@ -17,6 +17,7 @@ package component
 import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -119,7 +120,26 @@ func (m *glanceManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 
 	podTemplate.Containers[0].VolumeMounts = volMounts
 	podTemplate.Volumes = podVols
+
+	// add pod label for pod affinity
+	if deploy.Spec.Template.ObjectMeta.Labels == nil {
+		deploy.Spec.Template.ObjectMeta.Labels = make(map[string]string)
+	}
+	deploy.Spec.Template.ObjectMeta.Labels[constants.OnecloudHostDeployerLabelKey] = ""
+	if deploy.Spec.Selector == nil {
+		deploy.Spec.Selector = &metav1.LabelSelector{}
+	}
+	if deploy.Spec.Selector.MatchLabels == nil {
+		deploy.Spec.Selector.MatchLabels = make(map[string]string)
+	}
+	deploy.Spec.Selector.MatchLabels[constants.OnecloudHostDeployerLabelKey] = ""
 	return deploy, nil
+}
+
+func (m *glanceManager) getPodLabels() map[string]string {
+	return map[string]string{
+		constants.OnecloudHostDeployerLabelKey: "",
+	}
 }
 
 func (m *glanceManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {

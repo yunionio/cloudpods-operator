@@ -5,7 +5,9 @@ import (
 
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
@@ -60,24 +62,25 @@ func (m *hostDeployerManager) newHostPrivilegedDaemonSet(
 				},
 			}
 		}
-		initContainerF = func() []corev1.Container {
-			return []corev1.Container{
-				{
-					Name:  "init",
-					Image: dsSpec.Image,
-					Command: []string{
-						"mkdir", "-p", "/opt/cloud",
-					},
-					VolumeMounts: []corev1.VolumeMount{
-						{
-							Name:      "opt",
-							ReadOnly:  false,
-							MountPath: "/opt",
-						},
-					},
-				},
-			}
-		}
 	)
-	return m.newDaemonSet(cType, oc, cfg, NewHostVolume(cType, oc, configMap), dsSpec, initContainerF, containersF)
+	ds, err := m.newDaemonSet(cType, oc, cfg, NewHostVolume(cType, oc, configMap), dsSpec, nil, containersF)
+	if err != nil {
+		return nil, err
+	}
+	// set inter pod affinity
+	if ds.Spec.Template.Spec.Affinity == nil {
+		ds.Spec.Template.Spec.Affinity = &corev1.Affinity{}
+	}
+	if ds.Spec.Template.Spec.Affinity.PodAffinity == nil {
+		ds.Spec.Template.Spec.Affinity.PodAffinity = &corev1.PodAffinity{}
+	}
+	ds.Spec.Template.Spec.Affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution = []corev1.PodAffinityTerm{
+		corev1.PodAffinityTerm{
+			LabelSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{constants.OnecloudHostDeployerLabelKey: ""},
+			},
+			TopologyKey: "kubernetes.io/hostname",
+		},
+	}
+	return ds, nil
 }
