@@ -629,15 +629,6 @@ func NewHostVolume(
 			},
 		},
 		{
-			Name: "opt",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/opt",
-					Type: &hostPathDirectory,
-				},
-			},
-		},
-		{
 			Name: "usr",
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{

@@ -39,6 +39,8 @@ const (
 	OnecloudEditionAnnotationKey    string = "onecloud.yunion.io/edition"
 	OnecloudEnableHostLabelKey      string = "onecloud.yunion.io/host"
 	OnecloudEanbleBaremetalLabelKey string = "onecloud.yunion.io/baremetal"
+	OnecloudControllerLabelKey      string = "onecloud.yunion.io/controller"
+	OnecloudHostDeployerLabelKey    string = "onecloud.yunion.io/host-deployer"
 	OnecloudCommunityEdition        string = "ce"
 	OnecloudEnterpriseEdition       string = "ee"
 )

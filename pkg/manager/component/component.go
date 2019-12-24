@@ -31,6 +31,7 @@ import (
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/onecloud-operator/pkg/label"
 
+	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
@@ -338,10 +339,62 @@ func (m *ComponentManager) newDefaultDeployment(
 	initContainersFactory func([]corev1.VolumeMount) []corev1.Container,
 	containersFactory func([]corev1.VolumeMount) []corev1.Container,
 ) (*apps.Deployment, error) {
+	return m.newDefaultDeploymentWithCloudAffinity(componentType, oc, volHelper, spec, initContainersFactory, containersFactory)
+}
+
+func (m *ComponentManager) newDefaultDeploymentWithoutCloudAffinity(
+	componentType v1alpha1.ComponentType,
+	oc *v1alpha1.OnecloudCluster,
+	volHelper *VolumeHelper,
+	spec v1alpha1.DeploymentSpec,
+	initContainersFactory func([]corev1.VolumeMount) []corev1.Container,
+	containersFactory func([]corev1.VolumeMount) []corev1.Container,
+) (*apps.Deployment, error) {
+	return m.newDeployment(componentType, oc, volHelper, spec, initContainersFactory, containersFactory, false, corev1.DNSClusterFirst)
+}
+
+func (m *ComponentManager) newDefaultDeploymentWithCloudAffinity(
+	componentType v1alpha1.ComponentType,
+	oc *v1alpha1.OnecloudCluster,
+	volHelper *VolumeHelper,
+	spec v1alpha1.DeploymentSpec,
+	initContainersFactory func([]corev1.VolumeMount) []corev1.Container,
+	containersFactory func([]corev1.VolumeMount) []corev1.Container,
+) (*apps.Deployment, error) {
+	if spec.Affinity == nil {
+		spec.Affinity = &corev1.Affinity{}
+	}
+	if spec.Affinity.NodeAffinity == nil {
+		spec.Affinity.NodeAffinity = &corev1.NodeAffinity{}
+	}
+	spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution = []corev1.PreferredSchedulingTerm{
+		corev1.PreferredSchedulingTerm{
+			Weight: 1,
+			Preference: corev1.NodeSelectorTerm{
+				MatchExpressions: []corev1.NodeSelectorRequirement{
+					corev1.NodeSelectorRequirement{
+						Key:      constants.OnecloudControllerLabelKey,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"enable"},
+					},
+				},
+			},
+		},
+	}
 	return m.newDeployment(componentType, oc, volHelper, spec, initContainersFactory, containersFactory, false, corev1.DNSClusterFirst)
 }
 
 func (m *ComponentManager) newDefaultDeploymentNoInit(
+	componentType v1alpha1.ComponentType,
+	oc *v1alpha1.OnecloudCluster,
+	volHelper *VolumeHelper,
+	spec v1alpha1.DeploymentSpec,
+	containersFactory func([]corev1.VolumeMount) []corev1.Container,
+) (*apps.Deployment, error) {
+	return m.newDefaultDeploymentWithCloudAffinity(componentType, oc, volHelper, spec, nil, containersFactory)
+}
+
+func (m *ComponentManager) newDefaultDeploymentNoInitWithoutCloudAffinity(
 	componentType v1alpha1.ComponentType,
 	oc *v1alpha1.OnecloudCluster,
 	volHelper *VolumeHelper,
@@ -600,17 +653,17 @@ func (m *ComponentManager) newDaemonSet(
 					Annotations: podAnnotations,
 				},
 				Spec: corev1.PodSpec{
-					Affinity:      spec.Affinity,
-					NodeSelector:  spec.NodeSelector,
-					Containers:    containersFactory(volMounts),
+					Affinity:       spec.Affinity,
+					NodeSelector:   spec.NodeSelector,
+					Containers:     containersFactory(volMounts),
 					InitContainers: initContainers,
-					RestartPolicy: corev1.RestartPolicyAlways,
-					Tolerations:   spec.Tolerations,
-					Volumes:       vols,
-					HostNetwork:   true,
-					HostPID:       true,
-					HostIPC:       true,
-					DNSPolicy:     corev1.DNSClusterFirstWithHostNet,
+					RestartPolicy:  corev1.RestartPolicyAlways,
+					Tolerations:    spec.Tolerations,
+					Volumes:        vols,
+					HostNetwork:    true,
+					HostPID:        true,
+					HostIPC:        true,
+					DNSPolicy:      corev1.DNSClusterFirstWithHostNet,
 				},
 			},
 			Selector: appLabel.LabelSelector(),
