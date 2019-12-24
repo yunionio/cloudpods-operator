@@ -848,3 +848,7 @@ func (m *ComponentManager) HostDeployer() manager.Manager {
 func (m *ComponentManager) Cloudevent() manager.Manager {
 	return newCloudeventManager(m)
 }
+
+func (m *ComponentManager) S3gateway() manager.Manager {
+	return newS3gatewayManager(m)
+}

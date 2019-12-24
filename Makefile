@@ -18,10 +18,10 @@ controller-manager:
 	$(GO) -ldflags $(LDFLAGS) -o $(BIN_DIR)/onecloud-controller-manager cmd/controller-manager/main.go
 
 image: build
-	docker build -f images/onecloud-operator/Dockerfile -t $(REGISTRY)/onecloud-operator:$(VERSION) .
+	sudo docker build -f images/onecloud-operator/Dockerfile -t $(REGISTRY)/onecloud-operator:$(VERSION) .
 
 image-push: image
-	docker push $(REGISTRY)/onecloud-operator:$(VERSION)
+	sudo docker push $(REGISTRY)/onecloud-operator:$(VERSION)
 
 fmt:
 	find . -type f -name "*.go" -not -path "./_output/*" \

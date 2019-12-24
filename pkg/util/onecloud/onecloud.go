@@ -180,6 +180,7 @@ func CreateUser(s *mcclient.ClientSession, username string, password string) (js
 	params := jsonutils.NewDict()
 	params.Add(jsonutils.NewString(username), "name")
 	params.Add(jsonutils.NewString(password), "password")
+	params.Add(jsonutils.JSONTrue, "is_system_account")
 	return modules.UsersV3.Create(s, params)
 }
 

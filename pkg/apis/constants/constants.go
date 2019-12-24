@@ -222,6 +222,12 @@ const (
 	ServiceNameOfflineCloudmeta = "offlinecloudmeta"
 	ServiceTypeOfflineCloudmeta = "offlinecloudmeta"
 	ServiceURLOfflineCloudmeta  = "https://yunionmeta.oss-cn-beijing.aliyuncs.com"
+
+	ServiceNameS3gateway  = "s3gateway"
+	ServiceTypeS3gateway  = "s3gateway"
+	S3gatewayPort         = 30884
+	S3gatewayAdminUser    = "webconsole"
+	S3gatewayAdminProject = SysAdminProject
 )
 
 const (
