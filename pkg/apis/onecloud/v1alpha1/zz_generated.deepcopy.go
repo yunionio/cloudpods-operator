@@ -390,10 +390,12 @@ func (in *OnecloudClusterConfig) DeepCopyInto(out *OnecloudClusterConfig) {
 	out.KubeServer = in.KubeServer
 	out.AnsibleServer = in.AnsibleServer
 	out.Cloudnet = in.Cloudnet
+	out.Cloudevent = in.Cloudevent
 	out.APIGateway = in.APIGateway
 	out.Notify = in.Notify
 	out.HostAgent = in.HostAgent
 	out.BaremetalAgent = in.BaremetalAgent
+	out.S3gateway = in.S3gateway
 	return
 }
 
@@ -478,10 +480,12 @@ func (in *OnecloudClusterSpec) DeepCopyInto(out *OnecloudClusterSpec) {
 	in.KubeServer.DeepCopyInto(&out.KubeServer)
 	in.AnsibleServer.DeepCopyInto(&out.AnsibleServer)
 	in.Cloudnet.DeepCopyInto(&out.Cloudnet)
+	in.Cloudevent.DeepCopyInto(&out.Cloudevent)
 	in.Notify.DeepCopyInto(&out.Notify)
 	in.HostAgent.DeepCopyInto(&out.HostAgent)
 	in.HostDeployer.DeepCopyInto(&out.HostDeployer)
 	in.BaremetalAgent.DeepCopyInto(&out.BaremetalAgent)
+	in.S3gateway.DeepCopyInto(&out.S3gateway)
 	return
 }
 
@@ -512,8 +516,10 @@ func (in *OnecloudClusterStatus) DeepCopyInto(out *OnecloudClusterStatus) {
 	in.KubeServer.DeepCopyInto(&out.KubeServer)
 	in.AnsibleServer.DeepCopyInto(&out.AnsibleServer)
 	in.Cloudnet.DeepCopyInto(&out.Cloudnet)
+	in.Cloudevent.DeepCopyInto(&out.Cloudevent)
 	in.Notify.DeepCopyInto(&out.Notify)
 	in.BaremetalAgent.DeepCopyInto(&out.BaremetalAgent)
+	in.S3gateway.DeepCopyInto(&out.S3gateway)
 	return
 }
 
