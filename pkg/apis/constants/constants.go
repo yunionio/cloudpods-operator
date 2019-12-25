@@ -226,7 +226,7 @@ const (
 	ServiceNameS3gateway  = "s3gateway"
 	ServiceTypeS3gateway  = "s3gateway"
 	S3gatewayPort         = 30884
-	S3gatewayAdminUser    = "webconsole"
+	S3gatewayAdminUser    = "s3gatewayadm"
 	S3gatewayAdminProject = SysAdminProject
 )
 
