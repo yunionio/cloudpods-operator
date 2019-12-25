@@ -19,8 +19,6 @@ controller-manager:
 
 image: build
 	sudo docker build -f images/onecloud-operator/Dockerfile -t $(REGISTRY)/onecloud-operator:$(VERSION) .
-
-image-push: image
 	sudo docker push $(REGISTRY)/onecloud-operator:$(VERSION)
 
 fmt:
