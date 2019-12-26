@@ -519,9 +519,9 @@ func NewHostVolume(
 	var bidirectional = corev1.MountPropagationBidirectional
 	h.volumeMounts = []corev1.VolumeMount{
 		{
-			Name:      "etc",
+			Name:      "etc-yunion",
 			ReadOnly:  false,
-			MountPath: "/etc",
+			MountPath: "/etc/yunion",
 		},
 		{
 			Name:      constants.VolumeCertsName,
@@ -585,10 +585,10 @@ func NewHostVolume(
 	var hostPathDirectory = corev1.HostPathDirectory
 	h.volumes = []corev1.Volume{
 		{
-			Name: "etc",
+			Name: "etc-yunion",
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/etc",
+					Path: "/etc/yunion",
 					Type: &hostPathDirectory,
 				},
 			},
