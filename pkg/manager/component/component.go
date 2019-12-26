@@ -852,3 +852,7 @@ func (m *ComponentManager) Cloudevent() manager.Manager {
 func (m *ComponentManager) S3gateway() manager.Manager {
 	return newS3gatewayManager(m)
 }
+
+func (m *ComponentManager) Devtool() manager.Manager {
+	return newDevtoolManager(m)
+}

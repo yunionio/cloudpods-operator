@@ -65,6 +65,8 @@ const (
 	BaremetalAgentComponentType ComponentType = "baremetal-agent"
 	// S3gatewayComponentType is multi-cloud S3 object storage gateway
 	S3gatewayComponentType ComponentType = "s3gateway"
+	// DevtoolComponentType is devops tool based on ansible
+	DevtoolComponentType ComponentType = "devtool"
 )
 
 // ComponentPhase is the current state of component
@@ -163,6 +165,8 @@ type OnecloudClusterSpec struct {
 	BaremetalAgent StatefulDeploymentSpec `json:"baremetalagent"`
 	// S3gateway holds configuration for s3gateway service
 	S3gateway DeploymentSpec `json:"s3gateway"`
+	// Devtool holds configuration for devtool service
+	Devtool DeploymentSpec `json:"devtool"`
 }
 
 // OnecloudClusterStatus describes cluster status
@@ -186,6 +190,7 @@ type OnecloudClusterStatus struct {
 	Notify         DeploymentStatus `json:"notify,omitempty"`
 	BaremetalAgent DeploymentStatus `json:"baremetalagent,omitempty"`
 	S3gateway      DeploymentStatus `json:"s3gateway,omitempty"`
+	Devtool        DeploymentStatus `json:"devtool,omitempty"`
 }
 
 // Etcd describes an etcd cluster
@@ -365,4 +370,5 @@ type OnecloudClusterConfig struct {
 	HostAgent      HostConfig             `json:"host"`
 	BaremetalAgent BaremetalConfig        `json:"baremetal"`
 	S3gateway      ServiceCommonOptions   `json:"s3gateway"`
+	Devtool        ServiceDBCommonOptions `json:"devtool"`
 }

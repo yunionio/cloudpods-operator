@@ -20,13 +20,13 @@ import (
 	"os"
 	"time"
 
-	"github.com/pkg/errors"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
 
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/mcclient/modules"
+	"yunion.io/x/pkg/errors"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -310,6 +310,18 @@ func (c *baseComponent) RegisterServiceEndpoints(serviceName, serviceType string
 		return err
 	}
 	return c.registerServiceEndpointsBySession(s, serviceName, serviceType, eps, enableSSL)
+}
+
+func (c *baseComponent) registerService(serviceName, serviceType string) error {
+	s, err := c.GetSession()
+	if err != nil {
+		return errors.Wrap(err, "c.GetSession")
+	}
+	_, err = onecloud.EnsureService(s, serviceName, serviceType)
+	if err != nil {
+		return errors.Wrap(err, "onecloud.EnsureService")
+	}
+	return nil
 }
 
 type keystoneComponent struct {
@@ -606,6 +618,29 @@ func (c *glanceComponent) Setup() error {
 		v1alpha1.GlanceComponentType,
 		constants.ServiceNameGlance, constants.ServiceTypeGlance,
 		constants.GlanceAPIPort, "v1")
+}
+
+type registerServiceComponent struct {
+	*baseComponent
+	cType       v1alpha1.ComponentType
+	serviceName string
+	serviceType string
+}
+
+func NewRegisterServiceComponent(
+	man ComponentManager,
+	serviceName string,
+	serviceType string,
+) PhaseControl {
+	return &registerServiceComponent{
+		baseComponent: newBaseComponent(man),
+		serviceName:   serviceName,
+		serviceType:   serviceType,
+	}
+}
+
+func (c *registerServiceComponent) Setup() error {
+	return c.registerService(c.serviceName, c.serviceType)
 }
 
 type registerEndpointComponent struct {
