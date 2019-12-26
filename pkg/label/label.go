@@ -38,6 +38,7 @@ const (
 	// InstanceLabelKey is Kubernetes recommended label key, it represents a unique name identifying the instance of an application
 	// It's set by helm when installing a release
 	InstanceLabelKey string = constants.InstanceLabelKey
+	AppLabelKey      string = constants.AppLabelKey
 )
 
 // Label is the label field in metadata
@@ -60,6 +61,7 @@ func (l Label) Instance(name string) Label {
 // Component adds component kv pair to label
 func (l Label) Component(name string) Label {
 	l[ComponentLabelKey] = name
+	l[AppLabelKey] = name
 	return l
 }
 

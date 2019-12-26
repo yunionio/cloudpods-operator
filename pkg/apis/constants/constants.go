@@ -33,6 +33,7 @@ const (
 	// InstanceLabelKey is Kubernetes recommended label key, it represents a unique name identifying the instance of an application
 	// It's set by helm when installing a release
 	InstanceLabelKey string = "app.kubernetes.io/instance"
+	AppLabelKey      string = "app"
 )
 
 const (
