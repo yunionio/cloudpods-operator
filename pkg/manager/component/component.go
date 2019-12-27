@@ -496,7 +496,7 @@ func (m *ComponentManager) newDeployment(
 		},
 		Spec: apps.DeploymentSpec{
 			Replicas: &spec.Replicas,
-			Strategy: apps.DeploymentStrategy{Type: apps.RecreateDeploymentStrategyType},
+			Strategy: apps.DeploymentStrategy{Type: apps.RollingUpdateDeploymentStrategyType},
 			Selector: appLabel.LabelSelector(),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
@@ -522,6 +522,9 @@ func (m *ComponentManager) newDeployment(
 	}
 	if containersFactory != nil {
 		templateSpec.Containers = containersFactory(volMounts)
+	}
+	if hostNetwork {
+		appDeploy.Spec.Strategy = apps.DeploymentStrategy{Type: apps.RecreateDeploymentStrategyType}
 	}
 	return appDeploy, nil
 }
