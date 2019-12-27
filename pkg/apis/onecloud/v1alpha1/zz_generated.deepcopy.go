@@ -396,6 +396,7 @@ func (in *OnecloudClusterConfig) DeepCopyInto(out *OnecloudClusterConfig) {
 	out.HostAgent = in.HostAgent
 	out.BaremetalAgent = in.BaremetalAgent
 	out.S3gateway = in.S3gateway
+	out.Devtool = in.Devtool
 	return
 }
 
@@ -486,6 +487,7 @@ func (in *OnecloudClusterSpec) DeepCopyInto(out *OnecloudClusterSpec) {
 	in.HostDeployer.DeepCopyInto(&out.HostDeployer)
 	in.BaremetalAgent.DeepCopyInto(&out.BaremetalAgent)
 	in.S3gateway.DeepCopyInto(&out.S3gateway)
+	in.Devtool.DeepCopyInto(&out.Devtool)
 	return
 }
 
@@ -520,6 +522,7 @@ func (in *OnecloudClusterStatus) DeepCopyInto(out *OnecloudClusterStatus) {
 	in.Notify.DeepCopyInto(&out.Notify)
 	in.BaremetalAgent.DeepCopyInto(&out.BaremetalAgent)
 	in.S3gateway.DeepCopyInto(&out.S3gateway)
+	in.Devtool.DeepCopyInto(&out.Devtool)
 	return
 }
 

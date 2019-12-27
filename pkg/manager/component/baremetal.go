@@ -30,6 +30,10 @@ func (m *baremetalManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1
 	return &cfg.BaremetalAgent.CloudUser
 }
 
+func (m *baremetalManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
+	return controller.NewRegisterServiceComponent(man, constants.ServiceNameBaremetal, constants.ServiceTypeBaremetal)
+}
+
 func (m *baremetalManager) getConfigMap(
 	oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig,
 ) (*corev1.ConfigMap, error) {

@@ -49,6 +49,10 @@ func (m *apiGatewayManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v
 	return &cfg.APIGateway.CloudUser
 }
 
+func (m *apiGatewayManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
+	return controller.NewRegisterServiceComponent(man, constants.ServiceNameAPIGateway, constants.ServiceTypeAPIGateway)
+}
+
 func (m *apiGatewayManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
 	opt := &apiOptions{}
 	if err := SetOptionsDefault(opt, "apigateway"); err != nil {

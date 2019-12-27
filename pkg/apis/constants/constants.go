@@ -85,11 +85,15 @@ const (
 	RegionDB           = "yunioncloud"
 	RegionDBUser       = "yunioncloud"
 
+	ServiceNameHost  = "host"
+	ServiceTypeHost  = "host"
 	HostAdminUser    = "hostadmin"
 	HostAdminProject = SysAdminProject
 	// Host not use node port
 	HostPort = 8885
 
+	ServiceNameBaremetal  = "baremetal"
+	ServiceTypeBaremetal  = "baremetal"
 	BaremetalAdminUser    = "baremetal"
 	BaremetalAdminProject = SysAdminProject
 	// Baremetal not use node port
@@ -109,9 +113,11 @@ const (
 	LoggerDB        = "yunionlogger"
 	LoggerDBUser    = "yunionlogger"
 
-	APIGatewayAdminUser = "yunionapi"
-	APIGatewayPort      = 30300
-	APIWebsocketPort    = 30443
+	ServiceNameAPIGateway = "yunionapi"
+	ServiceTypeAPIGateway = "yunionapi"
+	APIGatewayAdminUser   = "yunionapi"
+	APIGatewayPort        = 30300
+	APIWebsocketPort      = 30443
 
 	YunionAgentAdminUser = "yunionagent"
 	YunionAgentPort      = 30898
@@ -229,6 +235,22 @@ const (
 	S3gatewayPort         = 30884
 	S3gatewayAdminUser    = "s3gatewayadm"
 	S3gatewayAdminProject = SysAdminProject
+
+	ServiceNameDevtool  = "devtool"
+	ServiceTypeDevtool  = "devtool"
+	DevtoolPort         = 30997
+	DevtoolAdminUser    = "devtooladmin"
+	DevtoolAdminProject = SysAdminProject
+	DevtoolDB           = "devtool"
+	DevtoolDBUser       = "devtool"
+
+	ServiceNameMeter  = "meter"
+	ServiceTypeMeter  = "meter"
+	MeterPort         = 30909
+	MeterAdminUser    = "meterdocker"
+	MeterAdminProject = SysAdminProject
+	MeterDB           = "yunionmeter"
+	MeterDBUser       = "yunionmeter"
 )
 
 const (

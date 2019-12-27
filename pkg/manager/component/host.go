@@ -30,6 +30,10 @@ func (m *hostManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha
 	return &cfg.HostAgent.CloudUser
 }
 
+func (m *hostManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
+	return controller.NewRegisterServiceComponent(man, constants.ServiceNameHost, constants.ServiceTypeHost)
+}
+
 func (m *hostManager) getConfigMap(
 	oc *v1alpha1.OnecloudCluster,
 	cfg *v1alpha1.OnecloudClusterConfig,

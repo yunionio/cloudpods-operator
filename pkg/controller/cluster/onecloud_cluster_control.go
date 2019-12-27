@@ -108,6 +108,7 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 		components.HostDeployer(),
 		components.Baremetal(),
 		components.S3gateway(),
+		components.Devtool(),
 	} {
 		if err := component.Sync(oc); err != nil {
 			return err
