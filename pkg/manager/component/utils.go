@@ -25,6 +25,7 @@ import (
 
 	"github.com/pkg/errors"
 	apps "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
@@ -146,6 +147,26 @@ func SetDaemonSetLastAppliedConfigAnnotation(ds *apps.DaemonSet) error {
 	return nil
 }
 
+func SetCronJobLastAppliedConfigAnnotation(cronJob *batchv1.CronJob) error {
+	cronApply, err := encode(cronJob.Spec)
+	if err != nil {
+		return err
+	}
+	if cronJob.Annotations == nil {
+		cronJob.Annotations = map[string]string{}
+	}
+	cronJob.Annotations[LastAppliedConfigAnnotation] = cronApply
+	templateApply, err := encode(cronJob.Spec.JobTemplate.Spec)
+	if err != nil {
+		return err
+	}
+	if cronJob.Spec.JobTemplate.Annotations == nil {
+		cronJob.Spec.JobTemplate.Annotations = map[string]string{}
+	}
+	cronJob.Spec.JobTemplate.Annotations[LastAppliedConfigAnnotation] = templateApply
+	return nil
+}
+
 // serviceEqual compares the new Service's spec with old Service's last applied config
 func serviceEqual(new, old *corev1.Service) (bool, error) {
 	oldSpec := corev1.ServiceSpec{}
@@ -210,6 +231,20 @@ func daemonSetEqual(new, old *apps.DaemonSet) bool {
 			return false
 		}
 		return apiequality.Semantic.DeepEqual(oldConfig.Template, new.Spec.Template)
+	}
+	return false
+}
+
+func cronJobEqual(new, old *batchv1.CronJob) bool {
+	oldConfig := batchv1.CronJob{}
+	if LastAppliedConfig, ok := old.Annotations[LastAppliedConfigAnnotation]; ok {
+		err := json.Unmarshal([]byte(LastAppliedConfig), &oldConfig)
+		if err != nil {
+			klog.Errorf("unmarshal CronJob: [%s/%s]'s applied config failed, error: %v",
+				old.GetNamespace(), old.GetName(), err)
+			return false
+		}
+		return apiequality.Semantic.DeepEqual(oldConfig.Spec, new.Spec)
 	}
 	return false
 }

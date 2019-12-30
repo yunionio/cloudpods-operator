@@ -19,14 +19,18 @@ import (
 
 	errorswrap "github.com/pkg/errors"
 	apps "k8s.io/api/apps/v1"
+	jobbatchv1 "k8s.io/api/batch/v1"
+	batchv1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	appv1 "k8s.io/client-go/listers/apps/v1"
+	batchlisters "k8s.io/client-go/listers/batch/v1beta1"
 	corelisters "k8s.io/client-go/listers/core/v1"
 	extensionlisters "k8s.io/client-go/listers/extensions/v1beta1"
+	"k8s.io/klog"
 
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/onecloud-operator/pkg/label"
@@ -48,6 +52,8 @@ type ComponentManager struct {
 	ingLister     extensionlisters.IngressLister
 	dsControl     controller.DaemonSetControlInterface
 	dsLister      appv1.DaemonSetLister
+	cronControl   controller.CronJobControlInterface
+	cronLister    batchlisters.CronJobLister
 
 	configer        Configer
 	onecloudControl *controller.OnecloudControl
@@ -65,6 +71,8 @@ func NewComponentManager(
 	ingLister extensionlisters.IngressLister,
 	dsControl controller.DaemonSetControlInterface,
 	dsLister appv1.DaemonSetLister,
+	cronControl controller.CronJobControlInterface,
+	cronLister batchlisters.CronJobLister,
 	configer Configer,
 	onecloudControl *controller.OnecloudControl,
 ) *ComponentManager {
@@ -79,6 +87,8 @@ func NewComponentManager(
 		ingLister:       ingLister,
 		dsControl:       dsControl,
 		dsLister:        dsLister,
+		cronControl:     cronControl,
+		cronLister:      cronLister,
 		configer:        configer,
 		onecloudControl: onecloudControl,
 	}
@@ -221,7 +231,6 @@ func (m *ComponentManager) syncDaemonSet(
 	oc *v1alpha1.OnecloudCluster,
 	dsFactory func(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig) (*apps.DaemonSet, error),
 ) error {
-	//ocName := oc.GetName()
 	ns := oc.GetNamespace()
 	cfg, err := m.configer.GetClusterConfig(oc)
 	if err != nil {
@@ -258,6 +267,53 @@ func (m *ComponentManager) updateDaemonSet(oc *v1alpha1.OnecloudCluster, newDs, 
 		}
 		_, err = m.dsControl.UpdateDaemonSet(oc, &ds)
 		return err
+	}
+	return nil
+}
+
+func (m *ComponentManager) syncCronJob(
+	oc *v1alpha1.OnecloudCluster,
+	cronFactory func(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig) (*batchv1.CronJob, error),
+) error {
+	cfg, err := m.configer.GetClusterConfig(oc)
+	if err != nil {
+		return err
+	}
+	newCronJob, err := cronFactory(oc, cfg)
+	if err != nil {
+		return err
+	}
+	if newCronJob == nil {
+		return nil
+	}
+	oldCronJob, err := m.cronLister.CronJobs(oc.GetNamespace()).Get(newCronJob.GetName())
+	if err != nil && !errors.IsNotFound(err) {
+		return errorswrap.Wrap(err, "sync cronjob on list")
+	}
+	if errors.IsNotFound(err) {
+		return m.cronControl.CreateCronJob(oc, newCronJob)
+	}
+	_oldCronJob := oldCronJob.DeepCopy()
+	if err = m.updateCronJob(oc, newCronJob, _oldCronJob); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *ComponentManager) updateCronJob(oc *v1alpha1.OnecloudCluster, newCronJob, oldCronJob *batchv1.CronJob) error {
+	if !cronJobEqual(newCronJob, oldCronJob) {
+		klog.Infof("start update cron job %s", newCronJob.GetName())
+		cronJob := *oldCronJob
+		cronJob.Spec = newCronJob.Spec
+		err := SetCronJobLastAppliedConfigAnnotation(&cronJob)
+		if err != nil {
+			return err
+		}
+		_, err = m.cronControl.UpdateCronJob(oc, &cronJob)
+		if err != nil {
+			return errorswrap.Wrap(err, "update cron job")
+		}
+		return nil
 	}
 	return nil
 }
@@ -675,6 +731,86 @@ func (m *ComponentManager) newDaemonSet(
 	return appDaemonSet, nil
 }
 
+func (m *ComponentManager) newCronJob(
+	componentType v1alpha1.ComponentType,
+	oc *v1alpha1.OnecloudCluster,
+	volHelper *VolumeHelper,
+	spec v1alpha1.CronJobSpec,
+	initContainersFactory func([]corev1.VolumeMount) []corev1.Container,
+	containersFactory func([]corev1.VolumeMount) []corev1.Container,
+	hostNetwork bool, dnsPolicy corev1.DNSPolicy,
+	concurrencyPolicy batchv1.ConcurrencyPolicy,
+	startingDeadlineSeconds *int64, suspend *bool,
+	successfulJobsHistoryLimit, failedJobsHistoryLimit *int32,
+) (*batchv1.CronJob, error) {
+	ns := oc.GetNamespace()
+	ocName := oc.GetName()
+	vols := volHelper.GetVolumes()
+	volMounts := volHelper.GetVolumeMounts()
+	appLabel := m.getComponentLabel(oc, componentType)
+	podAnnotations := spec.Annotations
+	cronJobName := controller.NewClusterComponentName(ocName, componentType)
+
+	cronJob := &batchv1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            cronJobName,
+			Namespace:       ns,
+			Labels:          appLabel.Labels(),
+			OwnerReferences: []metav1.OwnerReference{controller.GetOwnerRef(oc)},
+		},
+		Spec: batchv1.CronJobSpec{
+			Schedule:                   spec.Schedule,
+			StartingDeadlineSeconds:    startingDeadlineSeconds,
+			ConcurrencyPolicy:          concurrencyPolicy,
+			Suspend:                    suspend,
+			SuccessfulJobsHistoryLimit: successfulJobsHistoryLimit,
+			FailedJobsHistoryLimit:     failedJobsHistoryLimit,
+			JobTemplate: batchv1.JobTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels:      appLabel.Labels(),
+					Annotations: podAnnotations,
+				},
+				Spec: jobbatchv1.JobSpec{
+					// Selector: appLabel.LabelSelector(),
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels:      appLabel.Labels(),
+							Annotations: podAnnotations,
+						},
+						Spec: corev1.PodSpec{
+							Affinity:      spec.Affinity,
+							NodeSelector:  spec.NodeSelector,
+							Containers:    containersFactory(volMounts),
+							RestartPolicy: corev1.RestartPolicyNever, // never restart
+							Tolerations:   spec.Tolerations,
+							Volumes:       vols,
+							HostNetwork:   hostNetwork,
+							DNSPolicy:     dnsPolicy,
+						},
+					},
+				},
+			},
+		},
+	}
+	templateSpec := &cronJob.Spec.JobTemplate.Spec.Template.Spec
+	if initContainersFactory != nil {
+		templateSpec.InitContainers = initContainersFactory(volMounts)
+	}
+	return cronJob, nil
+}
+
+func (m *ComponentManager) newDefaultCronJob(
+	componentType v1alpha1.ComponentType,
+	oc *v1alpha1.OnecloudCluster,
+	volHelper *VolumeHelper,
+	spec v1alpha1.CronJobSpec,
+	initContainersFactory func([]corev1.VolumeMount) []corev1.Container,
+	containersFactory func([]corev1.VolumeMount) []corev1.Container,
+) (*batchv1.CronJob, error) {
+	return m.newCronJob(componentType, oc, volHelper, spec, initContainersFactory,
+		containersFactory, false, corev1.DNSClusterFirst, "", nil, nil, nil, nil)
+}
+
 func (m *ComponentManager) newPVC(cType v1alpha1.ComponentType, oc *v1alpha1.OnecloudCluster, spec v1alpha1.StatefulDeploymentSpec) (*corev1.PersistentVolumeClaim, error) {
 	ocName := oc.GetName()
 	pvcName := controller.NewClusterComponentName(ocName, cType)
@@ -769,6 +905,10 @@ func (m *ComponentManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1al
 }
 
 func (m *ComponentManager) getDaemonSet(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig) (*apps.DaemonSet, error) {
+	return nil, nil
+}
+
+func (m *ComponentManager) getCronJob(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig) (*batchv1.CronJob, error) {
 	return nil, nil
 }
 
