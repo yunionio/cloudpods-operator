@@ -67,6 +67,8 @@ const (
 	S3gatewayComponentType ComponentType = "s3gateway"
 	// DevtoolComponentType is devops tool based on ansible
 	DevtoolComponentType ComponentType = "devtool"
+	// MeterComponentType is meter service
+	MeterComponentType ComponentType = "meter"
 )
 
 // ComponentPhase is the current state of component
@@ -167,6 +169,8 @@ type OnecloudClusterSpec struct {
 	S3gateway DeploymentSpec `json:"s3gateway"`
 	// Devtool holds configuration for devtool service
 	Devtool DeploymentSpec `json:"devtool"`
+	// Meter holds configuration for meter
+	Meter StatefulDeploymentSpec `json:"meter"`
 }
 
 // OnecloudClusterStatus describes cluster status
@@ -191,6 +195,7 @@ type OnecloudClusterStatus struct {
 	BaremetalAgent DeploymentStatus `json:"baremetalagent,omitempty"`
 	S3gateway      DeploymentStatus `json:"s3gateway,omitempty"`
 	Devtool        DeploymentStatus `json:"devtool,omitempty"`
+	Meter          MeterStatus      `json:"meter,omitempty"`
 }
 
 // Etcd describes an etcd cluster
@@ -280,6 +285,10 @@ type WebconsoleStatus struct {
 	DeploymentStatus
 }
 
+type MeterStatus struct {
+	DeploymentStatus
+}
+
 type RegionSpec struct {
 	DeploymentSpec
 }
@@ -351,6 +360,10 @@ type GlanceConfig struct {
 	ServiceDBCommonOptions
 }
 
+type MeterConfig struct {
+	ServiceDBCommonOptions
+}
+
 type HostConfig struct {
 	ServiceCommonOptions
 }
@@ -381,4 +394,5 @@ type OnecloudClusterConfig struct {
 	BaremetalAgent BaremetalConfig        `json:"baremetal"`
 	S3gateway      ServiceCommonOptions   `json:"s3gateway"`
 	Devtool        ServiceDBCommonOptions `json:"devtool"`
+	Meter          MeterConfig            `json:"meter"`
 }

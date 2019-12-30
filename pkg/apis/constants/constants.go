@@ -251,6 +251,13 @@ const (
 	MeterAdminProject = SysAdminProject
 	MeterDB           = "yunionmeter"
 	MeterDBUser       = "yunionmeter"
+
+	MeterDataStore         = "/opt/yunion/meter"
+	MeterBillingDataDir    = "billing"
+	MeterRatesDataDir      = "rates"
+	MeterInfluxDB          = "meter_db"
+	MeterMonthlyBill       = true
+	MeterAwsRiPlanIdHandle = "true"
 )
 
 const (
