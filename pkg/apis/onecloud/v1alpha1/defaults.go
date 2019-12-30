@@ -118,6 +118,10 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec) {
 	} {
 		SetDefaults_StatefulDeploymentSpec(cType, spec.obj, spec.size, obj.ImageRepository, spec.version)
 	}
+	for cType, spec := range map[ComponentType]*CronJobSpec{} {
+		SetDefaults_CronJobSpec(spec,
+			getImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag))
+	}
 }
 
 func SetDefaults_Mysql(obj *Mysql) {
@@ -196,6 +200,22 @@ func SetDefaults_DeploymentSpec(obj *DeploymentSpec, image string) {
 }
 
 func SetDefaults_DaemonSetSpec(obj *DaemonSetSpec, image string) {
+	obj.Image = image
+	if len(obj.Tolerations) == 0 {
+		obj.Tolerations = append(obj.Tolerations, []corev1.Toleration{
+			{
+				Key:    "node-role.kubernetes.io/master",
+				Effect: corev1.TaintEffectNoSchedule,
+			},
+			{
+				Key:    "node-role.kubernetes.io/controlplane",
+				Effect: corev1.TaintEffectNoSchedule,
+			},
+		}...)
+	}
+}
+
+func SetDefaults_CronJobSpec(obj *CronJobSpec, image string) {
 	obj.Image = image
 	if len(obj.Tolerations) == 0 {
 		obj.Tolerations = append(obj.Tolerations, []corev1.Toleration{

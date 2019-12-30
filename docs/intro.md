@@ -216,3 +216,87 @@ func (m *keystoneManager) getDeployment(oc *v1alpha1.OnecloudCluster, _ *v1alpha
 4. 到 **pkg/manager/component/** 目录编写服务相关服务依赖资源和配置的代码，然后像 **pkg/manager/component/component.go** 里面的 ComponentManager 绑定 `func (m *ComponentManager) YourService() manager.Manager { return newYourServiceManager(m) }` 方法。
 
 5. 到 **pkg/controller/cluster/onecloud_cluster_control.go** 里面的 updateOnecloudCluster 函数里面添加 **components.YourService()** 方法。
+
+#### 添加CronJob示例
+
+- 到 **pkg/apis/onecloud/v1alpha1/types.go** 里面的 OnecloudClusterSpec 结构体添加对应服务的 Spec 定义。 如
+```go
+type OnecloudClusterSpec struct {
+  // ...
+  // Test for cronjob
+  CronJobTest CronJobSpec `json:"cronjobTest"`
+}
+```
+
+- 添加完服务的 Spec 定义后需要到 **pkg/apis/onecloud/v1alpha1/defaults.go** 里面注册服务配置的默认值生成函数，需要这一步的作用是自动生成数据库密码，镜像信息等。
+
+- 调用 **hack/codegen.sh** 脚本自动生成更新代码。
+
+- 到 **pkg/manager/component/** 目录编写服务相关服务依赖资源和配置的代码
+```go
+type cronJobManager struct {
+  *ComponentManager
+}
+
+func newCronJobTest(man *ComponentManager) manager.Manager {
+  return &cronJobManager{man}
+}
+
+func (m *cronJobManager) Sync(oc *v1alpha1.OnecloudCluster) error {
+  return syncComponent(m, oc, oc.Spec.CronJobTest.Disable)
+}
+
+func (m *cronJobManager) getConfigMap(
+  oc *v1alpha1.OnecloudCluster,
+  cfg *v1alpha1.OnecloudClusterConfig,
+) (*corev1.ConfigMap, error) {
+  return m.newConfigMap("test", oc, "test"), nil
+}
+
+func (m *cronJobManager) getCronJob(
+  oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig,
+) (*batchv1.CronJob, error) {
+  return m.newTestCronJob(v1alpha1.ComponentType("test"), oc, cfg)
+}
+
+func (m *cronJobManager) newTestCronJob(
+  cType v1alpha1.ComponentType,
+  oc *v1alpha1.OnecloudCluster,
+  cfg *v1alpha1.OnecloudClusterConfig,
+) (*batchv1.CronJob, error) {
+  spec := &oc.Spec.CronJobTest
+  spec.Schedule = "*/1 * * * *"
+  containersF := func(volMounts []corev1.VolumeMount) []corev1.Container {
+    return []corev1.Container{
+      {
+        Name:            cType.String(),
+        Image:           spec.Image,
+        Command:         []string{"echo", "hello world"},
+        ImagePullPolicy: oc.Spec.CronJobTest.ImagePullPolicy,
+        VolumeMounts:    volMounts,
+      },
+    }
+  }
+  volhelper := NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, cType), cType)
+  return m.newDefaultCronJob(cType, oc, volhelper, *spec, nil, containersF)
+}
+```
+
+- 然后像 **pkg/manager/component/component.go** 里面的 ComponentManager 绑定 `func (m *ComponentManager) YourService() manager.Manager { return newYourServiceManager(m) }` 方法。
+```go
+func (m *ComponentManager) CronJobTest() manager.Manager {
+  return newCronJobTest(m)
+}
+```
+
+- 在SetDefaults_OnecloudClusterSpec函数中添加默认的配置信息
+```go
+  for cType, spec := range map[ComponentType]*CronJobSpec{
+    ComponentType("test"): &obj.CronJobTest,
+  } {
+    SetDefaults_CronJobSpec(spec,
+      getImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag))
+  }
+```
+
+- 到 **pkg/controller/cluster/onecloud_cluster_control.go** 里面的 updateOnecloudCluster 函数里面添加 **components.YourService()** 方法。
