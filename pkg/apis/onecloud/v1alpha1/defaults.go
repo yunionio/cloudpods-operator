@@ -33,7 +33,8 @@ const (
 	DefaultOnecloudWire         = "bcast0"
 	DefaultImageRepository      = "registry.hub.docker.com/yunion"
 	DefaultVPCId                = "default"
-	DefaultGlanceStoreageSize   = "100G"
+	DefaultGlanceStorageSize    = "100G"
+	DefaultMeterStorageSize     = "100G"
 	DefaultInfluxdbStorageSize  = "20G"
 	DefaultNotifyStorageSize    = "1G" // for plugin template
 	DefaultBaremetalStorageSize = "1G"
@@ -110,11 +111,12 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec) {
 		version string
 	}
 	for cType, spec := range map[ComponentType]*stateDeploy{
-		GlanceComponentType:         {&obj.Glance, DefaultGlanceStoreageSize, obj.Version},
+		GlanceComponentType:         {&obj.Glance, DefaultGlanceStorageSize, obj.Version},
 		InfluxdbComponentType:       {&obj.Influxdb, DefaultInfluxdbStorageSize, DefaultInfluxdbImageVersion},
 		YunionagentComponentType:    {&obj.Yunionagent, "1G", obj.Version},
 		NotifyComponentType:         {&obj.Notify, DefaultNotifyStorageSize, obj.Version},
 		BaremetalAgentComponentType: {&obj.BaremetalAgent, DefaultBaremetalStorageSize, obj.Version},
+		MeterComponentType:          {&obj.Meter, DefaultMeterStorageSize, obj.Version},
 	} {
 		SetDefaults_StatefulDeploymentSpec(cType, spec.obj, spec.size, obj.ImageRepository, spec.version)
 	}
@@ -279,6 +281,7 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		&obj.Cloudevent:                          {constants.CloudeventAdminUser, constants.CloudeventPort, constants.CloudeventDB, constants.CloudeventDBUser},
 		&obj.Notify:                              {constants.NotifyAdminUser, constants.NotifyPort, constants.NotifyDB, constants.NotifyDBUser},
 		&obj.Devtool:                             {constants.DevtoolAdminUser, constants.DevtoolPort, constants.DevtoolDB, constants.DevtoolDBUser},
+		&obj.Meter.ServiceDBCommonOptions:        {constants.MeterAdminUser, constants.MeterPort, constants.MeterDB, constants.MeterDBUser},
 	} {
 		if user, ok := registryPorts[tmp.port]; ok {
 			log.Fatalf("port %d has been registered by %s", tmp.port, user)

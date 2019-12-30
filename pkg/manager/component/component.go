@@ -999,3 +999,7 @@ func (m *ComponentManager) S3gateway() manager.Manager {
 func (m *ComponentManager) Devtool() manager.Manager {
 	return newDevtoolManager(m)
 }
+
+func (m *ComponentManager) Meter() manager.Manager {
+	return newMeterManager(m)
+}
