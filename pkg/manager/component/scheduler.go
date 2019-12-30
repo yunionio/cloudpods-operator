@@ -65,3 +65,7 @@ func (m *schedulerManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Serv
 func (m *schedulerManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
 	return m.newCloudServiceSinglePortDeployment(v1alpha1.SchedulerComponentType, oc, oc.Spec.Scheduler, constants.SchedulerPort, false)
 }
+
+func (m *schedulerManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
+	return &oc.Status.Scheduler
+}

@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	appv1 "k8s.io/client-go/listers/apps/v1"
 	batchlisters "k8s.io/client-go/listers/batch/v1beta1"
 	corelisters "k8s.io/client-go/listers/core/v1"
@@ -42,6 +43,8 @@ import (
 )
 
 type ComponentManager struct {
+	kubeCli kubernetes.Interface
+
 	deployControl controller.DeploymentControlInterface
 	deployLister  appv1.DeploymentLister
 	svcControl    controller.ServiceControlInterface
@@ -61,6 +64,7 @@ type ComponentManager struct {
 
 // NewComponentManager return *BaseComponentManager
 func NewComponentManager(
+	kubeCli kubernetes.Interface,
 	deployCtrol controller.DeploymentControlInterface,
 	deployLister appv1.DeploymentLister,
 	svcControl controller.ServiceControlInterface,
@@ -77,6 +81,7 @@ func NewComponentManager(
 	onecloudControl *controller.OnecloudControl,
 ) *ComponentManager {
 	return &ComponentManager{
+		kubeCli:         kubeCli,
 		deployControl:   deployCtrol,
 		deployLister:    deployLister,
 		svcControl:      svcControl,
@@ -323,7 +328,6 @@ func (m *ComponentManager) syncDeployment(
 	deploymentFactory func(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error),
 	postSyncFunc func(*v1alpha1.OnecloudCluster, *apps.Deployment) error,
 ) error {
-	ocName := oc.GetName()
 	ns := oc.GetNamespace()
 	cfg, err := m.configer.GetClusterConfig(oc)
 	if err != nil {
@@ -341,6 +345,18 @@ func (m *ComponentManager) syncDeployment(
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
+
+	postFunc := func(deploy *apps.Deployment) error {
+		if postSyncFunc != nil {
+			deploy, err := m.kubeCli.AppsV1().Deployments(deploy.GetNamespace()).Get(deploy.GetName(), metav1.GetOptions{})
+			if err != nil {
+				return errorswrap.Wrapf(err, "get deployment %s", deploy.GetName())
+			}
+			return postSyncFunc(oc, deploy)
+		}
+		return nil
+	}
+
 	if errors.IsNotFound(err) {
 		if err = SetDeploymentLastAppliedConfigAnnotation(newDeploy); err != nil {
 			return err
@@ -348,27 +364,18 @@ func (m *ComponentManager) syncDeployment(
 		if err = m.deployControl.CreateDeployment(oc, newDeploy); err != nil {
 			return err
 		}
-		oc.Status.Keystone.Deployment = &apps.DeploymentStatus{}
-		return controller.RequeueErrorf("OnecloudCluster: [%s/%s], waiting for keystone running", ns, ocName)
+		if err := postFunc(newDeploy); err != nil {
+			return errorswrap.Wrapf(err, "post create deployment %s", newDeploy.GetName())
+		}
+		return controller.RequeueErrorf("OnecloudCluster: [%s/%s], waiting for %s deployment running", ns, oc.GetName(), newDeploy.GetName())
 	}
 
 	oldDeploy := oldDeployTmp.DeepCopy()
 
-	if !templateEqual(newDeploy.Spec.Template, oldDeploy.Spec.Template) || oc.Status.Keystone.Phase == v1alpha1.UpgradePhase {
-		/*		if err := m.ksUpgrader.Upgrade(oc, oldKsDeploy, newKsDeploy); err != nil {
-				return err
-			}*/
-	}
-
 	if err = m.updateDeployment(oc, newDeploy, oldDeploy); err != nil {
 		return err
 	}
-	if postSyncFunc != nil {
-		if err := postSyncFunc(oc, oldDeploy); err != nil {
-			return err
-		}
-	}
-	return nil
+	return postFunc(oldDeploy)
 }
 
 func (m *ComponentManager) updateDeployment(oc *v1alpha1.OnecloudCluster, newDeploy, oldDeploy *apps.Deployment) error {

@@ -15,6 +15,8 @@
 package component
 
 import (
+	"strings"
+
 	"github.com/pkg/errors"
 	apps "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1beta1"
@@ -103,6 +105,57 @@ func syncComponent(factory cloudComponentFactory, oc *v1alpha1.OnecloudCluster, 
 	return nil
 }
 
+func getRepoImageName(img string) (string, string, string) {
+	parts := strings.Split(img, ":")
+	var (
+		repo      string
+		imageName string
+		tag       string
+	)
+	getRepoImage := func(img string) (string, string) {
+		parts := strings.Split(img, "/")
+		if len(parts) == 1 {
+			return "", parts[0]
+		}
+		repoParts := parts[0 : len(parts)-1]
+		imgName := parts[len(parts)-1]
+		return strings.Join(repoParts, "/"), imgName
+	}
+	if len(parts) == 0 {
+		return "", "", ""
+	}
+	if len(parts) == 1 {
+		tag = "latest"
+		repo, imageName = getRepoImage(parts[0])
+	} else {
+		tag = parts[len(parts)-1]
+		repo, imageName = getRepoImage(parts[0])
+	}
+	return repo, imageName, tag
+}
+
+func getImageStatusByContainer(container *corev1.Container) *v1alpha1.ImageStatus {
+	img := container.Image
+	status := &v1alpha1.ImageStatus{
+		ImagePullPolicy: container.ImagePullPolicy,
+		Image:           container.Image,
+	}
+	repo, imgName, tag := getRepoImageName(img)
+	status.ImageName = imgName
+	status.Repository = repo
+	status.Tag = tag
+	return status
+}
+
+func getImageStatus(deploy *apps.Deployment) *v1alpha1.ImageStatus {
+	containers := deploy.Spec.Template.Spec.Containers
+	if len(containers) == 0 {
+		return nil
+	}
+	container := containers[0]
+	return getImageStatusByContainer(&container)
+}
+
 func newPostSyncComponent(f cloudComponentFactory) func(*v1alpha1.OnecloudCluster, *apps.Deployment) error {
 	return func(oc *v1alpha1.OnecloudCluster, deploy *apps.Deployment) error {
 		m := f.getComponentManager()
@@ -119,6 +172,7 @@ func newPostSyncComponent(f cloudComponentFactory) func(*v1alpha1.OnecloudCluste
 			} else {
 				deployStatus.Phase = v1alpha1.NormalPhase
 			}
+			deployStatus.ImageStatus = getImageStatus(deploy)
 		}
 
 		if _, err := m.onecloudControl.GetSession(oc); err != nil {

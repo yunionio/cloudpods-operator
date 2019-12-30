@@ -263,9 +263,19 @@ type KeystoneSpec struct {
 	BootstrapPassword string `json:"bootstrapPassword"`
 }
 
+// ImageStatus is the image status of a pod
+type ImageStatus struct {
+	Image           string            `json:"image"`
+	Repository      string            `json:"repository"`
+	ImageName       string            `json:"imageName"`
+	Tag             string            `json:"tag"`
+	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy"`
+}
+
 type DeploymentStatus struct {
-	Phase      ComponentPhase         `json:"phase,omitempty"`
-	Deployment *apps.DeploymentStatus `json:"deployment,omitempty"`
+	Phase       ComponentPhase         `json:"phase,omitempty"`
+	Deployment  *apps.DeploymentStatus `json:"deployment,omitempty"`
+	ImageStatus *ImageStatus           `json:"imageStatus,omitempty"`
 }
 
 // KeystoneStatus is Keystone status
