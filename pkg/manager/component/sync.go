@@ -17,6 +17,7 @@ package component
 import (
 	"github.com/pkg/errors"
 	apps "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/klog"
@@ -57,6 +58,10 @@ type daemonSetFactory interface {
 	getDaemonSet(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig) (*apps.DaemonSet, error)
 }
 
+type cronJobFactory interface {
+	getCronJob(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig) (*batchv1.CronJob, error)
+}
+
 type cloudComponentFactory interface {
 	syncManager
 	serviceFactory
@@ -65,6 +70,7 @@ type cloudComponentFactory interface {
 	deploymentFactory
 	pvcFactory
 	daemonSetFactory
+	cronJobFactory
 }
 
 func syncComponent(factory cloudComponentFactory, oc *v1alpha1.OnecloudCluster, isDisable bool) error {
@@ -90,6 +96,9 @@ func syncComponent(factory cloudComponentFactory, oc *v1alpha1.OnecloudCluster, 
 	}
 	if err := m.syncDaemonSet(oc, factory.getDaemonSet); err != nil {
 		return errors.Wrapf(err, "sync daemonset")
+	}
+	if err := m.syncCronJob(oc, factory.getCronJob); err != nil {
+		return errors.Wrapf(err, "sync cronjob")
 	}
 	return nil
 }
