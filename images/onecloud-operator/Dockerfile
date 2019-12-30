@@ -1,5 +1,3 @@
-FROM alpine
-RUN apk add tzdata --no-cache
-ENV TZ Asia/Shanghai
-RUN cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+FROM registry.cn-beijing.aliyuncs.com/yunionio/onecloud-base:latest
+
 ADD ./_output/bin/onecloud-controller-manager /bin/onecloud-controller-manager
