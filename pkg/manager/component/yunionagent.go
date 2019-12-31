@@ -115,3 +115,7 @@ func (m *yunionagentManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1
 	podSpec.Containers[0].VolumeMounts = volMounts
 	return deploy, nil
 }
+
+func (m *yunionagentManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
+	return &oc.Status.Yunionagent
+}

@@ -18,15 +18,17 @@ import (
 	"fmt"
 	"time"
 
+	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	eventv1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	appslisters "k8s.io/client-go/listers/apps/v1beta1"
+	appslisters "k8s.io/client-go/listers/apps/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
@@ -111,6 +113,7 @@ func NewController(
 	pvcControl := controller.NewPVCControl(kubeCli, pvcInformer.Lister(), recorder)
 
 	componentsMan := component.NewComponentManager(
+		kubeCli,
 		deployControl, deployInformer.Lister(),
 		svcControl, svcInformer.Lister(),
 		pvcControl, pvcInformer.Lister(),
@@ -146,6 +149,16 @@ func NewController(
 	})
 	c.ocLister = ocInformer.Lister()
 	c.ocListerSynced = ocInformer.Informer().HasSynced
+
+	deployInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: c.addDeployment,
+		UpdateFunc: func(old, cur interface{}) {
+			c.updateDeployment(old, cur)
+		},
+		DeleteFunc: c.deleteDeployment,
+	})
+	c.deploymentLister = deployInformer.Lister()
+	c.deploymentListerSynced = deployInformer.Informer().HasSynced
 
 	return c
 }
@@ -238,4 +251,89 @@ func (c *Controller) InitCRDResource() error {
 		return fmt.Errorf("failed to create CRD: %v", err)
 	}
 	return k8sutil.WaitCRDReady(c.kubeExtCli, v1alpha1.OnecloudClusterCRDName)
+}
+
+func (c *Controller) resolveOnecloudClusterFromDeployment(namespace string, deploy *apps.Deployment) *v1alpha1.OnecloudCluster {
+	controllerRef := metav1.GetControllerOf(deploy)
+	if controllerRef == nil {
+		return nil
+	}
+	// We can't look up by UID, so look up by Name and then verify UID.
+	// Don't even try to look up by Name if it's the wrong Kind.
+	if controllerRef.Kind != controllerKind.Kind {
+		return nil
+	}
+	oc, err := c.ocLister.OnecloudClusters(namespace).Get(controllerRef.Name)
+	if err != nil {
+		return nil
+	}
+	if oc.UID != controllerRef.UID {
+		// The controller we found with this Name is not the same one that the
+		// ControllerRef points to.
+		return nil
+	}
+	return oc
+}
+
+func (c *Controller) addDeployment(obj interface{}) {
+	deploy := obj.(*apps.Deployment)
+	ns := deploy.GetNamespace()
+	name := deploy.GetName()
+
+	if deploy.DeletionTimestamp != nil {
+		// on a restart of the controller manager, it's possible a new deployment shows up in a state that
+		// is already pending deletion. Prevent the deployment from being a creation observation.
+		c.deleteDeployment(deploy)
+		return
+	}
+
+	oc := c.resolveOnecloudClusterFromDeployment(ns, deploy)
+	if oc == nil {
+		return
+	}
+	klog.V(4).Infof("Deployment %s/%s created, OnecloudCluster: %s/%s", ns, name, ns, oc.Name)
+	c.enqueueCluster(oc)
+}
+
+func (c *Controller) updateDeployment(old, cur interface{}) {
+	curDeploy := cur.(*apps.Deployment)
+	oldDeploy := old.(*apps.Deployment)
+	ns := curDeploy.GetNamespace()
+	deployName := curDeploy.GetName()
+	if curDeploy.ResourceVersion == oldDeploy.ResourceVersion {
+		return
+	}
+
+	oc := c.resolveOnecloudClusterFromDeployment(ns, curDeploy)
+	if oc == nil {
+		return
+	}
+	klog.V(4).Infof("Deployment %s/%s updated, %+v -> %+v: %s/%s", ns, deployName, oldDeploy.Spec, curDeploy.Spec)
+	c.enqueueCluster(oc)
+}
+
+func (c *Controller) deleteDeployment(obj interface{}) {
+	deploy, ok := obj.(*apps.Deployment)
+	ns := deploy.GetNamespace()
+	deployName := deploy.GetName()
+
+	if !ok {
+		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+		if !ok {
+			utilruntime.HandleError(fmt.Errorf("couldn't get object from tombstone %+v", obj))
+			return
+		}
+		deploy, ok = tombstone.Obj.(*apps.Deployment)
+		if !ok {
+			utilruntime.HandleError(fmt.Errorf("tombstone contained object that is not a deployment %#v", obj))
+			return
+		}
+	}
+
+	oc := c.resolveOnecloudClusterFromDeployment(ns, deploy)
+	if oc == nil {
+		return
+	}
+	klog.V(4).Infof("Deployment %s/%s deleted through %v.", ns, deployName, utilruntime.GetCaller())
+	c.enqueueCluster(oc)
 }

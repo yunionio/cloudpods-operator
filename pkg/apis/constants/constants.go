@@ -212,10 +212,11 @@ const (
 	ServiceNameTorrentTracker = "torrent-tracker"
 	ServiceTypeTorrentTracker = "torrent-tracker"
 
-	// autoupdate is not support currently
-	ServiceURLFakeAutoUpdate = "http://127.0.0.1:6777"
-	ServiceNameAutoUpdate    = "autoupdate"
-	ServiceTypeAutoUpdate    = "autoupdate"
+	ServiceNameAutoUpdate  = "autoupdate"
+	ServiceTypeAutoUpdate  = "autoupdate"
+	AutoUpdateAdminUser    = "autoupdate"
+	AutoUpdateAdminProject = SysAdminProject
+	AutoUpdatePort         = 30981
 
 	NetworkTypeBaremetal = "baremetal"
 	NetworkTypeServer    = "server"

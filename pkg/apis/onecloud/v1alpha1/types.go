@@ -69,6 +69,8 @@ const (
 	DevtoolComponentType ComponentType = "devtool"
 	// MeterComponentType is meter service
 	MeterComponentType ComponentType = "meter"
+	// AutoUpdateComponentType is autoupdate service
+	AutoUpdateComponentType ComponentType = "autoupdate"
 )
 
 // ComponentPhase is the current state of component
@@ -171,6 +173,8 @@ type OnecloudClusterSpec struct {
 	Devtool DeploymentSpec `json:"devtool"`
 	// Meter holds configuration for meter
 	Meter StatefulDeploymentSpec `json:"meter"`
+	// AutoUpdate holds configuration for autoupdate
+	AutoUpdate DeploymentSpec `json:"autoupdate"`
 }
 
 // OnecloudClusterStatus describes cluster status
@@ -196,6 +200,7 @@ type OnecloudClusterStatus struct {
 	S3gateway      DeploymentStatus `json:"s3gateway,omitempty"`
 	Devtool        DeploymentStatus `json:"devtool,omitempty"`
 	Meter          MeterStatus      `json:"meter,omitempty"`
+	AutoUpdate     DeploymentStatus `json:"autoupdate,omitempty"`
 }
 
 // Etcd describes an etcd cluster
@@ -263,9 +268,19 @@ type KeystoneSpec struct {
 	BootstrapPassword string `json:"bootstrapPassword"`
 }
 
+// ImageStatus is the image status of a pod
+type ImageStatus struct {
+	Image           string            `json:"image"`
+	Repository      string            `json:"repository"`
+	ImageName       string            `json:"imageName"`
+	Tag             string            `json:"tag"`
+	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy"`
+}
+
 type DeploymentStatus struct {
-	Phase      ComponentPhase         `json:"phase,omitempty"`
-	Deployment *apps.DeploymentStatus `json:"deployment,omitempty"`
+	Phase       ComponentPhase         `json:"phase,omitempty"`
+	Deployment  *apps.DeploymentStatus `json:"deployment,omitempty"`
+	ImageStatus *ImageStatus           `json:"imageStatus,omitempty"`
 }
 
 // KeystoneStatus is Keystone status
@@ -395,4 +410,5 @@ type OnecloudClusterConfig struct {
 	S3gateway      ServiceCommonOptions   `json:"s3gateway"`
 	Devtool        ServiceDBCommonOptions `json:"devtool"`
 	Meter          MeterConfig            `json:"meter"`
+	AutoUpdate     ServiceCommonOptions   `json:"autoupdate"`
 }
