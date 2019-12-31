@@ -87,6 +87,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec) {
 		CloudeventComponentType:    &obj.Cloudevent,
 		S3gatewayComponentType:     &obj.S3gateway,
 		DevtoolComponentType:       &obj.Devtool,
+		AutoUpdateComponentType:    &obj.AutoUpdate,
 	} {
 		SetDefaults_DeploymentSpec(spec, getImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag))
 	}
@@ -256,6 +257,7 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		&obj.HostAgent.ServiceCommonOptions:      {constants.HostAdminUser, constants.HostPort},
 		&obj.BaremetalAgent.ServiceCommonOptions: {constants.BaremetalAdminUser, constants.BaremetalPort},
 		&obj.S3gateway:                           {constants.S3gatewayAdminUser, constants.S3gatewayPort},
+		&obj.AutoUpdate:                          {constants.AutoUpdateAdminUser, constants.AutoUpdatePort},
 	} {
 		SetDefaults_ServiceCommonOptions(opt, userPort.user, userPort.port)
 	}

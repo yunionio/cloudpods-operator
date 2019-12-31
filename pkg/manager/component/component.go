@@ -1010,3 +1010,7 @@ func (m *ComponentManager) Devtool() manager.Manager {
 func (m *ComponentManager) Meter() manager.Manager {
 	return newMeterManager(m)
 }
+
+func (m *ComponentManager) AutoUpdate() manager.Manager {
+	return newAutoUpdateManager(m)
+}

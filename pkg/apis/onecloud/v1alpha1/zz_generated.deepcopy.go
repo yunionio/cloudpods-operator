@@ -496,6 +496,7 @@ func (in *OnecloudClusterConfig) DeepCopyInto(out *OnecloudClusterConfig) {
 	out.S3gateway = in.S3gateway
 	out.Devtool = in.Devtool
 	out.Meter = in.Meter
+	out.AutoUpdate = in.AutoUpdate
 	return
 }
 
@@ -588,6 +589,7 @@ func (in *OnecloudClusterSpec) DeepCopyInto(out *OnecloudClusterSpec) {
 	in.S3gateway.DeepCopyInto(&out.S3gateway)
 	in.Devtool.DeepCopyInto(&out.Devtool)
 	in.Meter.DeepCopyInto(&out.Meter)
+	in.AutoUpdate.DeepCopyInto(&out.AutoUpdate)
 	return
 }
 
@@ -624,6 +626,7 @@ func (in *OnecloudClusterStatus) DeepCopyInto(out *OnecloudClusterStatus) {
 	in.S3gateway.DeepCopyInto(&out.S3gateway)
 	in.Devtool.DeepCopyInto(&out.Devtool)
 	in.Meter.DeepCopyInto(&out.Meter)
+	in.AutoUpdate.DeepCopyInto(&out.AutoUpdate)
 	return
 }
 
