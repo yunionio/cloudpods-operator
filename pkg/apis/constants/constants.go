@@ -293,8 +293,9 @@ var (
 		PolicyTypeMember,
 	}
 
-	GlanceFileStoreDir    = path.Join(GlanceDataStore, "images")
-	GlanceTorrentStoreDir = path.Join(GlanceDataStore, "torrents")
+	GlanceFileStoreDir            = path.Join(GlanceDataStore, "images")
+	GlanceTorrentStoreDir         = path.Join(GlanceDataStore, "torrents")
+	SpecifiedPresistentVolumePath = "pvc.onecloud.yunion.io/pv-path"
 )
 
 var (
