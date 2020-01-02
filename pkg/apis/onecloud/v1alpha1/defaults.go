@@ -36,12 +36,14 @@ const (
 	DefaultGlanceStorageSize    = "100G"
 	DefaultMeterStorageSize     = "100G"
 	DefaultInfluxdbStorageSize  = "20G"
+	DefaultKapacitorStorageSize = "20G"
 	DefaultNotifyStorageSize    = "1G" // for plugin template
 	DefaultBaremetalStorageSize = "1G"
 	// rancher local-path-provisioner: https://github.com/rancher/local-path-provisioner
 	DefaultStorageClass = "local-path"
 
-	DefaultInfluxdbImageVersion = "1.7.7"
+	DefaultInfluxdbImageVersion  = "1.7.7"
+	DefaultKapacitorImageVersion = "1.5"
 )
 
 func addDefaultingFuncs(scheme *runtime.Scheme) error {
@@ -108,6 +110,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec) {
 	for cType, spec := range map[ComponentType]*stateDeploy{
 		GlanceComponentType:         {&obj.Glance, DefaultGlanceStorageSize, obj.Version},
 		InfluxdbComponentType:       {&obj.Influxdb, DefaultInfluxdbStorageSize, DefaultInfluxdbImageVersion},
+		KapacitorComponentType:      {&obj.Kapacitor, DefaultKapacitorStorageSize, DefaultKapacitorImageVersion},
 		YunionagentComponentType:    {&obj.Yunionagent, "1G", obj.Version},
 		NotifyComponentType:         {&obj.Notify, DefaultNotifyStorageSize, obj.Version},
 		BaremetalAgentComponentType: {&obj.BaremetalAgent, DefaultBaremetalStorageSize, obj.Version},

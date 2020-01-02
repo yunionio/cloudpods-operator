@@ -957,6 +957,10 @@ func (m *ComponentManager) Influxdb() manager.Manager {
 	return newInfluxdbManager(m)
 }
 
+func (m *ComponentManager) Kapacitor() manager.Manager {
+	return newKapacitorManager(m)
+}
+
 func (m *ComponentManager) Yunionagent() manager.Manager {
 	return newYunionagentManager(m)
 }
