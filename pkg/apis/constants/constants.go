@@ -270,6 +270,10 @@ const (
 	MeterInfluxDB          = "meter_db"
 	MeterMonthlyBill       = true
 	MeterAwsRiPlanIdHandle = "true"
+
+	EsxiAgentAdminUser = "esxiagent"
+	EsxiAgentPort      = 30883
+	EsxiAgentDataStore = "/opt/cloud/workspace"
 )
 
 const (

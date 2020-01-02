@@ -39,6 +39,7 @@ const (
 	DefaultKapacitorStorageSize = "20G"
 	DefaultNotifyStorageSize    = "1G" // for plugin template
 	DefaultBaremetalStorageSize = "1G"
+	DefaultEsxiAgentStorageSize = "30G"
 	// rancher local-path-provisioner: https://github.com/rancher/local-path-provisioner
 	DefaultStorageClass = "local-path"
 
@@ -138,6 +139,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		NotifyComponentType:         {&obj.Notify, DefaultNotifyStorageSize, obj.Version},
 		BaremetalAgentComponentType: {&obj.BaremetalAgent, DefaultBaremetalStorageSize, obj.Version},
 		MeterComponentType:          {&obj.Meter, DefaultMeterStorageSize, obj.Version},
+		EsxiAgentComponentType:      {&obj.EsxiAgent, DefaultEsxiAgentStorageSize, obj.Version},
 	} {
 		SetDefaults_StatefulDeploymentSpec(cType, spec.obj, spec.size, obj.ImageRepository, spec.version)
 	}
@@ -292,6 +294,7 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		&obj.BaremetalAgent.ServiceCommonOptions: {constants.BaremetalAdminUser, constants.BaremetalPort},
 		&obj.S3gateway:                           {constants.S3gatewayAdminUser, constants.S3gatewayPort},
 		&obj.AutoUpdate:                          {constants.AutoUpdateAdminUser, constants.AutoUpdatePort},
+		&obj.EsxiAgent.ServiceCommonOptions:      {constants.EsxiAgentAdminUser, constants.EsxiAgentPort},
 	} {
 		SetDefaults_ServiceCommonOptions(opt, userPort.user, userPort.port)
 	}
