@@ -76,7 +76,15 @@ func (m *glanceManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 
 func (m *glanceManager) getPVC(oc *v1alpha1.OnecloudCluster) (*corev1.PersistentVolumeClaim, error) {
 	cfg := oc.Spec.Glance
-	return m.ComponentManager.newPVC(v1alpha1.GlanceComponentType, oc, cfg)
+	pvc, err := m.ComponentManager.newPVC(v1alpha1.GlanceComponentType, oc, cfg)
+	if err != nil {
+		return nil, err
+	}
+	if pvc.Annotations == nil {
+		pvc.Annotations = make(map[string]string)
+	}
+	pvc.Annotations[constants.SpecifiedPresistentVolumePath] = constants.GlanceDataStore
+	return pvc, nil
 }
 
 func (m *glanceManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
