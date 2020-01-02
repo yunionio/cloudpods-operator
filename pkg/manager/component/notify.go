@@ -190,9 +190,10 @@ func (m *notifyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 	}
 	newPluginC := func(name string) corev1.Container {
 		return corev1.Container{
-			Name:    name,
-			Image:   pluginImg,
-			Command: []string{fmt.Sprintf("/opt/yunion/bin/%s", name), "--config", fmt.Sprintf("/etc/yunion/%s.conf", name)},
+			Name:            name,
+			Image:           pluginImg,
+			ImagePullPolicy: oc.Spec.Notify.ImagePullPolicy,
+			Command:         []string{fmt.Sprintf("/opt/yunion/bin/%s", name), "--config", fmt.Sprintf("/etc/yunion/%s.conf", name)},
 			VolumeMounts: []corev1.VolumeMount{
 				socketVolMount,
 				templateVolMount,

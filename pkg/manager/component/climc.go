@@ -41,9 +41,10 @@ func (m *climcManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	containersF := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		return []corev1.Container{
 			{
-				Name:    "climc",
-				Image:   oc.Spec.Climc.Image,
-				Command: []string{"tail", "-f", "/dev/null"},
+				Name:            "climc",
+				Image:           oc.Spec.Climc.Image,
+				ImagePullPolicy: oc.Spec.Climc.ImagePullPolicy,
+				Command:         []string{"tail", "-f", "/dev/null"},
 				Env: []corev1.EnvVar{
 					{
 						Name:  "OS_USERNAME",

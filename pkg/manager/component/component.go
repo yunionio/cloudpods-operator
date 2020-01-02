@@ -610,7 +610,7 @@ func (m *ComponentManager) newCloudServiceDeployment(
 					"--config",
 					fmt.Sprintf("/etc/yunion/%s.conf", cType.String()),
 				},
-				ImagePullPolicy: oc.Spec.Keystone.ImagePullPolicy,
+				ImagePullPolicy: deployCfg.ImagePullPolicy,
 				Ports:           ports,
 				VolumeMounts:    volMounts,
 			},

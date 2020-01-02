@@ -333,8 +333,9 @@ func (m *webManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 		volMounts[len(volMounts)-1] = confVol
 		return []corev1.Container{
 			{
-				Name:  "web",
-				Image: oc.Spec.Web.Image,
+				Name:            "web",
+				Image:           oc.Spec.Web.Image,
+				ImagePullPolicy: oc.Spec.Web.ImagePullPolicy,
 				Ports: []corev1.ContainerPort{
 					{
 						Name:          "web",

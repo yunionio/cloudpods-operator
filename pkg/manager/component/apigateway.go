@@ -84,18 +84,20 @@ func (m *apiGatewayManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1a
 		}
 		cs := []corev1.Container{
 			{
-				Name:         "api",
-				Image:        oc.Spec.APIGateway.Image,
-				Command:      []string{cmd, "--config", "/etc/yunion/apigateway.conf"},
-				VolumeMounts: volMounts,
+				Name:            "api",
+				Image:           oc.Spec.APIGateway.Image,
+				ImagePullPolicy: oc.Spec.APIGateway.ImagePullPolicy,
+				Command:         []string{cmd, "--config", "/etc/yunion/apigateway.conf"},
+				VolumeMounts:    volMounts,
 			},
 		}
 		if isEE {
 			cs = append(cs, corev1.Container{
-				Name:         "ws",
-				Image:        oc.Spec.APIGateway.Image,
-				Command:      []string{"/opt/yunion/bin/ws", "--config", "/etc/yunion/apigateway.conf"},
-				VolumeMounts: volMounts,
+				Name:            "ws",
+				Image:           oc.Spec.APIGateway.Image,
+				ImagePullPolicy: oc.Spec.APIGateway.ImagePullPolicy,
+				Command:         []string{"/opt/yunion/bin/ws", "--config", "/etc/yunion/apigateway.conf"},
+				VolumeMounts:    volMounts,
 			})
 		}
 		return cs

@@ -77,10 +77,11 @@ func (m *cloudnetManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 	cf := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		return []corev1.Container{
 			{
-				Name:         "server",
-				Image:        oc.Spec.Cloudnet.Image,
-				Command:      []string{"/opt/yunion/bin/cloudnet", "--config", "/etc/yunion/cloudnet.conf"},
-				VolumeMounts: volMounts,
+				Name:            "server",
+				Image:           oc.Spec.Cloudnet.Image,
+				ImagePullPolicy: oc.Spec.Cloudnet.ImagePullPolicy,
+				Command:         []string{"/opt/yunion/bin/cloudnet", "--config", "/etc/yunion/cloudnet.conf"},
+				VolumeMounts:    volMounts,
 			},
 		}
 	}

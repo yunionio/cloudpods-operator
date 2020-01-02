@@ -118,10 +118,11 @@ func (m *influxdbManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 		})
 		return []corev1.Container{
 			{
-				Name:         v1alpha1.InfluxdbComponentType.String(),
-				Image:        oc.Spec.Influxdb.Image,
-				Command:      []string{"influxd", "-config", "/etc/yunion/influxdb.conf"},
-				VolumeMounts: volMounts,
+				Name:            v1alpha1.InfluxdbComponentType.String(),
+				Image:           oc.Spec.Influxdb.Image,
+				ImagePullPolicy: oc.Spec.Influxdb.ImagePullPolicy,
+				Command:         []string{"influxd", "-config", "/etc/yunion/influxdb.conf"},
+				VolumeMounts:    volMounts,
 			},
 		}
 	}

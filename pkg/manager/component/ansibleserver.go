@@ -77,10 +77,11 @@ func (m *ansibleManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 	cf := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		return []corev1.Container{
 			{
-				Name:         "server",
-				Image:        oc.Spec.AnsibleServer.Image,
-				Command:      []string{"/opt/yunion/bin/ansibleserver", "--config", "/etc/yunion/ansibleserver.conf"},
-				VolumeMounts: volMounts,
+				Name:            "server",
+				Image:           oc.Spec.AnsibleServer.Image,
+				ImagePullPolicy: oc.Spec.AnsibleServer.ImagePullPolicy,
+				Command:         []string{"/opt/yunion/bin/ansibleserver", "--config", "/etc/yunion/ansibleserver.conf"},
+				VolumeMounts:    volMounts,
 			},
 		}
 	}

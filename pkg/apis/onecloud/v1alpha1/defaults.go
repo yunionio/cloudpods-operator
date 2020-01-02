@@ -187,6 +187,9 @@ func SetDefaults_DeploymentSpec(obj *DeploymentSpec, image string) {
 		obj.Replicas = 0
 	}
 	obj.Image = image
+	if string(obj.ImagePullPolicy) == "" {
+		obj.ImagePullPolicy = corev1.PullAlways
+	}
 	// add tolerations
 	if len(obj.Tolerations) == 0 {
 		obj.Tolerations = append(obj.Tolerations, []corev1.Toleration{
@@ -204,6 +207,9 @@ func SetDefaults_DeploymentSpec(obj *DeploymentSpec, image string) {
 
 func SetDefaults_DaemonSetSpec(obj *DaemonSetSpec, image string) {
 	obj.Image = image
+	if string(obj.ImagePullPolicy) == "" {
+		obj.ImagePullPolicy = corev1.PullAlways
+	}
 	if len(obj.Tolerations) == 0 {
 		obj.Tolerations = append(obj.Tolerations, []corev1.Toleration{
 			{
@@ -220,6 +226,9 @@ func SetDefaults_DaemonSetSpec(obj *DaemonSetSpec, image string) {
 
 func SetDefaults_CronJobSpec(obj *CronJobSpec, image string) {
 	obj.Image = image
+	if string(obj.ImagePullPolicy) == "" {
+		obj.ImagePullPolicy = corev1.PullAlways
+	}
 	if len(obj.Tolerations) == 0 {
 		obj.Tolerations = append(obj.Tolerations, []corev1.Toleration{
 			{
