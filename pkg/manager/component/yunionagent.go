@@ -98,6 +98,7 @@ func (m *yunionagentManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1
 	podSpec := &deploy.Spec.Template.Spec
 	podSpec.HostNetwork = true
 	podSpec.DNSPolicy = corev1.DNSClusterFirstWithHostNet
+	deploy.Spec.Strategy = apps.DeploymentStrategy{Type: apps.RecreateDeploymentStrategyType}
 	podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
 		Name: "data",
 		VolumeSource: corev1.VolumeSource{

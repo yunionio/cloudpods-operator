@@ -33,6 +33,7 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
 	"k8s.io/kubernetes/cmd/kubeadm/app/util/apiclient"
+	deploymentutil "k8s.io/kubernetes/pkg/kubectl/util/deployment"
 
 	"yunion.io/x/onecloud/pkg/cloudcommon/options"
 	"yunion.io/x/onecloud/pkg/mcclient"
@@ -257,14 +258,39 @@ func encode(obj interface{}) (string, error) {
 	return string(b), nil
 }
 
+func deploymentIsRollout(deploy *apps.Deployment) (bool, string, error) {
+	if deploy.Generation <= deploy.Status.ObservedGeneration {
+		cond := deploymentutil.GetDeploymentCondition(deploy.Status, apps.DeploymentProgressing)
+		if cond != nil && cond.Reason == deploymentutil.TimedOutReason {
+			return false, "", fmt.Errorf("deployment %q exceeded its progress deadline", deploy.GetName())
+		}
+		if deploy.Spec.Replicas != nil && deploy.Status.UpdatedReplicas < *deploy.Spec.Replicas {
+			return false, fmt.Sprintf("Waiting for deployment %q rollout to finish: %d out of %d new replicas have been updated...", deploy.GetName(), deploy.Status.UpdatedReplicas, *deploy.Spec.Replicas), nil
+		}
+		if deploy.Status.Replicas > deploy.Status.UpdatedReplicas {
+			return false, fmt.Sprintf("Waiting for deployment %q rollout to finish: %d old replicas are pending termination...", deploy.GetName(), deploy.Status.Replicas-deploy.Status.UpdatedReplicas), nil
+		}
+		if deploy.Status.AvailableReplicas < deploy.Status.UpdatedReplicas {
+			return false, fmt.Sprintf("Waiting for deployment %q rollout to finish: %d of %d updated replicas are available...", deploy.GetName(), deploy.Status.AvailableReplicas, deploy.Status.UpdatedReplicas), nil
+		}
+		return true, fmt.Sprintf("deployment %q successfully rolled out", deploy.GetName()), nil
+	}
+	return false, fmt.Sprintf("Waiting for deployment spec update to be observed..."), nil
+}
+
 func deploymentIsUpgrading(deploy *apps.Deployment) bool {
-	if deploy.Status.ObservedGeneration == 0 {
+	//if deploy.Status.ObservedGeneration == 0 {
+	//return false
+	//}
+	//if deploy.Generation > deploy.Status.ObservedGeneration && *deploy.Spec.Replicas == deploy.Status.Replicas {
+	//return true
+	//}
+	rollout, reason, err := deploymentIsRollout(deploy)
+	if rollout {
 		return false
 	}
-	if deploy.Generation > deploy.Status.ObservedGeneration && *deploy.Spec.Replicas == deploy.Status.Replicas {
-		return true
-	}
-	return false
+	klog.Infof("Deployment %s is upgrading, reason %s, error: %v", deploy.GetName(), reason, err)
+	return true
 }
 
 // CombineAnnotations merges two annotations maps
