@@ -111,6 +111,7 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 		components.Devtool(),
 		components.Meter(),
 		components.AutoUpdate(),
+		components.CloudmonPing(),
 	} {
 		if err := component.Sync(oc); err != nil {
 			return err

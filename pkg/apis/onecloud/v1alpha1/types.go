@@ -51,6 +51,8 @@ const (
 	InfluxdbComponentType ComponentType = "influxdb"
 	// APIGatewayComponentType is apiGateway component type
 	APIGatewayComponentType ComponentType = "apigateway"
+	//APIGatewayComponentTypeEE is enterprise edition apiGateway
+	APIGatewayComponentTypeEE ComponentType = "apigateway-ee"
 	// WebComponentType is web frontent component type
 	WebComponentType            ComponentType = "web"
 	YunionagentComponentType    ComponentType = "yunionagent"
@@ -71,6 +73,8 @@ const (
 	MeterComponentType ComponentType = "meter"
 	// AutoUpdateComponentType is autoupdate service
 	AutoUpdateComponentType ComponentType = "autoupdate"
+	// CloudmonPing is ping cronjob
+	CloudmonPingComponentType ComponentType = "cloudmon-ping"
 )
 
 // ComponentPhase is the current state of component
@@ -175,6 +179,8 @@ type OnecloudClusterSpec struct {
 	Meter StatefulDeploymentSpec `json:"meter"`
 	// AutoUpdate holds configuration for autoupdate
 	AutoUpdate DeploymentSpec `json:"autoupdate"`
+	// CloudmonPing holds configuration for autoupdate
+	CloudmonPing CronJobSpec `json:"cloudmonping"`
 }
 
 // OnecloudClusterStatus describes cluster status

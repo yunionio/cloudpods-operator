@@ -63,7 +63,8 @@ func (m *hostDeployerManager) newHostPrivilegedDaemonSet(
 			}
 		}
 	)
-	ds, err := m.newDaemonSet(cType, oc, cfg, NewHostVolume(cType, oc, configMap), dsSpec, nil, containersF)
+	ds, err := m.newDaemonSet(cType, oc, cfg,
+		NewHostVolume(cType, oc, configMap), dsSpec, "", nil, containersF)
 	if err != nil {
 		return nil, err
 	}

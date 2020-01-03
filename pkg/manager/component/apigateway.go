@@ -75,8 +75,7 @@ func (m *apiGatewayManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Ser
 }
 
 func (m *apiGatewayManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
-	spec := &oc.Spec.APIGateway
-	isEE := IsEnterpriseEdition(spec)
+	isEE := IsEnterpriseEdition(oc)
 	cf := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		cmd := "/opt/yunion/bin/apigateway"
 		if isEE {
