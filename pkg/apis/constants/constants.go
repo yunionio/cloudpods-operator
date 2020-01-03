@@ -44,6 +44,11 @@ const (
 	OnecloudHostDeployerLabelKey    string = "onecloud.yunion.io/host-deployer"
 	OnecloudCommunityEdition        string = "ce"
 	OnecloudEnterpriseEdition       string = "ee"
+
+	WebCEImageName        = "web"
+	APIGatewayCEImageName = "apigateway"
+	WebEEImageName        = "web-ee"
+	APIGatewayEEImageName = "apigateway-ee"
 )
 
 const (
