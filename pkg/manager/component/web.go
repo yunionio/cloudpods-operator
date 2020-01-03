@@ -309,7 +309,7 @@ func (m *webManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.On
 		return fmt.Sprintf("https://%s:%d", controller.NewClusterComponentName(oc.GetName(), ct), port)
 	}
 	conf := CEConfig
-	isEE := IsEnterpriseEdition(&oc.Spec.Web)
+	isEE := IsEnterpriseEdition(oc)
 	if isEE {
 		conf = EEConfig
 	}

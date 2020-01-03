@@ -231,7 +231,8 @@ func daemonSetEqual(new, old *apps.DaemonSet) bool {
 				old.GetNamespace(), old.GetName(), err)
 			return false
 		}
-		return apiequality.Semantic.DeepEqual(oldConfig.Template, new.Spec.Template)
+		return apiequality.Semantic.DeepEqual(oldConfig.Template, new.Spec.Template) &&
+			apiequality.Semantic.DeepEqual(oldConfig.UpdateStrategy, new.Spec.UpdateStrategy)
 	}
 	return false
 }
@@ -239,13 +240,14 @@ func daemonSetEqual(new, old *apps.DaemonSet) bool {
 func cronJobEqual(new, old *batchv1.CronJob) bool {
 	oldConfig := batchv1.CronJob{}
 	if LastAppliedConfig, ok := old.Annotations[LastAppliedConfigAnnotation]; ok {
-		err := json.Unmarshal([]byte(LastAppliedConfig), &oldConfig)
+		err := json.Unmarshal([]byte(LastAppliedConfig), &oldConfig.Spec)
 		if err != nil {
 			klog.Errorf("unmarshal CronJob: [%s/%s]'s applied config failed, error: %v",
 				old.GetNamespace(), old.GetName(), err)
 			return false
 		}
-		return apiequality.Semantic.DeepEqual(oldConfig.Spec, new.Spec)
+		return apiequality.Semantic.DeepEqual(oldConfig.Spec.Schedule, new.Spec.Schedule) &&
+			apiequality.Semantic.DeepEqual(oldConfig.Spec.JobTemplate.Spec.Template, oldConfig.Spec.JobTemplate.Spec.Template)
 	}
 	return false
 }
@@ -499,20 +501,20 @@ func CompileTemplateFromMap(tmplt string, configMap interface{}) (string, error)
 	return out.String(), nil
 }
 
-func GetEdition(spec *v1alpha1.DeploymentSpec) string {
+func GetEdition(oc *v1alpha1.OnecloudCluster) string {
 	edition := constants.OnecloudCommunityEdition
-	if spec.Annotations == nil {
+	if oc.Annotations == nil {
 		return edition
 	}
-	curEdition := spec.Annotations[constants.OnecloudEditionAnnotationKey]
+	curEdition := oc.Annotations[constants.OnecloudEditionAnnotationKey]
 	if curEdition == constants.OnecloudEnterpriseEdition {
 		return curEdition
 	}
 	return edition
 }
 
-func IsEnterpriseEdition(spec *v1alpha1.DeploymentSpec) bool {
-	return GetEdition(spec) == constants.OnecloudEnterpriseEdition
+func IsEnterpriseEdition(oc *v1alpha1.OnecloudCluster) bool {
+	return GetEdition(oc) == constants.OnecloudEnterpriseEdition
 }
 
 type PVCVolumePair struct {

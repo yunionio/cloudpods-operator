@@ -52,6 +52,7 @@ func SetDefaults_OnecloudCluster(obj *OnecloudCluster) {
 	if _, ok := obj.GetLabels()[constants.InstanceLabelKey]; !ok {
 		obj.SetLabels(map[string]string{constants.InstanceLabelKey: fmt.Sprintf("onecloud-cluster-%s", rand.String(4))})
 	}
+
 	SetDefaults_OnecloudClusterSpec(&obj.Spec)
 }
 
@@ -92,13 +93,6 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec) {
 		SetDefaults_DeploymentSpec(spec, getImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag))
 	}
 
-	for cType, spec := range map[ComponentType]*DeploymentSpec{
-		APIGatewayComponentType: &obj.APIGateway,
-		WebComponentType:        &obj.Web,
-	} {
-		SetDefaults_DeploymentSpecEdition(spec, cType)
-	}
-
 	for cType, spec := range map[ComponentType]*DaemonSetSpec{
 		HostComponentType:         &obj.HostAgent,
 		HostDeployerComponentType: &obj.HostDeployer,
@@ -121,10 +115,11 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec) {
 	} {
 		SetDefaults_StatefulDeploymentSpec(cType, spec.obj, spec.size, obj.ImageRepository, spec.version)
 	}
-	for cType, spec := range map[ComponentType]*CronJobSpec{} {
-		SetDefaults_CronJobSpec(spec,
-			getImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag))
-	}
+
+	SetDefaults_CronJobSpec(&obj.CloudmonPing,
+		getImage(obj.ImageRepository, obj.CloudmonPing.Repository, APIGatewayComponentTypeEE,
+			obj.CloudmonPing.ImageName, obj.Version, obj.APIGateway.Tag))
+
 }
 
 func SetDefaults_Mysql(obj *Mysql) {
@@ -240,15 +235,6 @@ func SetDefaults_CronJobSpec(obj *CronJobSpec, image string) {
 				Effect: corev1.TaintEffectNoSchedule,
 			},
 		}...)
-	}
-}
-
-func SetDefaults_DeploymentSpecEdition(obj *DeploymentSpec, cType ComponentType) {
-	if obj.Annotations == nil {
-		obj.Annotations = map[string]string{}
-	}
-	if _, ok := obj.Annotations[constants.OnecloudEditionAnnotationKey]; !ok {
-		obj.Annotations[constants.OnecloudEditionAnnotationKey] = constants.OnecloudCommunityEdition
 	}
 }
 

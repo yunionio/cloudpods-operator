@@ -688,7 +688,7 @@ func (m *ComponentManager) newDaemonSet(
 	oc *v1alpha1.OnecloudCluster,
 	cfg *v1alpha1.OnecloudClusterConfig,
 	volHelper *VolumeHelper,
-	spec v1alpha1.DaemonSetSpec,
+	spec v1alpha1.DaemonSetSpec, updateStrategy apps.DaemonSetUpdateStrategyType,
 	initContainersFactory func() []corev1.Container,
 	containersFactory func([]corev1.VolumeMount) []corev1.Container,
 ) (*apps.DaemonSet, error) {
@@ -698,6 +698,9 @@ func (m *ComponentManager) newDaemonSet(
 	vols := volHelper.GetVolumes()
 	volMounts := volHelper.GetVolumeMounts()
 	podAnnotations := spec.Annotations
+	if len(updateStrategy) == 0 {
+		updateStrategy = apps.OnDeleteStatefulSetStrategyType
+	}
 
 	var initContainers []corev1.Container
 	if initContainersFactory != nil {
@@ -733,6 +736,9 @@ func (m *ComponentManager) newDaemonSet(
 				},
 			},
 			Selector: appLabel.LabelSelector(),
+			UpdateStrategy: apps.DaemonSetUpdateStrategy{
+				Type: updateStrategy,
+			},
 		},
 	}
 	return appDaemonSet, nil
@@ -1013,4 +1019,8 @@ func (m *ComponentManager) Meter() manager.Manager {
 
 func (m *ComponentManager) AutoUpdate() manager.Manager {
 	return newAutoUpdateManager(m)
+}
+
+func (m *ComponentManager) CloudmonPing() manager.Manager {
+	return newCloudmonPingManager(m)
 }
