@@ -20,6 +20,10 @@ func newCloudmonPingManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *cloudmonPingManager) Sync(oc *v1alpha1.OnecloudCluster) error {
+	if !IsEnterpriseEdition(oc) {
+		// TODO: DELETE cronjob
+		return nil
+	}
 	return syncComponent(m, oc, oc.Spec.CloudmonPing.Disable)
 }
 
