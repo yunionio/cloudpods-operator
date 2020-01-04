@@ -5,6 +5,9 @@ import (
 
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/klog"
 
 	"yunion.io/x/onecloud/pkg/baremetal/options"
 
@@ -57,11 +60,32 @@ func (m *baremetalManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1
 	return &oc.Status.BaremetalAgent
 }
 
+func (m *baremetalManager) updateBaremetalSpecByNodeInfo(spec *v1alpha1.StatefulDeploymentSpec) error {
+	// list nodes by baremetal node selector
+	baremetalNodeSelector := labels.NewSelector()
+	r, err := labels.NewRequirement(
+		constants.OnecloudEanbleBaremetalLabelKey, selection.Equals, []string{"enable"})
+	if err != nil {
+		return err
+	}
+	baremetalNodeSelector = baremetalNodeSelector.Add(*r)
+	nodes, err := m.nodeLister.List(baremetalNodeSelector)
+	if err != nil {
+		return err
+	}
+	klog.Infof("List nodes by baremetal selector, node count %v", len(nodes))
+	if len(nodes) == 0 {
+		spec.Replicas = 0
+	}
+	return nil
+}
+
 func (m *baremetalManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig,
 ) (*apps.Deployment, error) {
-	if err := ensureOptCloudExist(); err != nil {
+	if err := m.updateBaremetalSpecByNodeInfo(&oc.Spec.BaremetalAgent); err != nil {
 		return nil, err
 	}
+
 	cType := v1alpha1.BaremetalAgentComponentType
 	dmSpec := oc.Spec.BaremetalAgent.DeploymentSpec
 	privileged := true
