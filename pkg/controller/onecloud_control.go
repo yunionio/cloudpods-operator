@@ -162,6 +162,7 @@ type ComponentManager interface {
 	Region() PhaseControl
 	Glance() PhaseControl
 	YunionAgent() PhaseControl
+	Devtool() PhaseControl
 }
 
 func (w *OnecloudControl) Components(oc *v1alpha1.OnecloudCluster) ComponentManager {
@@ -210,6 +211,10 @@ func (c *realComponent) Glance() PhaseControl {
 
 func (c *realComponent) YunionAgent() PhaseControl {
 	return &yunionagentComponent{newBaseComponent(c)}
+}
+
+func (c *realComponent) Devtool() PhaseControl {
+	return &devtoolComponent{newBaseComponent(c)}
 }
 
 type baseComponent struct {
@@ -697,5 +702,51 @@ func (c yunionagentComponent) addWelcomeNotice() error {
 	params.Add(jsonutils.NewString("欢迎使用OneCloud多云云管平台。这里告栏。您可以在这里发布需要告知所有用户的消息。"), "content")
 
 	_, err = modules.Notice.Create(s, params)
+	return err
+}
+
+type devtoolComponent struct {
+	*baseComponent
+}
+
+func (c devtoolComponent) Setup() error {
+	return c.RegisterCloudServiceEndpoint(v1alpha1.DevtoolComponentType,
+		constants.ServiceNameDevtool, constants.ServiceTypeDevtool,
+		constants.DevtoolPort, "")
+}
+
+func (c devtoolComponent) SystemInit() error {
+	if err := c.ensureTemplateTelegraf(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c devtoolComponent) upgradeDir() string {
+	return "/opt/yunion/upgrade"
+}
+
+func (c devtoolComponent) packagePath(name string) string {
+	return fmt.Sprintf("%s/rpms/packages/%s", c.upgradeDir(), name)
+}
+
+func (c devtoolComponent) ensureTemplateTelegraf() error {
+	s, err := c.GetSession()
+	if err != nil {
+		return err
+	}
+	hosts := []string{"HOSTNAME ansible_become=yes influxdb=INFLUXDB"}
+	pkgName := "telegraf-1.5.18-1.x86_64.rpm"
+	mods := []string{
+		"file path=/etc/telegraf state=directory mode=0755",
+		"template src=conf dest=/etc/telegraf/telegraf.conf mode=0644",
+		fmt.Sprintf("copy src=%s dest=/tmp/%s mode=0755", c.packagePath(pkgName), pkgName),
+		fmt.Sprintf("yum name=/tmp/%s state=installed", pkgName),
+		"systemd name=telegraf enabled=yes state=started",
+	}
+	files := map[string]string{
+		"conf": onecloud.DevtoolTelegrafConf,
+	}
+	_, err = onecloud.EnsureDevtoolTemplate(s, "telegraf", hosts, mods, files, 86400)
 	return err
 }

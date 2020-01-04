@@ -47,9 +47,7 @@ func (m *devtoolManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1al
 }
 
 func (m *devtoolManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
-	return controller.NewRegisterEndpointComponent(man, v1alpha1.DevtoolComponentType,
-		constants.ServiceNameDevtool, constants.ServiceTypeDevtool,
-		constants.DevtoolPort, "")
+	return man.Devtool()
 }
 
 func (m *devtoolManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
