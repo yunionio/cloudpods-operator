@@ -444,6 +444,19 @@ func NewVolumeHelper(oc *v1alpha1.OnecloudCluster, optCfgMap string, component v
 	return h
 }
 
+func getVolumeMount(volumeMounts []corev1.VolumeMount, name string) *corev1.VolumeMount {
+	for _, vm := range volumeMounts {
+		if vm.Name == name {
+			return &vm
+		}
+	}
+	return nil
+}
+
+func GetConfigVolumeMount(volMounts []corev1.VolumeMount) *corev1.VolumeMount {
+	return getVolumeMount(volMounts, constants.VolumeConfigName)
+}
+
 func (h *VolumeHelper) GetVolumes() []corev1.Volume {
 	return h.volumes
 }

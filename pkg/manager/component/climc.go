@@ -37,6 +37,39 @@ func (m *climcManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.Climc.Disable)
 }
 
+func GetRCAdminEnv(oc *v1alpha1.OnecloudCluster) []corev1.EnvVar {
+	return []corev1.EnvVar{
+		{
+			Name:  "OS_USERNAME",
+			Value: constants.SysAdminUsername,
+		},
+		{
+			Name:  "OS_USERNAME",
+			Value: constants.SysAdminUsername,
+		},
+		{
+			Name:  "OS_PASSWORD",
+			Value: oc.Spec.Keystone.BootstrapPassword,
+		},
+		{
+			Name:  "OS_REGION_NAME",
+			Value: oc.Spec.Region,
+		},
+		{
+			Name:  "OS_AUTH_URL",
+			Value: controller.GetAuthURL(oc),
+		},
+		{
+			Name:  "OS_PROJECT_NAME",
+			Value: constants.SysAdminProject,
+		},
+		{
+			Name:  "YUNION_INSECURE",
+			Value: "true",
+		},
+	}
+}
+
 func (m *climcManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
 	containersF := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		return []corev1.Container{
@@ -45,37 +78,8 @@ func (m *climcManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 				Image:           oc.Spec.Climc.Image,
 				ImagePullPolicy: oc.Spec.Climc.ImagePullPolicy,
 				Command:         []string{"tail", "-f", "/dev/null"},
-				Env: []corev1.EnvVar{
-					{
-						Name:  "OS_USERNAME",
-						Value: constants.SysAdminUsername,
-					},
-					{
-						Name:  "OS_USERNAME",
-						Value: constants.SysAdminUsername,
-					},
-					{
-						Name:  "OS_PASSWORD",
-						Value: oc.Spec.Keystone.BootstrapPassword,
-					},
-					{
-						Name:  "OS_REGION_NAME",
-						Value: oc.Spec.Region,
-					},
-					{
-						Name:  "OS_AUTH_URL",
-						Value: controller.GetAuthURL(oc),
-					},
-					{
-						Name:  "OS_PROJECT_NAME",
-						Value: constants.SysAdminProject,
-					},
-					{
-						Name:  "YUNION_INSECURE",
-						Value: "true",
-					},
-				},
-				VolumeMounts: volMounts,
+				Env:             GetRCAdminEnv(oc),
+				VolumeMounts:    volMounts,
 			},
 		}
 	}
