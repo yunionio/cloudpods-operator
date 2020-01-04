@@ -22,9 +22,11 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"yunion.io/x/jsonutils"
+	ansibleapi "yunion.io/x/onecloud/pkg/apis/ansible"
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/mcclient/modulebase"
 	"yunion.io/x/onecloud/pkg/mcclient/modules"
+	"yunion.io/x/onecloud/pkg/util/ansible"
 	"yunion.io/x/onecloud/pkg/util/httputils"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
@@ -434,4 +436,99 @@ func RegisterServicePublicInternalEndpoint(
 ) error {
 	return RegisterServiceEndpointByInterfaces(s, regionId, serviceName, serviceType,
 		endpointUrl, []string{constants.EndpointTypeInternal, constants.EndpointTypePublic})
+}
+
+func ToPlaybook(
+	hostLines []string,
+	mods []string,
+	files map[string]string,
+) (*ansible.Playbook, error) {
+	if len(mods) == 0 {
+		return nil, errors.Errorf("Requires at least one mod")
+	}
+	if len(hostLines) == 0 {
+		return nil, errors.Errorf("Requires as least one server/host to operator on")
+	}
+	pb := ansible.NewPlaybook()
+	hosts := []ansible.Host{}
+	for _, s := range hostLines {
+		host, err := ansible.ParseHostLine(s)
+		if err != nil {
+			return nil, err
+		}
+		hosts = append(hosts, host)
+	}
+	pb.Inventory = ansible.Inventory{Hosts: hosts}
+	for _, s := range mods {
+		module, err := ansible.ParseModuleLine(s)
+		if err != nil {
+			return nil, err
+		}
+		pb.Modules = append(pb.Modules, module)
+	}
+	pb.Files = make(map[string][]byte)
+	for name, data := range files {
+		pb.Files[name] = []byte(data)
+	}
+	return pb, nil
+}
+
+func DevtoolTemplateCreateParams(
+	name string,
+	hostLines []string,
+	mods []string,
+	files map[string]string,
+	day int64,
+	hour int64,
+	min int64,
+	sec int64,
+	interval int64,
+	start bool,
+	enabled bool,
+) (*jsonutils.JSONDict, error) {
+	pb, err := ToPlaybook(hostLines, mods, files)
+	if err != nil {
+		return nil, err
+	}
+	input := ansibleapi.AnsiblePlaybookCreateInput{
+		Name:     name,
+		Playbook: *pb,
+	}
+	params := input.JSON(input)
+	params.Add(jsonutils.NewInt(day), "day")
+	params.Add(jsonutils.NewInt(hour), "hour")
+	params.Add(jsonutils.NewInt(min), "min")
+	params.Add(jsonutils.NewInt(sec), "sec")
+	params.Add(jsonutils.NewInt(interval), "interval")
+	params.Add(jsonutils.NewBool(start), "start")
+	params.Add(jsonutils.NewBool(enabled), "enabled")
+	return params, nil
+}
+
+func CreateDevtoolTemplate(
+	s *mcclient.ClientSession,
+	name string,
+	hosts []string,
+	mods []string,
+	files map[string]string,
+	interval int64,
+) (jsonutils.JSONObject, error) {
+	params, err := DevtoolTemplateCreateParams(name, hosts, mods, files, 0, 0, 0, 0, interval, false, true)
+	if err != nil {
+		return nil, errors.Wrapf(err, "get devtool template %s create params", name)
+	}
+	return modules.DevToolTemplates.Create(s, params)
+}
+
+func EnsureDevtoolTemplate(
+	s *mcclient.ClientSession,
+	name string,
+	hosts []string,
+	mods []string,
+	files map[string]string,
+	interval int64,
+) (jsonutils.JSONObject, error) {
+	return EnsureResource(s, &modules.DevToolTemplates, name, func() (jsonutils.JSONObject, error) {
+		return CreateDevtoolTemplate(s, name, hosts, mods, files, interval)
+	})
 }
