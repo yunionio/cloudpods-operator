@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"os"
 	"path"
 	"reflect"
 	"text/template"
@@ -550,21 +549,6 @@ func (p PVCVolumePair) GetVolumeMount() corev1.VolumeMount {
 		Name:      p.name,
 		MountPath: p.mountPath,
 	}
-}
-
-func ensureOptCloudExist() error {
-	if f, err := os.Stat("/opt/cloud"); os.IsNotExist(err) {
-		if err = os.MkdirAll("/opt/cloud", os.ModePerm); err != nil {
-			return errors.Wrap(err, "mkdir opt cloud")
-		}
-	} else if err != nil {
-		return errors.Wrap(err, "stat opt cloud")
-	} else {
-		if !f.Mode().IsDir() {
-			return errors.New("/opt/cloud is regular file")
-		}
-	}
-	return nil
 }
 
 func NewHostVolume(

@@ -37,9 +37,6 @@ func (m *hostDeployerManager) newHostPrivilegedDaemonSet(
 	oc *v1alpha1.OnecloudCluster,
 	cfg *v1alpha1.OnecloudClusterConfig,
 ) (*apps.DaemonSet, error) {
-	if err := ensureOptCloudExist(); err != nil {
-		return nil, err
-	}
 	var (
 		privileged  = true
 		dsSpec      = oc.Spec.HostDeployer

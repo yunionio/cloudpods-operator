@@ -57,6 +57,7 @@ type ComponentManager struct {
 	dsLister      appv1.DaemonSetLister
 	cronControl   controller.CronJobControlInterface
 	cronLister    batchlisters.CronJobLister
+	nodeLister    corelisters.NodeLister
 
 	configer        Configer
 	onecloudControl *controller.OnecloudControl
@@ -77,6 +78,7 @@ func NewComponentManager(
 	dsLister appv1.DaemonSetLister,
 	cronControl controller.CronJobControlInterface,
 	cronLister batchlisters.CronJobLister,
+	nodeLister corelisters.NodeLister,
 	configer Configer,
 	onecloudControl *controller.OnecloudControl,
 ) *ComponentManager {
@@ -94,6 +96,7 @@ func NewComponentManager(
 		dsLister:        dsLister,
 		cronControl:     cronControl,
 		cronLister:      cronLister,
+		nodeLister:      nodeLister,
 		configer:        configer,
 		onecloudControl: onecloudControl,
 	}

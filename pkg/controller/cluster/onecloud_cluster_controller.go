@@ -92,7 +92,7 @@ func NewController(
 	secretInformer := kubeInformerFactory.Core().V1().Secrets()
 	//epsInformer := kubeInformerFactory.Core().V1().Endpoints()
 	//podInformer := kubeInformerFactory.Core().V1().Pods()
-	//nodeInformer := kubeInformerFactory.Core().V1().Nodes()
+	nodeInformer := kubeInformerFactory.Core().V1().Nodes()
 	cfgInformer := kubeInformerFactory.Core().V1().ConfigMaps()
 	pvcInformer := kubeInformerFactory.Core().V1().PersistentVolumeClaims()
 	ingInformer := kubeInformerFactory.Extensions().V1beta1().Ingresses()
@@ -120,6 +120,7 @@ func NewController(
 		ingControl, ingInformer.Lister(),
 		dsControl, dsInformer.Lister(),
 		cronControl, cronInformer.Lister(),
+		nodeInformer.Lister(),
 		configer, onecloudControl,
 	)
 
