@@ -716,8 +716,14 @@ func (c devtoolComponent) Setup() error {
 }
 
 func (c devtoolComponent) SystemInit() error {
-	if err := c.ensureTemplateTelegraf(); err != nil {
-		return err
+	for _, f := range []func() error{
+		c.ensureTemplatePing,
+		c.ensureTemplateTelegraf,
+		c.ensureTemplateNginx,
+	} {
+		if err := f(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -730,6 +736,49 @@ func (c devtoolComponent) packagePath(name string) string {
 	return fmt.Sprintf("%s/rpms/packages/%s", c.upgradeDir(), name)
 }
 
+func (c devtoolComponent) yumRepoUrl() string {
+	return "https://iso.yunion.cn/yumrepo-2.13"
+}
+
+func (c devtoolComponent) rpmPackageUrl(pkgName string) string {
+	return fmt.Sprintf("%s/rpms/packages/%s", c.yumRepoUrl(), pkgName)
+}
+
+func (c devtoolComponent) ensureTemplatePing() error {
+	s, err := c.GetSession()
+	if err != nil {
+		return err
+	}
+	hosts := []string{"HOSTNAME ansible_become=yes"}
+	mods := []string{
+		"ping",
+	}
+	// TODO: fix this bug
+	files := map[string]string{
+		"conf": "",
+	}
+	_, err = onecloud.EnsureDevtoolTemplate(s, "ping-host", hosts, mods, files, 86400)
+	return err
+}
+
+func (c devtoolComponent) ensureTemplateNginx() error {
+	s, err := c.GetSession()
+	if err != nil {
+		return err
+	}
+	files := map[string]string{
+		"conf": "",
+	}
+	hosts := []string{"HOSTNAME ansible_become=yes"}
+	mods := []string{
+		"yum name=epel-release state=present",
+		"yum name=nginx state=installed",
+		"systemd name=nginx enabled=yes state=started",
+	}
+	_, err = onecloud.EnsureDevtoolTemplate(s, "install-nginx-on-centos", hosts, mods, files, 86400)
+	return err
+}
+
 func (c devtoolComponent) ensureTemplateTelegraf() error {
 	s, err := c.GetSession()
 	if err != nil {
@@ -740,13 +789,13 @@ func (c devtoolComponent) ensureTemplateTelegraf() error {
 	mods := []string{
 		"file path=/etc/telegraf state=directory mode=0755",
 		"template src=conf dest=/etc/telegraf/telegraf.conf mode=0644",
-		fmt.Sprintf("copy src=%s dest=/tmp/%s mode=0755", c.packagePath(pkgName), pkgName),
+		fmt.Sprintf("get_url url=%s dest=/tmp/%s", c.rpmPackageUrl(pkgName), pkgName),
 		fmt.Sprintf("yum name=/tmp/%s state=installed", pkgName),
 		"systemd name=telegraf enabled=yes state=started",
 	}
 	files := map[string]string{
 		"conf": onecloud.DevtoolTelegrafConf,
 	}
-	_, err = onecloud.EnsureDevtoolTemplate(s, "telegraf", hosts, mods, files, 86400)
+	_, err = onecloud.EnsureDevtoolTemplate(s, "install-telegraf-on-centos", hosts, mods, files, 86400)
 	return err
 }
