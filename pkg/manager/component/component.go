@@ -269,6 +269,7 @@ func (m *ComponentManager) updateDaemonSet(oc *v1alpha1.OnecloudCluster, newDs, 
 	if !daemonSetEqual(newDs, oldDs) {
 		ds := *oldDs
 		ds.Spec.Template = newDs.Spec.Template
+		ds.Spec.UpdateStrategy = newDs.Spec.UpdateStrategy
 		err := SetDaemonSetLastAppliedConfigAnnotation(&ds)
 		if err != nil {
 			return err
