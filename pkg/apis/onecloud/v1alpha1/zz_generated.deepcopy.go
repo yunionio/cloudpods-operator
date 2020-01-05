@@ -592,6 +592,7 @@ func (in *OnecloudClusterSpec) DeepCopyInto(out *OnecloudClusterSpec) {
 	in.Meter.DeepCopyInto(&out.Meter)
 	in.AutoUpdate.DeepCopyInto(&out.AutoUpdate)
 	in.CloudmonPing.DeepCopyInto(&out.CloudmonPing)
+	in.CloudmonReportUsage.DeepCopyInto(&out.CloudmonReportUsage)
 	return
 }
 

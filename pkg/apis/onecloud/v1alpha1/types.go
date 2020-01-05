@@ -77,6 +77,8 @@ const (
 	AutoUpdateComponentType ComponentType = "autoupdate"
 	// CloudmonPing is ping cronjob
 	CloudmonPingComponentType ComponentType = "cloudmon-ping"
+	// CloudmonReportUsage is report-usage cronjob
+	CloudmonReportUsageComponentType ComponentType = "cloudmon-report-usage"
 )
 
 // ComponentPhase is the current state of component
@@ -183,8 +185,10 @@ type OnecloudClusterSpec struct {
 	Meter StatefulDeploymentSpec `json:"meter"`
 	// AutoUpdate holds configuration for autoupdate
 	AutoUpdate DeploymentSpec `json:"autoupdate"`
-	// CloudmonPing holds configuration for autoupdate
+	// CloudmonPing holds configuration for ping-probe cronjob
 	CloudmonPing CronJobSpec `json:"cloudmonping"`
+	// CloudmonReportUsage holds configuration for report-usage cronjob
+	CloudmonReportUsage CronJobSpec `json:"cloudmonreportusage"`
 }
 
 // OnecloudClusterStatus describes cluster status
