@@ -55,10 +55,26 @@ func SetDefaults_OnecloudCluster(obj *OnecloudCluster) {
 		obj.SetLabels(map[string]string{constants.InstanceLabelKey: fmt.Sprintf("onecloud-cluster-%s", rand.String(4))})
 	}
 
-	SetDefaults_OnecloudClusterSpec(&obj.Spec)
+	SetDefaults_OnecloudClusterSpec(&obj.Spec, IsEnterpriseEdition(obj))
 }
 
-func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec) {
+func GetEdition(oc *OnecloudCluster) string {
+	edition := constants.OnecloudCommunityEdition
+	if oc.Annotations == nil {
+		return edition
+	}
+	curEdition := oc.Annotations[constants.OnecloudEditionAnnotationKey]
+	if curEdition == constants.OnecloudEnterpriseEdition {
+		return curEdition
+	}
+	return edition
+}
+
+func IsEnterpriseEdition(oc *OnecloudCluster) bool {
+	return GetEdition(oc) == constants.OnecloudEnterpriseEdition
+}
+
+func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	SetDefaults_Mysql(&obj.Mysql)
 	if obj.Region == "" {
 		obj.Region = DefaultOnecloudRegion
@@ -82,8 +98,6 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec) {
 		SchedulerComponentType:     &obj.Scheduler,
 		LoggerComponentType:        &obj.Logger,
 		YunionconfComponentType:    &obj.Yunionconf,
-		APIGatewayComponentType:    &obj.APIGateway,
-		WebComponentType:           &obj.Web,
 		KubeServerComponentType:    &obj.KubeServer,
 		AnsibleServerComponentType: &obj.AnsibleServer,
 		CloudnetComponentType:      &obj.Cloudnet,
@@ -93,6 +107,15 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec) {
 		AutoUpdateComponentType:    &obj.AutoUpdate,
 	} {
 		SetDefaults_DeploymentSpec(spec, getImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag))
+	}
+
+	// CE or EE parts
+	for cType, spec := range map[ComponentType]*DeploymentSpec{
+		APIGatewayComponentType: &obj.APIGateway,
+		WebComponentType:        &obj.Web,
+	} {
+		SetDefaults_DeploymentSpec(spec,
+			getEditionImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag, isEE))
 	}
 
 	for cType, spec := range map[ComponentType]*DaemonSetSpec{
@@ -147,6 +170,16 @@ func getImage(globalRepo, specRepo string, componentType ComponentType, componen
 		componentName = componentType.String()
 	}
 	return fmt.Sprintf("%s/%s:%s", repo, componentName, version)
+}
+
+func getEditionImage(globalRepo, specRepo string, componentType ComponentType, componentName string, globalVersion, tag string, isEE bool) string {
+	if componentName == "" {
+		componentName = componentType.String()
+		if isEE {
+			componentName = fmt.Sprintf("%s-ee", componentName)
+		}
+	}
+	return getImage(globalRepo, specRepo, componentType, componentName, globalVersion, tag)
 }
 
 func SetDefaults_KeystoneSpec(obj *KeystoneSpec, imageRepo, version string) {
