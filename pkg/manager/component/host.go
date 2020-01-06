@@ -84,6 +84,21 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 					},
 					WorkingDir: "/opt/cloud",
 				},
+				{
+					Name:  fmt.Sprintf("%s-image", cType.String()),
+					Image: dsSpec.Image,
+					Command: []string{
+						fmt.Sprintf("/opt/yunion/bin/%s-image", cType.String()),
+						"--common-config-file",
+						"/etc/yunion/common/common.conf",
+					},
+					ImagePullPolicy: dsSpec.ImagePullPolicy,
+					VolumeMounts:    volMounts,
+					SecurityContext: &corev1.SecurityContext{
+						Privileged: &privileged,
+					},
+					WorkingDir: "/opt/cloud",
+				},
 			}
 		}
 	)
