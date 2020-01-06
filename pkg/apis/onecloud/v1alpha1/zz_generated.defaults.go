@@ -36,7 +36,6 @@ func RegisterDefaults(scheme *runtime.Scheme) error {
 
 func SetObjectDefaults_OnecloudCluster(in *OnecloudCluster) {
 	SetDefaults_OnecloudCluster(in)
-	SetDefaults_OnecloudClusterSpec(&in.Spec)
 	SetDefaults_Mysql(&in.Spec.Mysql)
 }
 

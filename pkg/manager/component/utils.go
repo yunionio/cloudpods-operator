@@ -513,21 +513,10 @@ func CompileTemplateFromMap(tmplt string, configMap interface{}) (string, error)
 	return out.String(), nil
 }
 
-func GetEdition(oc *v1alpha1.OnecloudCluster) string {
-	edition := constants.OnecloudCommunityEdition
-	if oc.Annotations == nil {
-		return edition
-	}
-	curEdition := oc.Annotations[constants.OnecloudEditionAnnotationKey]
-	if curEdition == constants.OnecloudEnterpriseEdition {
-		return curEdition
-	}
-	return edition
-}
-
-func IsEnterpriseEdition(oc *v1alpha1.OnecloudCluster) bool {
-	return GetEdition(oc) == constants.OnecloudEnterpriseEdition
-}
+var (
+	GetEdition          = v1alpha1.GetEdition
+	IsEnterpriseEdition = v1alpha1.IsEnterpriseEdition
+)
 
 type PVCVolumePair struct {
 	name      string
