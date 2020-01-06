@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"golang.org/x/sync/errgroup"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	errorutils "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/tools/record"
@@ -88,35 +89,48 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 
 	for _, component := range []manager.Manager{
 		components.Keystone(),
-		components.Logger(),
-		components.Climc(),
-		components.Influxdb(),
 		components.Region(),
 		components.Scheduler(),
 		components.Glance(),
-		components.Webconsole(),
 		components.Yunionagent(),
-		components.Yunionconf(),
-		components.KubeServer(),
 		components.AnsibleServer(),
-		components.Cloudnet(),
-		components.Cloudevent(),
 		components.APIGateway(),
 		components.Web(),
-		components.Notify(),
-		components.Host(),
-		components.HostDeployer(),
-		components.Baremetal(),
-		components.S3gateway(),
-		components.Devtool(),
 		components.Meter(),
-		components.AutoUpdate(),
-		components.CloudmonPing(),
-		components.Kapacitor(),
 	} {
 		if err := component.Sync(oc); err != nil {
 			return err
 		}
+	}
+
+	var dependComponents = []manager.Manager{
+		components.Logger(),
+		components.Influxdb(),
+		components.Climc(),
+		components.AutoUpdate(),
+		components.KubeServer(),
+		components.Cloudnet(),
+		components.Cloudevent(),
+		components.Devtool(),
+		components.Webconsole(),
+		components.Yunionconf(),
+		components.Kapacitor(),
+		components.S3gateway(),
+		components.CloudmonPing(),
+		components.Notify(),
+		components.Host(),
+		components.HostDeployer(),
+		components.Baremetal(),
+	}
+	var grp errgroup.Group
+	for _, component := range dependComponents {
+		c := component
+		grp.Go(func() error {
+			return c.Sync(oc)
+		})
+	}
+	if err := grp.Wait(); err != nil {
+		return err
 	}
 
 	return nil

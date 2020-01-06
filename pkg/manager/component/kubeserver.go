@@ -45,6 +45,9 @@ type kubeOptions struct {
 }
 
 func (m *kubeManager) Sync(oc *v1alpha1.OnecloudCluster) error {
+	if !IsEnterpriseEdition(oc) {
+		return nil
+	}
 	return syncComponent(m, oc, oc.Spec.KubeServer.Disable)
 }
 
