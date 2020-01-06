@@ -594,9 +594,10 @@ func NewHostVolume(
 			MountPath: path.Join(constants.ConfigDir, "common"),
 		},
 		{
-			Name:      "cloud",
-			ReadOnly:  false,
-			MountPath: "/opt/cloud",
+			Name:             "cloud",
+			ReadOnly:         false,
+			MountPath:        "/opt/cloud",
+			MountPropagation: &bidirectional,
 		},
 		{
 			Name:      "usr",
