@@ -45,6 +45,13 @@ func Test_getRepoImageName(t *testing.T) {
 			want1: "web-ee",
 			want2: "v2.12.0",
 		},
+		{
+			name:  "10.127.10.156:5000/yunionio/glance:v3.0.0-20200105.0",
+			img:   "10.127.10.156:5000/yunionio/glance:v3.0.0-20200105.0",
+			want:  "10.127.10.156:5000/yunionio",
+			want1: "glance",
+			want2: "v3.0.0-20200105.0",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
