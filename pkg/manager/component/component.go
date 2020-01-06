@@ -1032,3 +1032,7 @@ func (m *ComponentManager) AutoUpdate() manager.Manager {
 func (m *ComponentManager) CloudmonPing() manager.Manager {
 	return newCloudmonPingManager(m)
 }
+
+func (m *ComponentManager) CloudmonReportUsage() manager.Manager {
+	return newCloudmonReportUsageManager(m)
+}
