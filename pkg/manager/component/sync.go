@@ -15,6 +15,7 @@
 package component
 
 import (
+	"path/filepath"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -106,30 +107,38 @@ func syncComponent(factory cloudComponentFactory, oc *v1alpha1.OnecloudCluster, 
 }
 
 func getRepoImageName(img string) (string, string, string) {
-	parts := strings.Split(img, ":")
+	parts := strings.Split(img, "/")
 	var (
 		repo      string
 		imageName string
 		tag       string
 	)
-	getRepoImage := func(img string) (string, string) {
-		parts := strings.Split(img, "/")
-		if len(parts) == 1 {
-			return "", parts[0]
+	getImageTag := func(img string) (string, string) {
+		parts := strings.Split(img, ":")
+		if len(parts) == 0 {
+			return "", ""
 		}
-		repoParts := parts[0 : len(parts)-1]
-		imgName := parts[len(parts)-1]
-		return strings.Join(repoParts, "/"), imgName
+		if len(parts) == 1 {
+			tag := "latest"
+			img := parts[0]
+			return img, tag
+		} else {
+			img = parts[0]
+			tag = parts[len(parts)-1]
+			return img, tag
+		}
+	}
+	getRepo := func(parts []string) string {
+		return filepath.Join(parts...)
 	}
 	if len(parts) == 0 {
 		return "", "", ""
 	}
 	if len(parts) == 1 {
-		tag = "latest"
-		repo, imageName = getRepoImage(parts[0])
+		imageName, tag = getImageTag(parts[0])
 	} else {
-		tag = parts[len(parts)-1]
-		repo, imageName = getRepoImage(parts[0])
+		imageName, tag = getImageTag(parts[len(parts)-1])
+		repo = getRepo(parts[0 : len(parts)-1])
 	}
 	return repo, imageName, tag
 }
