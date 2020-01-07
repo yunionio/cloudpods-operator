@@ -97,6 +97,7 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 		components.APIGateway(),
 		components.Web(),
 		components.Meter(),
+		components.EsxiAgent(),
 	} {
 		if err := component.Sync(oc); err != nil {
 			return err

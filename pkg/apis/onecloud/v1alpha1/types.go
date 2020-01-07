@@ -79,6 +79,8 @@ const (
 	CloudmonPingComponentType ComponentType = "cloudmon-ping"
 	// CloudmonReportUsage is report-usage cronjob
 	CloudmonReportUsageComponentType ComponentType = "cloudmon-report-usage"
+	// Esxi Agent
+	EsxiAgentComponentType ComponentType = "esxi-agent"
 )
 
 // ComponentPhase is the current state of component
@@ -189,6 +191,8 @@ type OnecloudClusterSpec struct {
 	CloudmonPing CronJobSpec `json:"cloudmonping"`
 	// CloudmonReportUsage holds configuration for report-usage cronjob
 	CloudmonReportUsage CronJobSpec `json:"cloudmonreportusage"`
+	// EsxiAgent hols configuration for esxi agent
+	EsxiAgent StatefulDeploymentSpec `json:"esxiagent"`
 }
 
 // OnecloudClusterStatus describes cluster status
@@ -216,6 +220,7 @@ type OnecloudClusterStatus struct {
 	Devtool        DeploymentStatus `json:"devtool,omitempty"`
 	Meter          MeterStatus      `json:"meter,omitempty"`
 	AutoUpdate     DeploymentStatus `json:"autoupdate,omitempty"`
+	EsxiAgent      DeploymentStatus `json:"esxiagent,omitempty"`
 }
 
 // Etcd describes an etcd cluster
@@ -402,6 +407,10 @@ type BaremetalConfig struct {
 	ServiceCommonOptions
 }
 
+type EsxiAgentConfig struct {
+	ServiceCommonOptions
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type OnecloudClusterConfig struct {
@@ -426,4 +435,5 @@ type OnecloudClusterConfig struct {
 	Devtool        ServiceDBCommonOptions `json:"devtool"`
 	Meter          MeterConfig            `json:"meter"`
 	AutoUpdate     ServiceCommonOptions   `json:"autoupdate"`
+	EsxiAgent      EsxiAgentConfig        `json:"esxiagent"`
 }

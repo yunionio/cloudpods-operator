@@ -1036,3 +1036,7 @@ func (m *ComponentManager) CloudmonPing() manager.Manager {
 func (m *ComponentManager) CloudmonReportUsage() manager.Manager {
 	return newCloudmonReportUsageManager(m)
 }
+
+func (m *ComponentManager) EsxiAgent() manager.Manager {
+	return newEsxiManager(m)
+}
