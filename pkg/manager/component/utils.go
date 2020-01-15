@@ -619,16 +619,6 @@ func NewHostVolume(
 			MountPath:        "/tmp",
 			MountPropagation: &bidirectional,
 		},
-		{
-			Name:      "modules",
-			ReadOnly:  false,
-			MountPath: "/lib/modules",
-		},
-		{
-			Name:      "modprobes",
-			ReadOnly:  false,
-			MountPath: "/lib/modprobe.d",
-		},
 	}
 
 	// volumes
@@ -728,24 +718,6 @@ func NewHostVolume(
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: "/tmp",
-					Type: &hostPathDirectory,
-				},
-			},
-		},
-		{
-			Name: "modules",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/lib/modules",
-					Type: &hostPathDirectory,
-				},
-			},
-		},
-		{
-			Name: "modprobes",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/lib/modprobe.d",
 					Type: &hostPathDirectory,
 				},
 			},
