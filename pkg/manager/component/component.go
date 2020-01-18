@@ -466,9 +466,14 @@ func (m *ComponentManager) newDefaultDeploymentNoInitWithoutCloudAffinity(
 	oc *v1alpha1.OnecloudCluster,
 	volHelper *VolumeHelper,
 	spec v1alpha1.DeploymentSpec,
+	hostNetwork bool,
 	containersFactory func([]corev1.VolumeMount) []corev1.Container,
 ) (*apps.Deployment, error) {
-	return m.newDeployment(componentType, oc, volHelper, spec, nil, containersFactory, false, corev1.DNSClusterFirst)
+	dnsPolicy := corev1.DNSClusterFirst
+	if hostNetwork {
+		dnsPolicy = corev1.DNSClusterFirstWithHostNet
+	}
+	return m.newDeployment(componentType, oc, volHelper, spec, nil, containersFactory, hostNetwork, dnsPolicy)
 }
 
 func (m *ComponentManager) getObjectMeta(oc *v1alpha1.OnecloudCluster, name string, labels map[string]string) metav1.ObjectMeta {

@@ -107,19 +107,17 @@ func (m *baremetalManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1al
 			},
 		}
 	}
+	hostNetwork := true
 	dm, err := m.newDefaultDeploymentNoInitWithoutCloudAffinity(cType, oc,
 		newBaremetalVolHelper(
 			oc, controller.ComponentConfigMapName(oc, v1alpha1.BaremetalAgentComponentType),
 			v1alpha1.BaremetalAgentComponentType,
 		),
-		dmSpec, containersF,
+		dmSpec, hostNetwork, containersF,
 	)
 	if err != nil {
 		return nil, err
 	}
-	// set braemetal use host network
-	dm.Spec.Template.Spec.HostNetwork = true
-	dm.Spec.Template.Spec.DNSPolicy = corev1.DNSClusterFirstWithHostNet
 	if dm.Spec.Template.Spec.NodeSelector == nil {
 		dm.Spec.Template.Spec.NodeSelector = make(map[string]string)
 	}
