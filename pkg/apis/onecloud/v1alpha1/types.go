@@ -49,8 +49,8 @@ const (
 	LoggerComponentType ComponentType = "logger"
 	// InfluxdbComponentType is influxdb component type
 	InfluxdbComponentType ComponentType = "influxdb"
-	// KapacitorComponentType is influxdata kapacitor component type
-	KapacitorComponentType ComponentType = "kapacitor"
+	// MonitorComponentType is alert monitor component type
+	MonitorComponentType ComponentType = "monitor"
 	// APIGatewayComponentType is apiGateway component type
 	APIGatewayComponentType ComponentType = "apigateway"
 	//APIGatewayComponentTypeEE is enterprise edition apiGateway
@@ -159,8 +159,8 @@ type OnecloudClusterSpec struct {
 	Yunionagent DaemonSetSpec `json:"yunionagent"`
 	// Influxdb holds configuration for influxdb
 	Influxdb StatefulDeploymentSpec `json:"influxdb"`
-	// Kapacitor holds configuration for Kapacitor
-	Kapacitor StatefulDeploymentSpec `json:"kapacitor"`
+	// Monitor holds configuration for monitor service
+	Monitor DeploymentSpec `json:"monitor"`
 	// LoadBalancerEndpoint is upstream loadbalancer virtual ip address or DNS domain
 	LoadBalancerEndpoint string `json:"loadBalancerEndpoint"`
 	// APIGateway holds configuration for yunoinapi
@@ -211,7 +211,7 @@ type OnecloudClusterStatus struct {
 	Scheduler      DeploymentStatus `json:"scheduler,omitempty"`
 	Webconsole     DeploymentStatus `json:"webconsole,omitempty"`
 	Influxdb       DeploymentStatus `json:"influxdb,omitempty"`
-	Kapacitor      DeploymentStatus `json:"kapacitor,omitempty"`
+	Monitor        DeploymentStatus `json:"monitor,omitempty"`
 	Logger         DeploymentStatus `json:"logger,omitempty"`
 	APIGateway     DeploymentStatus `json:"apiGateway,omitempty"`
 	Web            DeploymentStatus `json:"web,omitempty"`
@@ -443,6 +443,7 @@ type OnecloudClusterConfig struct {
 	Yunionagent    ServiceDBCommonOptions `json:"yunionagent"`
 	KubeServer     ServiceDBCommonOptions `json:"kubeserver"`
 	AnsibleServer  ServiceDBCommonOptions `json:"ansibleserver"`
+	Monitor        ServiceDBCommonOptions `json:"monitor"`
 	Cloudnet       ServiceDBCommonOptions `json:"cloudnet"`
 	Cloudevent     ServiceDBCommonOptions `json:"cloudevent"`
 	APIGateway     ServiceCommonOptions   `json:"apiGateway"`

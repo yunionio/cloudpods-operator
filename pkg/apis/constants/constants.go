@@ -147,8 +147,11 @@ const (
 	OvnNorthDbPort = 32241
 	OvnSouthDbPort = 32242
 
-	KapacitorPort      = 30092
-	KapacitorDataStore = "/var/lib/kapacitor"
+	MonitorAdminUser    = "monitoradmin"
+	MonitorAdminProject = SysAdminProject
+	MonitorPort         = 30093
+	MonitorDB           = "monitor"
+	MonitorDBUser       = "monitor"
 
 	AnsibleServerAdminUser    = "ansibleadmin"
 	AnsibleServerAdminProject = SysAdminProject
@@ -200,8 +203,8 @@ const (
 	ServiceNameInfluxdb = "influxdb"
 	ServiceTypeInfluxdb = "influxdb"
 
-	ServiceNameKapacitor = "kapacitor"
-	ServiceTypeKapacitor = "kapacitor"
+	ServiceNameMonitor = "monitor"
+	ServiceTypeMonitor = "monitor"
 
 	ServiceNameOvnNorthDb = "ovn-north-db"
 	ServiceTypeOvnNorthDb = "ovn-north-db"
