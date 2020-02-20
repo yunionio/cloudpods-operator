@@ -522,6 +522,7 @@ func (in *OnecloudClusterConfig) DeepCopyInto(out *OnecloudClusterConfig) {
 	out.Yunionagent = in.Yunionagent
 	out.KubeServer = in.KubeServer
 	out.AnsibleServer = in.AnsibleServer
+	out.Monitor = in.Monitor
 	out.Cloudnet = in.Cloudnet
 	out.Cloudevent = in.Cloudevent
 	out.APIGateway = in.APIGateway
@@ -613,7 +614,7 @@ func (in *OnecloudClusterSpec) DeepCopyInto(out *OnecloudClusterSpec) {
 	in.Yunionconf.DeepCopyInto(&out.Yunionconf)
 	in.Yunionagent.DeepCopyInto(&out.Yunionagent)
 	in.Influxdb.DeepCopyInto(&out.Influxdb)
-	in.Kapacitor.DeepCopyInto(&out.Kapacitor)
+	in.Monitor.DeepCopyInto(&out.Monitor)
 	in.APIGateway.DeepCopyInto(&out.APIGateway)
 	in.Web.DeepCopyInto(&out.Web)
 	in.KubeServer.DeepCopyInto(&out.KubeServer)
@@ -655,7 +656,7 @@ func (in *OnecloudClusterStatus) DeepCopyInto(out *OnecloudClusterStatus) {
 	in.Scheduler.DeepCopyInto(&out.Scheduler)
 	in.Webconsole.DeepCopyInto(&out.Webconsole)
 	in.Influxdb.DeepCopyInto(&out.Influxdb)
-	in.Kapacitor.DeepCopyInto(&out.Kapacitor)
+	in.Monitor.DeepCopyInto(&out.Monitor)
 	in.Logger.DeepCopyInto(&out.Logger)
 	in.APIGateway.DeepCopyInto(&out.APIGateway)
 	in.Web.DeepCopyInto(&out.Web)
