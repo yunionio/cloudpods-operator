@@ -18,15 +18,15 @@ require (
 	k8s.io/apiextensions-apiserver v0.0.0
 	k8s.io/apimachinery v0.0.0
 	k8s.io/client-go v9.0.0+incompatible
-	k8s.io/code-generator v0.15.8-beta.1 // indirect
+	k8s.io/code-generator v0.15.11-beta.0 // indirect
 	k8s.io/klog v0.3.3
 	k8s.io/kube-openapi v0.0.0-20190603182131-db7b694dc208 // indirect
 	k8s.io/kubernetes v1.15.1
 	k8s.io/utils v0.0.0-20190607212802-c55fbcfc754a // indirect
-	yunion.io/x/jsonutils v0.0.0-20191220095028-7fef3b75f64d
+	yunion.io/x/jsonutils v0.0.0-20200113074440-9297fd00ba07
 	yunion.io/x/log v0.0.0-20190629062853-9f6483a7103d
 	yunion.io/x/onecloud v0.0.0-20200105111042-ef1ad52baee1
-	yunion.io/x/pkg v0.0.0-20191221094533-5097f12f41ac
+	yunion.io/x/pkg v0.0.0-20200103043034-27c6f82160fa
 	yunion.io/x/structarg v0.0.0-20190809075558-115bed041de3
 )
 
@@ -53,4 +53,5 @@ replace (
 	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.0.0-20190620090156-2138f2c9de18
 	k8s.io/metrics => k8s.io/metrics v0.0.0-20190620085625-3b22d835f165
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.0.0-20190620085408-1aef9010884e
+	yunion.io/x/onecloud => ../onecloud
 )

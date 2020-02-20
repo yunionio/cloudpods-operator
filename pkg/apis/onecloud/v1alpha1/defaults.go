@@ -36,15 +36,13 @@ const (
 	DefaultGlanceStorageSize    = "100G"
 	DefaultMeterStorageSize     = "100G"
 	DefaultInfluxdbStorageSize  = "20G"
-	DefaultKapacitorStorageSize = "20G"
 	DefaultNotifyStorageSize    = "1G" // for plugin template
 	DefaultBaremetalStorageSize = "1G"
 	DefaultEsxiAgentStorageSize = "30G"
 	// rancher local-path-provisioner: https://github.com/rancher/local-path-provisioner
 	DefaultStorageClass = "local-path"
 
-	DefaultInfluxdbImageVersion  = "1.7.7"
-	DefaultKapacitorImageVersion = "1.5"
+	DefaultInfluxdbImageVersion = "1.7.7"
 )
 
 func addDefaultingFuncs(scheme *runtime.Scheme) error {
@@ -106,6 +104,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		S3gatewayComponentType:     &obj.S3gateway,
 		DevtoolComponentType:       &obj.Devtool,
 		AutoUpdateComponentType:    &obj.AutoUpdate,
+		MonitorComponentType:       &obj.Monitor,
 	} {
 		SetDefaults_DeploymentSpec(spec, getImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag))
 	}
@@ -135,7 +134,6 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	for cType, spec := range map[ComponentType]*stateDeploy{
 		GlanceComponentType:         {&obj.Glance, DefaultGlanceStorageSize, obj.Version},
 		InfluxdbComponentType:       {&obj.Influxdb, DefaultInfluxdbStorageSize, DefaultInfluxdbImageVersion},
-		KapacitorComponentType:      {&obj.Kapacitor, DefaultKapacitorStorageSize, DefaultKapacitorImageVersion},
 		NotifyComponentType:         {&obj.Notify, DefaultNotifyStorageSize, obj.Version},
 		BaremetalAgentComponentType: {&obj.BaremetalAgent, DefaultBaremetalStorageSize, obj.Version},
 		MeterComponentType:          {&obj.Meter, DefaultMeterStorageSize, obj.Version},
@@ -321,6 +319,7 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		&obj.Notify:                              {constants.NotifyAdminUser, constants.NotifyPort, constants.NotifyDB, constants.NotifyDBUser},
 		&obj.Devtool:                             {constants.DevtoolAdminUser, constants.DevtoolPort, constants.DevtoolDB, constants.DevtoolDBUser},
 		&obj.Meter.ServiceDBCommonOptions:        {constants.MeterAdminUser, constants.MeterPort, constants.MeterDB, constants.MeterDBUser},
+		&obj.Monitor:                             {constants.MonitorAdminUser, constants.MonitorPort, constants.MonitorDB, constants.MonitorDBUser},
 	} {
 		if user, ok := registryPorts[tmp.port]; ok {
 			log.Fatalf("port %d has been registered by %s", tmp.port, user)

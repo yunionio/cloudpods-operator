@@ -142,8 +142,11 @@ const (
 	InfluxdbPort      = 30086
 	InfluxdbDataStore = "/var/lib/influxdb"
 
-	KapacitorPort      = 30092
-	KapacitorDataStore = "/var/lib/kapacitor"
+	MonitorAdminUser    = "monitoradmin"
+	MonitorAdminProject = SysAdminProject
+	MonitorPort         = 30093
+	MonitorDB           = "monitor"
+	MonitorDBUser       = "monitor"
 
 	AnsibleServerAdminUser    = "ansibleadmin"
 	AnsibleServerAdminProject = SysAdminProject
@@ -195,8 +198,8 @@ const (
 	ServiceNameInfluxdb = "influxdb"
 	ServiceTypeInfluxdb = "influxdb"
 
-	ServiceNameKapacitor = "kapacitor"
-	ServiceTypeKapacitor = "kapacitor"
+	ServiceNameMonitor = "monitor"
+	ServiceTypeMonitor = "monitor"
 
 	ServiceNameKubeServer = "k8s"
 	ServiceTypeKubeServer = "k8s"

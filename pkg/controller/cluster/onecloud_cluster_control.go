@@ -115,7 +115,7 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 		components.Devtool(),
 		components.Webconsole(),
 		components.Yunionconf(),
-		components.Kapacitor(),
+		components.Monitor(),
 		components.S3gateway(),
 		components.CloudmonPing(),
 		components.CloudmonReportUsage(),
