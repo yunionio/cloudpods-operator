@@ -15,6 +15,8 @@
 package component
 
 import (
+	"fmt"
+
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
@@ -87,39 +89,34 @@ func (m *yunionagentManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Se
 	return svc
 }
 
-// use local volume pvc avoid pod migrate
-func (m *yunionagentManager) getPVC(oc *v1alpha1.OnecloudCluster) (*corev1.PersistentVolumeClaim, error) {
-	cfg := oc.Spec.Yunionagent
-	return m.newPVC(v1alpha1.YunionagentComponentType, oc, cfg)
-}
-
-func (m *yunionagentManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
-	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.YunionagentComponentType, oc, oc.Spec.Yunionagent.DeploymentSpec, constants.YunionAgentPort, false)
+func (m *yunionagentManager) getDaemonSet(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.DaemonSet, error) {
+	cType := v1alpha1.YunionagentComponentType
+	dsSpec := oc.Spec.Yunionagent
+	cf := func(volMounts []corev1.VolumeMount) []corev1.Container {
+		return []corev1.Container{
+			{
+				Name:  cType.String(),
+				Image: dsSpec.Image,
+				Command: []string{
+					fmt.Sprintf("/opt/yunion/bin/%s", cType.String()),
+					"--config",
+					fmt.Sprintf("/etc/yunion/%s.conf", cType.String()),
+				},
+				ImagePullPolicy: dsSpec.ImagePullPolicy,
+				VolumeMounts:    volMounts,
+			},
+		}
+	}
+	if dsSpec.NodeSelector == nil {
+		dsSpec.NodeSelector = make(map[string]string)
+	}
+	dsSpec.NodeSelector[constants.OnecloudControllerLabelKey] = "enable"
+	ds, err := m.newDaemonSet(
+		cType, oc, cfg,
+		NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, cType), cType),
+		dsSpec, "", nil, cf)
 	if err != nil {
 		return nil, err
 	}
-	podSpec := &deploy.Spec.Template.Spec
-	podSpec.HostNetwork = true
-	podSpec.DNSPolicy = corev1.DNSClusterFirstWithHostNet
-	deploy.Spec.Strategy = apps.DeploymentStrategy{Type: apps.RecreateDeploymentStrategyType}
-	podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
-		Name: "data",
-		VolumeSource: corev1.VolumeSource{
-			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-				ClaimName: controller.NewClusterComponentName(oc.GetName(), v1alpha1.YunionagentComponentType),
-				ReadOnly:  false,
-			},
-		},
-	})
-	volMounts := podSpec.Containers[0].VolumeMounts
-	volMounts = append(volMounts, corev1.VolumeMount{
-		Name:      "data",
-		MountPath: "/mnt",
-	})
-	podSpec.Containers[0].VolumeMounts = volMounts
-	return deploy, nil
-}
-
-func (m *yunionagentManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
-	return &oc.Status.Yunionagent
+	return ds, nil
 }

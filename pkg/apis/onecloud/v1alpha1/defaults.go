@@ -122,6 +122,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	for cType, spec := range map[ComponentType]*DaemonSetSpec{
 		HostComponentType:         &obj.HostAgent,
 		HostDeployerComponentType: &obj.HostDeployer,
+		YunionagentComponentType:  &obj.Yunionagent,
 	} {
 		SetDefaults_DaemonSetSpec(spec, getImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag))
 	}
@@ -135,7 +136,6 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		GlanceComponentType:         {&obj.Glance, DefaultGlanceStorageSize, obj.Version},
 		InfluxdbComponentType:       {&obj.Influxdb, DefaultInfluxdbStorageSize, DefaultInfluxdbImageVersion},
 		KapacitorComponentType:      {&obj.Kapacitor, DefaultKapacitorStorageSize, DefaultKapacitorImageVersion},
-		YunionagentComponentType:    {&obj.Yunionagent, "1G", obj.Version},
 		NotifyComponentType:         {&obj.Notify, DefaultNotifyStorageSize, obj.Version},
 		BaremetalAgentComponentType: {&obj.BaremetalAgent, DefaultBaremetalStorageSize, obj.Version},
 		MeterComponentType:          {&obj.Meter, DefaultMeterStorageSize, obj.Version},

@@ -152,7 +152,7 @@ type OnecloudClusterSpec struct {
 	// Yunionconf holds configuration for yunionconf service
 	Yunionconf DeploymentSpec `json:"yunionconf"`
 	// Yunionagent holds configuration for yunionagent service
-	Yunionagent StatefulDeploymentSpec `json:"yunionagent"`
+	Yunionagent DaemonSetSpec `json:"yunionagent"`
 	// Influxdb holds configuration for influxdb
 	Influxdb StatefulDeploymentSpec `json:"influxdb"`
 	// Kapacitor holds configuration for Kapacitor
@@ -209,7 +209,6 @@ type OnecloudClusterStatus struct {
 	APIGateway     DeploymentStatus `json:"apiGateway,omitempty"`
 	Web            DeploymentStatus `json:"web,omitempty"`
 	Yunionconf     DeploymentStatus `json:"yunionconf,omitempty"`
-	Yunionagent    DeploymentStatus `json:"yunionagent,omitempty"`
 	KubeServer     DeploymentStatus `json:"kubeserver,omitempty"`
 	AnsibleServer  DeploymentStatus `json:"ansibleserver,omitempty"`
 	Cloudnet       DeploymentStatus `json:"cloudnet,omitempty"`

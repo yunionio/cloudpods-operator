@@ -639,7 +639,6 @@ func (in *OnecloudClusterStatus) DeepCopyInto(out *OnecloudClusterStatus) {
 	in.APIGateway.DeepCopyInto(&out.APIGateway)
 	in.Web.DeepCopyInto(&out.Web)
 	in.Yunionconf.DeepCopyInto(&out.Yunionconf)
-	in.Yunionagent.DeepCopyInto(&out.Yunionagent)
 	in.KubeServer.DeepCopyInto(&out.KubeServer)
 	in.AnsibleServer.DeepCopyInto(&out.AnsibleServer)
 	in.Cloudnet.DeepCopyInto(&out.Cloudnet)
