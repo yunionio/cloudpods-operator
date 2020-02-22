@@ -55,7 +55,37 @@ func (m *apiGatewayManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v
 }
 
 func (m *apiGatewayManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
-	return controller.NewRegisterServiceComponent(man, constants.ServiceNameAPIGateway, constants.ServiceTypeAPIGateway)
+	return newAPIGatewaPhaseControl(man)
+}
+
+type apiGatewayPhaseControl struct {
+	man controller.ComponentManager
+	ac  controller.PhaseControl
+	wc  controller.PhaseControl
+}
+
+func newAPIGatewaPhaseControl(man controller.ComponentManager) controller.PhaseControl {
+	return &apiGatewayPhaseControl{
+		man: man,
+		ac:  controller.NewRegisterServiceComponent(man, constants.ServiceNameAPIGateway, constants.ServiceTypeAPIGateway),
+		wc: controller.NewRegisterEndpointComponent(man, v1alpha1.APIGatewayComponentType,
+			constants.ServiceNameWebsocket, constants.ServiceTypeWebsocket,
+			constants.APIWebsocketPort, ""),
+	}
+}
+
+func (c *apiGatewayPhaseControl) Setup() error {
+	if err := c.ac.Setup(); err != nil {
+		return err
+	}
+	if err := c.wc.Setup(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *apiGatewayPhaseControl) SystemInit() error {
+	return nil
 }
 
 func (m *apiGatewayManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {

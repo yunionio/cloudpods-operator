@@ -120,6 +120,8 @@ const (
 
 	ServiceNameAPIGateway = "yunionapi"
 	ServiceTypeAPIGateway = "yunionapi"
+	ServiceNameWebsocket  = "websocket"
+	ServiceTypeWebsocket  = "websocket"
 	APIGatewayAdminUser   = "yunionapi"
 	APIGatewayPort        = 30300
 	APIWebsocketPort      = 30443

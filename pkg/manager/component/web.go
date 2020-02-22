@@ -32,13 +32,13 @@ const (
 	CEConfig = `
     location / {
         root /usr/share/nginx/html/web;
-		index index.html;
-		add_header Cache-Control no-cache;
-		expires 1s;
-		if (!-e $request_filename) {
-			rewrite ^/(.*) /index.html last;
-			break;
-		}
+        index index.html;
+        add_header Cache-Control no-cache;
+        expires 1s;
+        if (!-e $request_filename) {
+            rewrite ^/(.*) /index.html last;
+            break;
+        }
     }
 `
 
@@ -61,6 +61,11 @@ const (
 `
 
 	WebNginxConfigTemplate = `
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    '' close;
+}
+
 server {
     gzip_static on;
     gzip on;
