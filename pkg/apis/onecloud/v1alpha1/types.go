@@ -81,6 +81,10 @@ const (
 	CloudmonReportUsageComponentType ComponentType = "cloudmon-report-usage"
 	// Esxi Agent
 	EsxiAgentComponentType ComponentType = "esxi-agent"
+
+	OvnNorthComponentType ComponentType = "ovn-north"
+	OvnHostComponentType  ComponentType = "ovn-host"
+	VpcAgentComponentType ComponentType = "vpcagent"
 )
 
 // ComponentPhase is the current state of component
@@ -174,7 +178,7 @@ type OnecloudClusterSpec struct {
 	// Notify holds configuration for notify service
 	Notify StatefulDeploymentSpec `json:"notify"`
 	// HostAgent holds configuration for host
-	HostAgent DaemonSetSpec `json:"hostagent"`
+	HostAgent HostAgentSpec `json:"hostagent"`
 	// HostDeployer holds configuration for host-deployer
 	HostDeployer DaemonSetSpec `json:"hostdeployer"`
 	// BaremetalAgent holds configuration for baremetal agent
@@ -193,6 +197,9 @@ type OnecloudClusterSpec struct {
 	CloudmonReportUsage CronJobSpec `json:"cloudmonreportusage"`
 	// EsxiAgent hols configuration for esxi agent
 	EsxiAgent StatefulDeploymentSpec `json:"esxiagent"`
+
+	OvnNorth DeploymentSpec `json:"ovnNorth"`
+	VpcAgent DeploymentSpec `json:"vpcAgent"`
 }
 
 // OnecloudClusterStatus describes cluster status
@@ -221,6 +228,8 @@ type OnecloudClusterStatus struct {
 	Meter          MeterStatus      `json:"meter,omitempty"`
 	AutoUpdate     DeploymentStatus `json:"autoupdate,omitempty"`
 	EsxiAgent      DeploymentStatus `json:"esxiagent,omitempty"`
+	OvnNorth       DeploymentStatus `json:"ovnNorth,omitempty"`
+	VpcAgent       DeploymentStatus `json:"vpcAgent,omitempty"`
 }
 
 // Etcd describes an etcd cluster
@@ -328,6 +337,12 @@ type RegionSpec struct {
 	DeploymentSpec
 }
 
+type HostAgentSpec struct {
+	DaemonSetSpec
+	SdnAgent      ContainerSpec
+	OvnController ContainerSpec
+}
+
 // ContainerSpec is the container spec of a pod
 type ContainerSpec struct {
 	Image           string               `json:"image"`
@@ -411,6 +426,10 @@ type EsxiAgentConfig struct {
 	ServiceCommonOptions
 }
 
+type VpcAgentConfig struct {
+	ServiceCommonOptions
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type OnecloudClusterConfig struct {
@@ -436,4 +455,5 @@ type OnecloudClusterConfig struct {
 	Meter          MeterConfig            `json:"meter"`
 	AutoUpdate     ServiceCommonOptions   `json:"autoupdate"`
 	EsxiAgent      EsxiAgentConfig        `json:"esxiagent"`
+	VpcAgent       VpcAgentConfig         `json:"vpcagent"`
 }

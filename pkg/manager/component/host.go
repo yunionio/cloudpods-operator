@@ -70,34 +70,65 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 		containersF = func(volMounts []corev1.VolumeMount) []corev1.Container {
 			return []corev1.Container{
 				{
-					Name:  cType.String(),
-					Image: dsSpec.Image,
+					Name:            cType.String(),
+					Image:           dsSpec.Image,
+					ImagePullPolicy: dsSpec.ImagePullPolicy,
+					Env: []corev1.EnvVar{
+						corev1.EnvVar{
+							Name:  "OVN_CONTAINER_IMAGE_TAG",
+							Value: v1alpha1.DefaultOvnImageTag,
+						},
+					},
 					Command: []string{
 						fmt.Sprintf("/opt/yunion/bin/%s", cType.String()),
 						"--common-config-file",
 						"/etc/yunion/common/common.conf",
 					},
-					ImagePullPolicy: dsSpec.ImagePullPolicy,
-					VolumeMounts:    volMounts,
+					VolumeMounts: volMounts,
 					SecurityContext: &corev1.SecurityContext{
 						Privileged: &privileged,
 					},
 					WorkingDir: "/opt/cloud",
 				},
 				{
-					Name:  fmt.Sprintf("%s-image", cType.String()),
-					Image: dsSpec.Image,
+					Name:            fmt.Sprintf("%s-image", cType.String()),
+					Image:           dsSpec.Image,
+					ImagePullPolicy: dsSpec.ImagePullPolicy,
 					Command: []string{
 						fmt.Sprintf("/opt/yunion/bin/%s-image", cType.String()),
 						"--common-config-file",
 						"/etc/yunion/common/common.conf",
 					},
-					ImagePullPolicy: dsSpec.ImagePullPolicy,
-					VolumeMounts:    volMounts,
+					VolumeMounts: volMounts,
 					SecurityContext: &corev1.SecurityContext{
 						Privileged: &privileged,
 					},
 					WorkingDir: "/opt/cloud",
+				},
+				{
+					Name:            "ovn-controller",
+					Image:           dsSpec.OvnController.Image,
+					ImagePullPolicy: dsSpec.OvnController.ImagePullPolicy,
+					Command:         []string{"/start.sh", "controller"},
+					VolumeMounts:    NewOvsVolumeHelper(cType, oc, configMap).GetVolumeMounts(),
+					SecurityContext: &corev1.SecurityContext{
+						Privileged: &privileged,
+						Capabilities: &corev1.Capabilities{
+							Add: []corev1.Capability{
+								corev1.Capability("SYS_NICE"),
+							},
+						},
+					},
+				},
+				{
+					Name:            "sdnagent",
+					Image:           dsSpec.SdnAgent.Image,
+					ImagePullPolicy: dsSpec.SdnAgent.ImagePullPolicy,
+					Command:         []string{"/opt/yunion/bin/sdnagent"},
+					VolumeMounts:    volMounts,
+					SecurityContext: &corev1.SecurityContext{
+						Privileged: &privileged,
+					},
 				},
 			}
 		}
@@ -107,7 +138,7 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 	}
 	dsSpec.NodeSelector[constants.OnecloudEnableHostLabelKey] = "enable"
 	ds, err := m.newDaemonSet(cType, oc, cfg,
-		NewHostVolume(cType, oc, configMap), dsSpec, "", nil, containersF)
+		NewHostVolume(cType, oc, configMap), dsSpec.DaemonSetSpec, "", nil, containersF)
 	if err != nil {
 		return nil, err
 	}
