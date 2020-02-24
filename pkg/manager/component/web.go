@@ -67,6 +67,11 @@ map $http_upgrade $connection_upgrade {
 }
 
 server {
+    listen 443 default_server ssl;
+    server_name _;
+    ssl_certificate /etc/yunion/pki/service.crt;
+    ssl_certificate_key /etc/yunion/pki/service.key;
+
     gzip_static on;
     gzip on;
     gzip_proxied any;
@@ -268,10 +273,10 @@ func (m *webManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 func (m *webManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {
 	ports := []corev1.ServicePort{
 		{
-			Name:       "http",
+			Name:       "https",
 			Protocol:   corev1.ProtocolTCP,
-			Port:       80,
-			TargetPort: intstr.FromInt(80),
+			Port:       443,
+			TargetPort: intstr.FromInt(443),
 		},
 	}
 	return m.newService(v1alpha1.WebComponentType, oc, corev1.ServiceTypeClusterIP, ports)
@@ -301,7 +306,7 @@ func (m *webManager) getIngress(oc *v1alpha1.OnecloudCluster) *extensions.Ingres
 									Path: "/",
 									Backend: extensions.IngressBackend{
 										ServiceName: svc.GetName(),
-										ServicePort: intstr.FromInt(80),
+										ServicePort: intstr.FromInt(443),
 									},
 								},
 							},
