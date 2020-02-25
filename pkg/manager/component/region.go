@@ -15,8 +15,15 @@
 package component
 
 import (
+	"errors"
+	"fmt"
+
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
+	kubeadmconstants "k8s.io/kubernetes/cmd/kubeadm/app/constants"
 
 	"yunion.io/x/onecloud/pkg/compute/options"
 
@@ -64,7 +71,51 @@ func (m *regionManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	opt.AutoSyncTable = true
 
 	opt.PortV2 = constants.RegionPort
+	err := m.setBaremetalPrepareConfigure(oc, cfg, opt)
+	if err != nil {
+		return nil, err
+	}
 	return m.newServiceConfigMap(v1alpha1.RegionComponentType, oc, opt), nil
+}
+
+func (m *regionManager) setBaremetalPrepareConfigure(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, opt *options.ComputeOptions) error {
+	masterNodeSelector := labels.NewSelector()
+	r, err := labels.NewRequirement(
+		kubeadmconstants.LabelNodeRoleMaster, selection.Exists, nil)
+	if err != nil {
+		return err
+	}
+	masterNodeSelector = masterNodeSelector.Add(*r)
+	nodes, err := m.nodeLister.List(masterNodeSelector)
+	if err != nil {
+		return err
+	}
+	if len(nodes) == 0 {
+		return errors.New("master node lister can't find node")
+	}
+	var masterAddress string
+	for _, node := range nodes {
+		if length := len(node.Status.Conditions); length > 0 {
+			if node.Status.Conditions[length-1].Type == v1.NodeReady &&
+				node.Status.Conditions[length-1].Status == v1.ConditionTrue {
+				for _, addr := range node.Status.Addresses {
+					if addr.Type == v1.NodeInternalIP {
+						masterAddress = addr.Address
+						break
+					}
+				}
+			}
+		}
+		if len(masterAddress) >= 0 {
+			break
+		}
+	}
+
+	if len(masterAddress) == 0 {
+		return errors.New("can't find master node internal ip")
+	}
+	opt.BaremetalPreparePackageUrl = fmt.Sprintf("https://%s/baremetal-prepare/baremetal_prepare.tar.gz", masterAddress)
+	return nil
 }
 
 func (m *regionManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {
