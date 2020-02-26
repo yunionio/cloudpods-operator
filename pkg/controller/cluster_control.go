@@ -71,11 +71,11 @@ func (c *clusterControl) UpdateCluster(oc *v1alpha1.OnecloudCluster, newStatus, 
 		klog.Errorf("failed to update OnecloudCluster: [%s/%s], error: %v", ns, ocName, updateErr)
 
 		if updated, err := c.ocLister.OnecloudClusters(ns).Get(ocName); err != nil {
+			utilruntime.HandleError(fmt.Errorf("error getting updated OnecloudCluster %s/%s from lister: %v", ns, ocName, err))
+		} else {
 			// make a copy so we don't mutate the shared cache
 			oc = updated.DeepCopy()
 			oc.Status = *status
-		} else {
-			utilruntime.HandleError(fmt.Errorf("error getting updated OnecloudCluster %s/%s from lister: %v", ns, ocName, err))
 		}
 		return updateErr
 	})
