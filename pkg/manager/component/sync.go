@@ -103,6 +103,9 @@ func syncComponent(factory cloudComponentFactory, oc *v1alpha1.OnecloudCluster, 
 	if err := m.syncCronJob(oc, factory.getCronJob); err != nil {
 		return errors.Wrapf(err, "sync cronjob")
 	}
+	if err := m.syncPhase(oc, factory.getPhaseControl); err != nil {
+		return errors.Wrapf(err, "sync phase control")
+	}
 	return nil
 }
 
@@ -184,20 +187,6 @@ func newPostSyncComponent(f cloudComponentFactory) func(*v1alpha1.OnecloudCluste
 			deployStatus.ImageStatus = getImageStatus(deploy)
 		}
 
-		if _, err := m.onecloudControl.GetSession(oc); err != nil {
-			return errors.Wrapf(err, "get cluster %s session", oc.GetName())
-		}
-
-		phase := f.getPhaseControl(m.onecloudControl.Components(oc))
-		if phase == nil {
-			return nil
-		}
-		if err := phase.Setup(); err != nil {
-			return err
-		}
-		if err := phase.SystemInit(); err != nil {
-			return err
-		}
 		return nil
 	}
 }
