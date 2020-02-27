@@ -887,6 +887,25 @@ func (m *ComponentManager) syncPVC(oc *v1alpha1.OnecloudCluster,
 	return nil
 }
 
+func (m *ComponentManager) syncPhase(oc *v1alpha1.OnecloudCluster,
+	phaseFactory func(controller.ComponentManager) controller.PhaseControl) error {
+	phase := phaseFactory(m.onecloudControl.Components(oc))
+	if _, err := m.onecloudControl.GetSession(oc); err != nil {
+		return errorswrap.Wrapf(err, "get cluster %s session", oc.GetName())
+	}
+
+	if phase == nil {
+		return nil
+	}
+	if err := phase.Setup(); err != nil {
+		return err
+	}
+	if err := phase.SystemInit(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (m *ComponentManager) getDBConfig(_ *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
 	return nil
 }
