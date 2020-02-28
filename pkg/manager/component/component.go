@@ -1025,6 +1025,14 @@ func (m *ComponentManager) Baremetal() manager.Manager {
 	return newBaremetalManager(m)
 }
 
+func (m *ComponentManager) OvnNorth() manager.Manager {
+	return newOvnNorthManager(m)
+}
+
+func (m *ComponentManager) VpcAgent() manager.Manager {
+	return newVpcAgentManager(m)
+}
+
 func (m *ComponentManager) Host() manager.Manager {
 	return newHostManager(m)
 }
