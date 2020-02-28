@@ -75,6 +75,10 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 					ImagePullPolicy: dsSpec.ImagePullPolicy,
 					Env: []corev1.EnvVar{
 						corev1.EnvVar{
+							Name:  "HOST_SYSTEM_SERVICES_OFF",
+							Value: "host-deployer,host_sdnagent",
+						},
+						corev1.EnvVar{
 							Name:  "OVN_CONTAINER_IMAGE_TAG",
 							Value: v1alpha1.DefaultOvnImageTag,
 						},
