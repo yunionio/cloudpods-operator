@@ -144,6 +144,9 @@ const (
 	InfluxdbPort      = 30086
 	InfluxdbDataStore = "/var/lib/influxdb"
 
+	OvnNorthDbPort = 32241
+	OvnSouthDbPort = 32242
+
 	KapacitorPort      = 30092
 	KapacitorDataStore = "/var/lib/kapacitor"
 
@@ -199,6 +202,11 @@ const (
 
 	ServiceNameKapacitor = "kapacitor"
 	ServiceTypeKapacitor = "kapacitor"
+
+	ServiceNameOvnNorthDb = "ovn-north-db"
+	ServiceTypeOvnNorthDb = "ovn-north-db"
+	ServiceNameOvnSouthDb = "ovn-south-db"
+	ServiceTypeOvnSouthDb = "ovn-south-db"
 
 	ServiceNameKubeServer = "k8s"
 	ServiceTypeKubeServer = "k8s"
@@ -276,6 +284,8 @@ const (
 	EsxiAgentAdminUser = "esxiagent"
 	EsxiAgentPort      = 30883
 	EsxiAgentDataStore = "/opt/cloud/workspace"
+
+	VpcAgentAdminUser = "vpcagentadmin"
 )
 
 const (

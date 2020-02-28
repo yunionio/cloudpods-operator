@@ -45,6 +45,10 @@ const (
 
 	DefaultInfluxdbImageVersion  = "1.7.7"
 	DefaultKapacitorImageVersion = "1.5"
+
+	DefaultOvnVersion   = "2.9.6"
+	DefaultOvnImageName = "openvswitch"
+	DefaultOvnImageTag  = DefaultOvnVersion + "-1"
 )
 
 func addDefaultingFuncs(scheme *runtime.Scheme) error {
@@ -106,6 +110,8 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		S3gatewayComponentType:     &obj.S3gateway,
 		DevtoolComponentType:       &obj.Devtool,
 		AutoUpdateComponentType:    &obj.AutoUpdate,
+		OvnNorthComponentType:      &obj.OvnNorth,
+		VpcAgentComponentType:      &obj.VpcAgent,
 	} {
 		SetDefaults_DeploymentSpec(spec, getImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag))
 	}
@@ -120,12 +126,27 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	}
 
 	for cType, spec := range map[ComponentType]*DaemonSetSpec{
-		HostComponentType:         &obj.HostAgent,
+		HostComponentType:         &obj.HostAgent.DaemonSetSpec,
 		HostDeployerComponentType: &obj.HostDeployer,
 		YunionagentComponentType:  &obj.Yunionagent,
 	} {
 		SetDefaults_DaemonSetSpec(spec, getImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag))
 	}
+	obj.HostAgent.SdnAgent.Image = getImage(obj.ImageRepository, obj.HostAgent.Repository, "sdnagent", obj.HostAgent.ImageName, obj.Version, obj.HostAgent.Tag)
+
+	// setting ovn image
+	obj.HostAgent.OvnController.Image = getImage(
+		obj.ImageRepository, obj.HostAgent.OvnController.Repository,
+		DefaultOvnImageName, obj.HostAgent.OvnController.ImageName,
+		DefaultOvnImageTag, obj.HostAgent.OvnController.Tag,
+	)
+	obj.HostAgent.OvnController.ImagePullPolicy = corev1.PullIfNotPresent
+	obj.OvnNorth.Image = getImage(
+		obj.ImageRepository, obj.OvnNorth.Repository,
+		DefaultOvnImageName, obj.OvnNorth.ImageName,
+		DefaultOvnImageTag, obj.OvnNorth.Tag,
+	)
+	obj.OvnNorth.ImagePullPolicy = corev1.PullIfNotPresent
 
 	type stateDeploy struct {
 		obj     *StatefulDeploymentSpec
@@ -295,6 +316,7 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		&obj.S3gateway:                           {constants.S3gatewayAdminUser, constants.S3gatewayPort},
 		&obj.AutoUpdate:                          {constants.AutoUpdateAdminUser, constants.AutoUpdatePort},
 		&obj.EsxiAgent.ServiceCommonOptions:      {constants.EsxiAgentAdminUser, constants.EsxiAgentPort},
+		&obj.VpcAgent.ServiceCommonOptions:       {constants.VpcAgentAdminUser, 0},
 	} {
 		SetDefaults_ServiceCommonOptions(opt, userPort.user, userPort.port)
 	}

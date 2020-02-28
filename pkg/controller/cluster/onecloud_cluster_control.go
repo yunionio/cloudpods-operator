@@ -98,6 +98,7 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 		components.Web(),
 		components.Meter(),
 		components.EsxiAgent(),
+		components.OvnNorth(),
 	} {
 		if err := component.Sync(oc); err != nil {
 			return err
@@ -122,6 +123,7 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 		components.Notify(),
 		components.Host(),
 		components.HostDeployer(),
+		components.VpcAgent(),
 		components.Baremetal(),
 	}
 	var grp errgroup.Group

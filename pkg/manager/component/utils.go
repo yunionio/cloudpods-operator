@@ -465,6 +465,41 @@ func (h *VolumeHelper) GetVolumeMounts() []corev1.VolumeMount {
 	return h.volumeMounts
 }
 
+func (h *VolumeHelper) addOvsVolumes() *VolumeHelper {
+	volSrcType := corev1.HostPathDirectory
+	h.volumes = append(h.volumes,
+		corev1.Volume{
+			Name: "var-run-openvswitch",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/var/run/openvswitch",
+					Type: &volSrcType,
+				},
+			},
+		},
+		corev1.Volume{
+			Name: "var-log-openvswitch",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/var/log/openvswitch",
+					Type: &volSrcType,
+				},
+			},
+		},
+	)
+	h.volumeMounts = append(h.volumeMounts,
+		corev1.VolumeMount{
+			Name:      "var-run-openvswitch",
+			MountPath: "/var/run/openvswitch",
+		},
+		corev1.VolumeMount{
+			Name:      "var-log-openvswitch",
+			MountPath: "/var/log/openvswitch",
+		},
+	)
+	return h
+}
+
 func NewServiceNodePort(name string, port int32) corev1.ServicePort {
 	return corev1.ServicePort{
 		Name:       name,
@@ -723,6 +758,21 @@ func NewHostVolume(
 			},
 		},
 	}
+	h.addOvsVolumes()
 
+	return h
+}
+
+func NewOvsVolumeHelper(
+	cType v1alpha1.ComponentType,
+	oc *v1alpha1.OnecloudCluster,
+	configMap string,
+) *VolumeHelper {
+	h := &VolumeHelper{
+		cluster:      oc,
+		optionCfgMap: configMap,
+		component:    cType,
+	}
+	h.addOvsVolumes()
 	return h
 }
