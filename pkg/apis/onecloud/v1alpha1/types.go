@@ -79,6 +79,8 @@ const (
 	CloudmonPingComponentType ComponentType = "cloudmon-ping"
 	// CloudmonReportUsage is report-usage cronjob
 	CloudmonReportUsageComponentType ComponentType = "cloudmon-report-usage"
+	// CloudmonReportServerAli is report-usage cronjob
+	CloudmonReportServerComponentType ComponentType = "cloudmon-report-server"
 	// Esxi Agent
 	EsxiAgentComponentType ComponentType = "esxi-agent"
 
@@ -195,6 +197,8 @@ type OnecloudClusterSpec struct {
 	CloudmonPing CronJobSpec `json:"cloudmonping"`
 	// CloudmonReportUsage holds configuration for report-usage cronjob
 	CloudmonReportUsage CronJobSpec `json:"cloudmonreportusage"`
+	// CloudmonReportServerAli holds configuration for report-server cronjob
+	CloudmonReportServer CronJobSpec `json:"cloudmonreportserver"`
 	// EsxiAgent hols configuration for esxi agent
 	EsxiAgent StatefulDeploymentSpec `json:"esxiagent"`
 

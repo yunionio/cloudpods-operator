@@ -1072,3 +1072,7 @@ func (m *ComponentManager) EsxiAgent() manager.Manager {
 func (m *ComponentManager) Monitor() manager.Manager {
 	return newMonitorManager(m)
 }
+
+func (m *ComponentManager)CloudmonReportServer() manager.Manager  {
+	return newCloudmonReportServerManager(m)
+}
