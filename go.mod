@@ -9,6 +9,7 @@ require (
 	github.com/onsi/ginkgo v1.8.0 // indirect
 	github.com/onsi/gomega v1.5.0 // indirect
 	github.com/pkg/errors v0.8.1
+	github.com/smartystreets/goconvey v1.6.4 // indirect
 	github.com/ugorji/go/codec v1.1.7 // indirect
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
@@ -22,8 +23,8 @@ require (
 	k8s.io/utils v0.0.0-20190607212802-c55fbcfc754a // indirect
 	yunion.io/x/jsonutils v0.0.0-20200303051356-aa609aba0cda
 	yunion.io/x/log v0.0.0-20190629062853-9f6483a7103d
-	yunion.io/x/onecloud v0.0.0-20200303051423-cc0377dafb67
-	yunion.io/x/pkg v0.0.0-20200302034534-fdf44d54b070
+	yunion.io/x/onecloud v0.0.0-20200309043628-0cd71ca4691e
+	yunion.io/x/pkg v0.0.0-20200304112442-9dae9351325e
 	yunion.io/x/structarg v0.0.0-20190809075558-115bed041de3
 )
 

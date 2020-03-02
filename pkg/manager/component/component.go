@@ -1064,3 +1064,11 @@ func (m *ComponentManager) CloudmonReportUsage() manager.Manager {
 func (m *ComponentManager) EsxiAgent() manager.Manager {
 	return newEsxiManager(m)
 }
+
+func (m *ComponentManager) Monitor() manager.Manager {
+	return newMonitorManager(m)
+}
+
+func (m *ComponentManager)CloudmonReportServer() manager.Manager  {
+	return newCloudmonReportServerManager(m)
+}
