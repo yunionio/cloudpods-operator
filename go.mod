@@ -5,28 +5,25 @@ go 1.12
 require (
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/googleapis/gnostic v0.3.0 // indirect
-	github.com/hashicorp/golang-lru v0.5.1 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/onsi/ginkgo v1.8.0 // indirect
 	github.com/onsi/gomega v1.5.0 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/ugorji/go/codec v1.1.7 // indirect
-	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45 // indirect
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
 	k8s.io/api v0.0.0
 	k8s.io/apiextensions-apiserver v0.0.0
 	k8s.io/apimachinery v0.0.0
 	k8s.io/client-go v9.0.0+incompatible
-	k8s.io/code-generator v0.15.8-beta.1 // indirect
 	k8s.io/klog v0.3.3
 	k8s.io/kube-openapi v0.0.0-20190603182131-db7b694dc208 // indirect
 	k8s.io/kubernetes v1.15.1
 	k8s.io/utils v0.0.0-20190607212802-c55fbcfc754a // indirect
-	yunion.io/x/jsonutils v0.0.0-20191220095028-7fef3b75f64d
+	yunion.io/x/jsonutils v0.0.0-20200303051356-aa609aba0cda
 	yunion.io/x/log v0.0.0-20190629062853-9f6483a7103d
-	yunion.io/x/onecloud v0.0.0-20200105111042-ef1ad52baee1
-	yunion.io/x/pkg v0.0.0-20191221094533-5097f12f41ac
+	yunion.io/x/onecloud v0.0.0-20200303051423-cc0377dafb67
+	yunion.io/x/pkg v0.0.0-20200302034534-fdf44d54b070
 	yunion.io/x/structarg v0.0.0-20190809075558-115bed041de3
 )
 
