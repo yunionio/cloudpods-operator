@@ -75,6 +75,16 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 					ImagePullPolicy: dsSpec.ImagePullPolicy,
 					Env: []corev1.EnvVar{
 						corev1.EnvVar{
+							Name: "HOST_OVN_SOUTH_DATABASE",
+							Value: fmt.Sprintf("tcp:%s:%d",
+								controller.NewClusterComponentName(
+									oc.GetName(),
+									v1alpha1.OvnNorthComponentType,
+								),
+								constants.OvnSouthDbPort,
+							),
+						},
+						corev1.EnvVar{
 							Name:  "HOST_SYSTEM_SERVICES_OFF",
 							Value: "host-deployer,host_sdnagent",
 						},
