@@ -466,7 +466,7 @@ func (h *VolumeHelper) GetVolumeMounts() []corev1.VolumeMount {
 }
 
 func (h *VolumeHelper) addOvsVolumes() *VolumeHelper {
-	volSrcType := corev1.HostPathDirectory
+	volSrcType := corev1.HostPathDirectoryOrCreate
 	h.volumes = append(h.volumes,
 		corev1.Volume{
 			Name: "var-run-openvswitch",
