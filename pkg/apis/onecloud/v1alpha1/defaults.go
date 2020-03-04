@@ -44,7 +44,7 @@ const (
 
 	DefaultOvnVersion   = "2.9.6"
 	DefaultOvnImageName = "openvswitch"
-	DefaultOvnImageTag  = DefaultOvnVersion + "-1"
+	DefaultOvnImageTag  = DefaultOvnVersion + "-2"
 
 	DefaultInfluxdbImageVersion = "1.7.7"
 )
