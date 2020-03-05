@@ -16,7 +16,6 @@ package component
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -34,12 +33,12 @@ import (
 
 const (
 	NotifySocketFileDir   = "/etc/yunion/socket"
-	NotifyTemplateDir     = "/etc/yunion/template"
 	NotifyPluginDingtalk  = "dingtalk"
 	NotifyPluginConfig    = "plugin-config"
 	NotifyPluginEmail     = "email"
 	NotifyPluginSmsAliyun = "smsaliyun"
 	NotifyPluginWebsocket = "websocket"
+	NotifyPluginFeishu    = "feishu"
 )
 
 type notifyManager struct {
@@ -71,8 +70,7 @@ func (m *notifyManager) getPhaseControl(man controller.ComponentManager) control
 
 type NotifyPluginBaseConfig struct {
 	SockFileDir string `default:"/etc/yunion/socket"`
-	SenderNum   int    `default:"5"`
-	TemplateDir string `default:"/etc/yunion/template"`
+	SenderNum   int    `default:"20"`
 	LogLevel    string `default:"info"`
 }
 
@@ -105,7 +103,6 @@ func (m *notifyManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	pluginBaseOpt := &NotifyPluginBaseConfig{
 		SockFileDir: NotifySocketFileDir,
 		SenderNum:   5,
-		TemplateDir: NotifyTemplateDir,
 		LogLevel:    "info",
 	}
 
@@ -113,25 +110,17 @@ func (m *notifyManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	toStr := func(opt interface{}) string {
 		return jsonutils.Marshal(opt).YAMLString()
 	}
-	templatePath := func(pluginName string) string {
-		return filepath.Join(NotifyTemplateDir, pluginName)
-	}
 	// set plugins config
 	// dingtalk and aliyunsms
-	pluginBaseOpt.TemplateDir = templatePath(NotifyPluginDingtalk)
-	data[NotifyPluginDingtalk] = toStr(pluginBaseOpt)
-	for _, pluginName := range []string{NotifyPluginDingtalk, NotifyPluginSmsAliyun} {
-		pluginBaseOpt.TemplateDir = templatePath(pluginName)
+	for _, pluginName := range []string{NotifyPluginDingtalk, NotifyPluginSmsAliyun, NotifyPluginFeishu} {
 		data[pluginName] = toStr(pluginBaseOpt)
 	}
 	// email
-	pluginBaseOpt.TemplateDir = templatePath(NotifyPluginEmail)
 	data[NotifyPluginEmail] = toStr(NotifyPluginEmailConfig{
 		NotifyPluginBaseConfig: *pluginBaseOpt,
 		ChannelSize:            100,
 	})
 	// websocket
-	pluginBaseOpt.TemplateDir = templatePath(NotifyPluginWebsocket)
 	data[NotifyPluginWebsocket] = toStr(NotifyPluginWebsocketConfig{
 		NotifyPluginBaseConfig: *pluginBaseOpt,
 		Region:                 oc.Spec.Region,
@@ -184,6 +173,7 @@ func (m *notifyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 					{Key: NotifyPluginEmail, Path: fmt.Sprintf("%s.conf", NotifyPluginEmail)},
 					{Key: NotifyPluginSmsAliyun, Path: fmt.Sprintf("%s.conf", NotifyPluginSmsAliyun)},
 					{Key: NotifyPluginWebsocket, Path: fmt.Sprintf("%s.conf", NotifyPluginWebsocket)},
+					{Key: NotifyPluginFeishu, Path: fmt.Sprintf("%s.conf", NotifyPluginFeishu)},
 				},
 			},
 		},
@@ -209,6 +199,7 @@ func (m *notifyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 		newPluginC(NotifyPluginEmail),
 		newPluginC(NotifyPluginSmsAliyun),
 		newPluginC(NotifyPluginWebsocket),
+		newPluginC(NotifyPluginFeishu),
 	}
 	spec := &deploy.Spec.Template.Spec
 	cs := spec.Containers
