@@ -708,7 +708,7 @@ func (m *ComponentManager) newDaemonSet(
 	volMounts := volHelper.GetVolumeMounts()
 	podAnnotations := spec.Annotations
 	if len(updateStrategy) == 0 {
-		updateStrategy = apps.OnDeleteStatefulSetStrategyType
+		updateStrategy = apps.RollingUpdateDaemonSetStrategyType
 	}
 
 	var initContainers []corev1.Container
