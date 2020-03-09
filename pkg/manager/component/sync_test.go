@@ -25,13 +25,6 @@ func Test_getRepoImageName(t *testing.T) {
 		want2 string
 	}{
 		{
-			name:  "nginx",
-			img:   "nginx",
-			want:  "",
-			want1: "nginx",
-			want2: "latest",
-		},
-		{
 			name:  "yunionio/util",
 			img:   "yunionio/util",
 			want:  "yunionio",
