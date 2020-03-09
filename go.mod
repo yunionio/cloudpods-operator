@@ -3,6 +3,7 @@ module yunion.io/x/onecloud-operator
 go 1.12
 
 require (
+	github.com/docker/distribution v0.0.0-20170726174610-edc3ab29cdff
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/googleapis/gnostic v0.3.0 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
@@ -22,8 +23,8 @@ require (
 	k8s.io/utils v0.0.0-20190607212802-c55fbcfc754a // indirect
 	yunion.io/x/jsonutils v0.0.0-20200303051356-aa609aba0cda
 	yunion.io/x/log v0.0.0-20190629062853-9f6483a7103d
-	yunion.io/x/onecloud v0.0.0-20200303051418-112eb0d7ae22
-	yunion.io/x/pkg v0.0.0-20200302034534-fdf44d54b070
+	yunion.io/x/onecloud v0.0.0-20200309043639-7b0ceddd6b80
+	yunion.io/x/pkg v0.0.0-20200304112442-9dae9351325e
 	yunion.io/x/structarg v0.0.0-20190809075558-115bed041de3
 )
 
