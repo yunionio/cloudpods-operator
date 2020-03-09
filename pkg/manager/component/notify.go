@@ -157,9 +157,6 @@ func (m *notifyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 		Name:      "socket",
 		MountPath: NotifySocketFileDir,
 	}
-	pvcVol := NewPVCVolumePair("template-data", NotifyTemplateDir, oc, v1alpha1.NotifyComponentType)
-	templateVol := pvcVol.GetVolume()
-	templateVolMount := pvcVol.GetVolumeMount()
 	cfgMapName := controller.ComponentConfigMapName(oc, v1alpha1.NotifyComponentType)
 	pluginCfgVol := corev1.Volume{
 		Name: NotifyPluginConfig,
@@ -186,7 +183,6 @@ func (m *notifyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 			Command:         []string{fmt.Sprintf("/opt/yunion/bin/%s", name), "--config", fmt.Sprintf("/etc/yunion/%s.conf", name)},
 			VolumeMounts: []corev1.VolumeMount{
 				socketVolMount,
-				templateVolMount,
 				corev1.VolumeMount{
 					MountPath: constants.ConfigDir,
 					Name:      NotifyPluginConfig,
@@ -208,7 +204,7 @@ func (m *notifyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 	cs = append(cs, pluginCs...)
 	spec.Containers = cs
 	vols := spec.Volumes
-	vols = append(vols, socketVol, pluginCfgVol, templateVol)
+	vols = append(vols, socketVol, pluginCfgVol)
 	spec.Volumes = vols
 	return deploy, nil
 }
