@@ -15,9 +15,6 @@
 package component
 
 import (
-	"path/filepath"
-	"strings"
-
 	"github.com/pkg/errors"
 	apps "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1beta1"
@@ -27,6 +24,7 @@ import (
 
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
+	"yunion.io/x/onecloud-operator/pkg/util/image"
 )
 
 type syncManager interface {
@@ -110,39 +108,16 @@ func syncComponent(factory cloudComponentFactory, oc *v1alpha1.OnecloudCluster, 
 }
 
 func getRepoImageName(img string) (string, string, string) {
-	parts := strings.Split(img, "/")
-	var (
-		repo      string
-		imageName string
-		tag       string
-	)
-	getImageTag := func(img string) (string, string) {
-		parts := strings.Split(img, ":")
-		if len(parts) == 0 {
-			return "", ""
-		}
-		if len(parts) == 1 {
-			tag := "latest"
-			img := parts[0]
-			return img, tag
-		} else {
-			img = parts[0]
-			tag = parts[len(parts)-1]
-			return img, tag
-		}
-	}
-	getRepo := func(parts []string) string {
-		return filepath.Join(parts...)
-	}
-	if len(parts) == 0 {
+	ret, err := image.ParseImageReference(img)
+	if err != nil {
+		klog.Errorf("parse image error: %s", err)
 		return "", "", ""
 	}
-	if len(parts) == 1 {
-		imageName, tag = getImageTag(parts[0])
-	} else {
-		imageName, tag = getImageTag(parts[len(parts)-1])
-		repo = getRepo(parts[0 : len(parts)-1])
-	}
+
+	repo := ret.Repository
+	imageName := ret.Image
+	tag := ret.Tag
+
 	return repo, imageName, tag
 }
 
