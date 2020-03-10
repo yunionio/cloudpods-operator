@@ -333,6 +333,7 @@ func (in *HostAgentSpec) DeepCopyInto(out *HostAgentSpec) {
 	*out = *in
 	in.DaemonSetSpec.DeepCopyInto(&out.DaemonSetSpec)
 	in.SdnAgent.DeepCopyInto(&out.SdnAgent)
+	in.OvnController.DeepCopyInto(&out.OvnController)
 	return
 }
 
@@ -631,6 +632,7 @@ func (in *OnecloudClusterSpec) DeepCopyInto(out *OnecloudClusterSpec) {
 	in.AutoUpdate.DeepCopyInto(&out.AutoUpdate)
 	in.CloudmonPing.DeepCopyInto(&out.CloudmonPing)
 	in.CloudmonReportUsage.DeepCopyInto(&out.CloudmonReportUsage)
+	in.CloudmonReportServer.DeepCopyInto(&out.CloudmonReportServer)
 	in.EsxiAgent.DeepCopyInto(&out.EsxiAgent)
 	in.OvnNorth.DeepCopyInto(&out.OvnNorth)
 	in.VpcAgent.DeepCopyInto(&out.VpcAgent)
