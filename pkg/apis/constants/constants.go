@@ -34,6 +34,8 @@ const (
 	// It's set by helm when installing a release
 	InstanceLabelKey string = "app.kubernetes.io/instance"
 	AppLabelKey      string = "app"
+
+	ServiceAccountOnecloudOperator string = "onecloud-operator"
 )
 
 const (
