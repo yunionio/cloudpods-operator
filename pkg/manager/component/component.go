@@ -34,8 +34,9 @@ import (
 	"k8s.io/klog"
 
 	"yunion.io/x/jsonutils"
-	"yunion.io/x/onecloud-operator/pkg/label"
+	"yunion.io/x/onecloud/pkg/mcclient"
 
+	"yunion.io/x/onecloud-operator/pkg/label"
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
@@ -205,13 +206,12 @@ func (m *ComponentManager) syncConfigMap(
 	if svcAccountFactory != nil {
 		account := svcAccountFactory(clustercfg)
 		if account != nil {
-			s, err := m.onecloudControl.GetSession(oc)
-			if err != nil {
-				return errorswrap.Wrap(err, "get cloud session")
-			}
-			if err := EnsureServiceAccount(s, *account); err != nil {
-				return errorswrap.Wrapf(err, "ensure service account %#v", *account)
-			}
+			m.onecloudControl.RunWithSession(oc, func(s *mcclient.ClientSession) error {
+				if err := EnsureServiceAccount(s, *account); err != nil {
+					return errorswrap.Wrapf(err, "ensure service account %#v", *account)
+				}
+				return nil
+			})
 		}
 	}
 	cfgMap, err := cfgMapFactory(oc, clustercfg)
@@ -890,10 +890,6 @@ func (m *ComponentManager) syncPVC(oc *v1alpha1.OnecloudCluster,
 func (m *ComponentManager) syncPhase(oc *v1alpha1.OnecloudCluster,
 	phaseFactory func(controller.ComponentManager) controller.PhaseControl) error {
 	phase := phaseFactory(m.onecloudControl.Components(oc))
-	if _, err := m.onecloudControl.GetSession(oc); err != nil {
-		return errorswrap.Wrapf(err, "get cluster %s session", oc.GetName())
-	}
-
 	if phase == nil {
 		return nil
 	}
