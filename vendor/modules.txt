@@ -189,7 +189,7 @@ gopkg.in/inf.v0
 gopkg.in/ini.v1
 # gopkg.in/yaml.v2 v2.2.2
 gopkg.in/yaml.v2
-# k8s.io/api v0.0.0 => k8s.io/api v0.0.0-20190620084959-7cf5895f2711
+# k8s.io/api v0.17.3 => k8s.io/api v0.0.0-20190620084959-7cf5895f2711
 k8s.io/api/admissionregistration/v1beta1
 k8s.io/api/apps/v1
 k8s.io/api/apps/v1beta1
@@ -233,7 +233,7 @@ k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset
 k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/scheme
 k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1
 k8s.io/apiextensions-apiserver/pkg/features
-# k8s.io/apimachinery v0.0.0 => k8s.io/apimachinery v0.0.0-20190612205821-1799e75a0719
+# k8s.io/apimachinery v0.17.3 => k8s.io/apimachinery v0.0.0-20190612205821-1799e75a0719
 k8s.io/apimachinery/pkg/api/equality
 k8s.io/apimachinery/pkg/api/errors
 k8s.io/apimachinery/pkg/api/meta
@@ -483,7 +483,7 @@ k8s.io/component-base/featuregate
 k8s.io/klog
 # k8s.io/kube-openapi v0.0.0-20190603182131-db7b694dc208
 k8s.io/kube-openapi/pkg/util/proto
-# k8s.io/kubernetes v1.15.1
+# k8s.io/kubernetes v1.16.0 => k8s.io/kubernetes v1.15.1
 k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm
 k8s.io/kubernetes/cmd/kubeadm/app/constants
 k8s.io/kubernetes/cmd/kubeadm/app/util
@@ -512,10 +512,10 @@ yunion.io/x/executor/apis
 yunion.io/x/executor/client
 # yunion.io/x/jsonutils v0.0.0-20200303051356-aa609aba0cda
 yunion.io/x/jsonutils
-# yunion.io/x/log v0.0.0-20190629062853-9f6483a7103d
+# yunion.io/x/log v0.0.0-20200313080802-57a4ce5966b3
 yunion.io/x/log
 yunion.io/x/log/hooks
-# yunion.io/x/onecloud v0.0.0-20200309043628-0cd71ca4691e
+# yunion.io/x/onecloud v0.0.0-20200313111822-5b4ab096788d
 yunion.io/x/onecloud/pkg/ansibleserver/options
 yunion.io/x/onecloud/pkg/apis
 yunion.io/x/onecloud/pkg/apis/ansible
@@ -563,7 +563,7 @@ yunion.io/x/onecloud/pkg/util/streamutils
 yunion.io/x/onecloud/pkg/util/stringutils2
 yunion.io/x/onecloud/pkg/webconsole/options
 yunion.io/x/onecloud/pkg/yunionconf/options
-# yunion.io/x/pkg v0.0.0-20200304112442-9dae9351325e
+# yunion.io/x/pkg v0.0.0-20200312093207-f07f4cb157e0
 yunion.io/x/pkg/errors
 yunion.io/x/pkg/gotypes
 yunion.io/x/pkg/trace
@@ -584,7 +584,7 @@ yunion.io/x/pkg/util/version
 yunion.io/x/pkg/utils
 # yunion.io/x/s3cli v0.0.0-20190917004522-13ac36d8687e
 yunion.io/x/s3cli
-# yunion.io/x/sqlchemy v0.0.0-20200221103553-6a98f7f8ab92
+# yunion.io/x/sqlchemy v0.0.0-20200312002602-1177cd8fbc57
 yunion.io/x/sqlchemy
 # yunion.io/x/structarg v0.0.0-20190809075558-115bed041de3
 yunion.io/x/structarg
