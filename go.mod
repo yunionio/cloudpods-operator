@@ -10,21 +10,21 @@ require (
 	github.com/onsi/ginkgo v1.8.0 // indirect
 	github.com/onsi/gomega v1.5.0 // indirect
 	github.com/pkg/errors v0.8.1
-	github.com/ugorji/go/codec v1.1.7 // indirect
-	golang.org/x/sync v0.0.0-20190423024810-112230192c58
+	github.com/spf13/pflag v1.0.3 // indirect
+	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
-	k8s.io/api v0.0.0
+	k8s.io/api v0.17.3
 	k8s.io/apiextensions-apiserver v0.0.0
-	k8s.io/apimachinery v0.0.0
+	k8s.io/apimachinery v0.17.3
 	k8s.io/client-go v9.0.0+incompatible
 	k8s.io/klog v0.3.3
 	k8s.io/kube-openapi v0.0.0-20190603182131-db7b694dc208 // indirect
-	k8s.io/kubernetes v1.15.1
+	k8s.io/kubernetes v1.16.0
 	k8s.io/utils v0.0.0-20190607212802-c55fbcfc754a // indirect
 	yunion.io/x/jsonutils v0.0.0-20200303051356-aa609aba0cda
-	yunion.io/x/log v0.0.0-20190629062853-9f6483a7103d
-	yunion.io/x/onecloud v0.0.0-20200309043639-7b0ceddd6b80
-	yunion.io/x/pkg v0.0.0-20200304112442-9dae9351325e
+	yunion.io/x/log v0.0.0-20200313080802-57a4ce5966b3
+	yunion.io/x/onecloud v0.0.0-20200313111818-2f50aae0826f
+	yunion.io/x/pkg v0.0.0-20200312093207-f07f4cb157e0
 	yunion.io/x/structarg v0.0.0-20190809075558-115bed041de3
 )
 
@@ -48,6 +48,7 @@ replace (
 	k8s.io/kube-proxy => k8s.io/kube-proxy v0.0.0-20190620085809-589f994ddf7f
 	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.0.0-20190620085912-4acac5405ec6
 	k8s.io/kubelet => k8s.io/kubelet v0.0.0-20190620085838-f1cb295a73c9
+	k8s.io/kubernetes => k8s.io/kubernetes v1.15.1
 	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.0.0-20190620090156-2138f2c9de18
 	k8s.io/metrics => k8s.io/metrics v0.0.0-20190620085625-3b22d835f165
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.0.0-20190620085408-1aef9010884e
