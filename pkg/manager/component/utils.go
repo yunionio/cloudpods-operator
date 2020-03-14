@@ -355,6 +355,9 @@ func EnsureServiceAccount(s *mcclient.ClientSession, account v1alpha1.CloudUser)
 	if err != nil {
 		return err
 	}
+	if exists && !controller.SyncUser {
+		return nil
+	}
 	if exists && controller.SyncUser {
 		// password not change
 		if _, err := LoginByServiceAccount(s, account); err == nil {
