@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	clientset "k8s.io/client-go/kubernetes"
@@ -36,6 +37,8 @@ import (
 var (
 	SessionDebug bool
 	SyncUser bool
+
+	sessionLock sync.Mutex
 )
 
 func GetAuthURL(oc *v1alpha1.OnecloudCluster) string {
@@ -153,6 +156,9 @@ func (w *OnecloudControl) NewWaiter(oc *v1alpha1.OnecloudCluster) onecloud.Waite
 }
 
 func (w *OnecloudControl) RunWithSession(oc *v1alpha1.OnecloudCluster, f func(s *mcclient.ClientSession) error) error {
+	sessionLock.Lock()
+	defer sessionLock.Unlock()
+
 	config := NewOnecloudRCAdminConfig(oc, false)
 	var s *mcclient.ClientSession
 	var err error
