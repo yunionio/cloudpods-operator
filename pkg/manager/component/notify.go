@@ -32,13 +32,15 @@ import (
 )
 
 const (
-	NotifySocketFileDir   = "/etc/yunion/socket"
-	NotifyPluginDingtalk  = "dingtalk"
-	NotifyPluginConfig    = "plugin-config"
-	NotifyPluginEmail     = "email"
-	NotifyPluginSmsAliyun = "smsaliyun"
-	NotifyPluginWebsocket = "websocket"
-	NotifyPluginFeishu    = "feishu"
+	NotifySocketFileDir       = "/etc/yunion/socket"
+	NotifyPluginDingtalk      = "dingtalk"
+	NotifyPluginConfig        = "plugin-config"
+	NotifyPluginEmail         = "email"
+	NotifyPluginSmsAliyun     = "smsaliyun"
+	NotifyPluginWebsocket     = "websocket"
+	NotifyPluginFeishu        = "feishu"
+	NotifyPluginFeishuRobot   = "feishu-robot"
+	NotifyPluginDingtalkRobot = "dingtalk-robot"
 )
 
 type notifyManager struct {
@@ -112,7 +114,8 @@ func (m *notifyManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	}
 	// set plugins config
 	// dingtalk and aliyunsms
-	for _, pluginName := range []string{NotifyPluginDingtalk, NotifyPluginSmsAliyun, NotifyPluginFeishu} {
+	for _, pluginName := range []string{NotifyPluginDingtalk, NotifyPluginSmsAliyun, NotifyPluginFeishu,
+		NotifyPluginFeishuRobot, NotifyPluginDingtalkRobot} {
 		data[pluginName] = toStr(pluginBaseOpt)
 	}
 	// email
@@ -171,6 +174,8 @@ func (m *notifyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 					{Key: NotifyPluginSmsAliyun, Path: fmt.Sprintf("%s.conf", NotifyPluginSmsAliyun)},
 					{Key: NotifyPluginWebsocket, Path: fmt.Sprintf("%s.conf", NotifyPluginWebsocket)},
 					{Key: NotifyPluginFeishu, Path: fmt.Sprintf("%s.conf", NotifyPluginFeishu)},
+					{Key: NotifyPluginFeishuRobot, Path: fmt.Sprintf("%s.conf", NotifyPluginFeishuRobot)},
+					{Key: NotifyPluginDingtalkRobot, Path: fmt.Sprintf("%s.conf", NotifyPluginDingtalkRobot)},
 				},
 			},
 		},
@@ -196,6 +201,8 @@ func (m *notifyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 		newPluginC(NotifyPluginSmsAliyun),
 		newPluginC(NotifyPluginWebsocket),
 		newPluginC(NotifyPluginFeishu),
+		newPluginC(NotifyPluginFeishuRobot),
+		newPluginC(NotifyPluginDingtalkRobot),
 	}
 	spec := &deploy.Spec.Template.Spec
 	cs := spec.Containers
