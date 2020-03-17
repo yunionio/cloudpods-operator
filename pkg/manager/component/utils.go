@@ -355,19 +355,30 @@ func EnsureServiceAccount(s *mcclient.ClientSession, account v1alpha1.CloudUser)
 	if err != nil {
 		return err
 	}
-	if exists && !controller.SyncUser {
-		return nil
-	}
-	if exists && controller.SyncUser {
-		// password not change
-		if _, err := LoginByServiceAccount(s, account); err == nil {
+	if exists {
+		if userProjectCnt, err := obj.Int("project_count"); err != nil {
+			klog.Errorf("Get user %s project_count: %v", username, err)
+		} else {
+			if userProjectCnt == 0 {
+				userId, _ := obj.GetString("id")
+				if err := onecloud.ProjectAddUser(s, constants.SysAdminProject, userId, constants.RoleAdmin); err != nil {
+					return errors.Wrapf(err, "add exists user %s to system project", username)
+				}
+			}
+		}
+		if !controller.SyncUser {
+			return nil
+		} else {
+			// password not change
+			if _, err := LoginByServiceAccount(s, account); err == nil {
+				return nil
+			}
+			id, _ := obj.GetString("id")
+			if _, err := onecloud.ChangeUserPassword(s, id, password); err != nil {
+				return errors.Wrapf(err, "user %s already exists, update password", username)
+			}
 			return nil
 		}
-		id, _ := obj.GetString("id")
-		if _, err := onecloud.ChangeUserPassword(s, id, password); err != nil {
-			return errors.Wrapf(err, "user %s already exists, update password", username)
-		}
-		return nil
 	}
 	obj, err = onecloud.CreateUser(s, username, password)
 	if err != nil {
