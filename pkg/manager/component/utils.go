@@ -618,9 +618,10 @@ func NewHostVolume(
 			MountPath: "/dev",
 		},
 		{
-			Name:      "run",
-			ReadOnly:  false,
-			MountPath: "/var/run",
+			Name:             "run",
+			ReadOnly:         false,
+			MountPath:        "/var/run",
+			MountPropagation: &bidirectional,
 		},
 		{
 			Name:      "sys",
