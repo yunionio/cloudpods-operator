@@ -92,6 +92,7 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 		components.Region(),
 		components.Scheduler(),
 		components.Glance(),
+		components.RegionDNS(),
 		components.Yunionagent(),
 		components.AnsibleServer(),
 		components.APIGateway(),

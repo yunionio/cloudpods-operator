@@ -36,10 +36,10 @@ import (
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/onecloud/pkg/mcclient"
 
-	"yunion.io/x/onecloud-operator/pkg/label"
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
+	"yunion.io/x/onecloud-operator/pkg/label"
 	"yunion.io/x/onecloud-operator/pkg/manager"
 )
 
@@ -435,11 +435,11 @@ func (m *ComponentManager) newDefaultDeploymentWithCloudAffinity(
 		spec.Affinity.NodeAffinity = &corev1.NodeAffinity{}
 	}
 	spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution = []corev1.PreferredSchedulingTerm{
-		corev1.PreferredSchedulingTerm{
+		{
 			Weight: 1,
 			Preference: corev1.NodeSelectorTerm{
 				MatchExpressions: []corev1.NodeSelectorRequirement{
-					corev1.NodeSelectorRequirement{
+					{
 						Key:      constants.OnecloudControllerLabelKey,
 						Operator: corev1.NodeSelectorOpIn,
 						Values:   []string{"enable"},
@@ -961,6 +961,10 @@ func (m *ComponentManager) Region() manager.Manager {
 	return newRegionManager(m)
 }
 
+func (m *ComponentManager) RegionDNS() manager.Manager {
+	return newRegionDNSManager(m)
+}
+
 func (m *ComponentManager) Climc() manager.Manager {
 	return newClimcComponentManager(m)
 }
@@ -1069,6 +1073,6 @@ func (m *ComponentManager) Monitor() manager.Manager {
 	return newMonitorManager(m)
 }
 
-func (m *ComponentManager)CloudmonReportServer() manager.Manager  {
+func (m *ComponentManager) CloudmonReportServer() manager.Manager {
 	return newCloudmonReportServerManager(m)
 }
