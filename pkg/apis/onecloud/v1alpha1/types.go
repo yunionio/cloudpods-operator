@@ -84,9 +84,10 @@ const (
 	// Esxi Agent
 	EsxiAgentComponentType ComponentType = "esxi-agent"
 
-	OvnNorthComponentType ComponentType = "ovn-north"
-	OvnHostComponentType  ComponentType = "ovn-host"
-	VpcAgentComponentType ComponentType = "vpcagent"
+	OvnNorthComponentType  ComponentType = "ovn-north"
+	OvnHostComponentType   ComponentType = "ovn-host"
+	VpcAgentComponentType  ComponentType = "vpcagent"
+	RegionDNSComponentType ComponentType = "region-dns"
 )
 
 // ComponentPhase is the current state of component
@@ -145,6 +146,8 @@ type OnecloudClusterSpec struct {
 	Keystone KeystoneSpec `json:"keystone"`
 	// RegionServer holds configuration for region
 	RegionServer RegionSpec `json:"regionServer"`
+	// RegionDNS holds configuration for region-dns
+	RegionDNS RegionDNSSpec `json:"regionDNS"`
 	// Scheduler holds configuration for scheduler
 	Scheduler DeploymentSpec `json:"scheduler"`
 	// Glance holds configuration for glance
@@ -338,6 +341,26 @@ type MeterStatus struct {
 
 type RegionSpec struct {
 	DeploymentSpec
+	// DNSServer is the address of DNS server
+	DNSServer string `json:"dnsServer"`
+	// DNSDomain is the global default dns domain suffix for virtual servers
+	DNSDomain string `json:"dnsDomain"`
+}
+
+type RegionDNSProxy struct {
+	// check: https://coredns.io/plugins/proxy/
+	From string   `json:"from"`
+	To   []string `json:"to"`
+	// Policy string `json:"policy"`
+}
+
+type RegionDNSSpec struct {
+	DaemonSetSpec
+	Proxies []RegionDNSProxy `json:"proxies"`
+}
+
+type RegionDNSStatus struct {
+	DeploymentStatus
 }
 
 type HostAgentSpec struct {

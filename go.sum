@@ -558,7 +558,7 @@ github.com/stretchr/testify v1.4.0 h1:2E4SXV/wtOkTonXsotYi4li6zVWxYlZuYNCXe9XRJy
 github.com/stretchr/testify v1.4.0/go.mod h1:j7eGeouHqKxXV5pUuKE4zz7dFj8WfuZ+81PSLYec5m4=
 github.com/syncthing/syncthing v0.14.48-rc.4/go.mod h1:nw3siZwHPA6M8iSfjDCWQ402eqvEIasMQOE8nFOxy7M=
 github.com/syndtr/gocapability v0.0.0-20160928074757-e7cb7fa329f4/go.mod h1:hkRG7XYTFWNJGYcbNJQlaLq0fg1yr4J4t/NcTQtrfww=
-github.com/tencentcloud/tencentcloud-sdk-go v0.0.0-20181108132626-805d01dd0e2e/go.mod h1:0PfYow01SHPMhKY31xa+EFz2RStxIqj6JFAJS+IkCi4=
+github.com/tencentcloud/tencentcloud-sdk-go v3.0.135+incompatible/go.mod h1:0PfYow01SHPMhKY31xa+EFz2RStxIqj6JFAJS+IkCi4=
 github.com/tencentyun/cos-go-sdk-v5 v0.0.0-20191108095731-8ca4b370cde4/go.mod h1:wk2XFUg6egk4tSDNZtXeKfe2G6690UVyt163PuUxBZk=
 github.com/texttheater/golang-levenshtein v0.0.0-20180516184445-d188e65d659e h1:T5PdfK/M1xyrHwynxMIVMWLS7f/qHwfslZphxtGnw7s=
 github.com/texttheater/golang-levenshtein v0.0.0-20180516184445-d188e65d659e/go.mod h1:XDKHRm5ThF8YJjx001LtgelzsoaEcvnA7lVWz9EeX3g=
@@ -865,13 +865,15 @@ yunion.io/x/jsonutils v0.0.0-20190625054549-a964e1e8a051 h1:vtZw2iwGrsARNSwRTREG
 yunion.io/x/jsonutils v0.0.0-20190625054549-a964e1e8a051/go.mod h1:4N0/RVzsYL3kH3WE/H1BjUQdFiWu50JGCFQuuy+Z634=
 yunion.io/x/jsonutils v0.0.0-20200303051356-aa609aba0cda h1:wSwQj3MDGchGYM2RAo1riYhrTz4apH+5XyBnchuDi84=
 yunion.io/x/jsonutils v0.0.0-20200303051356-aa609aba0cda/go.mod h1:T7kxQJR13+t7z0TuT+Wzd7MTxBOk2H9c0pO1ONQSv90=
+yunion.io/x/jsonutils v0.0.0-20200324102731-ecaf3132aad8 h1:BzxFrksUauP57RDc8TW4ajkO374sqdtSVKyMKXsP8zI=
+yunion.io/x/jsonutils v0.0.0-20200324102731-ecaf3132aad8/go.mod h1:T7kxQJR13+t7z0TuT+Wzd7MTxBOk2H9c0pO1ONQSv90=
 yunion.io/x/log v0.0.0-20190514041436-04ce53b17c6b/go.mod h1:+gauLs73omeJAPlsXcevLsJLKixV+sR/E7WSYTSx1fE=
 yunion.io/x/log v0.0.0-20190629062853-9f6483a7103d h1:59zrDL7Ft+hDukguJRmLr/Gdu/9V75x+yX99ovZwfaA=
 yunion.io/x/log v0.0.0-20190629062853-9f6483a7103d/go.mod h1:LC6f/4FozL0iaAbnFt2eDX9jlsyo3WiOUPm03d7+U4U=
 yunion.io/x/log v0.0.0-20200313080802-57a4ce5966b3 h1:5Wc5hkB8PtMudmHuzCyok960RuOa9I55imIGrigSdjs=
 yunion.io/x/log v0.0.0-20200313080802-57a4ce5966b3/go.mod h1:LC6f/4FozL0iaAbnFt2eDX9jlsyo3WiOUPm03d7+U4U=
-yunion.io/x/onecloud v0.0.0-20200313111818-2f50aae0826f h1:5wy3wCwZwadDB6uChVqXazSA2D9GiT4ZYfOXzH72QZU=
-yunion.io/x/onecloud v0.0.0-20200313111818-2f50aae0826f/go.mod h1:25kJnAUAqy4syhe3qzXm7r2BT2PxYuHArtXBpn9bR6g=
+yunion.io/x/onecloud v0.0.0-20200328022933-d58e8f3b67c3 h1:FjAmaTaAaiL2UAdK/7G4k+iWXK8P9zlHr6/f8XPsXtY=
+yunion.io/x/onecloud v0.0.0-20200328022933-d58e8f3b67c3/go.mod h1:s6MMZzS7Pdqhs+awLlc2y1UJDY7L1y3WvTdqLgLJBbo=
 yunion.io/x/pkg v0.0.0-20190620104149-945c25821dbf/go.mod h1:t6rEGG2sQ4J7DhFxSZVOTjNd0YO/KlfWQyK1W4tog+E=
 yunion.io/x/pkg v0.0.0-20190628082551-f4033ba2ea30/go.mod h1:t6rEGG2sQ4J7DhFxSZVOTjNd0YO/KlfWQyK1W4tog+E=
 yunion.io/x/pkg v0.0.0-20200302034534-fdf44d54b070 h1:rKnYgtvMHKmzPEUTkyNjyKOG7wzjpUvI7fcZwLNGQXw=
