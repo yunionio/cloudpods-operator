@@ -36,7 +36,7 @@ import (
 
 var (
 	SessionDebug bool
-	SyncUser bool
+	SyncUser     bool
 
 	sessionLock sync.Mutex
 )
@@ -368,7 +368,7 @@ func (c *baseComponent) registerServiceEndpointsBySession(s *mcclient.ClientSess
 }
 
 func (c *baseComponent) RegisterServiceEndpoints(serviceName, serviceType string, eps []*endpoint, enableSSL bool) error {
-	return c.RunWithSession(func (s *mcclient.ClientSession) error {
+	return c.RunWithSession(func(s *mcclient.ClientSession) error {
 		return c.registerServiceEndpointsBySession(s, serviceName, serviceType, eps, enableSSL)
 	})
 }

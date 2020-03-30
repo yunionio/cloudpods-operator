@@ -77,6 +77,7 @@ type ScheduleInput struct {
 	LiveMigrate  bool   `json:"live_migrate"`
 	CpuDesc      string `json:"cpu_desc"`
 	CpuMicrocode string `json:"cpu_microcode"`
+	CpuMode      string `json:"cpu_mode"`
 
 	PendingUsages []jsonutils.JSONObject
 }
@@ -91,6 +92,17 @@ func (input ScheduleInput) ToConditionInput() *jsonutils.JSONDict {
 type CandidateDisk struct {
 	Index      int      `json:"index"`
 	StorageIds []string `json:"storage_ids"`
+}
+
+type CandidateDiskV2 struct {
+	Index    int                 `json:"index"`
+	Storages []*CandidateStorage `json:"storages"`
+}
+
+type CandidateStorage struct {
+	Id           string
+	Name         string
+	FreeCapacity int64
 }
 
 type CandidateNet struct {

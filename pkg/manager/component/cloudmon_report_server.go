@@ -11,7 +11,6 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/manager"
 )
 
-
 type cloudmonReportServerManager struct {
 	*ComponentManager
 }

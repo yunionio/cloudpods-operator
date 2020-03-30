@@ -197,7 +197,7 @@ func (m *notifyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 			VolumeMounts: []corev1.VolumeMount{
 				socketVolMount,
 				templateVolMount,
-				corev1.VolumeMount{
+				{
 					MountPath: constants.ConfigDir,
 					Name:      NotifyPluginConfig,
 				},
