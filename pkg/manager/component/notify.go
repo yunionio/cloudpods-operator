@@ -98,6 +98,7 @@ func (m *notifyManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	opt.SocketFileDir = NotifySocketFileDir
 	opt.UpdateInterval = 30
 	opt.VerifyEmailUrl = fmt.Sprintf("https://%s/v2/email-verification/id/{0}/token/{1}?region=%s", oc.Spec.LoadBalancerEndpoint, oc.Spec.Region)
+	opt.VerifyEmailUrlPath = fmt.Sprintf("/v2/email-verification/id/{0}/token/{1}?region=%s", oc.Spec.Region)
 	opt.ReSendScope = 30
 	opt.Port = constants.NotifyPort
 
