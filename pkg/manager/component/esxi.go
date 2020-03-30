@@ -83,7 +83,7 @@ func (m *esxiManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 	podTemplate := &dm.Spec.Template.Spec
 	podVols := podTemplate.Volumes
 	podVols = append(podVols, corev1.Volume{
-		Name:         "opt",
+		Name: "opt",
 		VolumeSource: corev1.VolumeSource{
 			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
 				ClaimName: controller.NewClusterComponentName(oc.GetName(), v1alpha1.EsxiAgentComponentType),
@@ -93,8 +93,8 @@ func (m *esxiManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 	})
 	volMounts := podTemplate.Containers[0].VolumeMounts
 	volMounts = append(volMounts, corev1.VolumeMount{
-		Name:             "opt",
-		MountPath:        constants.EsxiAgentDataStore,
+		Name:      "opt",
+		MountPath: constants.EsxiAgentDataStore,
 	})
 
 	// /var/run

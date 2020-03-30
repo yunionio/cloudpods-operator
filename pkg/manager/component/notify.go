@@ -188,7 +188,7 @@ func (m *notifyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 			Command:         []string{fmt.Sprintf("/opt/yunion/bin/%s", name), "--config", fmt.Sprintf("/etc/yunion/%s.conf", name)},
 			VolumeMounts: []corev1.VolumeMount{
 				socketVolMount,
-				corev1.VolumeMount{
+				{
 					MountPath: constants.ConfigDir,
 					Name:      NotifyPluginConfig,
 				},

@@ -27,18 +27,19 @@ import (
 )
 
 const (
-	DefaultVersion              = "latest"
-	DefaultOnecloudRegion       = "region0"
-	DefaultOnecloudZone         = "zone0"
-	DefaultOnecloudWire         = "bcast0"
-	DefaultImageRepository      = "registry.hub.docker.com/yunion"
-	DefaultVPCId                = "default"
-	DefaultGlanceStorageSize    = "100G"
-	DefaultMeterStorageSize     = "100G"
-	DefaultInfluxdbStorageSize  = "20G"
-	DefaultNotifyStorageSize    = "1G" // for plugin template
-	DefaultBaremetalStorageSize = "1G"
-	DefaultEsxiAgentStorageSize = "30G"
+	DefaultVersion                 = "latest"
+	DefaultOnecloudRegion          = "region0"
+	DefaultOnecloudRegionDNSDomain = "cloud.onecloud.io"
+	DefaultOnecloudZone            = "zone0"
+	DefaultOnecloudWire            = "bcast0"
+	DefaultImageRepository         = "registry.hub.docker.com/yunion"
+	DefaultVPCId                   = "default"
+	DefaultGlanceStorageSize       = "100G"
+	DefaultMeterStorageSize        = "100G"
+	DefaultInfluxdbStorageSize     = "20G"
+	DefaultNotifyStorageSize       = "1G" // for plugin template
+	DefaultBaremetalStorageSize    = "1G"
+	DefaultEsxiAgentStorageSize    = "30G"
 	// rancher local-path-provisioner: https://github.com/rancher/local-path-provisioner
 	DefaultStorageClass = "local-path"
 
@@ -94,6 +95,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 
 	SetDefaults_KeystoneSpec(&obj.Keystone, obj.ImageRepository, obj.Version)
 	SetDefaults_RegionSpec(&obj.RegionServer, obj.ImageRepository, obj.Version)
+	SetDefaults_RegionDNSSpec(&obj.RegionDNS, obj.ImageRepository, obj.Version)
 
 	for cType, spec := range map[ComponentType]*DeploymentSpec{
 		ClimcComponentType:         &obj.Climc,
@@ -219,6 +221,13 @@ func SetDefaults_KeystoneSpec(obj *KeystoneSpec, imageRepo, version string) {
 
 func SetDefaults_RegionSpec(obj *RegionSpec, imageRepo, version string) {
 	SetDefaults_DeploymentSpec(&obj.DeploymentSpec, getImage(imageRepo, obj.Repository, RegionComponentType, obj.ImageName, version, obj.Tag))
+	if obj.DNSDomain == "" {
+		obj.DNSDomain = DefaultOnecloudRegionDNSDomain
+	}
+}
+
+func SetDefaults_RegionDNSSpec(obj *RegionDNSSpec, imageRepo, version string) {
+	SetDefaults_DaemonSetSpec(&obj.DaemonSetSpec, getImage(imageRepo, obj.Repository, RegionDNSComponentType, obj.ImageName, version, obj.Tag))
 }
 
 func setPVCStoreage(obj *ContainerSpec, size string) {

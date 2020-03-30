@@ -73,7 +73,7 @@ func (m *hostDeployerManager) newHostPrivilegedDaemonSet(
 		ds.Spec.Template.Spec.Affinity.PodAffinity = &corev1.PodAffinity{}
 	}
 	ds.Spec.Template.Spec.Affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution = []corev1.PodAffinityTerm{
-		corev1.PodAffinityTerm{
+		{
 			LabelSelector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{constants.OnecloudHostDeployerLabelKey: ""},
 			},
