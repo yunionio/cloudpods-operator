@@ -21,7 +21,7 @@ import (
 )
 
 type StorageCreateInput struct {
-	apis.StandaloneResourceCreateInput
+	apis.EnabledStatusInfrasResourceBaseCreateInput
 
 	// 存储类型
 	//
@@ -49,12 +49,7 @@ type StorageCreateInput struct {
 	// required: true
 	MediumType string `json:"medium_type"`
 
-	// 可用区名称或ID, 建议使用ID
-	// required: true
-	Zone string `json:"zone"`
-
-	// swagger:ignore
-	ZoneId string
+	ZoneResourceInput
 
 	// ceph认证主机, storage_type为 rbd 时,此参数为必传项
 	// 单个ip或以逗号分隔的多个ip具体可查询 /etc/ceph/ceph.conf 文件
@@ -128,15 +123,40 @@ type SStorageCapacityInfo struct {
 }
 
 type StorageDetails struct {
-	apis.StandaloneResourceDetails
+	apis.EnabledStatusInfrasResourceBaseDetails
+	ManagedResourceInfo
+	ZoneResourceInfo
 
 	SStorageCapacityInfo
 
 	SStorage
 
-	CloudproviderInfo
 	Schedtags []SchedtagShortDescDetails `json:"schedtags"`
 
 	// 超分比
 	CommitBound float32 `json:"commit_bound"`
+}
+
+type StorageResourceInfo struct {
+	// 归属云订阅ID
+	ManagerId string `json:"manager_id"`
+
+	ManagedResourceInfo
+
+	// 归属可用区ID
+	ZoneId string `json:"zone_id"`
+
+	ZoneResourceInfo
+
+	// 存储名称
+	Storage string `json:"storage"`
+
+	// 存储类型
+	StorageType string `json:"storage_type"`
+
+	// 存储介质类型
+	MediumType string `json:"medium_type"`
+
+	// 存储状态
+	StorageStatus string `json:"storage_status"`
 }

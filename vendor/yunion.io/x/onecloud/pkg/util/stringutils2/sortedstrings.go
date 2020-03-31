@@ -22,13 +22,16 @@ type SSortedStrings []string
 
 func NewSortedStrings(strs []string) SSortedStrings {
 	if strs == nil {
-		return nil
+		return SSortedStrings{}
 	}
 	sort.Strings(strs)
 	return SSortedStrings(strs)
 }
 
 func Append(ss SSortedStrings, ele ...string) SSortedStrings {
+	if ss == nil {
+		ss = NewSortedStrings([]string{})
+	}
 	for _, e := range ele {
 		pos, find := ss.Index(e)
 		if find {

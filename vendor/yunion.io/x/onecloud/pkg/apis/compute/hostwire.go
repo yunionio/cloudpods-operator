@@ -14,11 +14,9 @@
 
 package compute
 
-import "yunion.io/x/onecloud/pkg/apis"
-
 type HostwireDetails struct {
-	apis.JoinModelBaseDetails
-	HostJointsDetails
+	HostJointResourceDetails
+
 	SHostwire
 
 	// 二层网络名称
@@ -26,4 +24,21 @@ type HostwireDetails struct {
 
 	// 带宽大小
 	Bandwidth int `json:"bandwidth"`
+}
+
+type HostwireListInput struct {
+	HostJointsListInput
+	WireFilterListInput
+
+	// 网桥名称
+	Bridge []string `json:"bridge"`
+
+	// 接口名称
+	Interface []string `json:"interface"`
+
+	// 是否是主网口
+	IsMaster *bool `json:"is_master"`
+
+	// MAC地址
+	MacAddr []string `json:"mac_addr"`
 }

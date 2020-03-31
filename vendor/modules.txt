@@ -37,7 +37,7 @@ github.com/golang-plus/uuid/internal/namebased/md5
 github.com/golang-plus/uuid/internal/namebased/sha1
 github.com/golang-plus/uuid/internal/random
 github.com/golang-plus/uuid/internal/timebased
-# github.com/golang/groupcache v0.0.0-20190129154638-5b532d6fd5ef
+# github.com/golang/groupcache v0.0.0-20191227052852-215e87163ea7
 github.com/golang/groupcache/lru
 # github.com/golang/protobuf v1.3.2
 github.com/golang/protobuf/proto
@@ -148,7 +148,7 @@ golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
 # golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 golang.org/x/time/rate
-# google.golang.org/appengine v1.5.0
+# google.golang.org/appengine v1.6.5
 google.golang.org/appengine/cloudsql
 google.golang.org/appengine/internal
 google.golang.org/appengine/internal/base
@@ -157,10 +157,12 @@ google.golang.org/appengine/internal/log
 google.golang.org/appengine/internal/remote_api
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20190502173448-54afdca5d873
+# google.golang.org/genproto v0.0.0-20191230161307-f3c370f40bfb
 google.golang.org/genproto/googleapis/rpc/status
-# google.golang.org/grpc v1.23.1
+# google.golang.org/grpc v1.26.0
 google.golang.org/grpc
+google.golang.org/grpc/attributes
+google.golang.org/grpc/backoff
 google.golang.org/grpc/balancer
 google.golang.org/grpc/balancer/base
 google.golang.org/grpc/balancer/roundrobin
@@ -176,10 +178,13 @@ google.golang.org/grpc/internal
 google.golang.org/grpc/internal/backoff
 google.golang.org/grpc/internal/balancerload
 google.golang.org/grpc/internal/binarylog
+google.golang.org/grpc/internal/buffer
 google.golang.org/grpc/internal/channelz
 google.golang.org/grpc/internal/envconfig
 google.golang.org/grpc/internal/grpcrand
 google.golang.org/grpc/internal/grpcsync
+google.golang.org/grpc/internal/resolver/dns
+google.golang.org/grpc/internal/resolver/passthrough
 google.golang.org/grpc/internal/syscall
 google.golang.org/grpc/internal/transport
 google.golang.org/grpc/keepalive
@@ -187,8 +192,6 @@ google.golang.org/grpc/metadata
 google.golang.org/grpc/naming
 google.golang.org/grpc/peer
 google.golang.org/grpc/resolver
-google.golang.org/grpc/resolver/dns
-google.golang.org/grpc/resolver/passthrough
 google.golang.org/grpc/serviceconfig
 google.golang.org/grpc/stats
 google.golang.org/grpc/status
@@ -522,15 +525,16 @@ sigs.k8s.io/yaml
 # yunion.io/x/executor v0.0.0-20200227030256-a18417815e74
 yunion.io/x/executor/apis
 yunion.io/x/executor/client
-# yunion.io/x/jsonutils v0.0.0-20200324102731-ecaf3132aad8
+# yunion.io/x/jsonutils v0.0.0-20200330063846-589d9924bb8b
 yunion.io/x/jsonutils
 # yunion.io/x/log v0.0.0-20200313080802-57a4ce5966b3
 yunion.io/x/log
 yunion.io/x/log/hooks
-# yunion.io/x/onecloud v0.0.0-20200328022933-d58e8f3b67c3
+# yunion.io/x/onecloud v0.0.0-20200331084538-4a796f066a93
 yunion.io/x/onecloud/pkg/ansibleserver/options
 yunion.io/x/onecloud/pkg/apis
 yunion.io/x/onecloud/pkg/apis/ansible
+yunion.io/x/onecloud/pkg/apis/billing
 yunion.io/x/onecloud/pkg/apis/cloudcommon/proxy
 yunion.io/x/onecloud/pkg/apis/cloudprovider
 yunion.io/x/onecloud/pkg/apis/compute

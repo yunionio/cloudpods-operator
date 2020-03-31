@@ -21,7 +21,7 @@ import (
 )
 
 type StoragecachedimageDetails struct {
-	apis.JoinModelBaseDetails
+	apis.JointResourceBaseDetails
 
 	// 存储缓存名称
 	Storagecache string `json:"storagecache"`
@@ -38,4 +38,24 @@ type StoragecachedimageDetails struct {
 	Size int64 `json:"size"`
 	// 引用次数
 	Reference int `json:"reference"`
+}
+
+type StoragecachedimageListInput struct {
+	apis.JointResourceBaseListInput
+	apis.ExternalizedResourceBaseListInput
+
+	// 以镜像缓存存储过滤
+	Storagecache string `json:"storagecache"`
+	// Deprecated
+	// swagger:ignore
+	StoragecacheId string `json:"storagecache_id" deprecated-by:"storagecache"`
+
+	// 以镜像缓存过滤
+	Cachedimage string `json:"cachedimage"`
+	// Deprecated
+	// swagger:ignore
+	CachedimageId string `json:"cachedimage_id" deprecated-by:"cachedimage_id"`
+
+	// 镜像状态
+	Status []string `json:"status"`
 }

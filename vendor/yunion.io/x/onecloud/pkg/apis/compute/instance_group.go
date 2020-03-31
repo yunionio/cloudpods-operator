@@ -18,28 +18,49 @@ import "yunion.io/x/onecloud/pkg/apis"
 
 type InstanceGroupListInput struct {
 	apis.VirtualResourceListInput
+
+	apis.EnabledResourceBaseListInput
+
 	ZonalFilterListInput
+
 	ServerFilterListInput
 
 	// 以service_type过滤列表结果
 	ServiceType string `json:"service_type"`
 	// 以parent_id过滤列表结果
 	ParentId string `json:"parent_id"`
+
+	// 调度策略
+	SchedStrategy string `json:"sched_strategy"`
 }
 
 type InstanceGroupDetail struct {
 	apis.VirtualResourceDetails
+	ZoneResourceInfo
+
 	SGroup
 
 	// 云主机数量
 	GuestCount int `json:"guest_count"`
 }
 
-type GroupFilterListInput struct {
-	// 以指定实例组（ID或Name）过滤列表结果
+type GroupResourceInput struct {
+	// 实例组（ID或Name）
 	Group string `json:"group"`
 	// swagger:ignore
-	// deprecated: true
+	// Deprecated
 	// Filter by instance group Id
 	GroupId string `json:"group_id" deprecated-by:"group"`
+}
+
+type GroupFilterListInput struct {
+	GroupResourceInput
+
+	// 按组名排序
+	OrderByGroup string `json:"order_by_group"`
+}
+
+type GroupResourceInfo struct {
+	// 实例组名称
+	Group string `json:"group"`
 }

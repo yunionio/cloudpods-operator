@@ -14,7 +14,9 @@
 
 package compute
 
-import "yunion.io/x/onecloud/pkg/apis"
+import (
+	"yunion.io/x/onecloud/pkg/apis"
+)
 
 type ServerSkuCreateInput struct {
 	apis.StatusStandaloneResourceCreateInput
@@ -130,21 +132,54 @@ type ServerSkuCreateInput struct {
 }
 
 type ServerSkuDetails struct {
-	apis.StandaloneResourceDetails
+	apis.StatusStandaloneResourceDetails
+
+	ZoneResourceInfo
+
 	SServerSku
 
 	// 绑定云主机数量
 	TotalGuestCount int `json:"total_guest_count"`
-	// 可用区名称
-	Zone string `json:"zone"`
-	// 可用区外部Id
-	ZoneExtId string `json:"zone_ext_id"`
-	// 区域名称
-	Region string `json:"region"`
-	// 区域Id
-	RegionId string `json:"region_id"`
-	// 区域外部Id
-	RegionExternalId string `json:"region_external_id"`
-	// 区域外部Id(不携带平台信息)
-	RegionExtId string `json:"region_ext_id"`
+}
+
+type ServerSkuUpdateInput struct {
+	apis.StatusStandaloneResourceBaseUpdateInput
+
+	InstanceTypeFamily string `json:"instance_type_family"`
+
+	InstanceTypeCategory string `json:"instance_type_category"`
+
+	LocalCategory string `json:"local_category"` // 记录本地分类
+
+	OsName string `json:"os_name"` // Windows|Linux|Any
+
+	SysDiskResizable *bool `json:"sys_disk_resizable"`
+
+	SysDiskType string `json:"sys_disk_type"`
+
+	SysDiskMinSizeGB *int `json:"sys_disk_min_size_gb"` // not required。 windows比较新的版本都是50G左右。
+
+	SysDiskMaxSizeGB *int `json:"sys_disk_max_size_gb"` // not required
+
+	AttachedDiskType string `json:"attached_disk_type"`
+
+	AttachedDiskSizeGB *int `json:"attached_disk_size_gb"`
+
+	AttachedDiskCount *int `json:"attached_disk_count"`
+
+	DataDiskTypes string `json:"data_disk_types"`
+
+	DataDiskMaxCount *int `json:"data_disk_max_count"`
+
+	NicType string `json:"nic_type"`
+
+	NicMaxCount *int `json:"nic_max_count"`
+
+	GpuAttachable *bool `json:"gpu_attachable"`
+
+	GpuSpec string `json:"gpu_spec"`
+
+	GpuCount *int `json:"gpu_count"`
+
+	GpuMaxCount *int `json:"gpu_max_count"`
 }

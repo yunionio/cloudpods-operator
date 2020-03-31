@@ -15,6 +15,7 @@
 package identity
 
 import (
+	"yunion.io/x/jsonutils"
 	"yunion.io/x/pkg/errors"
 
 	"yunion.io/x/onecloud/pkg/apis"
@@ -43,6 +44,12 @@ type EnabledIdentityBaseResourceListInput struct {
 }
 
 type ProjectFilterListInput struct {
+	// 项目归属域
+	ProjectDomain string `json:"project_domain"`
+	// swagger:ignore
+	// Deprecated
+	ProjectDomainId string `json:"project_domain_id" deprecated-by:"project-domain"`
+
 	// 以项目（ID或Name）过滤列表结果
 	Project string `json:"project"`
 	// swagger:ignore
@@ -60,6 +67,12 @@ type ProjectFilterListInput struct {
 }
 
 type UserFilterListInput struct {
+	// 用户归属域
+	UserDomain string `json:"user_domain"`
+	// swagger:ignore
+	// Deprecated
+	UserDomainId string `json:"user_domain_id"`
+
 	// filter by user
 	User string `json:"user"`
 	// swagger:ignore
@@ -69,6 +82,12 @@ type UserFilterListInput struct {
 }
 
 type GroupFilterListInput struct {
+	// 组归属域
+	GroupDomain string `json:"group_domain"`
+	// swagger:ignore
+	// Deprecated
+	GroupDomainId string `json:"group_domain_id"`
+
 	// filter by group
 	Group string `json:"group"`
 	// swagger:ignore
@@ -78,6 +97,12 @@ type GroupFilterListInput struct {
 }
 
 type RoleFilterListInput struct {
+	// 角色归属域
+	RoleDomain string `json:"role_domain"`
+	// swagger:ignore
+	// Deprecated
+	RoleDomainId string `json:"role_domain_id"`
+
 	// filter by role
 	Role string `json:"role"`
 	// swagger:ignore
@@ -87,16 +112,23 @@ type RoleFilterListInput struct {
 }
 
 type ServiceFilterListInput struct {
-	// filter by service, either id or name
+	// 服务类型过滤
+	ServiceType string `json:"service_type"`
+
+	// 服务名称或ID过滤
 	Service string `json:"service"`
 	// swagger:ignore
 	// Deprecated
 	// filter by service_id
 	ServiceId string `json:"service_id" deprecated-by:"service"`
+
+	// 以服务名称排序
+	OrderByService string `json:"order_by_service"`
 }
 
 type RoleListInput struct {
 	IdentityBaseResourceListInput
+	apis.SharableResourceBaseListInput
 
 	ProjectFilterListInput
 	UserFilterListInput
@@ -108,6 +140,9 @@ type GroupListInput struct {
 
 	UserFilterListInput
 	ProjectFilterListInput
+
+	// 名称过滤
+	Displayname string `json:"displayname"`
 }
 
 type ProjectListInput struct {
@@ -119,6 +154,8 @@ type ProjectListInput struct {
 
 type DomainListInput struct {
 	apis.StandaloneResourceListInput
+
+	Enabled *bool `json:"enabled"`
 }
 
 type UserListInput struct {
@@ -127,12 +164,32 @@ type UserListInput struct {
 	GroupFilterListInput
 	ProjectFilterListInput
 	RoleFilterListInput
+
+	// email
+	Email string `json:"email"`
+	// mobile
+	Mobile string `json:"mobile"`
+	// displayname
+	Displayname string `json:"displayname"`
+
+	// 是否允许web控制台登录
+	AllowWebConsole *bool `json:"allow_web_console"`
+
+	// 是否开启MFA认证
+	EnableMfa *bool `json:"enable_mfa"`
 }
 
 type EndpointListInput struct {
 	apis.StandaloneResourceListInput
 
 	ServiceFilterListInput
+	RegionFilterListInput
+
+	// 以Endpoint接口类型过滤，可能值为: internal, internalURL, public, publicURL, admin, adminURL, console
+	Interface string `json:"interface"`
+
+	// 是否启用
+	Enabled *bool `json:"enabled"`
 }
 
 type SJoinProjectsInput struct {
@@ -228,15 +285,42 @@ func (input SProjectRemoveUserGroupInput) Validate() error {
 
 type IdentityProviderListInput struct {
 	apis.EnabledStatusStandaloneResourceListInput
+
+	// 以驱动类型过滤
+	Driver []string `json:"driver"`
+
+	// 以模板过滤
+	Template []string `json:"template"`
+
+	// 以同步状态过滤
+	SyncStatus []string `json:"sync_status"`
 }
 
 type CredentialListInput struct {
 	apis.StandaloneResourceListInput
+
+	UserFilterListInput
+	ProjectFilterListInput
+
+	Type []string `json:"type"`
+
+	Enabled *bool `json:"enabled"`
 }
 
 type PolicyListInput struct {
 	EnabledIdentityBaseResourceListInput
-	apis.SharableResourceListInput
+	apis.SharableResourceBaseListInput
+
+	// 以类型查询
+	Type []string `json:"type"`
+}
+
+type RegionFilterListInput struct {
+	// 以区域名称或ID过滤
+	Region string `json:"region"`
+	// swagger:ignore
+	// Deprecated
+	RegionId string `json:"region_id" deprecated-by:"region"`
 }
 
 type RegionListInput struct {
@@ -245,4 +329,72 @@ type RegionListInput struct {
 
 type ServiceListInput struct {
 	apis.StandaloneResourceListInput
+
+	// 以Service Type过滤
+	Type []string `json:"type"`
+
+	// 是否启用/禁用
+	Enabled *bool `json:"enabled"`
+}
+
+type IdentityBaseUpdateInput struct {
+	apis.StandaloneResourceBaseUpdateInput
+}
+
+type EnabledIdentityBaseUpdateInput struct {
+	IdentityBaseUpdateInput
+
+	// 是否启用
+	Enabled *bool `json:"enabled"`
+}
+
+type GroupUpdateInput struct {
+	IdentityBaseUpdateInput
+
+	// display name
+	Displayname string `json:"displayname"`
+}
+
+type IdentityProviderUpdateInput struct {
+	apis.EnabledStatusStandaloneResourceBaseUpdateInput
+
+	TargetDomainId string `json:"target_domain_id"`
+
+	AutoCreateProject *bool `json:"auto_create_project"`
+
+	SyncIntervalSeconds *int `json:"sync_interval_seconds"`
+}
+
+type PolicyUpdateInput struct {
+	EnabledIdentityBaseUpdateInput
+
+	Type string `json:"type"`
+
+	Blob jsonutils.JSONObject `json:"blob"`
+}
+
+type ProjectUpdateInput struct {
+	IdentityBaseUpdateInput
+}
+
+type RoleUpdateInput struct {
+	IdentityBaseUpdateInput
+}
+
+type UserUpdateInput struct {
+	EnabledIdentityBaseUpdateInput
+
+	Email string `json:"email"`
+
+	Mobile string `json:"mobile"`
+
+	Displayname string `json:"displayname"`
+
+	IsSystemAccount *bool `json:"is_system_account"`
+
+	AllowWebConsole *bool `json:"allow_web_console"`
+
+	EnableMfa *bool `json:"enable_mfa"`
+
+	Password string `json:"password"`
 }

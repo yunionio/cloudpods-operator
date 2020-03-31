@@ -14,16 +14,20 @@
 
 package compute
 
-import (
-	"yunion.io/x/onecloud/pkg/apis"
-)
-
 type GroupnetworkDetails struct {
-	apis.JoinModelBaseDetails
+	GroupJointResourceDetails
+
 	SGroupnetwork
 
-	// 主机组名称
-	Instancegroup string
 	// IP子网名称
 	Network string
+}
+
+type GroupnetworkListInput struct {
+	GroupJointsListInput
+
+	NetworkFilterListInput
+
+	// IP地址
+	IpAddr []string `json:"ip_addr"`
 }

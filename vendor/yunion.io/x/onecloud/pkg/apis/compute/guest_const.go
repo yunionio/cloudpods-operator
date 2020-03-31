@@ -93,9 +93,8 @@ const (
 	VM_SNAPSHOT_RESET_FAILED     = "snapshot_reset_failed"
 	VM_SNAPSHOT_AND_CLONE_FAILED = "clone_from_snapshot_failed"
 
-	VM_SYNCING_STATUS = "syncing"
-	VM_SYNC_CONFIG    = "sync_config"
-	VM_SYNC_FAIL      = "sync_fail"
+	VM_SYNC_CONFIG = "sync_config"
+	VM_SYNC_FAIL   = "sync_fail"
 
 	VM_START_RESIZE_DISK  = "start_resize_disk"
 	VM_RESIZE_DISK        = "resize_disk"
@@ -114,6 +113,14 @@ const (
 	VM_ASSOCIATE_EIP_FAILED  = "associate_eip_failed"
 	VM_DISSOCIATE_EIP        = "dissociate_eip"
 	VM_DISSOCIATE_EIP_FAILED = "dissociate_eip_failed"
+
+	// 公网IP转换Eip中(EIP转换中)
+	VM_START_EIP_CONVERT  = "start_eip_convert"
+	VM_EIP_CONVERT_FAILED = "eip_convert_failed"
+
+	// 设置自动续费
+	VM_SET_AUTO_RENEW        = "set_auto_renew"
+	VM_SET_AUTO_RENEW_FAILED = "set_auto_renew_failed"
 
 	VM_REMOVE_STATEFILE = "remove_state"
 

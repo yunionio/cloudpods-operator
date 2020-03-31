@@ -19,10 +19,40 @@ import (
 )
 
 type GlobalVpcCreateInput struct {
-	apis.EnabledStatusStandaloneResourceCreateInput
+	apis.EnabledStatusInfrasResourceBaseCreateInput
 }
 
 type GlobalVpcDetails struct {
-	apis.StandaloneResourceDetails
+	apis.EnabledStatusInfrasResourceBaseDetails
+
 	SGlobalVpc
+}
+
+type GlobalVpcResourceInfo struct {
+	// 全局VPC名称
+	Globalvpc string `json:"globalvpc"`
+}
+
+type GlobalVpcResourceInput struct {
+	// GlobalVpc ID or Name
+	Globalvpc string `json:"globalvpc"`
+
+	// swagger:ignore
+	// Deprecated
+	GlobalvpcId string `json:"globalvpc_id" deprecated-by:"globalvpc"`
+}
+
+type GlobalVpcResourceListInput struct {
+	GlobalVpcResourceInput
+
+	// 以GlobalVpc的名称排序
+	OrderByGlobalvpc string `json:"order_by_globalvpc"`
+}
+
+type GlobalvpcUpdateInput struct {
+	apis.EnabledStatusInfrasResourceBaseUpdateInput
+}
+
+type GlobalVpcListInput struct {
+	apis.EnabledStatusInfrasResourceBaseListInput
 }

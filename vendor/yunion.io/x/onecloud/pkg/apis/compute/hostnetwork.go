@@ -14,15 +14,23 @@
 
 package compute
 
-import "yunion.io/x/onecloud/pkg/apis"
-
 type HostnetworkDetails struct {
-	apis.JoinModelBaseDetails
-	HostJointsDetails
-	SHostwire
+	HostJointResourceDetails
+
+	SHostnetwork
 
 	// IP子网名称
 	Network string `json:"network"`
 
 	NicType string `json:"nic_type"`
+}
+
+type HostnetworkListInput struct {
+	HostJointsListInput
+	NetworkFilterListInput
+
+	// IP地址
+	IpAddr []string `json:"ip_addr"`
+	// MAC地址
+	MacAddr []string `json:"mac_addr"`
 }

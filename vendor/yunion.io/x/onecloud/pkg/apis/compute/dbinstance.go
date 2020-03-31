@@ -21,6 +21,7 @@ type DBInstanceCreateInput struct {
 	DeletePreventableCreateInput
 
 	// Ip子网名称或Id,建议使用Id
+	// 谷歌云并不实际使用Ip子网,仅仅通过Ip子网确定Vpc
 	// required: true
 	Network string `json:"network"`
 	// swagger:ignore
@@ -96,10 +97,11 @@ type DBInstanceCreateInput struct {
 	//
 	//
 	//
-	// | 平台		| 支持类型	|
-	// | -----		| ------	|
-	// | 华为云		|ha, single, replica|
-	// | 阿里云		|basic, high_availability, always_on, finance|
+	// | 平台		| 支持类型	| 说明 |
+	// | -----		| ------	| --- |
+	// | 华为云		|ha, single, replica| |
+	// | 阿里云		|basic, high_availability, always_on, finance||
+	// | Google		|SECOND_GEN | FIRST_GEN 目前谷歌已弃用|
 	// 翻译:
 	// basic: 基础版
 	// high_availability: 高可用
@@ -108,6 +110,7 @@ type DBInstanceCreateInput struct {
 	// ha: 高可用
 	// single: 单机
 	// replica: 只读
+	// SECNOD_GEN: 第二代
 	// required: true
 	Category string `json:"category"`
 
@@ -118,6 +121,10 @@ type DBInstanceCreateInput struct {
 	// | 平台	| 支持类型	|
 	// | 华为云	|SSD, SAS, SATA|
 	// | 阿里云	|local_ssd, cloud_essd, cloud_ssd|
+	// | Google	|PD_SSD, PD_HDD|
+	// 翻译:
+	// PD_SSD: SSD
+	// PD_HDD: HDD
 	// required: true
 	StorageType string `json:"storage_type"`
 
@@ -129,7 +136,13 @@ type DBInstanceCreateInput struct {
 	// rds初始化密码
 	// 阿里云不需要此参数
 	// 华为云会默认创建一个用户,若不传此参数, 则为随机密码
+	// 谷歌云会默认创建一个用户,若不传此参数, 则为随机密码
 	Password string `json:"password"`
+
+	// 是否不设置初始密码
+	// 华为云不支持此参数
+	// 谷歌云仅mysql支持此参数
+	ResetPassword *bool `json:"reset_password"`
 
 	// rds实例cpu大小
 	// 若指定实例套餐，此参数将根据套餐设置
@@ -164,65 +177,104 @@ type SDBInstanceRecoveryConfigInput struct {
 
 type DBInstanceListInput struct {
 	apis.VirtualResourceListInput
+	apis.ExternalizedResourceBaseListInput
+	apis.DeletePreventableResourceBaseListInput
 
-	ZonalFilterListInput
-	ManagedResourceListInput
 	VpcFilterListInput
+
+	ZoneResourceInput
+
+	MasterInstance string `json:"master_instance"`
+
+	VcpuCount int `json:"vcpu_count"`
+
+	VmemSizeMb int `json:"vmem_size_mb"`
+
+	StorageType string `json:"storage_type"`
+
+	Category string `json:"category"`
+
+	Engine string `json:"engine"`
+
+	EngineVersion string `json:"engine_version"`
+
+	InstanceType string `json:"instance_type"`
 }
 
 type DBInstanceBackupListInput struct {
 	apis.VirtualResourceListInput
-
+	apis.ExternalizedResourceBaseListInput
 	ManagedResourceListInput
 	RegionalFilterListInput
 
-	DbinstanceFilterListInput
+	DBInstanceFilterListInputBase
+
+	// RDS引擎
+	// example: MySQL
+	Engine []string `json:"engine"`
+
+	// RDS引擎版本
+	// example: 5.7
+	EngineVersion []string `json:"engine_version"`
+
+	// 备份模式
+	BackupMode []string `json:"backup_mode"`
+
+	// 数据库名称
+	DBNames string `json:"db_names"`
 }
 
 type DBInstancePrivilegeListInput struct {
 	apis.ResourceBaseListInput
+	apis.ExternalizedResourceBaseListInput
 
 	// filter by dbinstanceaccount
 	Dbinstanceaccount string `json:"dbinstanceaccount"`
 	// filter by dbinstancedatabase
 	Dbinstancedatabase string `json:"dbinstancedatabase"`
+
+	// 权限
+	Privilege []string `json:"privilege"`
 }
 
 type DBInstanceParameterListInput struct {
 	apis.StandaloneResourceListInput
+	apis.ExternalizedResourceBaseListInput
+	DBInstanceFilterListInput
 
-	DbinstanceFilterListInput
+	// 参数名称
+	Key []string `json:"key"`
+
+	// 参数值
+	Value []string `json:"value"`
 }
 
 type DBInstanceDatabaseListInput struct {
 	apis.StatusStandaloneResourceListInput
+	apis.ExternalizedResourceBaseListInput
 
-	DbinstanceFilterListInput
+	DBInstanceFilterListInput
+
+	// 数据库字符集
+	CharacterSet []string `json:"character_set"`
 }
 
 type DBInstanceAccountListInput struct {
 	apis.StatusStandaloneResourceListInput
+	apis.ExternalizedResourceBaseListInput
 
-	DbinstanceFilterListInput
-}
-
-type DbinstanceFilterListInput struct {
-	// filter by dbinstance
-	Dbinstance string `json:"dbinstance"`
-	// swagger:ignore
-	// Deprecated
-	// filter by dbinstance_id
-	DbinstanceId string `json:"dbinstance_id" deprecated-by:"dbinstance"`
+	DBInstanceFilterListInput
 }
 
 type DBInstanceDetails struct {
 	apis.VirtualResourceDetails
+	CloudregionResourceInfo
+	ManagedResourceInfo
+
+	VpcResourceInfoBase
+
 	SDBInstance
 
-	CloudproviderInfo
-	// 虚拟私有网络名称
-	// example: test-vpc
-	Vpc string `json:"vpc"`
 	// 安全组名称
 	// example: Default
 	Secgroup string `json:"secgroup"`
@@ -232,6 +284,40 @@ type DBInstanceDetails struct {
 	// IP子网名称
 	// example: test-network
 	Network string `json:"network"`
-	// 标签信息
-	Metadata map[string]string `json:"metadata"`
+}
+
+type DBInstanceResourceInfoBase struct {
+	// RDS实例名称
+	DBInstance string `json:"dbinstance"`
+}
+
+type DBInstanceResourceInfo struct {
+	DBInstanceResourceInfoBase
+
+	// 归属VPC ID
+	VpcId string `json:"vpc_id"`
+
+	VpcResourceInfo
+}
+
+type DBInstanceResourceInput struct {
+	// RDS实例(ID or Name)
+	DBInstance string `json:"dbinstance"`
+
+	// swagger:ignore
+	// Deprecated
+	DBInstanceId string `json:"dbinstance_id" deprecated-by:"dbinstance"`
+}
+
+type DBInstanceFilterListInputBase struct {
+	DBInstanceResourceInput
+
+	// 以RDS实例名字排序
+	OrderByDBInstance string `json:"order_by_dbinstance"`
+}
+
+type DBInstanceFilterListInput struct {
+	DBInstanceFilterListInputBase
+
+	VpcFilterListInput
 }

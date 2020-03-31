@@ -16,13 +16,10 @@ package compute
 
 import (
 	"yunion.io/x/jsonutils"
-
-	"yunion.io/x/onecloud/pkg/apis"
 )
 
 type HoststorageDetails struct {
-	apis.JoinModelBaseDetails
-	HostJointsDetails
+	HostJointResourceDetails
 
 	SHoststorage
 
@@ -54,4 +51,10 @@ type HoststorageDetails struct {
 	StoragecacheId string `json:"storagecache_id"`
 
 	GuestDiskCount int `json:"guest_disk_count,allowempty"`
+}
+
+type HoststorageListInput struct {
+	HostJointsListInput
+
+	StorageFilterListInput
 }

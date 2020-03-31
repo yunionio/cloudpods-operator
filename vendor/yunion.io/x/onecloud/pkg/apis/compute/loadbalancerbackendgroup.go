@@ -18,8 +18,35 @@ import "yunion.io/x/onecloud/pkg/apis"
 
 type LoadbalancerBackendGroupDetails struct {
 	apis.VirtualResourceDetails
-	SLoadbalancerBackendGroup
+	LoadbalancerResourceInfo
 
-	Loadbalancer string `json:"loadbalancer"`
-	CloudregionInfo
+	SLoadbalancerBackendGroup
+}
+
+type LoadbalancerBackendGroupResourceInfo struct {
+	LoadbalancerResourceInfo
+
+	// 负载均衡后端组名称
+	BackendGroup string `json:"backend_group"`
+
+	// 负载均衡ID
+	LoadbalancerId string `json:"loadbalancer_id"`
+}
+
+type LoadbalancerBackendGroupResourceInput struct {
+	// 负载均衡后端组ID或名称
+	BackendGroup string `json:"backend_group"`
+
+	// swagger:ignore
+	// Deprecated
+	BackendGroupId string `json:"backend_group_id" deprecated-by:"backend_group"`
+}
+
+type LoadbalancerBackendGroupFilterListInput struct {
+	LoadbalancerFilterListInput
+
+	LoadbalancerBackendGroupResourceInput
+
+	// 以负载均衡后端组名称排序
+	OrderByBackendGroup string `json:"order_by_backend_group"`
 }

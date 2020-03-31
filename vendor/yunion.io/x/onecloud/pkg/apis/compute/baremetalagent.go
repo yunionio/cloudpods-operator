@@ -18,9 +18,29 @@ import "yunion.io/x/onecloud/pkg/apis"
 
 type BaremetalagentDetails struct {
 	apis.StandaloneResourceDetails
-	SBaremetalagent
+	ZoneResourceInfo
 
-	// 裸金属代理程序所在的可用区
-	// example: zone1
-	Zone string `json:"zone"`
+	SBaremetalagent
+}
+
+type BaremetalagentCreateInput struct {
+	apis.StandaloneResourceCreateInput
+
+	ZoneResourceInput
+
+	AccessIp   string `json:"access_ip"`
+	ManagerUri string `json:"manager_uri"`
+	AgentType  string `json:"agent_type"`
+	Version    string `json:"version"`
+}
+
+type BaremetalagentUpdateInput struct {
+	apis.StandaloneResourceBaseUpdateInput
+
+	ZoneResourceInput
+
+	AccessIp   string `json:"access_ip"`
+	ManagerUri string `json:"manager_uri"`
+	AgentType  string `json:"agent_type"`
+	Version    string `json:"version"`
 }

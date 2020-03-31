@@ -138,13 +138,30 @@ var (
 	SHARED_STORAGE = []string{STORAGE_NFS, STORAGE_GPFS, STORAGE_RBD}
 )
 
-type StorageFilterListInput struct {
-	// 过滤关联此存储（ID或Name）的列表结果
+type StorageResourceInput struct {
+	// 存储（ID或Name）
 	Storage string `json:"storage"`
 	// swagger:ignore
 	// Deprecated
 	// filter by storage_id
 	StorageId string `json:"storage_id" deprecated-by:"storage"`
+}
+
+type StorageFilterListInputBase struct {
+	StorageResourceInput
+
+	// 以存储名称排序
+	// pattern:asc|desc
+	OrderByStorage string `json:"order_by_storage"`
+}
+
+type StorageFilterListInput struct {
+	StorageFilterListInputBase
+
+	StorageShareFilterListInput
+
+	ZonalFilterListInput
+	ManagedResourceListInput
 }
 
 type StorageShareFilterListInput struct {
@@ -155,18 +172,12 @@ type StorageShareFilterListInput struct {
 }
 
 type StorageListInput struct {
-	apis.StandaloneResourceListInput
-	apis.DomainizedResourceListInput
+	apis.EnabledStatusInfrasResourceBaseListInput
+	apis.ExternalizedResourceBaseListInput
 
 	ManagedResourceListInput
 	ZonalFilterListInput
+
 	UsableResourceListInput
 	StorageShareFilterListInput
-}
-
-type StoragecacheListInput struct {
-	apis.StandaloneResourceListInput
-	apis.DomainizedResourceListInput
-
-	ManagedResourceListInput
 }

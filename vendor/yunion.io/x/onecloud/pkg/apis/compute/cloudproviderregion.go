@@ -17,10 +17,10 @@ package compute
 import "yunion.io/x/onecloud/pkg/apis"
 
 type CloudproviderregionDetails struct {
-	apis.JoinModelBaseDetails
+	apis.JointResourceBaseDetails
+	CloudregionResourceInfo
 
-	Cloudprovider string
-	Cloudregion   string
+	Cloudprovider string `json:"cloudprovider"`
 
 	// 云账号Id
 	// example: fa4aaf88-aed8-422d-84e7-56dea533b364
@@ -38,4 +38,18 @@ type CloudproviderregionDetails struct {
 	// 自动同步周期
 	// example: 300
 	SyncIntervalSeconds int `json:"sync_interval_seconds"`
+
+	// 支持服务列表
+	Capabilities []string `json:"capabilities"`
+}
+
+type CloudproviderregionListInput struct {
+	apis.JointResourceBaseListInput
+	SyncableBaseResourceListInput
+	RegionalFilterListInput
+	ManagedResourceListInput
+	CapabilityListInput
+
+	// 是否启用
+	Enabled *bool `json:"enabled"`
 }

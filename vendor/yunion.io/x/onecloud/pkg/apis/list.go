@@ -14,6 +14,54 @@
 
 package apis
 
+type ScopedResourceInput struct {
+	// 指定查询的权限范围，可能值为project, domain or system
+	Scope string `json:"scope"`
+}
+
+type DomainizedResourceListInput struct {
+	// swagger:ignore
+	// Is an admin call? equivalent to scope=system
+	// Deprecated
+	Admin *bool `json:"admin"`
+
+	ScopedResourceInput
+
+	DomainizedResourceInput
+
+	// 对具有域属性的资源，严格匹配域ID
+	ProjectDomains []string `json:"project_domains"`
+
+	// 按domain名称排序，可能值为asc|desc
+	// pattern: asc|desc
+	OrderByDomain string `json:"order_by_domain"`
+}
+
+type ProjectizedResourceListInput struct {
+	DomainizedResourceListInput
+
+	ProjectizedResourceInput
+
+	// 对具有项目属性的资源，严格匹配项目ID
+	Projects []string `json:"projects"`
+
+	// 按project名称排序，可能值为asc|desc
+	// pattern: asc|desc
+	OrderByProject string `json:"order_by_project"`
+	// swagger:ignore
+	// Deprecated
+	OrderByTenant string `json:"order_by_tenant" deprecated-by:"order_by_project"`
+}
+
+type UserResourceListInput struct {
+	// 查询指定的用户（ID或名称）拥有的资源
+	User string `json:"user"`
+	// swagger:ignore
+	// Deprecated
+	// Filter by userId
+	UserId string `json:"user_id" deprecated-by:"user"`
+}
+
 type ModelBaseListInput struct {
 	Meta
 
@@ -35,26 +83,26 @@ type ModelBaseListInput struct {
 	// 指定过滤条件，允许指定多个，每个条件的格式为"字段名称.操作符(匹配信息)"，例如name字段等于test的过滤器为：name.equals('test')
 	// 支持的操作符如下：
 	//
-	// | 操作符         | 参数个数 | 举例                                            | 说明                  ｜
-	// |---------------|---------|------------------------------------------------|-----------------------|
-	// | in            | > 0     | name.in("test", "good")                        | 在给定数组中            |
-	// | notin         | > 0     | name.notin('test')                             | 不在给定数组中          |
-	// | between       | 2       | created_at.between('2019-12-10', '2020-01-02') | 在两个值之间            |
-	// | ge            | 1       | created_at.ge('2020-01-01')                    | 大于或等于给定值         |
-	// | gt            | 1       | created_at.gt('2020-01-01')                    | 严格大于给定值           |
-	// | le            | 1       | created_at.le('2020-01-01')                    | 小于或等于给定值         |
-	// | lt            | 1       | sync_seconds.lt(900)                           | 严格大于给定值           |
-	// | like          | 1       | name.like('%test%')                            | sql字符串匹配            |
-	// | contains      | 1       | name.contains('test')                          | 包含给定字符串           |
-	// | startswith    | 1       | name.startswith('test')                        | 以给定字符串开头         |
-	// | endswith      | 1       | name.endswith('test')                          | 以给定字符串结尾          |
-	// | equals        | 1       | name.equals('test')                            | 等于给定值               |
-	// | notequals     | 1       | name.notequals('test')                         | 不等于给定值             |
-	// | isnull        | 0       | name.isnull()                                  | 值为SQL的NULL           |
-	// | isnotnull     | 0       | name.isnotnull()                               | 值不为SQL的NULL         |
-	// | isempty       | 0       | name.isempty('test')                           | 值为空字符串             |
-	// | isnotempty    | 0       | name.isnotempty('test')                        | 值不是空字符串           |
-	// | isnullorempty | 0       | name.isnullorempty('test')                     | 值为SQL的NULL或者空字符串 |
+	// | 操作符        | 参数个数 | 举例                                           | 说明                        |
+	// |---------------|----------|------------------------------------------------|-----------------------------|
+	// | in            | > 0      | name.in("test", "good")                        | 在给定数组中                |
+	// | notin         | > 0      | name.notin('test')                             | 不在给定数组中              |
+	// | between       | 2        | created_at.between('2019-12-10', '2020-01-02') | 在两个值之间                |
+	// | ge            | 1        | created_at.ge('2020-01-01')                    | 大于或等于给定值            |
+	// | gt            | 1        | created_at.gt('2020-01-01')                    | 严格大于给定值              |
+	// | le            | 1        | created_at.le('2020-01-01')                    | 小于或等于给定值            |
+	// | lt            | 1        | sync_seconds.lt(900)                           | 严格大于给定值              |
+	// | like          | > 0      | name.like('%test%')                            | sql字符串匹配任意一个字符串 |
+	// | contains      | > 0      | name.contains('test')                          | 包含任意一个给定字符串      |
+	// | startswith    | > 0      | name.startswith('test')                        | 以任意一个给定字符串开头    |
+	// | endswith      | > 0      | name.endswith('test')                          | 以任意一个给定字符串结尾    |
+	// | equals        | > 0      | name.equals('test')                            | 等于任意一个给定值          |
+	// | notequals     | 1        | name.notequals('test')                         | 不等于给定值                |
+	// | isnull        | 0        | name.isnull()                                  | 值为SQL的NULL               |
+	// | isnotnull     | 0        | name.isnotnull()                               | 值不为SQL的NULL             |
+	// | isempty       | 0        | name.isempty('test')                           | 值为空字符串                |
+	// | isnotempty    | 0        | name.isnotempty('test')                        | 值不是空字符串              |
+	// | isnullorempty | 0        | name.isnullorempty('test')                     | 值为SQL的NULL或者空字符串   |
 	//
 	Filter []string `json:"filter"`
 	// 指定关联过滤条件，允许指定多个，后端将根据关联过滤条件和其他表关联查询，支持的查询语法和filter相同，
@@ -71,6 +119,8 @@ type ModelBaseListInput struct {
 	Field []string `json:"field"`
 	// 用于数据导出，指定导出的数据字段
 	ExportKeys string `json:"export_keys"`
+	// 返回结果携带delete_fail_reason和update_fail_reason字段
+	ShowFailReason *bool `json:"show_fail_reason"`
 }
 
 type IncrementalListInput struct {
@@ -80,7 +130,6 @@ type IncrementalListInput struct {
 
 type VirtualResourceListInput struct {
 	StatusStandaloneResourceListInput
-
 	ProjectizedResourceListInput
 
 	// 列表中包含标记为"系统资源"的资源
@@ -96,14 +145,9 @@ type ResourceBaseListInput struct {
 	ModelBaseListInput
 }
 
-type SharableResourceListInput struct {
-	// 根据资源是否共享过滤列表
-	IsPublic *bool `json:"is_public"`
-}
-
 type SharableVirtualResourceListInput struct {
 	VirtualResourceListInput
-
+	SharableResourceBaseListInput
 	// 根据资源的共享范围过滤列表，可能值为：system, domain, project
 	PublicScope string `json:"public_scope"`
 }
@@ -124,10 +168,15 @@ type StandaloneResourceListInput struct {
 
 	// 通过标签过滤
 	Tags []STag `json:"tags"`
+
+	// 通过标签过滤
+	OrderByTag string `json:"order_by_tag"`
+
 	// 返回资源的标签不包含特定的用户标签
 	WithoutUserMeta bool `json:"without_user_meta"`
 	// 返回列表数据中包含资源的标签数据（Metadata）
 	WithMeta *bool `json:"with_meta"`
+
 	// 显示所有的资源，包括模拟的资源
 	ShowEmulated *bool `json:"show_emulated"`
 
@@ -137,16 +186,81 @@ type StandaloneResourceListInput struct {
 	Ids []string `json:"id"`
 }
 
-type StatusStandaloneResourceListInput struct {
-	StandaloneResourceListInput
-
+type StatusResourceBaseListInput struct {
 	// 以资源的状态过滤列表
 	Status []string `json:"status"`
 }
 
-type EnabledStatusStandaloneResourceListInput struct {
-	StatusStandaloneResourceListInput
-
+type EnabledResourceBaseListInput struct {
 	// 以资源是否启用/禁用过滤列表
 	Enabled *bool `json:"enabled"`
+}
+
+type SharableResourceBaseListInput struct {
+	// 以资源是否共享过滤列表
+	IsPublic *bool `json:"is_public"`
+	// 根据资源的共享范围过滤列表，可能值为：system, domain, project
+	PublicScope string `json:"public_scope"`
+}
+
+type DomainLevelResourceListInput struct {
+	StandaloneResourceListInput
+	DomainizedResourceListInput
+}
+
+type StatusStandaloneResourceListInput struct {
+	StandaloneResourceListInput
+	StatusResourceBaseListInput
+}
+
+type EnabledStatusStandaloneResourceListInput struct {
+	StatusStandaloneResourceListInput
+	EnabledResourceBaseListInput
+}
+
+type StatusDomainLevelResourceListInput struct {
+	DomainLevelResourceListInput
+	StatusResourceBaseListInput
+}
+
+type EnabledStatusDomainLevelResourceListInput struct {
+	StatusDomainLevelResourceListInput
+	EnabledResourceBaseListInput
+}
+
+type JointResourceBaseListInput struct {
+	ResourceBaseListInput
+}
+
+type VirtualJointResourceBaseListInput struct {
+	JointResourceBaseListInput
+}
+
+type ExternalizedResourceBaseListInput struct {
+	// 以资源外部ID过滤
+	ExternalId string `json:"external_id"`
+}
+
+type DeletePreventableResourceBaseListInput struct {
+	// 是否禁止删除
+	DisableDelete *bool `json:"disable_delete"`
+}
+
+type ScopedResourceBaseListInput struct {
+	ProjectizedResourceListInput
+}
+
+type InfrasResourceBaseListInput struct {
+	DomainLevelResourceListInput
+	SharableResourceBaseListInput
+}
+
+type StatusInfrasResourceBaseListInput struct {
+	InfrasResourceBaseListInput
+	StatusResourceBaseListInput
+}
+
+type EnabledStatusInfrasResourceBaseListInput struct {
+	StatusInfrasResourceBaseListInput
+	EnabledResourceBaseListInput
 }

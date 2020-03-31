@@ -14,13 +14,16 @@
 
 package compute
 
-import "yunion.io/x/onecloud/pkg/apis"
-
 type NetworkschedtagDetails struct {
-	apis.JoinModelBaseDetails
+	SchedtagJointResourceDetails
+
 	SNetworkschedtag
 
 	// IP子网名称
-	Network  string `json:"network"`
-	Schedtag string `json:"schedtag"`
+	Network string `json:"network"`
+}
+
+type NetworkschedtagListInput struct {
+	SchedtagJointsListInput
+	NetworkFilterListInput
 }

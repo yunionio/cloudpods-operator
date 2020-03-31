@@ -17,7 +17,11 @@ package compute
 import "yunion.io/x/onecloud/pkg/apis"
 
 type DBInstanceSkuDetails struct {
-	apis.StandaloneResourceDetails
+	apis.EnabledStatusStandaloneResourceDetails
+	CloudregionResourceInfo
 
-	CloudregionInfo
+	SDBInstanceSku
+	Zone1Name string `json:"zone1_name"`
+	Zone2Name string `json:"zone2_name"`
+	Zone3Name string `json:"zone3_name"`
 }

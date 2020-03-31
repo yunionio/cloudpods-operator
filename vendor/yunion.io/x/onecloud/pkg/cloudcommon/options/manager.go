@@ -18,6 +18,7 @@ import (
 	"reflect"
 	"time"
 
+	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
 
 	"yunion.io/x/onecloud/pkg/appsrv"
@@ -78,13 +79,33 @@ func copyOptions(dst, src interface{}) {
 	dstValue.Set(reflect.ValueOf(src).Elem())
 }
 
+func optionsEquals(newOpts interface{}, oldOpts interface{}) bool {
+	newOptsDict := jsonutils.Marshal(newOpts).(*jsonutils.JSONDict)
+	oldOptsDict := jsonutils.Marshal(oldOpts).(*jsonutils.JSONDict)
+
+	deleted, diff, _, added := jsonutils.Diff(oldOptsDict, newOptsDict)
+
+	if deleted.Length() > 0 {
+		log.Infof("Options removed: %s", deleted)
+		return false
+	}
+	if diff.Length() > 0 {
+		log.Infof("Options changed: %s", diff)
+		return false
+	}
+	if added.Length() > 0 {
+		log.Infof("Options added: %s", added)
+		return false
+	}
+	return true
+}
+
 func (manager *SOptionManager) doSync(first bool) {
 	newOpts := manager.newOptions()
 	copyOptions(newOpts, manager.options)
 	merged := manager.session.Merge(newOpts, manager.serviceType, manager.serviceVersion)
 
-	if merged && !reflect.DeepEqual(newOpts, manager.options) {
-		log.Infof("Service config changed ...")
+	if merged && !optionsEquals(newOpts, manager.options) {
 		if manager.onOptionsChange != nil && manager.onOptionsChange(manager.options, newOpts) && !first {
 			log.Infof("Option changes detected and going to restart the program...")
 			appsrv.SetExitFlag()

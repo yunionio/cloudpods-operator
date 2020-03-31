@@ -12,19 +12,17 @@ require (
 	github.com/pkg/errors v0.8.1
 	github.com/spf13/pflag v1.0.3 // indirect
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
-	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
 	k8s.io/api v0.17.3
 	k8s.io/apiextensions-apiserver v0.0.0
 	k8s.io/apimachinery v0.17.3
 	k8s.io/client-go v9.0.0+incompatible
-	k8s.io/code-generator v0.15.12-beta.0 // indirect
 	k8s.io/klog v0.3.3
 	k8s.io/kube-openapi v0.0.0-20190603182131-db7b694dc208 // indirect
 	k8s.io/kubernetes v1.16.0
 	k8s.io/utils v0.0.0-20190607212802-c55fbcfc754a // indirect
-	yunion.io/x/jsonutils v0.0.0-20200324102731-ecaf3132aad8
+	yunion.io/x/jsonutils v0.0.0-20200330063846-589d9924bb8b
 	yunion.io/x/log v0.0.0-20200313080802-57a4ce5966b3
-	yunion.io/x/onecloud v0.0.0-20200328022933-d58e8f3b67c3
+	yunion.io/x/onecloud v0.0.0-20200331084538-4a796f066a93
 	yunion.io/x/pkg v0.0.0-20200312093207-f07f4cb157e0
 	yunion.io/x/structarg v0.0.0-20190809075558-115bed041de3
 )

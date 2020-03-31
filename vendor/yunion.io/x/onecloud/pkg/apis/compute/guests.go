@@ -20,32 +20,20 @@ import (
 	"yunion.io/x/jsonutils"
 
 	"yunion.io/x/onecloud/pkg/apis"
+	"yunion.io/x/onecloud/pkg/apis/billing"
 )
-
-type ServerFilterListInput struct {
-	// 以关联主机（ID或Name）过滤列表
-	Server string `json:"server"`
-	// swagger:ignore
-	// Deprecated
-	// Filter by guest Id
-	ServerId string `json:"server_id" deprecated-by:"server"`
-	// swagger:ignore
-	// Deprecated
-	// Filter by guest Id
-	Guest string `json:"guest" deprecated-by:"server"`
-	// swagger:ignore
-	// Deprecated
-	// Filter by guest Id
-	GuestId string `json:"guest_id" deprecated-by:"server"`
-}
 
 type ServerListInput struct {
 	apis.VirtualResourceListInput
+	apis.ExternalizedResourceBaseListInput
+	apis.DeletePreventableResourceBaseListInput
 
-	ManagedResourceListInput
 	HostFilterListInput
+
 	NetworkFilterListInput
-	BillingFilterListInput
+
+	billing.BillingResourceListInput
+
 	GroupFilterListInput
 	SecgroupFilterListInput
 	DiskFilterListInput
@@ -65,13 +53,12 @@ type ServerListInput struct {
 	WithoutEip *bool `json:"without_eip"`
 	// 列出操作系统为指定值的主机
 	// enum: linux,windows,vmware
-	OsType string `json:"os_type"`
+	OsType []string `json:"os_type"`
+
 	// 对列表结果按照磁盘进行排序
 	// enum: asc,desc
-	OrderByDisk string `json:"order_by_disk"`
-	// 对主机列表结果按照宿主机名称进行排序
-	// enum: asc,desc
-	OrderByHost string `json:"order_by_host"`
+	// OrderByDisk string `json:"order_by_disk"`
+
 	// 列出可以挂载指定EIP的主机
 	UsableServerForEip string `json:"usable_server_for_eip"`
 
@@ -80,8 +67,29 @@ type ServerListInput struct {
 	ResourceType string `json:"resource_type"`
 	// 返回开启主备机功能的主机
 	GetBackupGuestsOnHost *bool `json:"get_backup_guests_on_host"`
+
 	// 根据宿主机 SN 过滤
-	HostSn string `json:"host_sn"`
+	// HostSn string `json:"host_sn"`
+
+	VcpuCount []int `json:"vcpu_count"`
+
+	VmemSize []int `json:"vmem_size"`
+
+	BootOrder []string `json:"boot_order"`
+
+	Vga []string `json:"vga"`
+
+	Vdi []string `json:"vdi"`
+
+	Machine []string `json:"machine"`
+
+	Bios []string `json:"bios"`
+
+	SrcIpCheck *bool `json:"src_ip_check"`
+
+	SrcMacCheck *bool `json:"src_mac_check"`
+
+	InstanceType []string `json:"instance_type"`
 }
 
 func (input *ServerListInput) AfterUnmarshal() {
@@ -132,14 +140,17 @@ type ServerResumeInput struct {
 
 type ServerDetails struct {
 	apis.VirtualResourceDetails
+
 	SGuest
-	CloudproviderInfo
+
+	HostResourceInfo
 
 	// details
 	// 网络概要
 	Networks string `json:"networks"`
 	// 磁盘概要
 	Disks string `json:"disks"`
+
 	// 磁盘详情
 	DisksInfo *jsonutils.JSONArray `json:"disks_info"`
 	// 虚拟机Ip列表
@@ -159,21 +170,127 @@ type ServerDetails struct {
 	// common
 	IsPrepaidRecycle bool `json:"is_prepaid_recycle"`
 
-	// 备机所在宿主机名称
+	// 备份主机所在宿主机名称
 	BackupHostName string `json:"backup_host_name"`
-	// 北京所在宿主机状态
+	// 备份主机所在宿主机状态
 	BackupHostStatus string `json:"backup_host_status"`
-	// 宿主机名称
-	Host string `json:"host"`
-	// 宿主机SN
-	HostSN     string `json:"host_sn"`
-	CanRecycle bool   `json:"can_recycle"`
+
+	// 是否可以回收
+	CanRecycle bool `json:"can_recycle"`
+
 	// 自动释放时间
 	AutoDeleteAt time.Time `json:"auto_delete_at"`
-	// 标签
-	Metadata map[string]string `json:"metadata"`
 	// 磁盘数量
 	DiskCount int `json:"disk_count"`
 	// 是否支持ISO启动
 	CdromSupport bool `json:"cdrom_support"`
+
+	// 磁盘大小
+	// example:30720
+	DiskSizeMb int64 `json:"disk"`
+	// IP地址列表字符串
+	// example: 10.165.2.1,172.16.8.1
+	IPs string `json:"ips"`
+	// 网卡信息
+	Nics []GuestnetworkShortDesc `json:"nics"`
+
+	// 归属VPC
+	Vpc string `json:"vpc"`
+	// 归属VPC ID
+	VpcId string `json:"vpc_id"`
+
+	// 关联安全组列表
+	Secgroups []apis.StandaloneShortDesc `json:"secgroups"`
+	// 关联主安全组
+	Secgroup string `json:"secgroup"`
+
+	// 浮动IP
+	Eip string `json:"eip"`
+	// 浮动IP类型
+	EipMode string `json:"eip_mode"`
+
+	// 密钥对
+	Keypair string `json:"keypair"`
+
+	// 直通设备（GPU）列表
+	IsolatedDevices []SIsolatedDevice `json:"isolated_devices"`
+	// 是否支持GPU
+	IsGpu bool `json:"is_gpu"`
+
+	// Cdrom信息
+	Cdrom string `json:"cdrom,allowempty"`
+}
+
+type GuestJointResourceDetails struct {
+	apis.VirtualJointResourceBaseDetails
+
+	// 云主机名称
+	Guest string `json:"guest"`
+	// 云主机名称
+	Server string `json:"server"`
+}
+
+type GuestJointsListInput struct {
+	apis.VirtualJointResourceBaseListInput
+
+	ServerFilterListInput
+}
+
+type GuestResourceInfo struct {
+	// 虚拟机名称
+	Guest string `json:"guest"`
+
+	// 虚拟机状态
+	GuestStatus string `json:"guest_status"`
+
+	// 宿主机ID
+	HostId string `json:"host_id"`
+
+	HostResourceInfo
+}
+
+type ServerResourceInput struct {
+	// 主机（ID或Name）
+	Server string `json:"server"`
+	// swagger:ignore
+	// Deprecated
+	// Filter by guest Id
+	ServerId string `json:"server_id" deprecated-by:"server"`
+	// swagger:ignore
+	// Deprecated
+	// Filter by guest Id
+	Guest string `json:"guest" deprecated-by:"server"`
+	// swagger:ignore
+	// Deprecated
+	// Filter by guest Id
+	GuestId string `json:"guest_id" deprecated-by:"server"`
+}
+
+type ServerFilterListInput struct {
+	HostFilterListInput
+
+	ServerResourceInput
+
+	// 以主机名称排序
+	OrderByServer string `json:"order_by_server"`
+}
+
+type GuestJointBaseUpdateInput struct {
+	apis.VirtualJointResourceBaseUpdateInput
+}
+
+type GuestPublicipToEipInput struct {
+	// 转换完成后是否自动启动
+	// default: false
+	AutoStart bool `json:"auto_start"`
+}
+
+type GuestAutoRenewInput struct {
+
+	// 设置自动续费
+	// default: false
+	// 自动续费分为本地和云上两种模式
+	// 若公有云本身支持自动续费功能, 则使用云上设置
+	// 若公有云本身不支持自动续费, 则在本地周期(默认三小时)检查快过期虚拟机并进行续费一个月
+	AutoRenew bool `json:"auto_renew"`
 }
