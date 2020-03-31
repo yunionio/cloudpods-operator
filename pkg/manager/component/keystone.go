@@ -72,6 +72,8 @@ func (m *keystoneManager) getConfigMap(oc *v1alpha1.OnecloudCluster, clusterCfg 
 	SetServiceBaseOptions(&opt.BaseOptions, oc.Spec.Region, config.ServiceBaseConfig)
 
 	opt.BootstrapAdminUserPassword = oc.Spec.Keystone.BootstrapPassword
+	// always reset admin user password to ensure password is correct
+	opt.ResetAdminUserPassword = true
 	opt.AdminPort = constants.KeystoneAdminPort
 	opt.Port = constants.KeystonePublicPort
 
@@ -91,7 +93,7 @@ func (m *keystoneManager) getDeployment(oc *v1alpha1.OnecloudCluster, _ *v1alpha
 					"--config",
 					"/etc/yunion/keystone.conf",
 					"--auto-sync-table",
-					"--reset-admin-user-password",
+					// "--reset-admin-user-password",
 					"--exit-after-db-init",
 				},
 				VolumeMounts: volMounts,
