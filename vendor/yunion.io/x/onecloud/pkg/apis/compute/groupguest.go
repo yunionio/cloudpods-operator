@@ -18,12 +18,31 @@ import (
 	"yunion.io/x/onecloud/pkg/apis"
 )
 
-type GroupguestDetails struct {
-	apis.JoinModelBaseDetails
+type GroupJointResourceDetails struct {
+	apis.VirtualJointResourceBaseDetails
 
-	Instancegroup string
-	Server        string
-	Guest         string
+	// 主机组的名称
+	Instancegroup string `json:"instance_group"`
+}
+
+type GroupJointsListInput struct {
+	apis.VirtualJointResourceBaseListInput
+	GroupFilterListInput
+}
+
+type GroupguestDetails struct {
+	GroupJointResourceDetails
+
+	Server string
+	Guest  string
 
 	SGroupguest
+}
+
+type GroupguestListInput struct {
+	GroupJointsListInput
+	ServerFilterListInput
+
+	// 标签
+	Tag []string `json:"tag"`
 }

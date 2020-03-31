@@ -17,11 +17,21 @@ package compute
 import "yunion.io/x/onecloud/pkg/apis"
 
 type LoadbalancernetworkDetails struct {
-	apis.JoinModelBaseDetails
+	apis.VirtualJointResourceBaseDetails
+
 	SLoadbalancerNetwork
 
 	// 负载均衡器名称
 	Loadbalancer string `json:"loadbalancer"`
 	// IP子网名称
 	Network string `json:"network"`
+}
+
+type LoadbalancernetworkListInput struct {
+	apis.VirtualJointResourceBaseListInput
+
+	LoadbalancerFilterListInput
+	NetworkFilterListInput
+
+	IpAddr []string `json:"ip_addr"`
 }

@@ -18,12 +18,18 @@ import "yunion.io/x/onecloud/pkg/apis"
 
 type SnapshotPolicyDetails struct {
 	apis.VirtualResourceDetails
-	//SSnapshotPolicy
-	apis.SVirtualResourceBase
+
+	SSnapshotPolicy
+
 	RetentionDays  int   `json:"retention_days"`
 	RepeatWeekdays []int `json:"repeat_weekdays"`
 	TimePoints     []int `json:"time_points"`
 	IsActivated    *bool `json:"is_activated,omitempty"`
 
 	BindingDiskCount int `json:"binding_disk_count"`
+}
+
+type SnapshotPolicyResourceInfo struct {
+	// 快照策略名称
+	Snapshotpolicy string `json:"snapshotpolicy"`
 }

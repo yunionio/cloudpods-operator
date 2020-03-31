@@ -39,7 +39,8 @@ const (
 )
 
 type NatGetewayListInput struct {
-	apis.StandaloneResourceListInput
+	apis.StatusInfrasResourceBaseListInput
+	apis.ExternalizedResourceBaseListInput
 
 	VpcFilterListInput
 	RegionalFilterListInput
@@ -47,23 +48,66 @@ type NatGetewayListInput struct {
 }
 
 type NatEntryListInput struct {
-	apis.StandaloneResourceListInput
-
+	apis.StatusInfrasResourceBaseListInput
+	apis.ExternalizedResourceBaseListInput
+	NatGatewayFilterListInput
 	ManagedResourceListInput
 }
 
 type NatDEntryListInput struct {
 	NatEntryListInput
 
-	// filter by natgateway
-	Natgateway string `json:"natgateway"`
+	ExternalIP   []string `json:"external_ip"`
+	ExternalPort []int    `json:"external_port"`
+
+	InternalIP   []string `json:"internal_ip"`
+	InternalPort []int    `json:"internal_port"`
+	IpProtocol   []string `json:"ip_protocol"`
 }
 
 type NatSEntryListInput struct {
 	NatEntryListInput
+	NetworkFilterListBase
 
-	// filter by natgateway
+	IP         []string `json:"ip"`
+	SourceCIDR []string `json:"source_cidr"`
+}
+
+type NatGatewayResourceInfo struct {
+	// NAT网关名称
 	Natgateway string `json:"natgateway"`
-	// filter by network
-	Network string `json:"network"`
+
+	// 归属VPC ID
+	VpcId string `json:"vpc_id"`
+
+	VpcResourceInfo
+}
+
+type NatGatewayResourceInput struct {
+	// NAT网关ID or Name
+	Natgateway string `json:"natgateway"`
+
+	// swagger:ignore
+	// Deprecated
+	NatgatewayId string `json:"natgateway_id" deprecated-by:"natgateway"`
+}
+
+type NatGatewayFilterListInput struct {
+	NatGatewayResourceInput
+
+	// 以NAT网关名字排序
+	OrderByNatgateway string `json:"order_by_natgateway"`
+
+	VpcFilterListInput
+}
+
+type NatEntryDetails struct {
+	apis.StatusInfrasResourceBaseDetails
+	NatGatewayResourceInfo
+
+	// NAT ENTRY的真实名称？？
+	RealName string `json:"real_name"`
+}
+
+type NatGatewaySyncstatusInput struct {
 }

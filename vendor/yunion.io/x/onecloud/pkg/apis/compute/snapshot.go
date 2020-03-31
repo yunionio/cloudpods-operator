@@ -69,8 +69,11 @@ type SSnapshotPolicyCreateInternalInput struct {
 
 type SnapshotListInput struct {
 	apis.VirtualResourceListInput
+	apis.ExternalizedResourceBaseListInput
 
 	ManagedResourceListInput
+	RegionalFilterListInput
+
 	StorageShareFilterListInput
 
 	// filter snapshot that is fake deleted
@@ -79,19 +82,20 @@ type SnapshotListInput struct {
 	DiskType string `json:"disk_type"`
 	// filter instance snapshot
 	IsInstanceSnapshot *bool `json:"is_instance_snapshot"`
-}
 
-type InstanceSnapshotListInput struct {
-	apis.VirtualResourceListInput
+	DiskFilterListInputBase
+	StorageFilterListInputBase
 
-	ServerFilterListInput
+	OutOfChain *bool    `json:"out_of_chain"`
+	OsType     []string `json:"os_type"`
 }
 
 type SnapshotDetails struct {
 	apis.VirtualResourceDetails
-	SSnapshot
+	ManagedResourceInfo
+	CloudregionResourceInfo
 
-	CloudproviderInfo
+	SSnapshot
 
 	// 存储类型
 	StorageType string `json:"storage_type"`
@@ -107,4 +111,7 @@ type SnapshotDetails struct {
 	DiskName string `json:"disk_name"`
 	// 是否是子快照
 	IsSubSnapshot bool `json:"is_sub_snapshot,allowempty"`
+}
+
+type SnapshotSyncstatusInput struct {
 }

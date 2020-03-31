@@ -42,6 +42,9 @@ type ComputeOptions struct {
 	PrepaidExpireCheckSeconds       int  `default:"600" help:"How long to wait to scan expired prepaid VM or disks, default is 10 minutes"`
 	ExpiredPrepaidMaxCleanBatchSize int  `default:"50" help:"How many expired prepaid servers can be deleted in a batch"`
 
+	PrepaidAutoRenew      bool `default:"true" help:"auto renew prepaid servers when server's auto_renew attr is true"`
+	PrepaidAutoRenewHours int  `default:"3" help:"How long to wait to scan which need renew prepaid VMs, default is 3 hours"`
+
 	LoadbalancerPendingDeleteCheckInterval int `default:"3600" help:"Interval between checks of pending deleted loadbalancer objects, defaults to 1h"`
 
 	ImageCacheStoragePolicy string `default:"least_used" choices:"best_fit|least_used" help:"Policy to choose storage for image cache, best_fit or least_used"`
@@ -114,7 +117,7 @@ type ComputeOptions struct {
 
 	NameSyncResources []string `help:"resources that need synchronization of name"`
 
-	SyncPurgeRemovedResources []string `help:"resources that shoud be purged immediately if found removed"`
+	SyncPurgeRemovedResources []string `help:"resources that shoud be purged immediately if found removed" default:"server"`
 
 	DisconnectedCloudAccountRetryProbeIntervalHours int `help:"interval to wait to probe status of a disconnected cloud account" default:"24"`
 

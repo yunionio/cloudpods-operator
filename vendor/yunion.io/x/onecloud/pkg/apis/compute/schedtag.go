@@ -39,7 +39,7 @@ type SchedtagCreateInput struct {
 	ResourceType string `json:"resource_type"`
 }
 
-type SchedtagFilterListInput struct {
+type SchedtagResourceInput struct {
 	// 以关联的调度标签（ID或Name）过滤列表
 	Schedtag string `json:"schedtag"`
 	// swagger:ignore
@@ -48,8 +48,21 @@ type SchedtagFilterListInput struct {
 	SchedtagId string `json:"schedtag_id" deprecated-by:"schedtag"`
 }
 
+type SchedtagFilterListInput struct {
+	SchedtagResourceInput
+
+	// 按调度标签名称排序
+	// pattern:asc|desc
+	OrderBySchedtag string `json:"order_by_schedtag"`
+
+	// 按调度标签资源类型排序
+	// pattern:asc|desc
+	OrderByResourceType string `json:"order_by_resource_type"`
+}
+
 type SchedtagListInput struct {
 	apis.StandaloneResourceListInput
+	apis.ScopedResourceBaseListInput
 
 	// fitler by resource_type
 	ResourceType string `json:"resource_type"`
@@ -57,17 +70,45 @@ type SchedtagListInput struct {
 	// Deprecated
 	// filter by type, alias for resource_type
 	Type string `json:"type" deprecated-by:"resource_type"`
+
+	DefaultStrategy []string `json:"default_strategy"`
 }
 
 type SchedtagDetails struct {
 	apis.StandaloneResourceDetails
+	apis.ScopedResourceBaseInfo
+
 	SSchedtag
 
-	DynamicSchedtagCount int    `json:"dynamic_schedtag_count"`
-	SchedpolicyCount     int    `json:"schedpolicy_count"`
-	ProjectId            string `json:"project_id"`
-	HostCount            int    `json:"host_count"`
-	ServerCount          int    `json:"server_count"`
-	OtherCount           int    `json:"other_count"`
-	JoinModelKeyword     string `json:"join_model_keyword"`
+	DynamicSchedtagCount int `json:"dynamic_schedtag_count"`
+	SchedpolicyCount     int `json:"schedpolicy_count"`
+	// ProjectId            string `json:"project_id"`
+	HostCount        int    `json:"host_count"`
+	ServerCount      int    `json:"server_count"`
+	OtherCount       int    `json:"other_count"`
+	JoinModelKeyword string `json:"join_model_keyword"`
+}
+
+type SchedtagResourceInfo struct {
+
+	// 调度标签名称
+	Schedtag string `json:"schedtag"`
+
+	// 调度标签管理的资源类型
+	ResourceType string `json:"resource_type"`
+}
+
+type SchedtagJointResourceDetails struct {
+	apis.JointResourceBaseDetails
+
+	// 调度标签名称
+	Schedtag string `json:"schedtag"`
+
+	// 调度标签管理的资源类型
+	ResourceType string `json:"resource_type"`
+}
+
+type SchedtagJointsListInput struct {
+	apis.JointResourceBaseListInput
+	SchedtagFilterListInput
 }

@@ -18,11 +18,8 @@ import (
 	"yunion.io/x/onecloud/pkg/apis"
 )
 
-type RegionalFilterListInput struct {
-	// 过滤位于指定城市区域的资源
-	City string `json:"city"`
-
-	// 过滤处于指定区域内的资源
+type CloudregionResourceInput struct {
+	// 区域名称或ID
 	Cloudregion string `json:"cloudregion"`
 	// swagger:ignore
 	// Deprecated
@@ -38,17 +35,33 @@ type RegionalFilterListInput struct {
 	RegionId string `json:"region_id" deprecated-by:"cloudregion"`
 }
 
+type RegionalFilterListInput struct {
+	// 过滤位于指定城市区域的资源
+	City string `json:"city"`
+
+	CloudregionResourceInput
+
+	// 按区域名称过滤
+	OrderByRegion string `json:"order_by_region"`
+	// 按城市过滤
+	OrderByCity string `json:"order_by_city"`
+}
+
 type ZonalFilterListInput struct {
 	RegionalFilterListInput
 
-	// 过滤处于指定可用区内的资源
-	Zone string `json:"zone"`
-	// swagger:ignore
-	// Deprecated
-	// filter by zone_id
-	ZoneId string `json:"zone_id" deprecated-by:"zone"`
+	ZonalFilterListBase
+}
+
+type ZonalFilterListBase struct {
+	ZoneResourceInput
+
 	// 过滤处于多个指定可用区内的资源
 	Zones []string `json:"zones"`
+
+	// 按可用区名称排序
+	// pattern:asc|desc
+	OrderByZone string `json:"order_by_zone"`
 }
 
 func (input ZonalFilterListInput) ZoneList() []string {
@@ -59,34 +72,29 @@ func (input ZonalFilterListInput) ZoneList() []string {
 	return input.Zones
 }
 
-type HostFilterListInput struct {
-	ZonalFilterListInput
-
-	// 过滤关联指定宿主机（ID或Name）的列表结果
-	Host string `json:"host"`
-	// swagger:ignore
-	// Deprecated
-	// filter by host_id
-	HostId string `json:"host_id" deprecated-by:"host"`
-}
-
 type CloudregionListInput struct {
 	apis.EnabledStatusStandaloneResourceListInput
+	apis.ExternalizedResourceBaseListInput
 	apis.DomainizedResourceListInput
 
 	ManagedResourceListInput
 	UsableResourceListInput
 	UsableVpcResourceListInput
 
+	CapabilityListInput
+
 	// 过滤位于指定城市的区域
 	City string `json:"city"`
 	// 过滤提供特定服务的区域
 	Service string `json:"service"`
+
+	// 云环境
+	Environment []string `json:"environment"`
 }
 
 type ZoneListInput struct {
 	apis.StatusStandaloneResourceListInput
-	apis.DomainizedResourceListInput
+	apis.ExternalizedResourceBaseListInput
 
 	ManagedResourceListInput
 
@@ -97,4 +105,17 @@ type ZoneListInput struct {
 
 	// 过滤提供特定服务的可用区
 	Service string `json:"service"`
+
+	Location []string `json:"location"`
+	Contacts []string `json:"contacts"`
+}
+
+type ZoneResourceInput struct {
+	// 可用区ID或名称
+	// example:zone1
+	Zone string `json:"zone"`
+
+	// swagger:ignore
+	// Deprecated
+	ZoneId string `json:"zone_id" deprecated-by:"zone"`
 }

@@ -17,8 +17,9 @@ package compute
 import "yunion.io/x/onecloud/pkg/apis"
 
 type SnapshotPolicyCacheDetails struct {
-	apis.StandaloneResourceDetails
+	apis.StatusStandaloneResourceDetails
+	ManagedResourceInfo
+	CloudregionResourceInfo
+	SnapshotPolicyResourceInfo
 	SSnapshotPolicyCache
-
-	CloudproviderInfo
 }

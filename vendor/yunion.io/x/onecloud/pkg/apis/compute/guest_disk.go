@@ -14,16 +14,11 @@
 
 package compute
 
-import "yunion.io/x/onecloud/pkg/apis"
-
 type GuestDiskDetails struct {
-	apis.JoinModelBaseDetails
+	GuestJointResourceDetails
+
 	SGuestdisk
 
-	// 云主机名称
-	Guest string
-	// 云主机名称
-	Server string
 	// 磁盘名称
 	Disk string
 
@@ -42,4 +37,32 @@ type GuestDiskDetails struct {
 	// 介质类型
 	// example: ssd
 	MediumType string `json:"medium_type"`
+}
+
+type GuestdiskListInput struct {
+	GuestJointsListInput
+
+	DiskFilterListInput
+
+	Driver []string `json:"driver"`
+
+	CacheMode []string `json:"cache_mode"`
+
+	AioMode []string `json:"aio_mode"`
+}
+
+type GuestdiskUpdateInput struct {
+	GuestJointBaseUpdateInput
+
+	Driver string `json:"driver"`
+
+	CacheMode string `json:"cache_mode"`
+
+	AioMode string `json:"aio_mode"`
+
+	Iops *int `json:"iops"`
+
+	Bps *int `json:"bps"`
+
+	Index *int8 `json:"index"`
 }

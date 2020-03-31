@@ -24,7 +24,6 @@ import (
 
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/util/billing"
-	"yunion.io/x/onecloud/pkg/util/rbacutils"
 )
 
 type ICloudResource interface {
@@ -50,6 +49,8 @@ type IBillingResource interface {
 	GetBillingType() string
 	GetCreatedAt() time.Time
 	GetExpiredAt() time.Time
+	SetAutoRenew(autoRenew bool) error
+	IsAutoRenew() bool
 }
 
 type ICloudRegion interface {
@@ -136,6 +137,10 @@ type ICloudRegion interface {
 	GetProvider() string
 
 	GetICloudEvents(start time.Time, end time.Time, withReadEvent bool) ([]ICloudEvent, error) //获取公有云操作日志接口
+
+	GetCapabilities() []string
+
+	GetICloudQuotas() ([]ICloudQuota, error)
 }
 
 type ICloudZone interface {
@@ -246,6 +251,8 @@ type ICloudHost interface {
 type ICloudVM interface {
 	IBillingResource
 	IVirtualResource
+
+	ConvertPublicIpToEip() error
 
 	GetIHost() ICloudHost
 	GetIHostId() string
@@ -456,8 +463,8 @@ type ICloudNetwork interface {
 	GetIpMask() int8
 	GetGateway() string
 	GetServerType() string
-	GetIsPublic() bool
-	GetPublicScope() rbacutils.TRbacScope
+	// GetIsPublic() bool
+	// GetPublicScope() rbacutils.TRbacScope
 
 	Delete() error
 
@@ -934,4 +941,12 @@ type ICloudEvent interface {
 	IsSuccess() bool
 
 	GetCreatedAt() time.Time
+}
+
+type ICloudQuota interface {
+	GetGlobalId() string
+	GetDesc() string
+	GetQuotaType() string
+	GetMaxQuotaCount() int
+	GetCurrentQuotaUsedCount() int
 }
