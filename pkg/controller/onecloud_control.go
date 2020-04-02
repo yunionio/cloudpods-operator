@@ -398,6 +398,9 @@ func (c keystoneComponent) SystemInit() error {
 		if err := doPolicyRoleInit(s); err != nil {
 			return errors.Wrap(err, "policy role init")
 		}
+		if _, err := doCreateRegion(s, region); err != nil {
+			return errors.Wrap(err, "create region")
+		}
 		if err := c.doRegisterIdentity(s, region, oc.Spec.LoadBalancerEndpoint, KeystoneComponentName(oc.GetName()),
 			constants.KeystoneAdminPort, constants.KeystonePublicPort, true); err != nil {
 			return errors.Wrap(err, "register identity endpoint")
@@ -409,9 +412,6 @@ func (c keystoneComponent) SystemInit() error {
 
 	// refresh session when update identity url
 	return c.RunWithSession(func(s *mcclient.ClientSession) error {
-		if _, err := doCreateRegion(s, region); err != nil {
-			return errors.Wrap(err, "create region")
-		}
 		if err := doRegisterCloudMeta(s, region); err != nil {
 			return errors.Wrap(err, "register cloudmeta endpoint")
 		}
