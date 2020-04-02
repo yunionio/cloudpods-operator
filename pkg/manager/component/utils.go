@@ -482,7 +482,7 @@ func (h *VolumeHelper) GetVolumeMounts() []corev1.VolumeMount {
 func (h *VolumeHelper) addOvsVolumes() *VolumeHelper {
 	volSrcType := corev1.HostPathDirectoryOrCreate
 	h.volumes = append(h.volumes,
-		corev1.Volume{
+		/*corev1.Volume{
 			Name: "var-run-openvswitch",
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
@@ -490,7 +490,7 @@ func (h *VolumeHelper) addOvsVolumes() *VolumeHelper {
 					Type: &volSrcType,
 				},
 			},
-		},
+		},*/
 		corev1.Volume{
 			Name: "var-log-openvswitch",
 			VolumeSource: corev1.VolumeSource{
@@ -502,10 +502,10 @@ func (h *VolumeHelper) addOvsVolumes() *VolumeHelper {
 		},
 	)
 	h.volumeMounts = append(h.volumeMounts,
-		corev1.VolumeMount{
+		/*corev1.VolumeMount{
 			Name:      "var-run-openvswitch",
 			MountPath: "/var/run/openvswitch",
-		},
+		},*/
 		corev1.VolumeMount{
 			Name:      "var-log-openvswitch",
 			MountPath: "/var/log/openvswitch",
