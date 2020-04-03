@@ -88,6 +88,7 @@ func (m *keystoneManager) getDeployment(oc *v1alpha1.OnecloudCluster, _ *v1alpha
 			{
 				Name:  "init",
 				Image: oc.Spec.Keystone.Image,
+				ImagePullPolicy: oc.Spec.Keystone.ImagePullPolicy,
 				Command: []string{
 					"/opt/yunion/bin/keystone",
 					"--config",
