@@ -479,6 +479,32 @@ func (h *VolumeHelper) GetVolumeMounts() []corev1.VolumeMount {
 	return h.volumeMounts
 }
 
+func (h *VolumeHelper) addVmwareVolumes() *VolumeHelper {
+	var (
+		bidirectional = corev1.MountPropagationBidirectional
+		volSrcType    = corev1.HostPathDirectoryOrCreate
+	)
+	h.volumeMounts = append(h.volumeMounts,
+		corev1.VolumeMount{
+			Name:             "var-run-vmware",
+			MountPath:        "/var/run/vmware",
+			MountPropagation: &bidirectional,
+		},
+	)
+	h.volumes = append(h.volumes,
+		corev1.Volume{
+			Name: "var-run-vmware",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/var/run/vmware",
+					Type: &volSrcType,
+				},
+			},
+		},
+	)
+	return h
+}
+
 func NewServiceNodePort(name string, port int32) corev1.ServicePort {
 	return corev1.ServicePort{
 		Name:       name,
@@ -618,10 +644,9 @@ func NewHostVolume(
 			MountPath: "/dev",
 		},
 		{
-			Name:             "run",
-			ReadOnly:         false,
-			MountPath:        "/var/run",
-			MountPropagation: &bidirectional,
+			Name:      "run",
+			ReadOnly:  false,
+			MountPath: "/var/run",
 		},
 		{
 			Name:      "sys",
@@ -738,6 +763,6 @@ func NewHostVolume(
 			},
 		},
 	}
-
+	h.addVmwareVolumes()
 	return h
 }
