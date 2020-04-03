@@ -641,6 +641,7 @@ func (m *ComponentManager) newCloudServiceDeploymentWithInit(
 			{
 				Name:  "init",
 				Image: deployCfg.Image,
+				ImagePullPolicy: deployCfg.ImagePullPolicy,
 				Command: []string{
 					fmt.Sprintf("/opt/yunion/bin/%s", cType.String()),
 					"--config",
