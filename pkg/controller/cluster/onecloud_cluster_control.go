@@ -166,6 +166,7 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 
 	var dependComponents = []manager.Manager{
 		components.Logger(),
+		components.Register(),
 		components.Climc(),
 		components.Cloudmux(),
 		components.AutoUpdate(),

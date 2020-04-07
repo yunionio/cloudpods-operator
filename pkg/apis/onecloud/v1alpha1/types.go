@@ -69,6 +69,8 @@ const (
 	SchedulerComponentType ComponentType = "scheduler"
 	// LogComponentType is logger service component type
 	LoggerComponentType ComponentType = "logger"
+	// RegisterComponentType is register service component type
+	RegisterComponentType ComponentType = "register"
 	// InfluxdbComponentType is influxdb component type
 	InfluxdbComponentType ComponentType = "influxdb"
 	// VictoriaMetricsComponentType is VictoriaMetrics component type
@@ -259,6 +261,8 @@ type OnecloudClusterSpec struct {
 	Webconsole WebconsoleSpec `json:"webconsole"`
 	// Logger holds configuration for log service
 	Logger DeploymentServicePortSpec `json:"logger"`
+	// Register holds configuration for register service
+	Register DeploymentSpec `json:"register"`
 	// Yunionconf holds configuration for yunionconf service
 	Yunionconf DeploymentServicePortSpec `json:"yunionconf"`
 	// Yunionagent holds configuration for yunionagent service
@@ -368,6 +372,7 @@ type OnecloudClusterStatus struct {
 	VictoriaMetrics DeploymentStatus     `json:"victoriaMetrics,omitempty"`
 	Monitor         DeploymentStatus     `json:"monitor,omitempty"`
 	Logger          DeploymentStatus     `json:"logger,omitempty"`
+	Register        DeploymentStatus     `json:"register,omitempty"`
 	APIGateway      DeploymentStatus     `json:"apiGateway,omitempty"`
 	Web             DeploymentStatus     `json:"web,omitempty"`
 	Yunionconf      DeploymentStatus     `json:"yunionconf,omitempty"`
@@ -1203,6 +1208,7 @@ type OnecloudClusterConfig struct {
 	Glance          GlanceConfig           `json:"glance"`
 	Webconsole      ServiceDBCommonOptions `json:"webconsole"`
 	Logger          ServiceDBCommonOptions `json:"logger"`
+	Register        ServiceDBCommonOptions `json:"register"`
 	Yunionconf      ServiceDBCommonOptions `json:"yunionconf"`
 	Yunionagent     ServiceDBCommonOptions `json:"yunionagent"`
 	KubeServer      ServiceDBCommonOptions `json:"kubeserver"`
