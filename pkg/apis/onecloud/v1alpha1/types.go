@@ -66,6 +66,8 @@ const (
 	SchedulerComponentType ComponentType = "scheduler"
 	// LogComponentType is logger service component type
 	LoggerComponentType ComponentType = "logger"
+	// RegisterComponentType is register service component type
+	RegisterComponentType ComponentType = "register"
 	// InfluxdbComponentType is influxdb component type
 	InfluxdbComponentType ComponentType = "influxdb"
 	// MonitorComponentType is alert monitor component type
@@ -196,6 +198,8 @@ type OnecloudClusterSpec struct {
 	Webconsole DeploymentSpec `json:"webconsole"`
 	// Logger holds configuration for log service
 	Logger DeploymentSpec `json:"logger"`
+	// Register holds configuration for register service
+	Register DeploymentSpec `json:"register"`
 	// Yunionconf holds configuration for yunionconf service
 	Yunionconf DeploymentSpec `json:"yunionconf"`
 	// Yunionagent holds configuration for yunionagent service
@@ -268,6 +272,7 @@ type OnecloudClusterStatus struct {
 	Influxdb       DeploymentStatus `json:"influxdb,omitempty"`
 	Monitor        DeploymentStatus `json:"monitor,omitempty"`
 	Logger         DeploymentStatus `json:"logger,omitempty"`
+	Register       DeploymentStatus `json:"register,omitempty"`
 	APIGateway     DeploymentStatus `json:"apiGateway,omitempty"`
 	Web            DeploymentStatus `json:"web,omitempty"`
 	Yunionconf     DeploymentStatus `json:"yunionconf,omitempty"`

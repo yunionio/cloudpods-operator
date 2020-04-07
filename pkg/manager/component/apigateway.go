@@ -15,6 +15,8 @@
 package component
 
 import (
+	"fmt"
+
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
@@ -24,6 +26,11 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/util/image"
+)
+
+const (
+	WEBAPIGW = "webapigw"
 )
 
 type apiGatewayManager struct {
@@ -35,11 +42,7 @@ func newAPIGatewayManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *apiGatewayManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if IsEnterpriseEdition(oc) {
-		oc.Spec.APIGateway.ImageName = constants.APIGatewayEEImageName
-	} else {
-		oc.Spec.APIGateway.ImageName = constants.APIGatewayCEImageName
-	}
+	oc.Spec.APIGateway.ImageName = constants.APIGatewayEEImageName
 	return syncComponent(m, oc, oc.Spec.APIGateway.Disable)
 }
 
@@ -113,14 +116,14 @@ func (m *apiGatewayManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.S
 func (m *apiGatewayManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
 	isEE := IsEnterpriseEdition(oc)
 	cf := func(volMounts []corev1.VolumeMount) []corev1.Container {
-		cmd := "/opt/yunion/bin/apigateway"
-		if isEE {
-			cmd = "/opt/yunion/bin/yunionapi"
-		}
+		cmd := "/opt/yunion/bin/webapigw"
+		img := oc.Spec.APIGateway.Image
+		parts, _ := image.ParseImageReference(img)
+		webapigwImage := fmt.Sprintf("%s/%s:%s", parts.Repository, WEBAPIGW, parts.Tag)
 		cs := []corev1.Container{
 			{
 				Name:            "api",
-				Image:           oc.Spec.APIGateway.Image,
+				Image:           webapigwImage,
 				ImagePullPolicy: oc.Spec.APIGateway.ImagePullPolicy,
 				Command:         []string{cmd, "--config", "/etc/yunion/apigateway.conf"},
 				VolumeMounts:    volMounts,
