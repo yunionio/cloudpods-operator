@@ -120,6 +120,11 @@ const (
 	LoggerDB        = "yunionlogger"
 	LoggerDBUser    = "yunionlogger"
 
+	RegisterAdminUser = "registeradmin"
+	RegisterPort      = 30401
+	RegisterDB        = "yunionregister"
+	RegisterDBUser    = "yunionregister"
+
 	ServiceNameAPIGateway = "yunionapi"
 	ServiceTypeAPIGateway = "yunionapi"
 	ServiceNameWebsocket  = "websocket"
@@ -195,6 +200,9 @@ const (
 
 	ServiceNameLogger = "log"
 	ServiceTypeLogger = "log"
+
+	ServiceNameRegister = "register"
+	ServiceTypeRegister = "register"
 
 	ServiceNameYunionConf = "yunionconf"
 	ServiceTypeYunionConf = "yunionconf"

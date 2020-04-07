@@ -262,11 +262,11 @@ func newWebManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *webManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if IsEnterpriseEdition(oc) {
-		oc.Spec.Web.ImageName = constants.WebEEImageName
-	} else {
-		oc.Spec.Web.ImageName = constants.WebCEImageName
-	}
+	// if IsEnterpriseEdition(oc) {
+	oc.Spec.Web.ImageName = "web-op"
+	// } else {
+	//	oc.Spec.Web.ImageName = constants.WebCEImageName
+	// }
 	return syncComponent(m, oc, oc.Spec.Web.Disable)
 }
 
@@ -324,10 +324,10 @@ func (m *webManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.On
 		return fmt.Sprintf("https://%s:%d", controller.NewClusterComponentName(oc.GetName(), ct), port)
 	}
 	conf := CEConfig
-	isEE := IsEnterpriseEdition(oc)
-	if isEE {
-		conf = EEConfig
-	}
+	// isEE := IsEnterpriseEdition(oc)
+	// if isEE {
+	// 	conf = EEConfig
+	// }
 	config := WebNginxConfig{
 		EditionConfig:   conf,
 		WebconsoleURL:   urlF(v1alpha1.WebconsoleComponentType, constants.WebconsolePort),
