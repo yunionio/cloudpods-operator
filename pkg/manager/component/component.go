@@ -639,8 +639,8 @@ func (m *ComponentManager) newCloudServiceDeploymentWithInit(
 	initContainersF := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		return []corev1.Container{
 			{
-				Name:  "init",
-				Image: deployCfg.Image,
+				Name:            "init",
+				Image:           deployCfg.Image,
 				ImagePullPolicy: deployCfg.ImagePullPolicy,
 				Command: []string{
 					fmt.Sprintf("/opt/yunion/bin/%s", cType.String()),
@@ -956,6 +956,10 @@ func (m *ComponentManager) Keystone() manager.Manager {
 
 func (m *ComponentManager) Logger() manager.Manager {
 	return newLoggerManager(m)
+}
+
+func (m *ComponentManager) Register() manager.Manager {
+	return newRegisterManager(m)
 }
 
 func (m *ComponentManager) Region() manager.Manager {
