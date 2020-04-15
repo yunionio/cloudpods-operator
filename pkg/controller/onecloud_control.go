@@ -430,8 +430,21 @@ func (c keystoneComponent) SystemInit() error {
 		if err := doCreateCommonService(s); err != nil {
 			return errors.Wrap(err, "create common service")
 		}
+		if err := doSyncCommonConfigure(s, c.getCommonConfig()); err != nil {
+			return errors.Wrap(err, "sync common configure")
+		}
 		return nil
 	})
+}
+
+func (c keystoneComponent) getCommonConfig() map[string]string {
+	getApiGatewayUrl := fmt.Sprintf("https://%s:%d",
+		NewClusterComponentName(c.GetCluster().GetName(), v1alpha1.APIGatewayComponentType),
+		constants.APIGatewayPort,
+	)
+	return map[string]string{
+		"api_server": getApiGatewayUrl,
+	}
 }
 
 func shouldDoPolicyRoleInit(s *mcclient.ClientSession) (bool, error) {
@@ -529,6 +542,11 @@ func doCreateExternalService(s *mcclient.ClientSession) error {
 
 func doCreateCommonService(s *mcclient.ClientSession) error {
 	_, err := onecloud.EnsureService(s, constants.ServiceNameCommon, constants.ServiceTypeCommon)
+	return err
+}
+
+func doSyncCommonConfigure(s *mcclient.ClientSession, defaultConf map[string]string) error {
+	_, err := onecloud.SyncServiceConfig(s, defaultConf, constants.ServiceNameCommon)
 	return err
 }
 
