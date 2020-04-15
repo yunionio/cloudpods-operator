@@ -532,3 +532,27 @@ func EnsureDevtoolTemplate(
 		return CreateDevtoolTemplate(s, name, hosts, mods, files, interval)
 	})
 }
+
+func SyncServiceConfig(
+	s *mcclient.ClientSession, syncConf map[string]string, serviceName string,
+) (jsonutils.JSONObject, error) {
+	iconf, err := modules.ServicesV3.GetSpecific(s, serviceName, "config", nil)
+	if err != nil {
+		return nil, err
+	}
+	conf := iconf.(*jsonutils.JSONDict)
+	if !conf.Contains("config") {
+		conf.Add(jsonutils.NewDict(), "config")
+	}
+	if !conf.Contains("config", "default") {
+		conf.Add(jsonutils.NewDict(), "config", "default")
+	}
+	for k, v := range syncConf {
+		if _, ok := conf.GetString("config", "default", k); ok == nil {
+			continue
+		} else {
+			conf.Add(jsonutils.NewString(v), "config", "default", k)
+		}
+	}
+	return modules.ServicesV3.PerformAction(s, serviceName, "config", conf)
+}
