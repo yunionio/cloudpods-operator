@@ -15,26 +15,39 @@
 package v1alpha1
 
 import (
+	etcdapi "github.com/coreos/etcd-operator/pkg/apis/etcd/v1beta2"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var(
+var (
 	StartingDeadlineSeconds int64 = 300
 )
+
+// ComponentType represents component type
+type ComponentType string
+type EtcdClusterPhase string
+type EtcdClusterConditionType string
 
 const (
 	OnecloudClusterResourceKind   = "OnecloudCluster"
 	OnecloudClusterResourcePlural = "onecloudclusters"
+
+	EtcdClusterPhaseNone     EtcdClusterPhase = ""
+	EtcdClusterPhaseCreating                  = "Creating"
+	EtcdClusterPhaseRunning                   = "Running"
+	EtcdClusterPhaseFailed                    = "Failed"
+
+	EtcdClusterConditionAvailable  EtcdClusterConditionType = "Available"
+	EtcdClusterConditionRecovering                          = "Recovering"
+	EtcdClusterConditionScaling                             = "Scaling"
+	EtcdClusterConditionUpgrading                           = "Upgrading"
 )
 
 var (
 	OnecloudClusterCRDName = OnecloudClusterResourcePlural + "." + GroupName
 )
-
-// ComponentType represents component type
-type ComponentType string
 
 const (
 	// KeystoneComponentType is keystone component type
@@ -88,10 +101,15 @@ const (
 	// Esxi Agent
 	EsxiAgentComponentType ComponentType = "esxi-agent"
 
-	OvnNorthComponentType  ComponentType = "ovn-north"
-	OvnHostComponentType   ComponentType = "ovn-host"
-	VpcAgentComponentType  ComponentType = "vpcagent"
+	OvnNorthComponentType ComponentType = "ovn-north"
+	OvnHostComponentType  ComponentType = "ovn-host"
+	VpcAgentComponentType ComponentType = "vpcagent"
+
 	RegionDNSComponentType ComponentType = "region-dns"
+
+	// Etcd component types
+	EtcdComponentType       ComponentType = "etcd"
+	EtcdClientComponentType ComponentType = "etcd-client"
 )
 
 // ComponentPhase is the current state of component
@@ -240,18 +258,16 @@ type OnecloudClusterStatus struct {
 	EsxiAgent      DeploymentStatus `json:"esxiagent,omitempty"`
 	OvnNorth       DeploymentStatus `json:"ovnNorth,omitempty"`
 	VpcAgent       DeploymentStatus `json:"vpcAgent,omitempty"`
+	Etcd           EctdStatus       `json:"etcd,omitempty"`
 }
 
-// Etcd describes an etcd cluster
 type Etcd struct {
-	// Endpoints of etcd members
-	Endpoints []string `json:"endpoints"`
-	// CA is an SSL Certificate Authority data used to secure etcd communication
-	CA string `json:"ca"`
-	// CertFile is an SSL certification data used to secure etcd communication
-	Cert string `json:"cert"`
-	// Key is an SSL key data used to secure etcd communication
-	Key string `json:"key"`
+	// etcd operator cluster spec
+	etcdapi.ClusterSpec
+	// disable etcd
+	Disable bool `json:"disable"`
+	// enable tls
+	EnableTls bool `json:"enableTls"`
 }
 
 // Mysql describes an mysql server
@@ -341,6 +357,61 @@ type WebconsoleStatus struct {
 
 type MeterStatus struct {
 	DeploymentStatus
+}
+
+type EctdStatus struct {
+	// Phase is the cluster running phase
+	Phase  EtcdClusterPhase `json:"phase"`
+	Reason string           `json:"reason,omitempty"`
+
+	// Condition keeps track of all cluster conditions, if they exist.
+	Conditions []EtcdClusterCondition `json:"conditions,omitempty"`
+
+	// Size is the current size of the cluster
+	Size int `json:"size"`
+
+	// ServiceName is the LB service for accessing etcd nodes.
+	ServiceName string `json:"serviceName,omitempty"`
+
+	// ClientPort is the port for etcd client to access.
+	// It's the same on client LB service and etcd nodes.
+	ClientPort int `json:"clientPort,omitempty"`
+
+	// Members are the etcd members in the cluster
+	Members EtcdMembersStatus `json:"members"`
+	// CurrentVersion is the current cluster version
+	CurrentVersion string `json:"currentVersion"`
+	// TargetVersion is the version the cluster upgrading to.
+	// If the cluster is not upgrading, TargetVersion is empty.
+	TargetVersion string `json:"targetVersion"`
+}
+
+// ClusterCondition represents one current condition of an etcd cluster.
+// A condition might not show up if it is not happening.
+// For example, if a cluster is not upgrading, the Upgrading condition would not show up.
+// If a cluster is upgrading and encountered a problem that prevents the upgrade,
+// the Upgrading condition's status will would be False and communicate the problem back.
+type EtcdClusterCondition struct {
+	// Type of cluster condition.
+	Type EtcdClusterConditionType `json:"type"`
+	// Status of the condition, one of True, False, Unknown.
+	Status corev1.ConditionStatus `json:"status"`
+	// The last time this condition was updated.
+	LastUpdateTime string `json:"lastUpdateTime,omitempty"`
+	// Last time the condition transitioned from one status to another.
+	LastTransitionTime string `json:"lastTransitionTime,omitempty"`
+	// The reason for the condition's last transition.
+	Reason string `json:"reason,omitempty"`
+	// A human readable message indicating details about the transition.
+	Message string `json:"message,omitempty"`
+}
+
+type EtcdMembersStatus struct {
+	// Ready are the etcd members that are ready to serve requests
+	// The member names are the same as the etcd pod names
+	Ready []string `json:"ready,omitempty"`
+	// Unready are the etcd members not ready to serve requests
+	Unready []string `json:"unready,omitempty"`
 }
 
 type RegionSpec struct {

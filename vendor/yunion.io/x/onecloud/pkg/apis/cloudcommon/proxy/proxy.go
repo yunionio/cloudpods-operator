@@ -25,14 +25,16 @@ const (
 )
 
 type ProxySettingCreateInput struct {
-	apis.VirtualResourceCreateInput
+	apis.InfrasResourceBaseCreateInput
 
-	HttpProxy  string
-	HttpsProxy string
-	NoProxy    string
+	ProxySetting
 }
 
-type ProxySettingUpdateInput ProxySettingCreateInput
+type ProxySettingUpdateInput struct {
+	apis.InfrasResourceBaseUpdateInput
+
+	ProxySetting
+}
 
 // String implements ISerializable interface
 func (ps *SProxySetting) String() string {
@@ -51,5 +53,14 @@ func (ps *SProxySetting) IsZero() bool {
 
 type ProxySettingResourceInput struct {
 	// 代理配置
-	ProxySettingId string `json:"proxy_setting_id"`
+	ProxySetting string `json:"proxy_setting"`
+
+	// swagger:ignore
+	// Deprecated
+	ProxySettingId string `json:"proxy_setting_id" "yunion:deprecated-by":"proxy_setting"`
+}
+
+type ProxySettingTestInput struct {
+	HttpProxy  string
+	HttpsProxy string
 }

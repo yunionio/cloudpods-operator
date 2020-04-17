@@ -202,7 +202,7 @@ type LoadbalancerResourceInput struct {
 
 	// swagger:ignore
 	// Deprecated
-	LoadbalancerId string `json:"loadbalancer_id" deprecated-by:"loadbalancer"`
+	LoadbalancerId string `json:"loadbalancer_id" "yunion:deprecated-by":"loadbalancer"`
 }
 
 type LoadbalancerFilterListInput struct {
@@ -234,6 +234,9 @@ type LoadbalancerCreateInput struct {
 
 	// 套餐名称
 	LoadbalancerSpec string `json:"loadbalancer_spec"`
+
+	// EIP ID
+	Eip string `json:"eip"`
 
 	// LB的其他配置信息
 	LBInfo jsonutils.JSONObject `json:"lb_info"`

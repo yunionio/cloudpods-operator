@@ -87,8 +87,8 @@ func (m *influxdbManager) getPhaseControl(man controller.ComponentManager) contr
 		constants.InfluxdbPort, "")
 }
 
-func (m *influxdbManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {
-	return m.newSingleNodePortService(v1alpha1.InfluxdbComponentType, oc, constants.InfluxdbPort)
+func (m *influxdbManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.InfluxdbComponentType, oc, constants.InfluxdbPort)}
 }
 
 func (m *influxdbManager) getPVC(oc *v1alpha1.OnecloudCluster) (*corev1.PersistentVolumeClaim, error) {
