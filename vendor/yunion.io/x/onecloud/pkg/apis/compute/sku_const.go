@@ -64,7 +64,7 @@ var SKU_FAMILIES = []string{
 }
 
 type ServerSkuListInput struct {
-	apis.StatusStandaloneResourceListInput
+	apis.EnabledStatusStandaloneResourceListInput
 	apis.DomainizedResourceListInput
 
 	ManagedResourceListInput
@@ -154,4 +154,26 @@ type DBInstanceSkuListInput struct {
 	Zone1 []string `json:"zone1"`
 	Zone2 []string `json:"zone2"`
 	Zone3 []string `json:"zone3"`
+}
+
+type SkuSyncInput struct {
+	// 云平台名称
+	// example: Google
+	Provider string `json:"provider,omitempty"`
+
+	// 区域ID
+	CloudregionIds []string `json:"cloudregion_ids"`
+}
+
+type SkuTaskQueryInput struct {
+	// 异步任务ID
+	TaskIds []string `json:"task_ids"`
+}
+
+type CloudregionSkuSyncInput struct {
+	SkuSyncInput
+
+	// 同步资源类型
+	// choices: serversku|elasticcachesku|dbinstance_sku
+	Resource string `json:"resource"`
 }

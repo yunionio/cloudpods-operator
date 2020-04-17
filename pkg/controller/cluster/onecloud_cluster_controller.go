@@ -194,6 +194,7 @@ func (c *Controller) worker() {
 // invoked concurrently with the same key.
 func (c *Controller) processNextWorkItem() bool {
 	key, quit := c.queue.Get()
+	// log.Errorf("queue get KEY is %s ......", key.(string))
 	if quit {
 		return false
 	}

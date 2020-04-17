@@ -17,6 +17,7 @@ package v1alpha1
 import (
 	"errors"
 
+	etcdapi "github.com/coreos/etcd-operator/pkg/apis/etcd/v1beta2"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

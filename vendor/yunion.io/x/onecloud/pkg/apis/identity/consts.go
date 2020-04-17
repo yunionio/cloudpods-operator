@@ -99,6 +99,7 @@ var (
 
 	CommonWhitelistOptionMap = map[string][]string{
 		"default": []string{
+			"enable_quota_check",
 			"default_quota_value",
 			"enable_rbac",
 			"non_default_domain_projects",
@@ -106,6 +107,8 @@ var (
 			"domainized_namespace",
 			"api_server",
 			"customized_private_prefixes",
+			"global_http_proxy",
+			"global_https_proxy",
 		},
 	}
 
@@ -163,6 +166,8 @@ var (
 			"etcd_cacert",
 			"etcd_cert",
 			"etcd_key",
+			"splitable_max_duration_hours",
+			"splitable_max_keep_segments",
 
 			// ############################
 			// keystone blacklist options
