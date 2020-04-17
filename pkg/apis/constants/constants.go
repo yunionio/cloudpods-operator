@@ -313,6 +313,16 @@ const (
 	EsxiAgentDataStore = "/opt/cloud/workspace"
 
 	VpcAgentAdminUser = "vpcagentadmin"
+
+	EtcdClientPort            = 2379
+	EtcdPeerPort              = 2380
+	EtcdImageName             = "etcd"
+	EtcdDefaultClusterSize    = 3
+	EtcdImageVersion          = "3.3.10"
+	EtcdDefaultRequestTimeout = 5 * time.Second
+	EtcdDefaultDialTimeout    = 3 * time.Second
+	BusyboxImageName          = "busybox"
+	BusyboxImageVersion       = "1.28.0-glibc"
 )
 
 const (
@@ -370,4 +380,16 @@ var (
 	ConfigDir        = "/etc/yunion"
 	VolumeConfigName = "config"
 	VolumeCertsName  = "certs"
+
+	Localhost = "localhost"
+
+	EtcdServerCACertName = "server-ca.crt"
+	EtcdServerCertName   = "server.crt"
+	EtcdServerKeyName    = "server.key"
+	EtcdClientCACertName = "etcd-client-ca.crt"
+	EtcdClientCertName   = "etcd-client.crt"
+	EtcdClientKeyName    = "etcd-client.key"
+	EtcdPeerCACertName   = "peer-ca.crt"
+	EtcdPeerCertName     = "peer.crt"
+	EtcdPeerKeyName      = "peer.key"
 )

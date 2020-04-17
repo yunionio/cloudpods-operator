@@ -50,8 +50,8 @@ func (m *glanceManager) getPhaseControl(man controller.ComponentManager) control
 	return man.Glance()
 }
 
-func (m *glanceManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {
-	return m.newSingleNodePortService(v1alpha1.GlanceComponentType, oc, constants.GlanceAPIPort)
+func (m *glanceManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.GlanceComponentType, oc, constants.GlanceAPIPort)}
 }
 
 func (m *glanceManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {

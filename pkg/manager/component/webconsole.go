@@ -70,8 +70,8 @@ func (m *webconsoleManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	return m.newServiceConfigMap(v1alpha1.WebconsoleComponentType, oc, opt), nil
 }
 
-func (m *webconsoleManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {
-	return m.newSingleNodePortService(v1alpha1.WebconsoleComponentType, oc, constants.WebconsolePort)
+func (m *webconsoleManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.WebconsoleComponentType, oc, constants.WebconsolePort)}
 }
 
 func (m *webconsoleManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {

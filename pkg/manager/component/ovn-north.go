@@ -36,7 +36,7 @@ func (m *ovnNorthManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.OvnNorth.Disable)
 }
 
-func (m *ovnNorthManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {
+func (m *ovnNorthManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
 	np0 := NewServiceNodePort("north-db", constants.OvnNorthDbPort)
 	np0.TargetPort = intstr.FromInt(6641)
 	np1 := NewServiceNodePort("south-db", constants.OvnSouthDbPort)
@@ -45,7 +45,7 @@ func (m *ovnNorthManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Servi
 		np0,
 		np1,
 	}
-	return m.newNodePortService(v1alpha1.OvnNorthComponentType, oc, ports)
+	return []*corev1.Service{m.newNodePortService(v1alpha1.OvnNorthComponentType, oc, ports)}
 }
 
 func (m *ovnNorthManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {

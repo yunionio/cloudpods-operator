@@ -11,6 +11,7 @@ import (
 	"math/big"
 	"net"
 	"time"
+	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -105,6 +106,7 @@ func GetServiceAltNames(oc *v1alpha1.OnecloudCluster, serviceName string, certNa
 			serviceName,
 			fmt.Sprintf("%s.%s", serviceName, ns),
 			fmt.Sprintf("%s.%s.svc", serviceName, ns),
+			constants.Localhost,
 		},
 	}
 

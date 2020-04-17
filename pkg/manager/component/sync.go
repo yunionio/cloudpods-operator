@@ -36,7 +36,7 @@ type syncManager interface {
 }
 
 type serviceFactory interface {
-	getService(*v1alpha1.OnecloudCluster) *corev1.Service
+	getService(*v1alpha1.OnecloudCluster) []*corev1.Service
 }
 
 type ingressFactory interface {
