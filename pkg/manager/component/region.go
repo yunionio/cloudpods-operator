@@ -126,11 +126,11 @@ func (m *regionManager) setBaremetalPrepareConfigure(oc *v1alpha1.OnecloudCluste
 	return nil
 }
 
-func (m *regionManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {
+func (m *regionManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
 	ports := []corev1.ServicePort{
 		NewServiceNodePort("api", constants.RegionPort),
 	}
-	return m.newNodePortService(v1alpha1.RegionComponentType, oc, ports)
+	return []*corev1.Service{m.newNodePortService(v1alpha1.RegionComponentType, oc, ports)}
 }
 
 func (m *regionManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {

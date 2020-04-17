@@ -127,7 +127,7 @@ func (m *regionDNSManager) getConfigMap(oc *v1alpha1.OnecloudCluster, clusterCfg
 	return m.newConfigMap(cType, oc, content), nil
 }
 
-func (m *regionDNSManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {
+func (m *regionDNSManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
 	// use headless service
 	cType := v1alpha1.RegionDNSComponentType
 	svcName := controller.NewClusterComponentName(oc.GetName(), cType)
@@ -139,7 +139,7 @@ func (m *regionDNSManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Serv
 			Selector:  appLabel,
 		},
 	}
-	return svc
+	return []*corev1.Service{svc}
 }
 
 func (m *regionDNSManager) getDaemonSet(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.DaemonSet, error) {

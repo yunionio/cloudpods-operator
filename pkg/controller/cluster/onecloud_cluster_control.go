@@ -5,10 +5,9 @@ import (
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	errorutils "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/tools/record"
-	"yunion.io/x/onecloud-operator/pkg/manager"
-
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
+	"yunion.io/x/onecloud-operator/pkg/manager"
 	"yunion.io/x/onecloud-operator/pkg/manager/certs"
 	"yunion.io/x/onecloud-operator/pkg/manager/component"
 	"yunion.io/x/onecloud-operator/pkg/manager/config"
@@ -86,7 +85,9 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 	}*/
 
 	components := occ.components
-
+	if err := components.Etcd().Sync(oc); err != nil {
+		return err
+	}
 	for _, component := range []manager.Manager{
 		components.Keystone(),
 		components.Region(),

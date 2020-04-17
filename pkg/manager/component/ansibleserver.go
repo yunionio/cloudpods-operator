@@ -15,9 +15,10 @@
 package component
 
 import (
+	"path"
+
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"path"
 
 	"yunion.io/x/onecloud/pkg/ansibleserver/options"
 
@@ -69,8 +70,8 @@ func (m *ansibleManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 	return m.newServiceConfigMap(v1alpha1.AnsibleServerComponentType, oc, opt), nil
 }
 
-func (m *ansibleManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {
-	return m.newSingleNodePortService(v1alpha1.AnsibleServerComponentType, oc, constants.AnsibleServerPort)
+func (m *ansibleManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.AnsibleServerComponentType, oc, constants.AnsibleServerPort)}
 }
 
 func (m *ansibleManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
