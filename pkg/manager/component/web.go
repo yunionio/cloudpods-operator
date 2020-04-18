@@ -351,6 +351,11 @@ func (m *webManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 				Name:            "web",
 				Image:           oc.Spec.Web.Image,
 				ImagePullPolicy: oc.Spec.Web.ImagePullPolicy,
+				Command: []string{
+					"nginx",
+					"-g",
+					"daemon off;",
+				},
 				Ports: []corev1.ContainerPort{
 					{
 						Name:          "web",
