@@ -58,6 +58,12 @@ const (
         index index.html;
         try_files $uri $uri/ /index.html last;
     }
+
+    location /docs/ {
+        alias /usr/share/nginx/html/docs/;
+        index index.html;
+        try_files $uri $uri/ /index.html last;
+    }
 `
 
 	WebNginxConfigTemplate = `
