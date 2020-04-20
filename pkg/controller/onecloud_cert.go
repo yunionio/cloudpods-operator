@@ -41,6 +41,7 @@ type OnecloudCertControlInterface interface {
 
 	// GetCertSecret return certs secret
 	// GetCertSecret(oc *v1alpha1.OnecloudCluster) (*corev1.Secret, error)
+	CreateEtcdCert(oc *v1alpha1.OnecloudCluster) error
 }
 
 type realOnecloudCertControl struct {

@@ -383,13 +383,20 @@ var (
 
 	Localhost = "localhost"
 
-	EtcdServerCACertName = "server-ca.crt"
+	EtcdServerSecret = "etcd-server"
+	EtcdClientSecret = "etcd-client"
+	EtcdPeerSecret   = "etcd-peer"
+
+	EtcdServerName       = "server"
+	EtcdServerCACertName = "server-ca"
 	EtcdServerCertName   = "server.crt"
 	EtcdServerKeyName    = "server.key"
-	EtcdClientCACertName = "etcd-client-ca.crt"
+	EtcdClientName       = "etcd-client"
+	EtcdClientCACertName = "etcd-client-ca"
 	EtcdClientCertName   = "etcd-client.crt"
 	EtcdClientKeyName    = "etcd-client.key"
-	EtcdPeerCACertName   = "peer-ca.crt"
+	EtcdPeerName         = "peer"
+	EtcdPeerCACertName   = "peer-ca"
 	EtcdPeerCertName     = "peer.crt"
 	EtcdPeerKeyName      = "peer.key"
 )

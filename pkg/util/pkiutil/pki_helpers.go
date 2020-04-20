@@ -11,13 +11,13 @@ import (
 	"math/big"
 	"net"
 	"time"
-	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/validation"
 	certutil "k8s.io/client-go/util/cert"
 	"k8s.io/kubernetes/cmd/kubeadm/app/util/pkiutil"
 
+	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 )
 
