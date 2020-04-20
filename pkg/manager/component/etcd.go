@@ -10,15 +10,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/coreos/etcd-operator/pkg/util/retryutil"
-	"github.com/coreos/etcd/clientv3"
-	"k8s.io/client-go/kubernetes"
-
 	"yunion.io/x/log"
 
 	etcdapi "github.com/coreos/etcd-operator/pkg/apis/etcd/v1beta2"
 	"github.com/coreos/etcd-operator/pkg/util/etcdutil"
 	"github.com/coreos/etcd-operator/pkg/util/k8sutil"
+	"github.com/coreos/etcd-operator/pkg/util/retryutil"
+	"github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/etcdserver/api/v3rpc/rpctypes"
 	"github.com/coreos/etcd/etcdserver/etcdserverpb"
 	"github.com/pborman/uuid"
@@ -158,8 +156,7 @@ func (m *etcdManager) setup() error {
 	log.Infof("start setup ......")
 
 	if m.isSecure() {
-		var certSecretName = controller.ClustercertSecretName(m.oc)
-		d, err := GetTLSDataFromSecret(m.kubeCli, m.oc.GetNamespace(), certSecretName)
+		d, err := k8sutil.GetTLSDataFromSecret(m.kubeCli, m.oc.GetNamespace(), constants.EtcdClientSecret)
 		if err != nil {
 			return err
 		}
@@ -257,7 +254,7 @@ func (m *etcdManager) customPodSpec(pod *corev1.Pod, mb *etcdutil.Member, state,
 		version = m.oc.Spec.Etcd.Version
 	}
 	pod.Spec.Containers[0].Image = fmt.Sprintf("%s:%s", path.Join(imageRepository, constants.EtcdImageName), version)
-	pod.Spec.Containers[0].Command = m.newEtcdCommand(mb, state, token, initialCluster)
+	//pod.Spec.Containers[0].Command = m.newEtcdCommand(mb, state, token, initialCluster)
 	pod.Spec.Containers[0].LivenessProbe = m.newLivenessProbe(m.isSecure())
 	pod.Spec.Containers[0].ReadinessProbe = m.newReadinessProbe(m.isSecure())
 
@@ -294,13 +291,10 @@ func (m *etcdManager) newReadinessProbe(isSecure bool) *corev1.Probe {
 }
 
 func (m *etcdManager) newEtcdProbe(isSecure bool) *corev1.Probe {
-	// etcd pod is healthy only if it can participate in consensus
 	cmd := "ETCDCTL_API=3 etcdctl endpoint status"
 	if isSecure {
-		tlsFlags := fmt.Sprintf("--cert=%[1]s/%[2]s --key=%[1]s/%[3]s --cacert=%[1]s/%[4]s",
-			operatorEtcdTLSDir, constants.ServiceCertName, constants.ServiceKeyName, constants.CACertName)
-		cmd = fmt.Sprintf("ETCDCTL_API=3 etcdctl --endpoints=https://localhost:%d %s endpoint status",
-			constants.EtcdClientPort, tlsFlags)
+		tlsFlags := fmt.Sprintf("--cert=%[1]s/%[2]s --key=%[1]s/%[3]s --cacert=%[1]s/%[4]s", operatorEtcdTLSDir, etcdutil.CliCertFile, etcdutil.CliKeyFile, etcdutil.CliCAFile)
+		cmd = fmt.Sprintf("ETCDCTL_API=3 etcdctl --endpoints=https://localhost:%d %s endpoint status", constants.EtcdClientPort, tlsFlags)
 	}
 	return &corev1.Probe{
 		Handler: corev1.Handler{
@@ -385,20 +379,19 @@ func (m *etcdManager) customEtcdSpec() etcdapi.ClusterSpec {
 		//spec.Repository = path.Join(m.oc.Spec.ImageRepository, constants.EtcdImageName)
 	}
 	if len(spec.Version) == 0 {
-		spec.Version = "3.4.7"
-		//spec.Version = constants.EtcdImageVersion
+		spec.Version = constants.EtcdImageVersion
 	}
 	if spec.Size == 0 {
 		spec.Size = constants.EtcdDefaultClusterSize
 	}
 	if m.isSecure() {
-		certSecretName := controller.ClustercertSecretName(m.oc)
+		//certSecretName := controller.ClustercertSecretName(m.oc)
 		spec.TLS = new(etcdapi.TLSPolicy)
 		spec.TLS.Static = new(etcdapi.StaticTLS)
-		spec.TLS.Static.OperatorSecret = certSecretName
+		spec.TLS.Static.OperatorSecret = constants.EtcdClientSecret
 		spec.TLS.Static.Member = &etcdapi.MemberSecret{
-			PeerSecret:   certSecretName,
-			ServerSecret: certSecretName,
+			PeerSecret:   constants.EtcdPeerSecret,
+			ServerSecret: constants.EtcdServerSecret,
 		}
 	}
 	return spec.ClusterSpec
@@ -804,23 +797,4 @@ func getMemberName(m *etcdserverpb.Member, clusterName string) (string, error) {
 		return "", newFatalError(fmt.Sprintf("invalid member peerURL (%s): %v", m.PeerURLs[0], err))
 	}
 	return name, nil
-}
-
-type TLSData struct {
-	CertData []byte
-	KeyData  []byte
-	CAData   []byte
-}
-
-// GetTLSDataFromSecret retrives the kubernete secret that contain etcd tls certs and put them into TLSData.
-func GetTLSDataFromSecret(kubecli kubernetes.Interface, ns, se string) (*TLSData, error) {
-	secret, err := kubecli.CoreV1().Secrets(ns).Get(se, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-	return &TLSData{
-		CertData: secret.Data[constants.ServiceCertName],
-		KeyData:  secret.Data[constants.ServiceKeyName],
-		CAData:   secret.Data[constants.CACertName],
-	}, nil
 }
