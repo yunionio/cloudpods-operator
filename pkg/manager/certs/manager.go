@@ -18,6 +18,7 @@ import (
 	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	corelisters "k8s.io/client-go/listers/core/v1"
+	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 )
@@ -50,9 +51,26 @@ func (c *CertsManager) CreateOrUpdate(oc *v1alpha1.OnecloudCluster) error {
 		}
 		return nil
 	} else {
-		// TODO
 		// already exists, update it
 		// TODO
-		return nil
+		//return nil
 	}
+
+	for _, secretName := range []string{constants.EtcdServerSecret, constants.EtcdClientSecret, constants.EtcdPeerSecret} {
+		_, err := c.secretLister.Secrets(ns).Get(secretName)
+		if err != nil {
+			if !apierrors.IsNotFound(err) {
+				return err
+			}
+			if err := c.certControl.CreateEtcdCert(oc); err != nil {
+				return errors.Wrap(err, "create cluster cert")
+			}
+			return nil
+		} else {
+			// already exists, update it
+			// TODO
+			continue
+		}
+	}
+	return nil
 }
