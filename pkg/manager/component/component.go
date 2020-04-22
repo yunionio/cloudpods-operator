@@ -831,7 +831,7 @@ func (m *ComponentManager) newDefaultCronJob(
 	containersFactory func([]corev1.VolumeMount) []corev1.Container,
 ) (*batchv1.CronJob, error) {
 	return m.newCronJob(componentType, oc, volHelper, spec, initContainersFactory,
-		containersFactory, false, corev1.DNSClusterFirst, "", nil, nil, nil, nil)
+		containersFactory, false, corev1.DNSClusterFirst, "", &(v1alpha1.StartingDeadlineSeconds), nil, nil, nil)
 }
 
 func (m *ComponentManager) newPVC(cType v1alpha1.ComponentType, oc *v1alpha1.OnecloudCluster, spec v1alpha1.StatefulDeploymentSpec) (*corev1.PersistentVolumeClaim, error) {
