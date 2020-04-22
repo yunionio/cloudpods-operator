@@ -52,9 +52,10 @@ type etcdManager struct {
 const (
 	peerTLSDir         = "/etc/etcdtls/member/peer-tls"
 	serverTLSDir       = "/etc/etcdtls/member/server-tls"
+	operatorEtcdTLSDir = "/etc/etcdtls/operator/etcd-tls"
+
 	etcdVolumeMountDir = "/var/etcd"
 	dataDir            = etcdVolumeMountDir + "/data"
-	operatorEtcdTLSDir = "/etc/etcdtls/operator/etcd-tls"
 )
 
 var (
@@ -229,7 +230,6 @@ func (m *etcdManager) createPod(
 	pod := k8sutil.NewEtcdPod(mb, initCluster, m.getEtcdClusterPrefix(), state,
 		token, m.customEtcdSpec(), controller.GetOwnerRef(m.oc))
 	m.customPodSpec(pod, mb, state, token, initCluster)
-	// TODO: custum busybox container image
 	if m.isPodPVEnabled() {
 		pvc := k8sutil.NewEtcdPodPVC(mb, *m.oc.Spec.Etcd.Pod.PersistentVolumeClaimSpec,
 			m.oc.GetName(), m.oc.GetNamespace(), controller.GetOwnerRef(m.oc))

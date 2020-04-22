@@ -231,11 +231,13 @@ func (m *ComponentManager) syncConfigMap(
 	}
 	oldCfgMap, _ := m.configer.Lister().ConfigMaps(oc.GetNamespace()).Get(cfgMap.GetName())
 	if oldCfgMap != nil {
-		if equal, err := configMapEqual(cfgMap, oldCfgMap); err != nil {
-			return err
-		} else if equal {
-			return nil
-		}
+		//if equal, err := configMapEqual(cfgMap, oldCfgMap); err != nil {
+		//	return err
+		//} else if equal {
+		//	return nil
+		//}
+		// if cfgmap exist do not update
+		return nil
 	}
 	return m.configer.CreateOrUpdateConfigMap(oc, cfgMap)
 }

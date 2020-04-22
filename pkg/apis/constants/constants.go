@@ -323,6 +323,9 @@ const (
 	EtcdDefaultDialTimeout    = 3 * time.Second
 	BusyboxImageName          = "busybox"
 	BusyboxImageVersion       = "1.28.0-glibc"
+	ServiceNameEtcd           = "etcd"
+	ServiceTypeEtcd           = ServiceNameEtcd
+	ServiceCertEtcdName       = ServiceNameEtcd
 )
 
 const (
