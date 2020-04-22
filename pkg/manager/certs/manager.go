@@ -56,20 +56,22 @@ func (c *CertsManager) CreateOrUpdate(oc *v1alpha1.OnecloudCluster) error {
 		//return nil
 	}
 
-	for _, secretName := range []string{constants.EtcdServerSecret, constants.EtcdClientSecret, constants.EtcdPeerSecret} {
-		_, err := c.secretLister.Secrets(ns).Get(secretName)
-		if err != nil {
-			if !apierrors.IsNotFound(err) {
-				return err
+	if !oc.Spec.Etcd.Disable && oc.Spec.Etcd.EnableTls {
+		for _, secretName := range []string{constants.EtcdServerSecret, constants.EtcdClientSecret, constants.EtcdPeerSecret} {
+			_, err := c.secretLister.Secrets(ns).Get(secretName)
+			if err != nil {
+				if !apierrors.IsNotFound(err) {
+					return err
+				}
+				if err := c.certControl.CreateEtcdCert(oc); err != nil {
+					return errors.Wrap(err, "create cluster cert")
+				}
+				return nil
+			} else {
+				// already exists, update it
+				// TODO
+				continue
 			}
-			if err := c.certControl.CreateEtcdCert(oc); err != nil {
-				return errors.Wrap(err, "create cluster cert")
-			}
-			return nil
-		} else {
-			// already exists, update it
-			// TODO
-			continue
 		}
 	}
 	return nil

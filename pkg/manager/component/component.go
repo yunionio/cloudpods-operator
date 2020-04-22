@@ -229,13 +229,18 @@ func (m *ComponentManager) syncConfigMap(
 	if err := SetConfigMapLastAppliedConfigAnnotation(cfgMap); err != nil {
 		return err
 	}
-	oldCfgMap, _ := m.configer.Lister().ConfigMaps(oc.GetNamespace()).Get(cfgMap.GetName())
+	oldCfgMap, err := m.configer.Lister().ConfigMaps(oc.GetNamespace()).Get(cfgMap.GetName())
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
 	if oldCfgMap != nil {
-		if equal, err := configMapEqual(cfgMap, oldCfgMap); err != nil {
-			return err
-		} else if equal {
-			return nil
-		}
+		//if equal, err := configMapEqual(cfgMap, oldCfgMap); err != nil {
+		//	return err
+		//} else if equal {
+		//	return nil
+		//}
+		// if cfgmap exist do not update
+		return nil
 	}
 	return m.configer.CreateOrUpdateConfigMap(oc, cfgMap)
 }

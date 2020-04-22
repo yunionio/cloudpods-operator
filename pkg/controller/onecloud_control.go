@@ -21,17 +21,19 @@ import (
 	"sync"
 	"time"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
 
 	"yunion.io/x/jsonutils"
+	"yunion.io/x/pkg/errors"
+
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/mcclient/auth"
 	"yunion.io/x/onecloud/pkg/mcclient/modules"
-	"yunion.io/x/pkg/errors"
 )
 
 var (
@@ -364,7 +366,7 @@ func (c *baseComponent) registerServiceEndpointsBySession(s *mcclient.ClientSess
 		urls[ep.Interface] = ep.GetUrl(enableSSL)
 	}
 	region := c.GetCluster().Spec.Region
-	return onecloud.RegisterServiceEndpoints(s, region, serviceName, serviceType, urls)
+	return onecloud.RegisterServiceEndpoints(s, region, serviceName, serviceType, "", urls)
 }
 
 func (c *baseComponent) RegisterServiceEndpoints(serviceName, serviceType string, eps []*endpoint, enableSSL bool) error {
@@ -433,6 +435,23 @@ func (c keystoneComponent) SystemInit() error {
 		if err := doSyncCommonConfigure(s, c.getCommonConfig()); err != nil {
 			return errors.Wrap(err, "sync common configure")
 		}
+		if !oc.Spec.Etcd.Disable {
+			var certName string
+			if oc.Spec.Etcd.EnableTls {
+				certConf, err := c.getEtcdCertificate()
+				if err != nil {
+					return errors.Wrap(err, "get etcd cert")
+				}
+				if err := doCreateEtcdCertificate(s, certConf); err != nil {
+					return errors.Wrap(err, "create etcd certificate")
+				}
+				certName = constants.ServiceCertEtcdName
+			}
+
+			if err := doCreateEtcdServiceEndpoint(s, region, c.getEtcdUrl(), certName); err != nil {
+				return errors.Wrap(err, "create etcd endpoint")
+			}
+		}
 		return nil
 	})
 }
@@ -445,6 +464,30 @@ func (c keystoneComponent) getCommonConfig() map[string]string {
 	return map[string]string{
 		"api_server": getApiGatewayUrl,
 	}
+}
+
+func (c keystoneComponent) getEtcdCertificate() (*jsonutils.JSONDict, error) {
+	oc := c.GetCluster()
+	ret := jsonutils.NewDict()
+	ctl := c.baseComponent.manager.GetController()
+	secret, err := ctl.kubeCli.CoreV1().Secrets(oc.GetNamespace()).
+		Get(constants.EtcdClientSecret, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	ret.Set("certificate", jsonutils.NewString(string(secret.Data[constants.EtcdClientCertName])))
+	ret.Set("private_key", jsonutils.NewString(string(secret.Data[constants.EtcdClientKeyName])))
+	ret.Set("ca_certificate", jsonutils.NewString(string(secret.Data[constants.EtcdClientCACertName+".crt"])))
+	return ret, nil
+}
+
+func (c keystoneComponent) getEtcdUrl() string {
+	oc := c.GetCluster()
+	scheme := "http"
+	if oc.Spec.Etcd.EnableTls {
+		scheme = "https"
+	}
+	return fmt.Sprintf("%s://%s-etcd-client.%s.svc:%d", scheme, oc.Name, oc.Namespace, constants.EtcdClientPort)
 }
 
 func shouldDoPolicyRoleInit(s *mcclient.ClientSession) (bool, error) {
@@ -491,6 +534,7 @@ func doRegisterCloudMeta(s *mcclient.ClientSession, regionId string) error {
 	return onecloud.RegisterServicePublicInternalEndpoint(s, regionId,
 		constants.ServiceNameCloudmeta,
 		constants.ServiceTypeCloudmeta,
+		"",
 		constants.ServiceURLCloudmeta)
 }
 
@@ -499,6 +543,7 @@ func doRegisterTracker(s *mcclient.ClientSession, regionId string) error {
 		s, regionId,
 		constants.ServiceNameTorrentTracker,
 		constants.ServiceTypeTorrentTracker,
+		"",
 		constants.ServiceURLTorrentTracker)
 }
 
@@ -550,10 +595,23 @@ func doSyncCommonConfigure(s *mcclient.ClientSession, defaultConf map[string]str
 	return err
 }
 
+func doCreateEtcdServiceEndpoint(s *mcclient.ClientSession, regionId, endpointUrl, certName string) error {
+	return onecloud.RegisterServiceEndpointByInterfaces(
+		s, regionId, constants.ServiceNameEtcd, constants.ServiceTypeEtcd,
+		endpointUrl, certName, []string{constants.EndpointTypeInternal},
+	)
+}
+
+func doCreateEtcdCertificate(s *mcclient.ClientSession, certDetails *jsonutils.JSONDict) error {
+	_, err := onecloud.EnsureServiceCertificate(s, constants.ServiceCertEtcdName, certDetails)
+	return err
+}
+
 func doRegisterOfflineCloudMeta(s *mcclient.ClientSession, regionId string) error {
 	return onecloud.RegisterServicePublicInternalEndpoint(s, regionId,
 		constants.ServiceNameOfflineCloudmeta,
 		constants.ServiceTypeOfflineCloudmeta,
+		"",
 		constants.ServiceURLOfflineCloudmeta)
 }
 
