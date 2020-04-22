@@ -563,7 +563,7 @@ yunion.io/x/jsonutils
 # yunion.io/x/log v0.0.0-20200313080802-57a4ce5966b3
 yunion.io/x/log
 yunion.io/x/log/hooks
-# yunion.io/x/onecloud v0.0.0-20200418082822-76ee769eaf54
+# yunion.io/x/onecloud v0.0.0-20200422115051-5d4f7eabeeb0
 yunion.io/x/onecloud/pkg/ansibleserver/options
 yunion.io/x/onecloud/pkg/apis
 yunion.io/x/onecloud/pkg/apis/ansible

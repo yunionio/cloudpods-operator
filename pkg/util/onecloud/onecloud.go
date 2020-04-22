@@ -121,6 +121,17 @@ func EnsureService(s *mcclient.ClientSession, svcName, svcType string) (jsonutil
 	})
 }
 
+func EnsureServiceCertificate(s *mcclient.ClientSession, certName string, certDetails *jsonutils.JSONDict) (jsonutils.JSONObject, error) {
+	return EnsureResource(s, &modules.ServiceCertificatesV3, certName, func() (jsonutils.JSONObject, error) {
+		return CreateServiceCertificate(s, certName, certDetails)
+	})
+}
+
+func CreateServiceCertificate(s *mcclient.ClientSession, certName string, certDetails *jsonutils.JSONDict) (jsonutils.JSONObject, error) {
+	certDetails.Add(jsonutils.NewString(certName), "name")
+	return modules.ServiceCertificatesV3.Create(s, certDetails)
+}
+
 func CreateService(s *mcclient.ClientSession, svcName, svcType string) (jsonutils.JSONObject, error) {
 	params := jsonutils.NewDict()
 	params.Add(jsonutils.NewString(svcType), "type")
@@ -144,7 +155,9 @@ func IsEndpointExists(s *mcclient.ClientSession, svcId, regionId, interfaceType 
 	return eps.Data[0], true, nil
 }
 
-func EnsureEndpoint(s *mcclient.ClientSession, svcId, regionId, interfaceType, url string) (jsonutils.JSONObject, error) {
+func EnsureEndpoint(
+	s *mcclient.ClientSession, svcId, regionId, interfaceType, url, serviceCert string,
+) (jsonutils.JSONObject, error) {
 	ep, exists, err := IsEndpointExists(s, svcId, regionId, interfaceType)
 	if err != nil {
 		return nil, err
@@ -156,6 +169,9 @@ func EnsureEndpoint(s *mcclient.ClientSession, svcId, regionId, interfaceType, u
 		createParams.Add(jsonutils.NewString(interfaceType), "interface")
 		createParams.Add(jsonutils.NewString(url), "url")
 		createParams.Add(jsonutils.JSONTrue, "enabled")
+		if len(serviceCert) > 0 {
+			createParams.Add(jsonutils.NewString(serviceCert), "service_certificate")
+		}
 		return modules.EndpointsV3.Create(s, createParams)
 	}
 	epId, err := ep.GetString("id")
@@ -171,6 +187,9 @@ func EnsureEndpoint(s *mcclient.ClientSession, svcId, regionId, interfaceType, u
 	updateParams := jsonutils.NewDict()
 	updateParams.Add(jsonutils.NewString(url), "url")
 	updateParams.Add(jsonutils.JSONTrue, "enabled")
+	if len(serviceCert) > 0 {
+		updateParams.Add(jsonutils.NewString(serviceCert), "service_certificate")
+	}
 	return modules.EndpointsV3.Update(s, epId, updateParams)
 }
 
@@ -387,6 +406,7 @@ func RegisterServiceEndpoints(
 	regionId string,
 	serviceName string,
 	serviceType string,
+	serviceCert string,
 	interfaceUrls map[string]string,
 ) error {
 	svc, err := EnsureService(s, serviceName, serviceType)
@@ -402,7 +422,7 @@ func RegisterServiceEndpoints(
 		tmpInf := inf
 		tmpUrl := endpointUrl
 		errgrp.Go(func() error {
-			_, err = EnsureEndpoint(s, svcId, regionId, tmpInf, tmpUrl)
+			_, err = EnsureEndpoint(s, svcId, regionId, tmpInf, tmpUrl, serviceCert)
 			if err != nil {
 				return err
 			}
@@ -418,13 +438,14 @@ func RegisterServiceEndpointByInterfaces(
 	serviceName string,
 	serviceType string,
 	endpointUrl string,
+	serviceCert string,
 	interfaces []string,
 ) error {
 	urls := make(map[string]string)
 	for _, inf := range interfaces {
 		urls[inf] = endpointUrl
 	}
-	return RegisterServiceEndpoints(s, regionId, serviceName, serviceType, urls)
+	return RegisterServiceEndpoints(s, regionId, serviceName, serviceType, serviceCert, urls)
 }
 
 func RegisterServicePublicInternalEndpoint(
@@ -432,10 +453,11 @@ func RegisterServicePublicInternalEndpoint(
 	regionId string,
 	serviceName string,
 	serviceType string,
+	serviceCert string,
 	endpointUrl string,
 ) error {
 	return RegisterServiceEndpointByInterfaces(s, regionId, serviceName, serviceType,
-		endpointUrl, []string{constants.EndpointTypeInternal, constants.EndpointTypePublic})
+		endpointUrl, serviceCert, []string{constants.EndpointTypeInternal, constants.EndpointTypePublic})
 }
 
 func ToPlaybook(
