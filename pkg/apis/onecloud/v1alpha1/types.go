@@ -20,6 +20,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+var(
+	StartingDeadlineSeconds int64 = 300
+)
+
 const (
 	OnecloudClusterResourceKind   = "OnecloudCluster"
 	OnecloudClusterResourcePlural = "onecloudclusters"
