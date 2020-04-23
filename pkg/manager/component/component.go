@@ -224,13 +224,18 @@ func (m *ComponentManager) syncConfigMap(
 	if err := SetConfigMapLastAppliedConfigAnnotation(cfgMap); err != nil {
 		return err
 	}
-	oldCfgMap, _ := m.configer.Lister().ConfigMaps(oc.GetNamespace()).Get(cfgMap.GetName())
+	oldCfgMap, err := m.configer.Lister().ConfigMaps(oc.GetNamespace()).Get(cfgMap.GetName())
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
 	if oldCfgMap != nil {
-		if equal, err := configMapEqual(cfgMap, oldCfgMap); err != nil {
-			return err
-		} else if equal {
-			return nil
-		}
+		//if equal, err := configMapEqual(cfgMap, oldCfgMap); err != nil {
+		//	return err
+		//} else if equal {
+		//	return nil
+		//}
+		// if cfgmap exist do not update
+		return nil
 	}
 	return m.configer.CreateOrUpdateConfigMap(oc, cfgMap)
 }
@@ -639,8 +644,8 @@ func (m *ComponentManager) newCloudServiceDeploymentWithInit(
 	initContainersF := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		return []corev1.Container{
 			{
-				Name:  "init",
-				Image: deployCfg.Image,
+				Name:            "init",
+				Image:           deployCfg.Image,
 				ImagePullPolicy: deployCfg.ImagePullPolicy,
 				Command: []string{
 					fmt.Sprintf("/opt/yunion/bin/%s", cType.String()),
