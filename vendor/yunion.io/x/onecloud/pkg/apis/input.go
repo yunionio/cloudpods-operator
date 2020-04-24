@@ -21,15 +21,15 @@ type DomainizedResourceInput struct {
 
 	// swagger:ignore
 	// Deprecated
-	Domain string `json:"domain" deprecated-by:"project_domain"`
+	Domain string `json:"domain" "yunion:deprecated-by":"project_domain"`
 	// swagger:ignore
 	// Deprecated
 	// Project domain Id filter, alias for project_domain
-	ProjectDomainId string `json:"project_domain_id" deprecated-by:"project_domain"`
+	ProjectDomainId string `json:"project_domain_id" "yunion:deprecated-by":"project_domain"`
 	// swagger:ignore
 	// Deprecated
 	// Domain Id filter, alias for project_domain
-	DomainId string `json:"domain_id" deprecated-by:"project_domain"`
+	DomainId string `json:"domain_id" "yunion:deprecated-by":"project_domain"`
 }
 
 type ProjectizedResourceInput struct {
@@ -39,15 +39,15 @@ type ProjectizedResourceInput struct {
 	// swagger:ignore
 	// Deprecated
 	// Filter by project_id, alias for project
-	ProjectId string `json:"project_id" deprecated-by:"project"`
+	ProjectId string `json:"project_id" "yunion:deprecated-by":"project"`
 	// swagger:ignore
 	// Deprecated
 	// Filter by tenant ID or Name, alias for project
-	Tenant string `json:"tenant" deprecated-by:"project"`
+	Tenant string `json:"tenant" "yunion:deprecated-by":"project"`
 	// swagger:ignore
 	// Deprecated
 	// Filter by tenant_id, alias for project
-	TenantId string `json:"tenant_id" deprecated-by:"project"`
+	TenantId string `json:"tenant_id" "yunion:deprecated-by":"project"`
 }
 
 type DomainizedResourceCreateInput struct {
@@ -59,16 +59,20 @@ type ProjectizedResourceCreateInput struct {
 	ProjectizedResourceInput
 }
 
-type SharableVirtualResourceCreateInput struct {
-	VirtualResourceCreateInput
-
-	// description: indicate the resource is a public resource
+type SharableResourceBaseCreateInput struct {
+	// 是否共享
 	// required: false
 	IsPublic *bool `json:"is_public"`
 
-	// description: indicate the shared scope for a public resource, which can be domain or system or none
+	// 共享范围
 	// required: false
 	PublicScope string `json:"public_scope"`
+}
+
+type SharableVirtualResourceCreateInput struct {
+	VirtualResourceCreateInput
+
+	SharableResourceBaseCreateInput
 }
 
 type VirtualResourceCreateInput struct {
@@ -207,6 +211,8 @@ type PerformDisableInput struct {
 
 type InfrasResourceBaseCreateInput struct {
 	DomainLevelResourceCreateInput
+
+	SharableResourceBaseCreateInput
 }
 
 type StatusInfrasResourceBaseCreateInput struct {

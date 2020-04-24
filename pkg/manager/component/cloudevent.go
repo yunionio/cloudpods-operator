@@ -69,8 +69,8 @@ func (m *cloudeventManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	return m.newServiceConfigMap(v1alpha1.CloudeventComponentType, oc, opt), nil
 }
 
-func (m *cloudeventManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {
-	return m.newSingleNodePortService(v1alpha1.CloudeventComponentType, oc, constants.CloudeventPort)
+func (m *cloudeventManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.CloudeventComponentType, oc, constants.CloudeventPort)}
 }
 
 func (m *cloudeventManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {

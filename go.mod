@@ -3,12 +3,15 @@ module yunion.io/x/onecloud-operator
 go 1.12
 
 require (
+	github.com/coreos/etcd v3.3.13+incompatible
+	github.com/coreos/etcd-operator v0.9.4
 	github.com/docker/distribution v0.0.0-20170726174610-edc3ab29cdff
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/googleapis/gnostic v0.3.0 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/onsi/ginkgo v1.8.0 // indirect
 	github.com/onsi/gomega v1.5.0 // indirect
+	github.com/pborman/uuid v1.2.0
 	github.com/pkg/errors v0.8.1
 	github.com/spf13/pflag v1.0.3 // indirect
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
@@ -20,10 +23,10 @@ require (
 	k8s.io/kube-openapi v0.0.0-20190603182131-db7b694dc208 // indirect
 	k8s.io/kubernetes v1.16.0
 	k8s.io/utils v0.0.0-20190607212802-c55fbcfc754a // indirect
-	yunion.io/x/jsonutils v0.0.0-20200330063846-589d9924bb8b
+	yunion.io/x/jsonutils v0.0.0-20200415132054-2bf8a5e94501
 	yunion.io/x/log v0.0.0-20200313080802-57a4ce5966b3
-	yunion.io/x/onecloud v0.0.0-20200331084538-4a796f066a93
-	yunion.io/x/pkg v0.0.0-20200312093207-f07f4cb157e0
+	yunion.io/x/onecloud v0.0.0-20200422115051-5d4f7eabeeb0
+	yunion.io/x/pkg v0.0.0-20200416145704-22c189971435
 	yunion.io/x/structarg v0.0.0-20190809075558-115bed041de3
 )
 

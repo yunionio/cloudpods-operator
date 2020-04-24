@@ -41,6 +41,7 @@ type OnecloudCertControlInterface interface {
 
 	// GetCertSecret return certs secret
 	// GetCertSecret(oc *v1alpha1.OnecloudCluster) (*corev1.Secret, error)
+	CreateEtcdCert(oc *v1alpha1.OnecloudCluster) error
 }
 
 type realOnecloudCertControl struct {
@@ -68,16 +69,22 @@ func (c *realOnecloudCertControl) CreateCert(oc *v1alpha1.OnecloudCluster) error
 		return err
 	}
 	store := newCertsStore()
-	store.WriteCertAndKey(caCert.BaseName, cert, key)
+	if err := store.WriteCertAndKey(caCert.BaseName, cert, key); err != nil {
+		return err
+	}
 
 	svcCerts := NewServiceCert(caCert.BaseName, constants.ServiceCertAndKeyBaseName, constants.ServiceCertName)
 	svcCert, svcKey, err := svcCerts.CreateFromCA(oc, cert, key)
 	if err != nil {
 		return err
 	}
-	store.WriteCertAndKey(svcCerts.BaseName, svcCert, svcKey)
+	if err := store.WriteCertAndKey(svcCerts.BaseName, svcCert, svcKey); err != nil {
+		return err
+	}
 	// for web ingress
-	store.WriteCertAndKey("tls", svcCert, svcKey)
+	if err := store.WriteCertAndKey("tls", svcCert, svcKey); err != nil {
+		return err
+	}
 	certSecret := newSecretFromStore(oc, store)
 	_, err = c.kubeCli.CoreV1().Secrets(oc.GetNamespace()).Create(certSecret)
 	return err
@@ -178,7 +185,6 @@ func (k *OnecloudCert) CreateAsCA(oc *v1alpha1.OnecloudCluster) (*x509.Certifica
 
 // NewCACertAndKey will generate a self signed CA.
 func NewCACertAndKey(certSpec *certutil.Config) (*x509.Certificate, crypto.Signer, error) {
-
 	caCert, caKey, err := pkiutil.NewCertificateAuthority(certSpec)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failure while generating CA certificate and key")

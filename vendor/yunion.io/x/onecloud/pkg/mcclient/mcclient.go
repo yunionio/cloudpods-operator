@@ -61,6 +61,7 @@ func NewClient(authUrl string, timeout int, debug bool, insecure bool, certFile,
 	tr.TLSClientConfig = tlsConf
 	tr.IdleConnTimeout = 5 * time.Second
 	tr.TLSHandshakeTimeout = 10 * time.Second
+	tr.ResponseHeaderTimeout = 0
 
 	client := Client{authUrl: authUrl,
 		timeout: timeout,
@@ -308,6 +309,17 @@ func (this *Client) Verify(adminToken, token string) (cred TokenCredential, err 
 
 func (this *Client) SetTenant(tenantId, tenantName, tenantDomain string, token TokenCredential) (TokenCredential, error) {
 	return this.SetProject(tenantId, tenantName, tenantDomain, token)
+}
+
+func (this *Client) AuthenticateToken(token string, projName, projDomain string, source string) (TokenCredential, error) {
+	aCtx := SAuthContext{
+		Source: source,
+	}
+	if this.AuthVersion() == "v3" {
+		return this._authV3("", "", "", "", projName, projDomain, token, aCtx)
+	} else {
+		return this._authV2("", "", "", projName, token, aCtx)
+	}
 }
 
 func (this *Client) SetProject(tenantId, tenantName, tenantDomain string, token TokenCredential) (TokenCredential, error) {

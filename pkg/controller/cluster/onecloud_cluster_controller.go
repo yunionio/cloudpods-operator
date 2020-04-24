@@ -122,6 +122,7 @@ func NewController(
 		cronControl, cronInformer.Lister(),
 		nodeInformer.Lister(),
 		configer, onecloudControl,
+		ocControl,
 	)
 
 	c := &Controller{

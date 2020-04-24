@@ -30,13 +30,14 @@ type ServerListInput struct {
 
 	HostFilterListInput
 
-	NetworkFilterListInput
+	NetworkFilterListInput `"yunion:ambiguous-prefix":"vpc_"`
 
 	billing.BillingResourceListInput
 
 	GroupFilterListInput
 	SecgroupFilterListInput
 	DiskFilterListInput
+	ScalingGroupFilterListInput
 
 	// 只列出裸金属主机
 	Baremetal *bool `json:"baremetal"`
@@ -219,6 +220,12 @@ type ServerDetails struct {
 
 	// Cdrom信息
 	Cdrom string `json:"cdrom,allowempty"`
+
+	// 主机在伸缩组中的状态
+	ScalingStatus string `json:"scaling_status"`
+
+	// 伸缩组id
+	ScalingGroupId string `json:"scaling_group_id"`
 }
 
 type GuestJointResourceDetails struct {
@@ -255,15 +262,15 @@ type ServerResourceInput struct {
 	// swagger:ignore
 	// Deprecated
 	// Filter by guest Id
-	ServerId string `json:"server_id" deprecated-by:"server"`
+	ServerId string `json:"server_id" "yunion:deprecated-by":"server"`
 	// swagger:ignore
 	// Deprecated
 	// Filter by guest Id
-	Guest string `json:"guest" deprecated-by:"server"`
+	Guest string `json:"guest" "yunion:deprecated-by":"server"`
 	// swagger:ignore
 	// Deprecated
 	// Filter by guest Id
-	GuestId string `json:"guest_id" deprecated-by:"server"`
+	GuestId string `json:"guest_id" "yunion:deprecated-by":"server"`
 }
 
 type ServerFilterListInput struct {
@@ -293,4 +300,13 @@ type GuestAutoRenewInput struct {
 	// 若公有云本身支持自动续费功能, 则使用云上设置
 	// 若公有云本身不支持自动续费, 则在本地周期(默认三小时)检查快过期虚拟机并进行续费一个月
 	AutoRenew bool `json:"auto_renew"`
+}
+
+type ConvertEsxiToKvmInput struct {
+	apis.Meta
+
+	// target hypervisor
+	TargetHypervisor string `json:"target_hypervisor"`
+	// 指定转换的宿主机
+	PreferHost string `json:"prefer_host"`
 }
