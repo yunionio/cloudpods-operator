@@ -285,7 +285,7 @@ type ServerConfigs struct {
 	// swagger:ignore
 	// Deprecated
 	// alias for InstanceType
-	Sku string `json:"sku" deprecated-by:"instance_type"`
+	Sku string `json:"sku" "yunion:deprecated-by":"instance_type"`
 
 	// 虚拟机高可用(创建备机)
 	// default: false
@@ -358,11 +358,12 @@ type ServerCreateInput struct {
 	UserData string `json:"user_data"`
 
 	// swagger:ignore
-	Keypair string `json:"keypair" deprecated-by:"keypair_id"`
+	// Deprecated
+	KeypairId string `json:"keypair_id" "yunion:deprecated-by":"keypair"`
 
 	// 秘钥对Id
 	// required: false
-	KeypairId string `json:"keypair_id"`
+	Keypair string `json:"keypair"`
 
 	// 密码
 	// 要求: 密码长度 >= 20, 至少包含一个数字一个小写字母一个大小字母及特殊字符~`!@#$%^&*()-_=+[]{}|:';\",./<>?中的一个
@@ -444,9 +445,10 @@ type ServerCreateInput struct {
 	// 指定此参数后会创建新的弹性公网IP并绑定到新建的虚拟机
 	// 私有云不支持此参数
 	EipBw int `json:"eip_bw,omitzero"`
-
 	// 弹性公网IP计费类型
 	EipChargeType string `json:"eip_charge_type,omitempty"`
+	// 是否跟随主机删除而自动释放
+	EipAutoDellocate bool `json:"eip_auto_dellocate,omitempty"`
 
 	// 弹性公网IP名称或ID
 	// 绑定已有弹性公网IP, 此参数会限制虚拟机再谈下公网IP所在的区域创建

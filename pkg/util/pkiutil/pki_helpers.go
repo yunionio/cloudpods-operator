@@ -17,6 +17,7 @@ import (
 	certutil "k8s.io/client-go/util/cert"
 	"k8s.io/kubernetes/cmd/kubeadm/app/util/pkiutil"
 
+	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 )
 
@@ -105,6 +106,7 @@ func GetServiceAltNames(oc *v1alpha1.OnecloudCluster, serviceName string, certNa
 			serviceName,
 			fmt.Sprintf("%s.%s", serviceName, ns),
 			fmt.Sprintf("%s.%s.svc", serviceName, ns),
+			constants.Localhost,
 		},
 	}
 

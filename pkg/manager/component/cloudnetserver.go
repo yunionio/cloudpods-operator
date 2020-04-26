@@ -15,9 +15,10 @@
 package component
 
 import (
+	"path"
+
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"path"
 
 	"yunion.io/x/onecloud/pkg/cloudnet/options"
 
@@ -69,8 +70,8 @@ func (m *cloudnetManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 	return m.newServiceConfigMap(v1alpha1.CloudnetComponentType, oc, opt), nil
 }
 
-func (m *cloudnetManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {
-	return m.newSingleNodePortService(v1alpha1.CloudnetComponentType, oc, constants.CloudnetPort)
+func (m *cloudnetManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.CloudnetComponentType, oc, constants.CloudnetPort)}
 }
 
 func (m *cloudnetManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {

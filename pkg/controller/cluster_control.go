@@ -33,6 +33,7 @@ import (
 // ClusterControlInterface manages Onecloud clusters
 type ClusterControlInterface interface {
 	UpdateCluster(cluster *v1alpha1.OnecloudCluster, newStatus *v1alpha1.OnecloudClusterStatus, oldStatus *v1alpha1.OnecloudClusterStatus) (*v1alpha1.OnecloudCluster, error)
+	GetCluster(namespace, name string) (*v1alpha1.OnecloudCluster, error)
 }
 
 type clusterControl struct {
@@ -83,6 +84,10 @@ func (c *clusterControl) UpdateCluster(oc *v1alpha1.OnecloudCluster, newStatus, 
 		c.recordClusterEvent("update", oc, err)
 	}
 	return updateOC, err
+}
+
+func (c *clusterControl) GetCluster(namespace, name string) (*v1alpha1.OnecloudCluster, error) {
+	return c.ocLister.OnecloudClusters(namespace).Get(name)
 }
 
 func (c *clusterControl) recordClusterEvent(verb string, oc *v1alpha1.OnecloudCluster, err error) {

@@ -19,7 +19,7 @@ import (
 	"yunion.io/x/pkg/utils"
 
 	"yunion.io/x/onecloud/pkg/apis"
-	"yunion.io/x/onecloud/pkg/apis/cloudcommon/proxy"
+	proxyapi "yunion.io/x/onecloud/pkg/apis/cloudcommon/proxy"
 	"yunion.io/x/onecloud/pkg/cloudprovider"
 	"yunion.io/x/onecloud/pkg/httperrors"
 )
@@ -66,7 +66,7 @@ type CloudenvResourceListInput struct {
 	Providers []string `json:"providers"`
 	// swagger:ignore
 	// Deprecated
-	Provider []string `json:"provider" deprecated-by:"providers"`
+	Provider []string `json:"provider" "yunion:deprecated-by":"providers"`
 
 	// 列出指定云平台品牌的资源，一般来说brand和provider相同，除了以上支持的provider之外，还支持以下band
 	//
@@ -77,7 +77,7 @@ type CloudenvResourceListInput struct {
 	Brands []string `json:"brands"`
 	// swagger:ignore
 	// Deprecated
-	Brand []string `json:"brand" deprecated-by:"brands"`
+	Brand []string `json:"brand" "yunion:deprecated-by":"brands"`
 
 	// 列出指定云环境的资源，支持云环境如下：
 	//
@@ -167,10 +167,11 @@ type CloudaccountCreateInput struct {
 	IsOnPremise bool
 
 	// 指定云账号所属的项目
-	Tenant string `json:"tenant"`
-
+	// Tenant string `json:"tenant"`
 	// swagger:ignore
-	TenantId string
+	// TenantId string
+
+	apis.ProjectizedResourceInput
 
 	// 启用自动同步
 	// default: false
@@ -186,7 +187,7 @@ type CloudaccountCreateInput struct {
 	// 额外信息,例如账单的access key
 	Options *jsonutils.JSONDict `json:"options"`
 
-	proxy.ProxySettingResourceInput
+	proxyapi.ProxySettingResourceInput
 
 	cloudprovider.SCloudaccount
 	cloudprovider.SCloudaccountCredential
@@ -294,6 +295,8 @@ type CloudaccountDetail struct {
 	// 存储缓存数量
 	// example: 10
 	StoragecacheCount int `json:"storagecache_count,allowempty"`
+
+	ProxySetting proxyapi.SProxySetting `json:"proxy_setting"`
 }
 
 type CloudaccountUpdateInput struct {
@@ -307,7 +310,7 @@ type CloudaccountUpdateInput struct {
 	// 带删除的options key
 	RemoveOptions []string `json:"remove_options"`
 
-	proxy.ProxySettingResourceInput
+	proxyapi.ProxySettingResourceInput
 }
 
 type CloudaccountPerformPublicInput struct {

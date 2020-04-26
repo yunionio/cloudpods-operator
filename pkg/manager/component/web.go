@@ -290,7 +290,7 @@ func (m *webManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.Web.Disable)
 }
 
-func (m *webManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {
+func (m *webManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
 	ports := []corev1.ServicePort{
 		{
 			Name:       "https",
@@ -299,11 +299,11 @@ func (m *webManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {
 			TargetPort: intstr.FromInt(443),
 		},
 	}
-	return m.newService(v1alpha1.WebComponentType, oc, corev1.ServiceTypeClusterIP, ports)
+	return []*corev1.Service{m.newService(v1alpha1.WebComponentType, oc, corev1.ServiceTypeClusterIP, ports)}
 }
 
 func (m *webManager) getIngress(oc *v1alpha1.OnecloudCluster) *extensions.Ingress {
-	svc := m.getService(oc)
+	svc := m.getService(oc)[0]
 	ocName := oc.GetName()
 	svcName := controller.NewClusterComponentName(ocName, v1alpha1.WebComponentType)
 	appLabel := m.getComponentLabel(oc, v1alpha1.WebComponentType)

@@ -15,9 +15,10 @@
 package component
 
 import (
+	"path"
+
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"path"
 
 	"yunion.io/x/onecloud/pkg/cloudcommon/options"
 
@@ -81,8 +82,8 @@ func (m *kubeManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 	return m.newServiceConfigMap(v1alpha1.KubeServerComponentType, oc, opt), nil
 }
 
-func (m *kubeManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {
-	return m.newSingleNodePortService(v1alpha1.KubeServerComponentType, oc, constants.KubeServerPort)
+func (m *kubeManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.KubeServerComponentType, oc, constants.KubeServerPort)}
 }
 
 func (m *kubeManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
