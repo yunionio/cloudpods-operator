@@ -44,19 +44,11 @@ const (
 
 	EEConfig = `
     location / {
-        return 301 https://$host/v1/;
-    }
-
-    location ^~/v1 {
-        alias /usr/share/nginx/html/web;
+        root   /usr/share/nginx/html/dashboard;
         index index.html;
-        try_files $uri $uri/ /index.html last;
-    }
-
-    location ^~/v2 {
-        alias /usr/share/nginx/html/dashboard;
-        index index.html;
-        try_files $uri $uri/ /index.html last;
+        add_header Cache-Control no-cache;
+        expires 1s;
+        try_files $uri $uri/ /index.html;
     }
 
     location /docs/ {
