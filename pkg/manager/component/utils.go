@@ -34,8 +34,6 @@ import (
 	"k8s.io/kubernetes/cmd/kubeadm/app/util/apiclient"
 	deploymentutil "k8s.io/kubernetes/pkg/kubectl/util/deployment"
 
-	"yunion.io/x/onecloud/pkg/cloudcommon/options"
-	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/pkg/util/reflectutils"
 	"yunion.io/x/structarg"
 
@@ -44,6 +42,8 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/util/mysql"
 	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
+	"yunion.io/x/onecloud/pkg/cloudcommon/options"
+	"yunion.io/x/onecloud/pkg/mcclient"
 )
 
 const (
@@ -246,7 +246,7 @@ func cronJobEqual(new, old *batchv1.CronJob) bool {
 			return false
 		}
 		return apiequality.Semantic.DeepEqual(oldConfig.Spec.Schedule, new.Spec.Schedule) &&
-			apiequality.Semantic.DeepEqual(oldConfig.Spec.JobTemplate.Spec.Template, oldConfig.Spec.JobTemplate.Spec.Template)
+			apiequality.Semantic.DeepEqual(oldConfig.Spec.JobTemplate.Spec.Template, new.Spec.JobTemplate.Spec.Template)
 	}
 	return false
 }
