@@ -43,11 +43,11 @@ const (
 `
 
 	EEConfig = `
+    location ~ ^/v[12]/ { rewrite ^/v.(.*)$ $1 redirect; }
+
     location / {
         root   /usr/share/nginx/html/dashboard;
         index index.html;
-        add_header Cache-Control no-cache;
-        expires 1s;
         try_files $uri $uri/ /index.html;
     }
 
