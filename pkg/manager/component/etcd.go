@@ -56,6 +56,7 @@ const (
 
 	etcdVolumeMountDir = "/var/etcd"
 	dataDir            = etcdVolumeMountDir + "/data"
+	etcdVolumeName     = "etcd-data"
 )
 
 var (
@@ -237,9 +238,9 @@ func (m *etcdManager) createPod(
 		if err != nil {
 			return fmt.Errorf("failed to create PVC for member (%s): %v", mb.Name, err)
 		}
-		k8sutil.AddEtcdVolumeToPod(pod, pvc)
+		addEtcdVolumeToPod(pod, pvc)
 	} else {
-		k8sutil.AddEtcdVolumeToPod(pod, nil)
+		addEtcdVolumeToPod(pod, nil)
 	}
 	_, err := m.kubeCli.CoreV1().Pods(m.oc.GetNamespace()).Create(pod)
 	return err
@@ -797,4 +798,18 @@ func getMemberName(m *etcdserverpb.Member, clusterName string) (string, error) {
 		return "", newFatalError(fmt.Sprintf("invalid member peerURL (%s): %v", m.PeerURLs[0], err))
 	}
 	return name, nil
+}
+
+// addEtcdVolumeToPod abstract the process of appending volume spec to pod spec
+func addEtcdVolumeToPod(pod *corev1.Pod, pvc *corev1.PersistentVolumeClaim) {
+	vol := corev1.Volume{Name: etcdVolumeName}
+	if pvc != nil {
+		vol.VolumeSource = corev1.VolumeSource{
+			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvc.Name},
+		}
+	} else {
+		// default mount etcd data dir as tmpfs
+		vol.VolumeSource = corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{Medium: corev1.StorageMediumMemory}}
+	}
+	pod.Spec.Volumes = append(pod.Spec.Volumes, vol)
 }
