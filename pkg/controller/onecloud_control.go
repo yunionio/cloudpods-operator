@@ -21,9 +21,13 @@ import (
 	"sync"
 	"time"
 
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
+	kubeadmconstants "k8s.io/kubernetes/cmd/kubeadm/app/constants"
 
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/pkg/errors"
@@ -432,7 +436,11 @@ func (c keystoneComponent) SystemInit() error {
 		if err := doCreateCommonService(s); err != nil {
 			return errors.Wrap(err, "create common service")
 		}
-		if err := doSyncCommonConfigure(s, c.getCommonConfig()); err != nil {
+		commonConfig, err := c.getCommonConfig()
+		if err != nil {
+			return errors.Wrap(err, "common config")
+		}
+		if err := doSyncCommonConfigure(s, commonConfig); err != nil {
 			return errors.Wrap(err, "sync common configure")
 		}
 		if !oc.Spec.Etcd.Disable {
@@ -456,14 +464,54 @@ func (c keystoneComponent) SystemInit() error {
 	})
 }
 
-func (c keystoneComponent) getCommonConfig() map[string]string {
-	getApiGatewayUrl := fmt.Sprintf("https://%s:%d",
-		NewClusterComponentName(c.GetCluster().GetName(), v1alpha1.APIGatewayComponentType),
-		constants.APIGatewayPort,
-	)
-	return map[string]string{
-		"api_server": getApiGatewayUrl,
+func (c keystoneComponent) getWebAccessUrl() (string, error) {
+	occtl := c.baseComponent.manager.GetController()
+	masterNodeSelector := labels.NewSelector()
+	r, err := labels.NewRequirement(
+		kubeadmconstants.LabelNodeRoleMaster, selection.Exists, nil)
+	if err != nil {
+		return "", err
 	}
+	masterNodeSelector = masterNodeSelector.Add(*r)
+	listOpt := metav1.ListOptions{LabelSelector: masterNodeSelector.String()}
+	nodes, err := occtl.kubeCli.CoreV1().Nodes().List(listOpt)
+	if err != nil {
+		return "", err
+	}
+	if len(nodes.Items) == 0 {
+		return "", fmt.Errorf("no master node found")
+	}
+	var masterAddress string
+	for _, node := range nodes.Items {
+		if length := len(node.Status.Conditions); length > 0 {
+			if node.Status.Conditions[length-1].Type == v1.NodeReady &&
+				node.Status.Conditions[length-1].Status == v1.ConditionTrue {
+				for _, addr := range node.Status.Addresses {
+					if addr.Type == v1.NodeInternalIP {
+						masterAddress = addr.Address
+						break
+					}
+				}
+			}
+		}
+		if len(masterAddress) >= 0 {
+			break
+		}
+	}
+	if len(masterAddress) == 0 {
+		return "", fmt.Errorf("can't find master node internal ip")
+	}
+	return fmt.Sprintf("https://%s", masterAddress), nil
+}
+
+func (c keystoneComponent) getCommonConfig() (map[string]string, error) {
+	url, err := c.getWebAccessUrl()
+	if err != nil {
+		return nil, err
+	}
+	return map[string]string{
+		"api_server": url,
+	}, nil
 }
 
 func (c keystoneComponent) getEtcdCertificate() (*jsonutils.JSONDict, error) {
