@@ -138,8 +138,12 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 					Name:            "sdnagent",
 					Image:           dsSpec.SdnAgent.Image,
 					ImagePullPolicy: dsSpec.SdnAgent.ImagePullPolicy,
-					Command:         []string{"/opt/yunion/bin/sdnagent"},
-					VolumeMounts:    volMounts,
+					Command: []string{
+						"/opt/yunion/bin/sdnagent",
+						"--common-config-file",
+						"/etc/yunion/common/common.conf",
+					},
+					VolumeMounts: volMounts,
 					SecurityContext: &corev1.SecurityContext{
 						Privileged: &privileged,
 					},
