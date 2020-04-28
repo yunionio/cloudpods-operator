@@ -23,6 +23,7 @@ import (
 
 var (
 	StartingDeadlineSeconds int64 = 300
+	CronjobMonitorExpand float64 = 1.2
 )
 
 // ComponentType represents component type
@@ -312,6 +313,7 @@ type CronJobSpec struct {
 	ContainerSpec
 	Disable      bool                `json:"disable"`
 	Schedule     string              `json:"schedule"`
+	Interval string `json:"interval"`
 	Affinity     *corev1.Affinity    `json:"affinity,omitempty"`
 	NodeSelector map[string]string   `json:"nodeSelector,omitempty"`
 	Tolerations  []corev1.Toleration `json:"tolerations,omitempty"`
