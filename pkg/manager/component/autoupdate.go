@@ -85,7 +85,7 @@ func (m *autoUpdateManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.S
 }
 
 func (m *autoUpdateManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
-	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.AutoUpdateComponentType, oc, oc.Spec.AutoUpdate, constants.AutoUpdatePort, false)
+	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.AutoUpdateComponentType, oc, oc.Spec.AutoUpdate, constants.AutoUpdatePort, false, false)
 	if err != nil {
 		return nil, err
 	}
