@@ -389,6 +389,7 @@ var (
 	EtcdServerSecret = "etcd-server"
 	EtcdClientSecret = "etcd-client"
 	EtcdPeerSecret   = "etcd-peer"
+	EtcdClientTLSDir = "/etc/etcdtls/operator/etcd-tls"
 
 	EtcdServerName       = "server"
 	EtcdServerCACertName = "server-ca"

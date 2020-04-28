@@ -670,6 +670,7 @@ func (m *ComponentManager) newCloudServiceDeployment(
 	deployCfg v1alpha1.DeploymentSpec,
 	initContainersF func([]corev1.VolumeMount) []corev1.Container,
 	ports []corev1.ContainerPort,
+	mountEtcdTLS bool,
 ) (*apps.Deployment, error) {
 	configMap := controller.ComponentConfigMapName(oc, cType)
 	containersF := func(volMounts []corev1.VolumeMount) []corev1.Container {
@@ -689,7 +690,14 @@ func (m *ComponentManager) newCloudServiceDeployment(
 		}
 	}
 
-	return m.newDefaultDeployment(cType, oc, NewVolumeHelper(oc, configMap, cType),
+	var h *VolumeHelper
+	if mountEtcdTLS {
+		h = NewVolumeHelperWithEtcdTLS(oc, configMap, cType)
+	} else {
+		h = NewVolumeHelper(oc, configMap, cType)
+	}
+
+	return m.newDefaultDeployment(cType, oc, h,
 		deployCfg, initContainersF, containersF)
 }
 
@@ -698,6 +706,7 @@ func (m *ComponentManager) newCloudServiceDeploymentWithInit(
 	oc *v1alpha1.OnecloudCluster,
 	deployCfg v1alpha1.DeploymentSpec,
 	ports []corev1.ContainerPort,
+	mountEtcdTLS bool,
 ) (*apps.Deployment, error) {
 	initContainersF := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		return []corev1.Container{
@@ -716,7 +725,7 @@ func (m *ComponentManager) newCloudServiceDeploymentWithInit(
 			},
 		}
 	}
-	return m.newCloudServiceDeployment(cType, oc, deployCfg, initContainersF, ports)
+	return m.newCloudServiceDeployment(cType, oc, deployCfg, initContainersF, ports, mountEtcdTLS)
 }
 
 func (m *ComponentManager) newCloudServiceDeploymentNoInit(
@@ -724,8 +733,9 @@ func (m *ComponentManager) newCloudServiceDeploymentNoInit(
 	oc *v1alpha1.OnecloudCluster,
 	deployCfg v1alpha1.DeploymentSpec,
 	ports []corev1.ContainerPort,
+	mountEtcdTLS bool,
 ) (*apps.Deployment, error) {
-	return m.newCloudServiceDeployment(cType, oc, deployCfg, nil, ports)
+	return m.newCloudServiceDeployment(cType, oc, deployCfg, nil, ports, mountEtcdTLS)
 }
 
 func (m *ComponentManager) newCloudServiceSinglePortDeployment(
@@ -734,6 +744,7 @@ func (m *ComponentManager) newCloudServiceSinglePortDeployment(
 	deployCfg v1alpha1.DeploymentSpec,
 	port int32,
 	doInit bool,
+	mountEtcdTLS bool,
 ) (*apps.Deployment, error) {
 	ports := []corev1.ContainerPort{
 		{
@@ -746,7 +757,7 @@ func (m *ComponentManager) newCloudServiceSinglePortDeployment(
 	if doInit {
 		f = m.newCloudServiceDeploymentWithInit
 	}
-	return f(cType, oc, deployCfg, ports)
+	return f(cType, oc, deployCfg, ports, mountEtcdTLS)
 }
 
 func (m *ComponentManager) deploymentIsUpgrading(deploy *apps.Deployment, oc *v1alpha1.OnecloudCluster) (bool, error) {
