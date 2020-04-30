@@ -116,7 +116,7 @@ func (m *regionDNSManager) getConfigMap(oc *v1alpha1.OnecloudCluster, clusterCfg
 		DBPort:     db.Port,
 		DBName:     regionDB.Database,
 		DNSDomain:  regionSpec.DNSDomain,
-		Region:     oc.Spec.Region,
+		Region:     oc.GetRegion(),
 		Proxies:    proxies,
 	}
 	content, err := config.GetContent()

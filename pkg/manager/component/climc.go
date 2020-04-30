@@ -53,7 +53,7 @@ func GetRCAdminEnv(oc *v1alpha1.OnecloudCluster) []corev1.EnvVar {
 		},
 		{
 			Name:  "OS_REGION_NAME",
-			Value: oc.Spec.Region,
+			Value: oc.GetRegion(),
 		},
 		{
 			Name:  "OS_AUTH_URL",

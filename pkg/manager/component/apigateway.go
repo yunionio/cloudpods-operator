@@ -84,7 +84,7 @@ func (c *apiGatewayPhaseControl) Setup() error {
 	return nil
 }
 
-func (c *apiGatewayPhaseControl) SystemInit() error {
+func (c *apiGatewayPhaseControl) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 	return nil
 }
 
