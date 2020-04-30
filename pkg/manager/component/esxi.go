@@ -74,7 +74,7 @@ func (m *esxiManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 	Deployment, error) {
 
 	dm, err := m.newCloudServiceSinglePortDeployment(v1alpha1.EsxiAgentComponentType, oc,
-		oc.Spec.EsxiAgent.DeploymentSpec, constants.EsxiAgentPort, false)
+		oc.Spec.EsxiAgent.DeploymentSpec, constants.EsxiAgentPort, false, false)
 	if err != nil {
 		return nil, err
 	}

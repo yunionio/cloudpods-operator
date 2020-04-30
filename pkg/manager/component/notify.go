@@ -147,7 +147,7 @@ func (m *notifyManager) getPVC(oc *v1alpha1.OnecloudCluster) (*corev1.Persistent
 func (m *notifyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
 	img := oc.Spec.Notify.Image
 	pluginImg := strings.ReplaceAll(img, "notify", "notify-plugins")
-	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.NotifyComponentType, oc, oc.Spec.Notify.DeploymentSpec, constants.NotifyPort, true)
+	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.NotifyComponentType, oc, oc.Spec.Notify.DeploymentSpec, constants.NotifyPort, true, false)
 	if err != nil {
 		return nil, err
 	}
