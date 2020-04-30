@@ -345,6 +345,10 @@ type KeystoneStatus struct {
 
 type RegionStatus struct {
 	DeploymentStatus
+	RegionId     string
+	RegionZoneId string
+	ZoneId       string
+	WireId       string
 }
 
 type GlanceStatus struct {
