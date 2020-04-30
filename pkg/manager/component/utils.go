@@ -567,7 +567,7 @@ func SetServiceBaseOptions(opt *options.BaseOptions, region string, input v1alph
 }
 
 func SetServiceCommonOptions(opt *options.CommonOptions, oc *v1alpha1.OnecloudCluster, input v1alpha1.ServiceCommonOptions) {
-	SetServiceBaseOptions(&opt.BaseOptions, oc.Spec.Region, input.ServiceBaseConfig)
+	SetServiceBaseOptions(&opt.BaseOptions, oc.GetRegion(), input.ServiceBaseConfig)
 	opt.AuthURL = controller.GetAuthURL(oc)
 	opt.AdminUser = input.CloudUser.Username
 	opt.AdminDomain = constants.DefaultDomain

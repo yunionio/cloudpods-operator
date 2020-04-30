@@ -136,6 +136,7 @@ func (m *etcdManager) sync(oc *v1alpha1.OnecloudCluster) {
 		return
 	}
 	m.run()
+	m.syncing = false
 }
 
 func (m *etcdManager) isSecure() bool {
@@ -145,7 +146,7 @@ func (m *etcdManager) isSecure() bool {
 func (m *etcdManager) setup() error {
 	var shouldCreateCluster bool
 	switch m.status.Phase {
-	case v1alpha1.EtcdClusterPhaseNone:
+	case v1alpha1.EtcdClusterPhaseNone, v1alpha1.EtcdClusterPhaseFailed:
 		shouldCreateCluster = true
 	case v1alpha1.EtcdClusterPhaseCreating:
 		return errCreatedCluster
@@ -413,6 +414,15 @@ func (m *etcdManager) updateEtcdStatus() error {
 	return nil
 }
 
+func (m *etcdManager) fetchCluster() error {
+	oc, err := m.onecloudClusterControl.GetCluster(m.oc.GetNamespace(), m.oc.GetName())
+	if err != nil {
+		return err
+	}
+	m.oc = oc
+	return nil
+}
+
 func (m *etcdManager) updateMemberStatus(running []*corev1.Pod) {
 	var unready []string
 	var ready []string
@@ -481,11 +491,14 @@ func (m *etcdManager) run() {
 
 	log.Infof("start running ......")
 	var rerr error
+Loop:
 	for {
 		select {
 		case <-time.After(reconcileInterval):
-			// skip care about pause
-			//start := time.Now()
+			if err := m.fetchCluster(); err != nil {
+				log.Warningf("fetch cluster failed %s", err)
+				continue
+			}
 			running, pending, err := m.pollPods()
 			if err != nil {
 				log.Warningf("failed poll pods %s", err)
@@ -499,9 +512,15 @@ func (m *etcdManager) run() {
 				continue
 			}
 			if len(running) == 0 {
-				// TODO: how to handle this case?
 				log.Warningf("all etcd pods are dead.")
-				break
+				// Note: we didn't need the data stone in etcd
+				// so we can rebuild etcd cluster on all etcd pods are dead
+				m.updateMemberStatus(nil)
+				m.status.Phase = v1alpha1.EtcdClusterPhaseFailed
+				if err := m.updateEtcdStatus(); err != nil {
+					log.Warningf("update etcd status failed: %s", err)
+				}
+				break Loop
 			}
 			if rerr != nil || m.members == nil {
 				rerr = m.updateMembers(podsToMemberSet(running, m.isSecure()))
@@ -524,7 +543,7 @@ func (m *etcdManager) run() {
 				m.status.Reason = rerr.Error()
 				log.Errorf("cluster failed: %s", rerr)
 				m.reportFailedStatus()
-				return
+				break Loop
 			}
 			// TODO handle cluster resize, udpate image version event
 		}

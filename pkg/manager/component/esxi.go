@@ -51,7 +51,7 @@ func (m *esxiManager) getConfigMap(
 		return nil, err
 	}
 	// fill options
-	opt.Zone = oc.Spec.Zone
+	opt.Zone = oc.GetZone()
 	opt.ListenInterface = "eth0"
 
 	config := cfg.EsxiAgent
