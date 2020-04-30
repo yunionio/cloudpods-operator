@@ -51,7 +51,7 @@ func (m *baremetalManager) getConfigMap(
 	opt.AutoRegisterBaremetal = false
 	opt.LinuxDefaultRootUser = true
 	opt.DefaultIpmiPassword = "YunionDev@123"
-	opt.Zone = oc.Spec.Zone
+	opt.Zone = oc.GetZone()
 	return m.newServiceConfigMap(v1alpha1.BaremetalAgentComponentType, oc, opt), nil
 }
 

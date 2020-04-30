@@ -69,7 +69,7 @@ func (m *keystoneManager) getConfigMap(oc *v1alpha1.OnecloudCluster, clusterCfg 
 	config := clusterCfg.Keystone
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
 	SetOptionsServiceTLS(&opt.BaseOptions)
-	SetServiceBaseOptions(&opt.BaseOptions, oc.Spec.Region, config.ServiceBaseConfig)
+	SetServiceBaseOptions(&opt.BaseOptions, oc.GetRegion(), config.ServiceBaseConfig)
 
 	opt.BootstrapAdminUserPassword = oc.Spec.Keystone.BootstrapPassword
 	// always reset admin user password to ensure password is correct
