@@ -134,7 +134,7 @@ func (m *regionManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Servi
 }
 
 func (m *regionManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
-	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.RegionComponentType, oc, oc.Spec.RegionServer.DeploymentSpec, constants.RegionPort, true)
+	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.RegionComponentType, oc, oc.Spec.RegionServer.DeploymentSpec, constants.RegionPort, true, true)
 	if err != nil {
 		return nil, err
 	}

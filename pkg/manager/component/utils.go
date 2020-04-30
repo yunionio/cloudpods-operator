@@ -436,7 +436,8 @@ func NewVolumeHelper(oc *v1alpha1.OnecloudCluster, optCfgMap string, component v
 			},
 		},
 	}
-	h.volumeMounts = append(h.volumeMounts, corev1.VolumeMount{Name: constants.VolumeCertsName, ReadOnly: true, MountPath: constants.CertDir})
+	h.volumeMounts = append(h.volumeMounts, corev1.VolumeMount{
+		Name: constants.VolumeCertsName, ReadOnly: true, MountPath: constants.CertDir})
 
 	if h.optionCfgMap != "" {
 		cfgVol := corev1.Volume{
@@ -455,6 +456,14 @@ func NewVolumeHelper(oc *v1alpha1.OnecloudCluster, optCfgMap string, component v
 		h.volumes = append(h.volumes, cfgVol)
 		h.volumeMounts = append(h.volumeMounts, corev1.VolumeMount{Name: constants.VolumeConfigName, ReadOnly: true, MountPath: constants.ConfigDir})
 	}
+	return h
+}
+
+func NewVolumeHelperWithEtcdTLS(
+	oc *v1alpha1.OnecloudCluster, optCfgMap string, component v1alpha1.ComponentType,
+) *VolumeHelper {
+	h := NewVolumeHelper(oc, optCfgMap, component)
+	h.addEtcdClientTLSVolumes(oc)
 	return h
 }
 
@@ -502,6 +511,23 @@ func (h *VolumeHelper) addVmwareVolumes() *VolumeHelper {
 			},
 		},
 	)
+	return h
+}
+
+func (h *VolumeHelper) addEtcdClientTLSVolumes(oc *v1alpha1.OnecloudCluster) *VolumeHelper {
+	if !oc.Spec.Etcd.Disable && oc.Spec.Etcd.EnableTls {
+		h.volumes = append(h.volumes, corev1.Volume{
+			Name: constants.EtcdClientSecret,
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{SecretName: constants.EtcdClientSecret},
+			},
+		})
+		h.volumeMounts = append(h.volumeMounts, corev1.VolumeMount{
+			MountPath: constants.EtcdClientTLSDir,
+			Name:      constants.EtcdClientSecret,
+			ReadOnly:  true,
+		})
+	}
 	return h
 }
 
@@ -800,6 +826,7 @@ func NewHostVolume(
 	}
 	h.addVmwareVolumes()
 	h.addOvsVolumes()
+	h.addEtcdClientTLSVolumes(oc)
 	return h
 }
 

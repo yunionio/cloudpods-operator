@@ -75,7 +75,7 @@ func (m *webconsoleManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.S
 }
 
 func (m *webconsoleManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
-	return m.newCloudServiceSinglePortDeployment(v1alpha1.WebconsoleComponentType, oc, oc.Spec.Webconsole, constants.WebconsolePort, false)
+	return m.newCloudServiceSinglePortDeployment(v1alpha1.WebconsoleComponentType, oc, oc.Spec.Webconsole, constants.WebconsolePort, false, false)
 }
 
 func (m *webconsoleManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
