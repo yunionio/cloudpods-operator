@@ -17,3 +17,19 @@ package v1alpha1
 func (ct ComponentType) String() string {
 	return string(ct)
 }
+
+func (oc *OnecloudCluster) GetRegion() string {
+	if len(oc.Status.RegionServer.RegionId) == 0 {
+		return oc.Spec.Region
+	} else {
+		return oc.Status.RegionServer.RegionId
+	}
+}
+
+func (oc *OnecloudCluster) GetZone() string {
+	if len(oc.Status.RegionServer.ZoneId) == 0 {
+		return oc.Spec.Zone
+	} else {
+		return oc.Status.RegionServer.ZoneId
+	}
+}
