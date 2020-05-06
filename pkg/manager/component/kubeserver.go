@@ -98,10 +98,15 @@ func (m *kubeManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 			},
 		}
 	}
-	return m.newDefaultDeploymentNoInit(
+	deploy, err := m.newDefaultDeploymentNoInit(
 		v1alpha1.KubeServerComponentType, oc,
 		NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.KubeServerComponentType), v1alpha1.KubeServerComponentType),
 		oc.Spec.KubeServer, cf)
+	if err != nil {
+		return nil, err
+	}
+	deploy.Spec.Template.Spec.ServiceAccountName = constants.ServiceAccountOnecloudOperator
+	return deploy, nil
 }
 
 func (m *kubeManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
