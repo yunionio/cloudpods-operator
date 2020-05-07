@@ -143,6 +143,10 @@ type HostDetails struct {
 	CpuCommitRate float64 `json:"cpu_commit_rate"`
 	// 内存超分率
 	MemCommitRate float64 `json:"mem_commit_rate"`
+	// CPU超售比
+	CpuCommitBound float32 `json:"cpu_commit_bound"`
+	// 内存超售比
+	MemCommitBound float32 `json:"mem_commint_bound"`
 	// 存储大小
 	Storage int64 `json:"storage"`
 	// 已使用存储大小
@@ -159,6 +163,8 @@ type HostDetails struct {
 	IsPrepaidRecycle  bool                `json:"is_prepaid_recycle"`
 	CanPrepare        bool                `json:"can_prepare"`
 	PrepareFailReason string              `json:"prepare_fail_reason"`
+	// 允许开启宿主机健康检查
+	AllowHealthCheck bool `json:"allow_health_check"`
 
 	// 标签
 	Metadata map[string]string `json:"metadata"`
@@ -245,19 +251,19 @@ type HostAccessAttributes struct {
 
 type HostSizeAttributes struct {
 	// CPU核数
-	CpuCount int `json:"cpu_count"`
+	CpuCount *int `json:"cpu_count"`
 	// 物理CPU颗数
-	NodeCount int8 `json:"node_count"`
+	NodeCount *int8 `json:"node_count"`
 	// CPU描述信息
 	CpuDesc string `json:"cpu_desc"`
 	// CPU频率
-	CpuMhz int `json:"cpu_mhz"`
+	CpuMhz *int `json:"cpu_mhz"`
 	// CPU缓存大小,单位KB
 	CpuCache string `json:"cpu_cache"`
 	// 预留CPU大小
-	CpuReserved int `json:"cpu_reserved"`
+	CpuReserved *int `json:"cpu_reserved"`
 	// CPU超分比
-	CpuCmtbound float32 `json:"cpu_cmtbound"`
+	CpuCmtbound *float32 `json:"cpu_cmtbound"`
 	// CPUMicrocode
 	CpuMicrocode string `json:"cpu_microcode"`
 	// CPU架构
@@ -268,10 +274,10 @@ type HostSizeAttributes struct {
 	// 预留内存大小(单位MB)
 	MemReserved string `json:"mem_reserved"`
 	// 内存超分比
-	MemCmtbound float32 `json:"mem_cmtbound"`
+	MemCmtbound *float32 `json:"mem_cmtbound"`
 
 	// 存储大小,单位Mb
-	StorageSize int `json:"storage_size"`
+	StorageSize *int `json:"storage_size"`
 	// 存储类型
 	StorageType string `json:"storage_type"`
 	// 存储驱动类型
