@@ -2,6 +2,10 @@ package component
 
 import (
 	"fmt"
+	"math"
+	"regexp"
+	"strconv"
+	"strings"
 
 	batchv1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
@@ -39,7 +43,15 @@ func (m *cloudmonReportServerManager) newCronJob(
 	cfg *v1alpha1.OnecloudClusterConfig,
 ) (*batchv1.CronJob, error) {
 	spec := &oc.Spec.CloudmonReportServer
-	spec.Schedule = "*/15 * * * *"
+	reg, _ := regexp.Compile(`/\d+`)
+	fin := reg.Find([]byte(spec.Schedule))
+	if spec.Schedule == "" {
+		spec.Schedule = "*/4 * * * *"
+		fin = []byte("/4")
+	}
+	interval := strings.Split(string(fin), "/")[1]
+	period, _ := strconv.ParseFloat(interval, 64)
+	monitorInterval := strconv.FormatFloat(math.Ceil(period*v1alpha1.CronjobMonitorExpand), 'f', -1, 64)
 	configMapType := v1alpha1.APIGatewayComponentType
 	containersF := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		return []corev1.Container{
@@ -52,7 +64,7 @@ func (m *cloudmonReportServerManager) newCronJob(
 					fmt.Sprintf("/etc/yunion/%s.conf", configMapType),
 					"report-server",
 					"--interval",
-					"15",
+					monitorInterval,
 					"--provider",
 					"Aliyun",
 				},
@@ -68,7 +80,7 @@ func (m *cloudmonReportServerManager) newCronJob(
 					fmt.Sprintf("/etc/yunion/%s.conf", configMapType),
 					"report-server",
 					"--interval",
-					"15",
+					monitorInterval,
 					"--provider",
 					"Huawei",
 				},
@@ -84,7 +96,7 @@ func (m *cloudmonReportServerManager) newCronJob(
 					fmt.Sprintf("/etc/yunion/%s.conf", configMapType),
 					"report-server",
 					"--interval",
-					"15",
+					monitorInterval,
 					"--provider",
 					"Qcloud",
 				},
@@ -100,7 +112,7 @@ func (m *cloudmonReportServerManager) newCronJob(
 					fmt.Sprintf("/etc/yunion/%s.conf", configMapType),
 					"report-server",
 					"--interval",
-					"15",
+					monitorInterval,
 					"--provider",
 					"Google",
 				},
@@ -116,7 +128,7 @@ func (m *cloudmonReportServerManager) newCronJob(
 					fmt.Sprintf("/etc/yunion/%s.conf", configMapType),
 					"report-server",
 					"--interval",
-					"15",
+					monitorInterval,
 					"--provider",
 					"Aws",
 				},
@@ -132,7 +144,7 @@ func (m *cloudmonReportServerManager) newCronJob(
 					fmt.Sprintf("/etc/yunion/%s.conf", configMapType),
 					"report-server",
 					"--interval",
-					"15",
+					monitorInterval,
 					"--provider",
 					"Azure",
 				},
@@ -148,7 +160,7 @@ func (m *cloudmonReportServerManager) newCronJob(
 					fmt.Sprintf("/etc/yunion/%s.conf", configMapType),
 					"report-server",
 					"--interval",
-					"15",
+					monitorInterval,
 					"--provider",
 					"VMware",
 				},
@@ -164,7 +176,7 @@ func (m *cloudmonReportServerManager) newCronJob(
 					fmt.Sprintf("/etc/yunion/%s.conf", configMapType),
 					"report-server",
 					"--interval",
-					"15",
+					monitorInterval,
 					"--provider",
 					"ZStack",
 				},

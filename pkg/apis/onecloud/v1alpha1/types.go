@@ -23,6 +23,7 @@ import (
 
 var (
 	StartingDeadlineSeconds int64 = 300
+	CronjobMonitorExpand float64 = 1.2
 )
 
 // ComponentType represents component type
