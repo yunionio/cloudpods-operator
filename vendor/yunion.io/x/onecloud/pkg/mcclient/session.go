@@ -66,7 +66,8 @@ type ClientSession struct {
 	Header        http.Header /// headers for this session
 	notifyChannel chan string
 
-	defaultApiVersion string
+	defaultApiVersion   string
+	customizeServiceUrl map[string]string
 }
 
 func populateHeader(self *http.Header, update http.Header) {
@@ -174,6 +175,8 @@ func (this *ClientSession) getBaseUrl(service, endpointType, apiVersion string) 
 	if len(service) > 0 {
 		if strings.HasPrefix(service, "http://") || strings.HasPrefix(service, "https://") {
 			return service, nil
+		} else if url, ok := this.customizeServiceUrl[service]; ok {
+			return url, nil
 		} else {
 			return this.GetServiceVersionURL(service, endpointType, this.getApiVersion(apiVersion))
 		}
@@ -305,6 +308,10 @@ func (this *ClientSession) RemoveTaskNotifyUrl() {
 	this.Header.Del(TASK_NOTIFY_URL)
 }
 
+func (this *ClientSession) SetServiceUrl(service, url string) {
+	this.customizeServiceUrl[service] = url
+}
+
 func (this *ClientSession) PrepareTask() {
 	// start a random htttp server
 	this.notifyChannel = make(chan string)
@@ -367,6 +374,11 @@ func (this *ClientSession) ToJson() jsonutils.JSONObject {
 	}
 	if len(this.zone) > 0 {
 		params.Add(jsonutils.NewString(this.zone), "zone")
+	}
+	if tokenV3, ok := this.token.(*TokenCredentialV3); ok {
+		params.Add(jsonutils.NewStringArray(tokenV3.Token.Policies.Project), "project_policies")
+		params.Add(jsonutils.NewStringArray(tokenV3.Token.Policies.Domain), "domain_policies")
+		params.Add(jsonutils.NewStringArray(tokenV3.Token.Policies.System), "system_policies")
 	}
 	return params
 }
