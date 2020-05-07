@@ -14,6 +14,10 @@
 
 package apis
 
+import (
+	"time"
+)
+
 type ModelBaseDetails struct {
 	Meta
 
@@ -28,7 +32,7 @@ type ModelBaseDetails struct {
 	// example: true
 	CanUpdate bool `json:"can_update"`
 
-	// 资源不能删除的原因
+	// 资源不能更新的原因
 	UpdateFailReason string `json:"update_fail_reason"`
 }
 
@@ -112,11 +116,15 @@ type StatusStandaloneResourceDetails struct {
 	StandaloneResourceDetails
 }
 
+type MetadataResourceInfo struct {
+	// 标签
+	Metadata map[string]string `json:"metadata"`
+}
+
 type StandaloneResourceDetails struct {
 	ResourceBaseDetails
 
-	// 标签
-	Metadata map[string]string `json:"metadata"`
+	MetadataResourceInfo
 }
 
 type DomainizedResourceInfo struct {
@@ -159,4 +167,35 @@ type EnabledStatusInfrasResourceBaseDetails struct {
 
 type ChangeOwnerCandidateDomainsOutput struct {
 	Candidates []SharedDomain `json:"candidates"`
+}
+
+type OpsLogDetails struct {
+	ModelBaseDetails
+
+	Id      int64  `json:"id"`
+	ObjType string `json:"obj_type"`
+	ObjId   string `json:"obj_id"`
+	ObjName string `json:"obj_name"`
+	Action  string `json:"action"`
+	Notes   string `json:"notes"`
+
+	ProjectId string `json:"tenant_id"`
+	Project   string `json:"tenant"`
+
+	ProjectDomainId string `json:"project_domain_id"`
+	ProjectDomain   string `json:"project_domain"`
+
+	UserId   string `json:"user_id"`
+	User     string `json:"user"`
+	DomainId string `json:"domain_id"`
+	Domain   string `json:"domain"`
+	Roles    string `json:"roles"`
+
+	OpsTime time.Time `json:"ops_time"`
+
+	OwnerDomainId  string `json:"owner_domain_id"`
+	OwnerProjectId string `json:"owner_project_id"`
+
+	OwnerDomain  string `json:"owner_domain"`
+	OwnerProject string `json:"owner_tenant"`
 }
