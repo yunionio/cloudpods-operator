@@ -91,24 +91,6 @@ server {
         add_header Cache-Control "public, must-revalidate, proxy-revalidate";
     }
 
-    location /servicetree {
-        alias /usr/share/nginx/html/servicetree;
-        index index.html;
-        add_header Cache-Control no-cache;
-        expires 1s;
-        if (!-e $request_filename) {
-            rewrite ^/(.*) /servicetree/index.html last;
-            break;
-        }
-    }
-
-    location /static-servicetree/ {
-        root /usr/share/nginx/html/servicetree;
-        expires max;
-        add_header Pragma public;
-        add_header Cache-Control "public, must-revalidate, proxy-revalidate";
-    }
-
     location /itsm {
         alias /usr/share/nginx/html/itsm;
         index index.html;
@@ -188,22 +170,6 @@ server {
         proxy_set_header Connection "upgrade";
 
         proxy_read_timeout 86400;
-    }
-
-    location /bi {
-        alias /usr/share/nginx/html/bi;
-        index index.html;
-        if (!-e $request_filename) {
-            rewrite ^/(.*) /bi/index.html last;
-            break;
-        }
-    }
-
-    location /static-bi/ {
-        root /usr/share/nginx/html/bi;
-        expires max;
-        add_header Pragma public;
-        add_header Cache-Control "public, must-revalidate, proxy-revalidate";
     }
 
     location /web-console {
