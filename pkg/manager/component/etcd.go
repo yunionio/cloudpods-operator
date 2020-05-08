@@ -57,6 +57,9 @@ const (
 	etcdVolumeMountDir = "/var/etcd"
 	dataDir            = etcdVolumeMountDir + "/data"
 	etcdVolumeName     = "etcd-data"
+
+	etcdBackendQuotaSize        = 16 * 1024 * 1024 // 16M
+	etcdAutoCompactionRetention = 1                // 1 hour
 )
 
 var (
@@ -256,7 +259,7 @@ func (m *etcdManager) customPodSpec(pod *corev1.Pod, mb *etcdutil.Member, state,
 		version = m.oc.Spec.Etcd.Version
 	}
 	pod.Spec.Containers[0].Image = fmt.Sprintf("%s:%s", path.Join(imageRepository, constants.EtcdImageName), version)
-	//pod.Spec.Containers[0].Command = m.newEtcdCommand(mb, state, token, initialCluster)
+	pod.Spec.Containers[0].Command = m.newEtcdCommand(mb, state, token, initialCluster)
 	pod.Spec.Containers[0].LivenessProbe = m.newLivenessProbe(m.isSecure())
 	pod.Spec.Containers[0].ReadinessProbe = m.newReadinessProbe(m.isSecure())
 
@@ -314,9 +317,10 @@ func (m *etcdManager) newEtcdProbe(isSecure bool) *corev1.Probe {
 func (m *etcdManager) newEtcdCommand(mb *etcdutil.Member, state, token string, initialCluster []string) []string {
 	commands := fmt.Sprintf("/usr/local/bin/etcd --data-dir=%s --name=%s --initial-advertise-peer-urls=%s "+
 		"--listen-peer-urls=%s --listen-client-urls=%s --advertise-client-urls=%s "+
-		"--initial-cluster=%s --initial-cluster-state=%s",
+		"--initial-cluster=%s --initial-cluster-state=%s --quota-backend-bytes %d --auto-compaction-retention %d",
 		dataDir, mb.Name, mb.PeerURL(), mb.ListenPeerURL(), mb.ListenClientURL(),
-		mb.ClientURL(), strings.Join(initialCluster, ","), state)
+		mb.ClientURL(), strings.Join(initialCluster, ","), state,
+		etcdBackendQuotaSize, etcdAutoCompactionRetention)
 	if mb.SecurePeer {
 		commands += fmt.Sprintf(" --peer-client-cert-auth=true --peer-trusted-ca-file=%[1]s/ca.crt --peer-cert-file=%[1]s/service.crt --peer-key-file=%[1]s/service.key", peerTLSDir)
 	}
