@@ -60,6 +60,7 @@ const (
 
 	etcdBackendQuotaSize        = 16 * 1024 * 1024 // 16M
 	etcdAutoCompactionRetention = 1                // 1 hour
+	etcdMaxWALFileCount         = 1
 )
 
 var (
@@ -317,10 +318,12 @@ func (m *etcdManager) newEtcdProbe(isSecure bool) *corev1.Probe {
 func (m *etcdManager) newEtcdCommand(mb *etcdutil.Member, state, token string, initialCluster []string) []string {
 	commands := fmt.Sprintf("/usr/local/bin/etcd --data-dir=%s --name=%s --initial-advertise-peer-urls=%s "+
 		"--listen-peer-urls=%s --listen-client-urls=%s --advertise-client-urls=%s "+
-		"--initial-cluster=%s --initial-cluster-state=%s --quota-backend-bytes %d --auto-compaction-retention %d",
+		"--initial-cluster=%s --initial-cluster-state=%s "+
+		"--quota-backend-bytes %d --auto-compaction-retention %d "+
+		"--max-wals %d",
 		dataDir, mb.Name, mb.PeerURL(), mb.ListenPeerURL(), mb.ListenClientURL(),
 		mb.ClientURL(), strings.Join(initialCluster, ","), state,
-		etcdBackendQuotaSize, etcdAutoCompactionRetention)
+		etcdBackendQuotaSize, etcdAutoCompactionRetention, etcdMaxWALFileCount)
 	if mb.SecurePeer {
 		commands += fmt.Sprintf(" --peer-client-cert-auth=true --peer-trusted-ca-file=%[1]s/ca.crt --peer-cert-file=%[1]s/service.crt --peer-key-file=%[1]s/service.key", peerTLSDir)
 	}
