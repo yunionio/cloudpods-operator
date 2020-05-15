@@ -1065,3 +1065,7 @@ func (m *ComponentManager) EsxiAgent() manager.Manager {
 func (m *ComponentManager) CloudmonReportServer() manager.Manager {
 	return newCloudmonReportServerManager(m)
 }
+
+func (m *ComponentManager) CloudmonReportHost() manager.Manager {
+	return newCloudmonReportHostManager(m)
+}
