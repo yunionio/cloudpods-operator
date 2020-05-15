@@ -20,9 +20,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var(
-	StartingDeadlineSeconds int64 = 300
-	CronjobMonitorExpand float64 = 1.2
+var (
+	StartingDeadlineSeconds int64   = 300
+	CronjobMonitorExpand    float64 = 1.2
 )
 
 const (
@@ -86,6 +86,8 @@ const (
 	CloudmonReportUsageComponentType ComponentType = "cloudmon-report-usage"
 	// CloudmonReportServerAli is report-usage cronjob
 	CloudmonReportServerComponentType ComponentType = "cloudmon-report-server"
+	// CloudmonReportHost is report-host cronjob
+	CloudmonReportHostComponentType ComponentType = "cloudmon-report-host"
 	// Esxi Agent
 	EsxiAgentComponentType ComponentType = "esxi-agent"
 
@@ -207,6 +209,8 @@ type OnecloudClusterSpec struct {
 	CloudmonReportUsage CronJobSpec `json:"cloudmonreportusage"`
 	// CloudmonReportServerAli holds configuration for report-server cronjob
 	CloudmonReportServer CronJobSpec `json:"cloudmonreportserver"`
+	// CloudmonReportHost holds configuration for report-usage cronjob
+	CloudmonReportHost CronJobSpec `json:"cloudmonreporthost"`
 	// EsxiAgent hols configuration for esxi agent
 	EsxiAgent StatefulDeploymentSpec `json:"esxiagent"`
 
