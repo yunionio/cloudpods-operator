@@ -61,6 +61,7 @@ const (
 	etcdBackendQuotaSize        = 16 * 1024 * 1024 // 16M
 	etcdAutoCompactionRetention = 1                // 1 hour
 	etcdMaxWALFileCount         = 1
+	etcdTestKey                 = "/etcd/pod/liveness/test"
 )
 
 var (
@@ -284,19 +285,43 @@ func (m *etcdManager) customPodSpec(pod *corev1.Pod, mb *etcdutil.Member, state,
 }
 
 func (m *etcdManager) newLivenessProbe(isSecure bool) *corev1.Probe {
-	return m.newEtcdProbe(isSecure)
+	tlsFlags := fmt.Sprintf("--cert=%[1]s/%[2]s --key=%[1]s/%[3]s --cacert=%[1]s/%[4]s",
+		operatorEtcdTLSDir, etcdutil.CliCertFile, etcdutil.CliKeyFile, etcdutil.CliCAFile)
+	cmd := "ETCDCTL_API=3 etcdctl endpoint status"
+	if isSecure {
+		cmd = fmt.Sprintf("ETCDCTL_API=3 etcdctl --endpoints=https://localhost:%d %s endpoint status",
+			constants.EtcdClientPort, tlsFlags)
+	}
+	cmd2 := "ETCDCTL_API=3 etcdctl defrag"
+	if isSecure {
+		cmd2 = fmt.Sprintf("ETCDCTL_API=3 etcdctl --endpoints=https://localhost:%d %s defrag",
+			constants.EtcdClientPort, tlsFlags)
+	}
+	cmd3 := fmt.Sprintf("ETCDCTL_API=3 etcdctl put %s test", etcdTestKey)
+	if isSecure {
+		cmd3 = fmt.Sprintf("ETCDCTL_API=3 etcdctl --endpoints=https://localhost:%d %s put %s test",
+			constants.EtcdClientPort, tlsFlags, etcdTestKey)
+	}
+	cmd4 := fmt.Sprintf("ETCDCTL_API=3 etcdctl del %s", etcdTestKey)
+	if isSecure {
+		cmd4 = fmt.Sprintf("ETCDCTL_API=3 etcdctl --endpoints=https://localhost:%d %s del %s",
+			constants.EtcdClientPort, tlsFlags, etcdTestKey)
+	}
+	cmd = fmt.Sprintf("%s && %s && %s && %s", cmd, cmd2, cmd3, cmd4)
+	return &corev1.Probe{
+		Handler: corev1.Handler{
+			Exec: &corev1.ExecAction{
+				Command: []string{"/bin/sh", "-ec", cmd},
+			},
+		},
+		InitialDelaySeconds: 10,
+		TimeoutSeconds:      10,
+		PeriodSeconds:       60,
+		FailureThreshold:    3,
+	}
 }
 
 func (m *etcdManager) newReadinessProbe(isSecure bool) *corev1.Probe {
-	p := m.newEtcdProbe(isSecure)
-	p.InitialDelaySeconds = 1
-	p.TimeoutSeconds = 5
-	p.PeriodSeconds = 5
-	p.FailureThreshold = 3
-	return p
-}
-
-func (m *etcdManager) newEtcdProbe(isSecure bool) *corev1.Probe {
 	cmd := "ETCDCTL_API=3 etcdctl endpoint status"
 	if isSecure {
 		tlsFlags := fmt.Sprintf("--cert=%[1]s/%[2]s --key=%[1]s/%[3]s --cacert=%[1]s/%[4]s", operatorEtcdTLSDir, etcdutil.CliCertFile, etcdutil.CliKeyFile, etcdutil.CliCAFile)
@@ -308,9 +333,9 @@ func (m *etcdManager) newEtcdProbe(isSecure bool) *corev1.Probe {
 				Command: []string{"/bin/sh", "-ec", cmd},
 			},
 		},
-		InitialDelaySeconds: 10,
-		TimeoutSeconds:      10,
-		PeriodSeconds:       60,
+		InitialDelaySeconds: 1,
+		TimeoutSeconds:      5,
+		PeriodSeconds:       5,
 		FailureThreshold:    3,
 	}
 }
@@ -325,10 +350,10 @@ func (m *etcdManager) newEtcdCommand(mb *etcdutil.Member, state, token string, i
 		mb.ClientURL(), strings.Join(initialCluster, ","), state,
 		etcdBackendQuotaSize, etcdAutoCompactionRetention, etcdMaxWALFileCount)
 	if mb.SecurePeer {
-		commands += fmt.Sprintf(" --peer-client-cert-auth=true --peer-trusted-ca-file=%[1]s/ca.crt --peer-cert-file=%[1]s/service.crt --peer-key-file=%[1]s/service.key", peerTLSDir)
+		commands += fmt.Sprintf(" --peer-client-cert-auth=true --peer-trusted-ca-file=%[1]s/peer-ca.crt --peer-cert-file=%[1]s/peer.crt --peer-key-file=%[1]s/peer.key", peerTLSDir)
 	}
 	if mb.SecureClient {
-		commands += fmt.Sprintf(" --client-cert-auth=true --trusted-ca-file=%[1]s/ca.crt --cert-file=%[1]s/service.crt --key-file=%[1]s/service.key", serverTLSDir)
+		commands += fmt.Sprintf(" --client-cert-auth=true --trusted-ca-file=%[1]s/server-ca.crt --cert-file=%[1]s/server.crt --key-file=%[1]s/server.key", serverTLSDir)
 	}
 	if state == "new" {
 		commands = fmt.Sprintf("%s --initial-cluster-token=%s", commands, token)
