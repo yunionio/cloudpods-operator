@@ -403,10 +403,6 @@ func (c keystoneComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 		region = oc.Status.RegionServer.RegionId
 	}
 	if err := c.RunWithSession(func(s *mcclient.ClientSession) error {
-		if err := c.doRegisterIdentity(s, region, oc.Spec.LoadBalancerEndpoint, KeystoneComponentName(oc.GetName()),
-			constants.KeystoneAdminPort, constants.KeystonePublicPort, true); err != nil {
-			return errors.Wrap(err, "register identity endpoint")
-		}
 		if err := doPolicyRoleInit(s); err != nil {
 			return errors.Wrap(err, "policy role init")
 		}
@@ -415,6 +411,10 @@ func (c keystoneComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 		} else {
 			regionId, _ := res.GetString("id")
 			oc.Status.RegionServer.RegionId = regionId
+		}
+		if err := c.doRegisterIdentity(s, region, oc.Spec.LoadBalancerEndpoint, KeystoneComponentName(oc.GetName()),
+			constants.KeystoneAdminPort, constants.KeystonePublicPort, true); err != nil {
+			return errors.Wrap(err, "register identity endpoint")
 		}
 		return nil
 	}); err != nil {
