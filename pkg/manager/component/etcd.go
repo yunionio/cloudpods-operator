@@ -24,6 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
@@ -35,8 +36,9 @@ import (
 type etcdManager struct {
 	*ComponentManager
 
-	lock    sync.Mutex
-	syncing bool
+	lock          sync.Mutex
+	syncing       bool
+	reconcileLock sync.Mutex
 
 	oc     *v1alpha1.OnecloudCluster
 	status v1alpha1.EctdStatus
@@ -79,18 +81,43 @@ func newEtcdComponentManager(baseMan *ComponentManager) manager.Manager {
 			ComponentManager: baseMan,
 		}
 	}
+	go m.defrag()
 	return m
 }
 
-func (m *etcdManager) working() bool {
+func (m *etcdManager) isSyncing() bool {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	if m.syncing {
-		return true
-	} else {
-		m.syncing = true
-		return false
+	return m.syncing
+}
+
+func (m *etcdManager) setSyncing() {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	m.syncing = true
+}
+
+func (m *etcdManager) setUnsync() {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	m.syncing = false
+}
+
+func (m *etcdManager) fixEtcdSize(oc *v1alpha1.OnecloudCluster) (bool, error) {
+	nodes, err := m.nodeLister.List(labels.NewSelector())
+	if err != nil {
+		return false, err
 	}
+
+	oldSize := oc.Spec.Etcd.Size
+	if len(nodes) < 3 {
+		oc.Spec.Etcd.Size = 1
+	} else {
+		if oc.Spec.Etcd.Size < constants.EtcdDefaultClusterSize {
+			oc.Spec.Etcd.Size = constants.EtcdDefaultClusterSize
+		}
+	}
+	return oc.Spec.Etcd.Size != oldSize, nil
 }
 
 func (m *etcdManager) Sync(oc *v1alpha1.OnecloudCluster) error {
@@ -101,31 +128,33 @@ func (m *etcdManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if oc.Spec.Etcd.Disable {
 		return nil
 	}
-	if !m.working() {
+	changed, err := m.fixEtcdSize(oc)
+	if err != nil {
+		return nil
+	}
+	if len(oc.Spec.Etcd.Version) == 0 {
+		changed = true
+		oc.Spec.Etcd.Version = constants.EtcdImageVersion
+	}
+	if changed {
+		oc, err = m.onecloudClusterControl.UpdateCluster(oc, nil, nil)
+		if err != nil {
+			log.Errorf("update oc failed %s", err)
+			return nil
+		}
+	}
+
+	if !m.isSyncing() {
 		go m.sync(oc)
-	} else {
-		// TODO: sync cluster size or other config
-		// m.syncCluster()
 	}
 	return nil
 }
 
 func (m *etcdManager) sync(oc *v1alpha1.OnecloudCluster) {
-	if oc.Spec.Etcd.Size == 0 || len(oc.Spec.Etcd.Version) == 0 {
-		if oc.Spec.Etcd.Size == 0 {
-			oc.Spec.Etcd.Size = constants.EtcdDefaultClusterSize
-		}
-		if len(oc.Spec.Etcd.Version) == 0 {
-			oc.Spec.Etcd.Version = constants.EtcdImageVersion
-		}
-
-		newoc, err := m.onecloudClusterControl.UpdateCluster(oc, nil, nil)
-		if err != nil {
-			log.Errorf("update oc failed %s", err)
-			return
-		}
-		oc = newoc
-	}
+	m.setSyncing()
+	defer m.setUnsync()
+	m.reconcileLock.Lock()
+	defer m.reconcileLock.Unlock()
 
 	m.oc = oc
 	m.status = *oc.Status.Etcd.DeepCopy()
@@ -141,7 +170,35 @@ func (m *etcdManager) sync(oc *v1alpha1.OnecloudCluster) {
 		return
 	}
 	m.run()
-	m.syncing = false
+}
+
+func (m *etcdManager) defrag() {
+	for {
+		select {
+		case <-time.After(time.Hour * 1):
+			m.membersDefrag()
+		}
+	}
+}
+
+func (m *etcdManager) membersDefrag() {
+	cfg := clientv3.Config{
+		Endpoints:   m.members.ClientURLs(),
+		DialTimeout: constants.EtcdDefaultDialTimeout,
+		TLS:         m.tlsConfig,
+	}
+	etcdcli, err := clientv3.New(cfg)
+	if err != nil {
+		log.Errorf("add one member failed: creating etcd client failed %v", err)
+		return
+	}
+	defer etcdcli.Close()
+	for _, m := range m.members {
+		_, err := etcdcli.Defragment(context.Background(), m.ClientURL())
+		if err != nil {
+			log.Errorf("member %s defrag failed: %s", m.Name, err)
+		}
+	}
 }
 
 func (m *etcdManager) isSecure() bool {
@@ -292,11 +349,11 @@ func (m *etcdManager) newLivenessProbe(isSecure bool) *corev1.Probe {
 		cmd = fmt.Sprintf("ETCDCTL_API=3 etcdctl --endpoints=https://localhost:%d %s endpoint status",
 			constants.EtcdClientPort, tlsFlags)
 	}
-	cmd2 := "ETCDCTL_API=3 etcdctl defrag"
-	if isSecure {
-		cmd2 = fmt.Sprintf("ETCDCTL_API=3 etcdctl --endpoints=https://localhost:%d %s defrag",
-			constants.EtcdClientPort, tlsFlags)
-	}
+	//cmd2 := "ETCDCTL_API=3 etcdctl defrag"
+	//if isSecure {
+	//	cmd2 = fmt.Sprintf("ETCDCTL_API=3 etcdctl --endpoints=https://localhost:%d %s defrag",
+	//		constants.EtcdClientPort, tlsFlags)
+	//}
 	cmd3 := fmt.Sprintf("ETCDCTL_API=3 etcdctl put %s test", etcdTestKey)
 	if isSecure {
 		cmd3 = fmt.Sprintf("ETCDCTL_API=3 etcdctl --endpoints=https://localhost:%d %s put %s test",
@@ -307,7 +364,7 @@ func (m *etcdManager) newLivenessProbe(isSecure bool) *corev1.Probe {
 		cmd4 = fmt.Sprintf("ETCDCTL_API=3 etcdctl --endpoints=https://localhost:%d %s del %s",
 			constants.EtcdClientPort, tlsFlags, etcdTestKey)
 	}
-	cmd = fmt.Sprintf("%s && %s && %s && %s", cmd, cmd2, cmd3, cmd4)
+	cmd = fmt.Sprintf("%s && %s && %s", cmd, cmd3, cmd4)
 	return &corev1.Probe{
 		Handler: corev1.Handler{
 			Exec: &corev1.ExecAction{
@@ -562,7 +619,17 @@ Loop:
 				}
 			}
 			rerr = m.reconcile(running)
-			if rerr != nil {
+			if errors.Cause(rerr) == ErrLostQuorum {
+				// etcd cluster lost quorum, try clean all of members
+				log.Errorf("etcd cluster lost quorum, clean all of members")
+				if err := m.cleanAllMembers(); err != nil {
+					log.Errorf("clean all members failed %s", err)
+					continue
+				} else {
+					go m.sync(m.oc)
+					break Loop
+				}
+			} else if rerr != nil {
 				log.Errorf("failed to reconcile %s", rerr)
 				break
 			}
@@ -741,6 +808,26 @@ func (m *etcdManager) removeMember(toRemove *etcdutil.Member) (err error) {
 	}
 	log.Infof("removed member (%v) with ID (%d)", toRemove.Name, toRemove.ID)
 	return nil
+}
+
+func (m *etcdManager) cleanAllMembers() error {
+	for _, member := range m.members {
+		if err := m.removePod(member.Name); err != nil {
+			return err
+		}
+		m.members.Remove(member.Name)
+		if m.isPodPVEnabled() {
+			err := m.removePVC(k8sutil.PVCNameFromMember(member.Name))
+			if err != nil {
+				return err
+			}
+		}
+
+	}
+	m.status.Phase = v1alpha1.EtcdClusterPhaseFailed
+	m.status.Size = 0
+	m.status.Members = v1alpha1.EtcdMembersStatus{}
+	return m.updateEtcdStatus()
 }
 
 func (m *etcdManager) removePVC(pvcName string) error {
