@@ -176,6 +176,10 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	SetDefaults_CronJobSpec(&obj.CloudmonReportServer,
 		getImage(obj.ImageRepository, obj.CloudmonReportServer.Repository, APIGatewayComponentTypeEE,
 			obj.CloudmonReportServer.ImageName, obj.Version, obj.APIGateway.Tag))
+
+	SetDefaults_CronJobSpec(&obj.CloudmonReportHost,
+		getImage(obj.ImageRepository, obj.CloudmonReportHost.Repository, APIGatewayComponentTypeEE,
+			obj.CloudmonReportHost.ImageName, obj.Version, obj.APIGateway.Tag))
 }
 
 func SetDefaults_Mysql(obj *Mysql) {
