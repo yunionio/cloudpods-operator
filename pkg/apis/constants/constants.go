@@ -318,7 +318,7 @@ const (
 	EtcdPeerPort              = 2380
 	EtcdImageName             = "etcd"
 	EtcdDefaultClusterSize    = 3
-	EtcdImageVersion          = "3.3.10"
+	EtcdImageVersion          = "3.4.6"
 	EtcdDefaultRequestTimeout = 5 * time.Second
 	EtcdDefaultDialTimeout    = 3 * time.Second
 	BusyboxImageName          = "busybox"
