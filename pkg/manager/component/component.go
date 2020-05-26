@@ -1232,3 +1232,7 @@ func (m *ComponentManager) Cloudmon() manager.Manager {
 func (m *ComponentManager) Suggestion() manager.Manager {
 	return newSuggestionManager(m)
 }
+
+func (m *ComponentManager) ServiceOperator() manager.Manager {
+	return newServiceOperatorManager(m)
+}

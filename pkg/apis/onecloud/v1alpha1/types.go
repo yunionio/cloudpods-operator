@@ -261,6 +261,9 @@ type OnecloudClusterSpec struct {
 	// ServiceOperator hols configuration for service-operator
 	ServiceOperator DeploymentSpec `json:"onecloudServiceOperator"`
 
+	// ServiceOperator hols configuration for service-operator
+	ServiceOperator DeploymentSpec `json:"onecloudServiceOperator"`
+
 	OvnNorth DeploymentSpec `json:"ovnNorth"`
 	VpcAgent DeploymentSpec `json:"vpcAgent"`
 
@@ -761,6 +764,9 @@ type OnecloudClusterConfig struct {
 	Glance          GlanceConfig           `json:"glance"`
 	Webconsole      ServiceCommonOptions   `json:"webconsole"`
 	Logger          ServiceDBCommonOptions `json:"logger"`
+	Register        ServiceDBCommonOptions `json:"register"`
+	Billing         ServiceDBCommonOptions `json:"billing"`
+	BillingTask     ServiceCommonOptions   `json:"billingtask"`
 	Yunionconf      ServiceDBCommonOptions `json:"yunionconf"`
 	Yunionagent     ServiceDBCommonOptions `json:"yunionagent"`
 	KubeServer      ServiceDBCommonOptions `json:"kubeserver"`
