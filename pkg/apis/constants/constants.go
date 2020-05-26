@@ -290,6 +290,9 @@ const (
 	EsxiAgentPort      = 30883
 	EsxiAgentDataStore = "/opt/cloud/workspace"
 
+	ServiceOperatorAdminUser = "osOperator"
+	ServiceOperatorPort      = 30885
+
 	VpcAgentAdminUser = "vpcagentadmin"
 
 	EtcdClientPort            = 2379

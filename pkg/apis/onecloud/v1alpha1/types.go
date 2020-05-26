@@ -103,6 +103,8 @@ const (
 	CloudmonReportHostComponentType ComponentType = "cloudmon-report-host"
 	// Esxi Agent
 	EsxiAgentComponentType ComponentType = "esxi-agent"
+	// Onecloud Reource Operator
+	ServiceOperatorComponentType ComponentType = "onecloud-service-operator"
 
 	OvnNorthComponentType ComponentType = "ovn-north"
 	OvnHostComponentType  ComponentType = "ovn-host"
@@ -231,6 +233,9 @@ type OnecloudClusterSpec struct {
 	CloudmonReportHost CronJobSpec `json:"cloudmonreporthost"`
 	// EsxiAgent hols configuration for esxi agent
 	EsxiAgent StatefulDeploymentSpec `json:"esxiagent"`
+
+	// ServiceOperator hols configuration for service-operator
+	ServiceOperator DeploymentSpec `json:"onecloudServiceOperator"`
 
 	OvnNorth DeploymentSpec `json:"ovnNorth"`
 	VpcAgent DeploymentSpec `json:"vpcAgent"`
@@ -545,26 +550,27 @@ type VpcAgentConfig struct {
 type OnecloudClusterConfig struct {
 	metav1.TypeMeta
 
-	Keystone       KeystoneConfig         `json:"keystone"`
-	RegionServer   RegionConfig           `json:"region"`
-	Glance         GlanceConfig           `json:"glance"`
-	Webconsole     ServiceCommonOptions   `json:"webconsole"`
-	Logger         ServiceDBCommonOptions `json:"logger"`
-	Yunionconf     ServiceDBCommonOptions `json:"yunionconf"`
-	Yunionagent    ServiceDBCommonOptions `json:"yunionagent"`
-	KubeServer     ServiceDBCommonOptions `json:"kubeserver"`
-	AnsibleServer  ServiceDBCommonOptions `json:"ansibleserver"`
-	Monitor        ServiceDBCommonOptions `json:"monitor"`
-	Cloudnet       ServiceDBCommonOptions `json:"cloudnet"`
-	Cloudevent     ServiceDBCommonOptions `json:"cloudevent"`
-	APIGateway     ServiceCommonOptions   `json:"apiGateway"`
-	Notify         ServiceDBCommonOptions `json:"notify"`
-	HostAgent      HostConfig             `json:"host"`
-	BaremetalAgent BaremetalConfig        `json:"baremetal"`
-	S3gateway      ServiceCommonOptions   `json:"s3gateway"`
-	Devtool        ServiceDBCommonOptions `json:"devtool"`
-	Meter          MeterConfig            `json:"meter"`
-	AutoUpdate     ServiceCommonOptions   `json:"autoupdate"`
-	EsxiAgent      EsxiAgentConfig        `json:"esxiagent"`
-	VpcAgent       VpcAgentConfig         `json:"vpcagent"`
+	Keystone        KeystoneConfig         `json:"keystone"`
+	RegionServer    RegionConfig           `json:"region"`
+	Glance          GlanceConfig           `json:"glance"`
+	Webconsole      ServiceCommonOptions   `json:"webconsole"`
+	Logger          ServiceDBCommonOptions `json:"logger"`
+	Yunionconf      ServiceDBCommonOptions `json:"yunionconf"`
+	Yunionagent     ServiceDBCommonOptions `json:"yunionagent"`
+	KubeServer      ServiceDBCommonOptions `json:"kubeserver"`
+	AnsibleServer   ServiceDBCommonOptions `json:"ansibleserver"`
+	Monitor         ServiceDBCommonOptions `json:"monitor"`
+	Cloudnet        ServiceDBCommonOptions `json:"cloudnet"`
+	Cloudevent      ServiceDBCommonOptions `json:"cloudevent"`
+	APIGateway      ServiceCommonOptions   `json:"apiGateway"`
+	Notify          ServiceDBCommonOptions `json:"notify"`
+	HostAgent       HostConfig             `json:"host"`
+	BaremetalAgent  BaremetalConfig        `json:"baremetal"`
+	S3gateway       ServiceCommonOptions   `json:"s3gateway"`
+	Devtool         ServiceDBCommonOptions `json:"devtool"`
+	Meter           MeterConfig            `json:"meter"`
+	AutoUpdate      ServiceCommonOptions   `json:"autoupdate"`
+	EsxiAgent       EsxiAgentConfig        `json:"esxiagent"`
+	VpcAgent        VpcAgentConfig         `json:"vpcagent"`
+	ServiceOperator ServiceCommonOptions   `json:"onecloudServiceOperator"`
 }
