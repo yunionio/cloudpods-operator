@@ -1171,3 +1171,7 @@ func (m *ComponentManager) CloudmonReportServer() manager.Manager {
 func (m *ComponentManager) CloudmonReportHost() manager.Manager {
 	return newCloudmonReportHostManager(m)
 }
+
+func (m *ComponentManager) ServiceOperator() manager.Manager {
+	return newServiceOperatorManager(m)
+}

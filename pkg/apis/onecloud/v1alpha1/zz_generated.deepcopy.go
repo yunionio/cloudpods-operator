@@ -698,6 +698,7 @@ func (in *OnecloudClusterSpec) DeepCopyInto(out *OnecloudClusterSpec) {
 	in.CloudmonReportServer.DeepCopyInto(&out.CloudmonReportServer)
 	in.CloudmonReportHost.DeepCopyInto(&out.CloudmonReportHost)
 	in.EsxiAgent.DeepCopyInto(&out.EsxiAgent)
+	in.ServiceOperator.DeepCopyInto(&out.ServiceOperator)
 	in.OvnNorth.DeepCopyInto(&out.OvnNorth)
 	in.VpcAgent.DeepCopyInto(&out.VpcAgent)
 	return
