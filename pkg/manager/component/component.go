@@ -902,7 +902,7 @@ func (m *ComponentManager) syncPhase(oc *v1alpha1.OnecloudCluster,
 	if err := phase.Setup(); err != nil {
 		return err
 	}
-	if err := phase.SystemInit(); err != nil {
+	if err := phase.SystemInit(oc); err != nil {
 		return err
 	}
 	return nil

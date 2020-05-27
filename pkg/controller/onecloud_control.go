@@ -208,7 +208,7 @@ func (w *OnecloudControl) getSessionNoEndpoints(oc *v1alpha1.OnecloudCluster) (*
 
 type PhaseControl interface {
 	Setup() error
-	SystemInit() error
+	SystemInit(oc *v1alpha1.OnecloudCluster) error
 }
 
 type ComponentManager interface {
@@ -295,7 +295,7 @@ func (c *baseComponent) GetCluster() *v1alpha1.OnecloudCluster {
 	return c.manager.GetCluster()
 }
 
-func (c *baseComponent) SystemInit() error {
+func (c *baseComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 	return nil
 }
 
@@ -391,15 +391,20 @@ func (c keystoneComponent) Setup() error {
 	return nil
 }
 
-func (c keystoneComponent) SystemInit() error {
-	oc := c.GetCluster()
+func (c keystoneComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 	region := oc.Spec.Region
+	if len(oc.Status.RegionServer.RegionId) > 0 {
+		region = oc.Status.RegionServer.RegionId
+	}
 	if err := c.RunWithSession(func(s *mcclient.ClientSession) error {
 		if err := doPolicyRoleInit(s); err != nil {
 			return errors.Wrap(err, "policy role init")
 		}
-		if _, err := doCreateRegion(s, region); err != nil {
+		if res, err := doCreateRegion(s, region); err != nil {
 			return errors.Wrap(err, "create region")
+		} else {
+			regionId, _ := res.GetString("id")
+			oc.Status.RegionServer.RegionId = regionId
 		}
 		if err := c.doRegisterIdentity(s, region, oc.Spec.LoadBalancerEndpoint, KeystoneComponentName(oc.GetName()),
 			constants.KeystoneAdminPort, constants.KeystonePublicPort, true); err != nil {
@@ -550,19 +555,41 @@ func (c *regionComponent) Setup() error {
 		constants.RegionPort, "")
 }
 
-func (c *regionComponent) SystemInit() error {
+func (c *regionComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 	return c.RunWithSession(func(s *mcclient.ClientSession) error {
-		oc := c.GetCluster()
 		region := oc.Spec.Region
 		zone := oc.Spec.Zone
-		if err := ensureZone(s, zone); err != nil {
-			return errors.Wrapf(err, "create zone %s", zone)
+		regionZone := fmt.Sprintf("%s-%s", region, zone)
+		wire := v1alpha1.DefaultOnecloudWire
+		{ // ensure region-zone created
+			if len(oc.Status.RegionServer.RegionZoneId) > 0 {
+				regionZone = oc.Status.RegionServer.RegionZoneId
+			}
+			if regionId, err := ensureRegionZone(s, regionZone, ""); err != nil {
+				return errors.Wrapf(err, "create region-zone %s-%s", region, zone)
+			} else {
+				oc.Status.RegionServer.RegionZoneId = regionId
+			}
 		}
-		if err := ensureRegionZone(s, region, zone); err != nil {
-			return errors.Wrapf(err, "create region-zone %s-%s", region, zone)
+		{ // ensure zone created
+			if len(oc.Status.RegionServer.ZoneId) > 0 {
+				zone = oc.Status.RegionServer.ZoneId
+			}
+			if zoneId, err := ensureZone(s, zone); err != nil {
+				return errors.Wrapf(err, "create zone %s", zone)
+			} else {
+				oc.Status.RegionServer.ZoneId = zoneId
+			}
 		}
-		if err := ensureWire(s, oc.Spec.Zone, v1alpha1.DefaultOnecloudWire, 1000); err != nil {
-			return errors.Wrapf(err, "create default wire")
+		{ // ensure wire created
+			if len(oc.Status.RegionServer.WireId) > 0 {
+				wire = oc.Status.RegionServer.WireId
+			}
+			if wireId, err := ensureWire(s, zone, wire, 1000); err != nil {
+				return errors.Wrapf(err, "create default wire")
+			} else {
+				oc.Status.RegionServer.WireId = wireId
+			}
 		}
 		if err := initScheduleData(s); err != nil {
 			return errors.Wrap(err, "init sched data")
@@ -572,32 +599,39 @@ func (c *regionComponent) SystemInit() error {
 	})
 }
 
-func ensureZone(s *mcclient.ClientSession, name string) error {
-	_, exists, err := onecloud.IsZoneExists(s, name)
+func ensureZone(s *mcclient.ClientSession, name string) (string, error) {
+	res, exists, err := onecloud.IsZoneExists(s, name)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if exists {
-		return nil
+		zoneId, _ := res.GetString("id")
+		return zoneId, nil
 	}
-	if _, err := onecloud.CreateZone(s, name); err != nil {
-		return err
+	if res, err := onecloud.CreateZone(s, name); err != nil {
+		return "", err
+	} else {
+		zoneId, _ := res.GetString("id")
+		return zoneId, nil
 	}
-	return nil
 }
 
-func ensureWire(s *mcclient.ClientSession, zone, name string, bw int) error {
-	_, exists, err := onecloud.IsWireExists(s, name)
+func ensureWire(s *mcclient.ClientSession, zone, name string, bw int) (string, error) {
+	res, exists, err := onecloud.IsWireExists(s, name)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if exists {
-		return nil
+		wireId, _ := res.GetString("id")
+		return wireId, nil
 	}
-	if _, err := onecloud.CreateWire(s, zone, name, bw, v1alpha1.DefaultVPCId); err != nil {
-		return err
+	if res, err := onecloud.CreateWire(s, zone, name, bw, v1alpha1.DefaultVPCId); err != nil {
+		return "", err
+	} else {
+		wireId, _ := res.GetString("id")
+		return wireId, nil
 	}
-	return nil
+
 }
 
 /*func ensureAdminNetwork(s *mcclient.ClientSession, zone string, iface apiv1.NetInterface) error {
@@ -615,9 +649,13 @@ func ensureWire(s *mcclient.ClientSession, zone, name string, bw int) error {
 	return nil
 }*/
 
-func ensureRegionZone(s *mcclient.ClientSession, region, zone string) error {
-	_, err := onecloud.CreateRegion(s, region, zone)
-	return err
+func ensureRegionZone(s *mcclient.ClientSession, region, zone string) (string, error) {
+	res, err := onecloud.CreateRegion(s, region, zone)
+	if err != nil {
+		return "", err
+	}
+	regionId, _ := res.GetString("id")
+	return regionId, err
 }
 
 func initScheduleData(s *mcclient.ClientSession) error {
@@ -729,7 +767,7 @@ func (c yunionagentComponent) Setup() error {
 		constants.YunionAgentPort, "")
 }
 
-func (c yunionagentComponent) SystemInit() error {
+func (c yunionagentComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 	if err := c.addWelcomeNotice(); err != nil {
 		klog.Errorf("yunion agent add notices error: %v", err)
 	}
@@ -764,7 +802,7 @@ func (c devtoolComponent) Setup() error {
 		constants.DevtoolPort, "")
 }
 
-func (c devtoolComponent) SystemInit() error {
+func (c devtoolComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 	for _, f := range []func() error{
 		c.ensureTemplatePing,
 		c.ensureTemplateTelegraf,
