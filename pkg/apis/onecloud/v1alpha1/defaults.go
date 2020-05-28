@@ -98,21 +98,22 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	SetDefaults_RegionDNSSpec(&obj.RegionDNS, obj.ImageRepository, obj.Version)
 
 	for cType, spec := range map[ComponentType]*DeploymentSpec{
-		ClimcComponentType:         &obj.Climc,
-		WebconsoleComponentType:    &obj.Webconsole,
-		SchedulerComponentType:     &obj.Scheduler,
-		LoggerComponentType:        &obj.Logger,
-		YunionconfComponentType:    &obj.Yunionconf,
-		KubeServerComponentType:    &obj.KubeServer,
-		AnsibleServerComponentType: &obj.AnsibleServer,
-		CloudnetComponentType:      &obj.Cloudnet,
-		CloudeventComponentType:    &obj.Cloudevent,
-		S3gatewayComponentType:     &obj.S3gateway,
-		DevtoolComponentType:       &obj.Devtool,
-		AutoUpdateComponentType:    &obj.AutoUpdate,
-		OvnNorthComponentType:      &obj.OvnNorth,
-		VpcAgentComponentType:      &obj.VpcAgent,
-		MonitorComponentType:       &obj.Monitor,
+		ClimcComponentType:           &obj.Climc,
+		WebconsoleComponentType:      &obj.Webconsole,
+		SchedulerComponentType:       &obj.Scheduler,
+		LoggerComponentType:          &obj.Logger,
+		YunionconfComponentType:      &obj.Yunionconf,
+		KubeServerComponentType:      &obj.KubeServer,
+		AnsibleServerComponentType:   &obj.AnsibleServer,
+		CloudnetComponentType:        &obj.Cloudnet,
+		CloudeventComponentType:      &obj.Cloudevent,
+		S3gatewayComponentType:       &obj.S3gateway,
+		DevtoolComponentType:         &obj.Devtool,
+		AutoUpdateComponentType:      &obj.AutoUpdate,
+		OvnNorthComponentType:        &obj.OvnNorth,
+		VpcAgentComponentType:        &obj.VpcAgent,
+		MonitorComponentType:         &obj.Monitor,
+		ServiceOperatorComponentType: &obj.ServiceOperator,
 	} {
 		SetDefaults_DeploymentSpec(spec, getImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag))
 	}
@@ -332,6 +333,7 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		&obj.AutoUpdate:                          {constants.AutoUpdateAdminUser, constants.AutoUpdatePort},
 		&obj.EsxiAgent.ServiceCommonOptions:      {constants.EsxiAgentAdminUser, constants.EsxiAgentPort},
 		&obj.VpcAgent.ServiceCommonOptions:       {constants.VpcAgentAdminUser, 0},
+		&obj.ServiceOperator:                     {constants.ServiceOperatorAdminUser, constants.ServiceOperatorPort},
 	} {
 		SetDefaults_ServiceCommonOptions(opt, userPort.user, userPort.port)
 	}
