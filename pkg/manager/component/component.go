@@ -778,6 +778,7 @@ func (m *ComponentManager) newCronJob(
 	appLabel := m.getComponentLabel(oc, componentType)
 	podAnnotations := spec.Annotations
 	cronJobName := controller.NewClusterComponentName(ocName, componentType)
+	var jobSpecBackoffLimit int32 = 1
 
 	cronJob := &batchv1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
@@ -800,6 +801,7 @@ func (m *ComponentManager) newCronJob(
 				},
 				Spec: jobbatchv1.JobSpec{
 					// Selector: appLabel.LabelSelector(),
+					BackoffLimit: &jobSpecBackoffLimit,
 					Template: corev1.PodTemplateSpec{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels:      appLabel.Labels(),
@@ -836,7 +838,7 @@ func (m *ComponentManager) newDefaultCronJob(
 	containersFactory func([]corev1.VolumeMount) []corev1.Container,
 ) (*batchv1.CronJob, error) {
 	return m.newCronJob(componentType, oc, volHelper, spec, initContainersFactory,
-		containersFactory, false, corev1.DNSClusterFirst, "", &(v1alpha1.StartingDeadlineSeconds), nil, nil, nil)
+		containersFactory, false, corev1.DNSClusterFirst, batchv1.ReplaceConcurrent, &(v1alpha1.StartingDeadlineSeconds), nil, nil, nil)
 }
 
 func (m *ComponentManager) newPVC(cType v1alpha1.ComponentType, oc *v1alpha1.OnecloudCluster, spec v1alpha1.StatefulDeploymentSpec) (*corev1.PersistentVolumeClaim, error) {
