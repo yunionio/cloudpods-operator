@@ -63,7 +63,6 @@ const (
 	etcdBackendQuotaSize        = 128 * 1024 * 1024 // 128M
 	etcdAutoCompactionRetention = 1                 // 1 hour
 	etcdMaxWALFileCount         = 1
-	etcdTestKey                 = "/etcd/pod/liveness/test"
 )
 
 var (
@@ -349,22 +348,6 @@ func (m *etcdManager) newLivenessProbe(isSecure bool) *corev1.Probe {
 		cmd = fmt.Sprintf("ETCDCTL_API=3 etcdctl --endpoints=https://localhost:%d %s endpoint status",
 			constants.EtcdClientPort, tlsFlags)
 	}
-	//cmd2 := "ETCDCTL_API=3 etcdctl defrag"
-	//if isSecure {
-	//	cmd2 = fmt.Sprintf("ETCDCTL_API=3 etcdctl --endpoints=https://localhost:%d %s defrag",
-	//		constants.EtcdClientPort, tlsFlags)
-	//}
-	cmd3 := fmt.Sprintf("ETCDCTL_API=3 etcdctl put %s test", etcdTestKey)
-	if isSecure {
-		cmd3 = fmt.Sprintf("ETCDCTL_API=3 etcdctl --endpoints=https://localhost:%d %s put %s test",
-			constants.EtcdClientPort, tlsFlags, etcdTestKey)
-	}
-	cmd4 := fmt.Sprintf("ETCDCTL_API=3 etcdctl del %s", etcdTestKey)
-	if isSecure {
-		cmd4 = fmt.Sprintf("ETCDCTL_API=3 etcdctl --endpoints=https://localhost:%d %s del %s",
-			constants.EtcdClientPort, tlsFlags, etcdTestKey)
-	}
-	cmd = fmt.Sprintf("%s && %s && %s", cmd, cmd3, cmd4)
 	return &corev1.Probe{
 		Handler: corev1.Handler{
 			Exec: &corev1.ExecAction{
