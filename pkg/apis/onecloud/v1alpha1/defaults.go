@@ -16,7 +16,6 @@ package v1alpha1
 
 import (
 	"fmt"
-
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -117,6 +116,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		VpcAgentComponentType:        &obj.VpcAgent,
 		MonitorComponentType:         &obj.Monitor,
 		ServiceOperatorComponentType: &obj.ServiceOperator,
+		ItsmComponentType:            &obj.Itsm,
 	} {
 		SetDefaults_DeploymentSpec(spec, getImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag))
 	}
@@ -367,6 +367,7 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		&obj.Devtool:                             {constants.DevtoolAdminUser, constants.DevtoolPort, constants.DevtoolDB, constants.DevtoolDBUser},
 		&obj.Meter.ServiceDBCommonOptions:        {constants.MeterAdminUser, constants.MeterPort, constants.MeterDB, constants.MeterDBUser},
 		&obj.Monitor:                             {constants.MonitorAdminUser, constants.MonitorPort, constants.MonitorDB, constants.MonitorDBUser},
+		&obj.Itsm.ServiceDBCommonOptions:         {constants.ItsmAdminUser, constants.ItsmPort, constants.ItsmDB, constants.ItsmDBUser},
 	} {
 		if user, ok := registryPorts[tmp.port]; ok {
 			log.Fatalf("port %d has been registered by %s", tmp.port, user)
@@ -374,6 +375,7 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		registryPorts[tmp.port] = tmp.user
 		SetDefaults_ServiceDBCommonOptions(opt, tmp.db, tmp.dbUser, tmp.user, tmp.port)
 	}
+	SetDefaults_ItsmConfig(&obj.Itsm)
 }
 
 func SetDefaults_ServiceBaseConfig(obj *ServiceBaseConfig, port int) {
@@ -416,4 +418,9 @@ func setDefaults_CloudUser(obj *CloudUser, username string) {
 	if obj.Password == "" {
 		obj.Password = passwd.GeneratePassword()
 	}
+}
+
+func SetDefaults_ItsmConfig(obj *ItsmConfig) {
+	obj.SecondDatabase = fmt.Sprintf("%s_engine", obj.DB.Database)
+	obj.EncryptionKey = passwd.GeneratePassword()
 }
