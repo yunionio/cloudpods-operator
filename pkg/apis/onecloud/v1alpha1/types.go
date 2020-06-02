@@ -113,6 +113,8 @@ const (
 	// Etcd component types
 	EtcdComponentType       ComponentType = "etcd"
 	EtcdClientComponentType ComponentType = "etcd-client"
+
+	ItsmComponentType ComponentType = "itsm"
 )
 
 // ComponentPhase is the current state of component
@@ -231,6 +233,8 @@ type OnecloudClusterSpec struct {
 	CloudmonReportHost CronJobSpec `json:"cloudmonreporthost"`
 	// EsxiAgent hols configuration for esxi agent
 	EsxiAgent StatefulDeploymentSpec `json:"esxiagent"`
+	// Itsm holds configuration for itsm service
+	Itsm DeploymentSpec `json:"itsm"`
 
 	OvnNorth DeploymentSpec `json:"ovnNorth"`
 	VpcAgent DeploymentSpec `json:"vpcAgent"`
@@ -264,6 +268,7 @@ type OnecloudClusterStatus struct {
 	OvnNorth       DeploymentStatus `json:"ovnNorth,omitempty"`
 	VpcAgent       DeploymentStatus `json:"vpcAgent,omitempty"`
 	Etcd           EctdStatus       `json:"etcd,omitempty"`
+	Itsm           DeploymentStatus `json:"itsm,omitempty"`
 }
 
 type Etcd struct {
@@ -540,31 +545,39 @@ type VpcAgentConfig struct {
 	ServiceCommonOptions
 }
 
+type ItsmConfig struct {
+	ServiceDBCommonOptions
+	SecondDatabase string `json:"secondDatabase"`
+	EncryptionKey  string `json:"encryptionKey"`
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type OnecloudClusterConfig struct {
 	metav1.TypeMeta
 
-	Keystone       KeystoneConfig         `json:"keystone"`
-	RegionServer   RegionConfig           `json:"region"`
-	Glance         GlanceConfig           `json:"glance"`
-	Webconsole     ServiceCommonOptions   `json:"webconsole"`
-	Logger         ServiceDBCommonOptions `json:"logger"`
-	Yunionconf     ServiceDBCommonOptions `json:"yunionconf"`
-	Yunionagent    ServiceDBCommonOptions `json:"yunionagent"`
-	KubeServer     ServiceDBCommonOptions `json:"kubeserver"`
-	AnsibleServer  ServiceDBCommonOptions `json:"ansibleserver"`
-	Monitor        ServiceDBCommonOptions `json:"monitor"`
-	Cloudnet       ServiceDBCommonOptions `json:"cloudnet"`
-	Cloudevent     ServiceDBCommonOptions `json:"cloudevent"`
-	APIGateway     ServiceCommonOptions   `json:"apiGateway"`
-	Notify         ServiceDBCommonOptions `json:"notify"`
-	HostAgent      HostConfig             `json:"host"`
-	BaremetalAgent BaremetalConfig        `json:"baremetal"`
-	S3gateway      ServiceCommonOptions   `json:"s3gateway"`
-	Devtool        ServiceDBCommonOptions `json:"devtool"`
-	Meter          MeterConfig            `json:"meter"`
-	AutoUpdate     ServiceCommonOptions   `json:"autoupdate"`
-	EsxiAgent      EsxiAgentConfig        `json:"esxiagent"`
-	VpcAgent       VpcAgentConfig         `json:"vpcagent"`
+	Keystone        KeystoneConfig         `json:"keystone"`
+	RegionServer    RegionConfig           `json:"region"`
+	Glance          GlanceConfig           `json:"glance"`
+	Webconsole      ServiceCommonOptions   `json:"webconsole"`
+	Logger          ServiceDBCommonOptions `json:"logger"`
+	Yunionconf      ServiceDBCommonOptions `json:"yunionconf"`
+	Yunionagent     ServiceDBCommonOptions `json:"yunionagent"`
+	KubeServer      ServiceDBCommonOptions `json:"kubeserver"`
+	AnsibleServer   ServiceDBCommonOptions `json:"ansibleserver"`
+	Monitor         ServiceDBCommonOptions `json:"monitor"`
+	Cloudnet        ServiceDBCommonOptions `json:"cloudnet"`
+	Cloudevent      ServiceDBCommonOptions `json:"cloudevent"`
+	APIGateway      ServiceCommonOptions   `json:"apiGateway"`
+	Notify          ServiceDBCommonOptions `json:"notify"`
+	HostAgent       HostConfig             `json:"host"`
+	BaremetalAgent  BaremetalConfig        `json:"baremetal"`
+	S3gateway       ServiceCommonOptions   `json:"s3gateway"`
+	Devtool         ServiceDBCommonOptions `json:"devtool"`
+	Meter           MeterConfig            `json:"meter"`
+	AutoUpdate      ServiceCommonOptions   `json:"autoupdate"`
+	EsxiAgent       EsxiAgentConfig        `json:"esxiagent"`
+	VpcAgent        VpcAgentConfig         `json:"vpcagent"`
+	ServiceOperator ServiceCommonOptions   `json:"onecloudServiceOperator"`
+	Itsm            ItsmConfig             `json:"itsm"`
 }
