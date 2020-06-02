@@ -42,6 +42,7 @@ func SetObjectDefaults_OnecloudCluster(in *OnecloudCluster) {
 func SetObjectDefaults_OnecloudClusterConfig(in *OnecloudClusterConfig) {
 	SetDefaults_OnecloudClusterConfig(in)
 	SetDefaults_KeystoneConfig(&in.Keystone)
+	SetDefaults_ItsmConfig(&in.Itsm)
 }
 
 func SetObjectDefaults_OnecloudClusterList(in *OnecloudClusterList) {
