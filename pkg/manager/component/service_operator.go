@@ -145,7 +145,7 @@ func (m *serviceOperatorManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg
 				"kubectl",
 				"apply",
 				"-f",
-				"/etc/yunion/crds/",
+				"/etc/crds/",
 			},
 			Image:           oc.Spec.ServiceOperator.Image,
 			ImagePullPolicy: oc.Spec.ServiceOperator.ImagePullPolicy,
