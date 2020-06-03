@@ -304,6 +304,13 @@ const (
 	ServiceNameEtcd           = "etcd"
 	ServiceTypeEtcd           = ServiceNameEtcd
 	ServiceCertEtcdName       = ServiceNameEtcd
+
+	ItsmAdminUser   = "itsm"
+	ItsmPort        = 30595
+	ItsmDB          = "itsm"
+	ItsmDBUser      = "itsm"
+	ServiceNameItsm = "itsm"
+	ServiceTypeItsm = "itsm"
 )
 
 const (
