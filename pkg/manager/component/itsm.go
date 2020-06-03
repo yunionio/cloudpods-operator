@@ -106,6 +106,7 @@ non_default_domain_projects=false`
 const (
 	JAVA_APP_JAR         = "JAVA_APP_JAR"
 	JAVA_APP_WORKING_DIR = "/deployments"
+	JAVA_OPTIONS         = "JAVA_OPTIONS"
 )
 
 var (
@@ -228,6 +229,11 @@ func (m *itsmManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 					{
 						Name:  JAVA_APP_JAR,
 						Value: "itsm.jar",
+					},
+					// set max memory to 1G
+					{
+						Name:  JAVA_OPTIONS,
+						Value: "-Xms1024M -Xmx1024M",
 					},
 				},
 				VolumeMounts: volMounts,
