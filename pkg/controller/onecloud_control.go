@@ -348,8 +348,7 @@ func (e endpoint) GetUrl(enableSSL bool) string {
 func (c *baseComponent) RegisterCloudServiceEndpoint(
 	cType v1alpha1.ComponentType,
 	serviceName, serviceType string,
-	port int, prefix string,
-) error {
+	port int, prefix string, enableSsl bool) error {
 	oc := c.GetCluster()
 	internalAddress := NewClusterComponentName(oc.GetName(), cType)
 	publicAddress := oc.Spec.LoadBalancerEndpoint
@@ -361,7 +360,7 @@ func (c *baseComponent) RegisterCloudServiceEndpoint(
 		newInternalEndpoint(internalAddress, port, prefix),
 	}
 
-	return c.RegisterServiceEndpoints(serviceName, serviceType, eps, true)
+	return c.RegisterServiceEndpoints(serviceName, serviceType, eps, enableSsl)
 }
 
 func (c *baseComponent) registerServiceEndpointsBySession(s *mcclient.ClientSession, serviceName, serviceType string, eps []*endpoint, enableSSL bool) error {
@@ -676,7 +675,7 @@ func (c *regionComponent) Setup() error {
 	return c.RegisterCloudServiceEndpoint(
 		v1alpha1.RegionComponentType,
 		constants.ServiceNameRegionV2, constants.ServiceTypeComputeV2,
-		constants.RegionPort, "")
+		constants.RegionPort, "", true)
 }
 
 func (c *regionComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
@@ -824,7 +823,7 @@ func (c *glanceComponent) Setup() error {
 	return c.RegisterCloudServiceEndpoint(
 		v1alpha1.GlanceComponentType,
 		constants.ServiceNameGlance, constants.ServiceTypeGlance,
-		constants.GlanceAPIPort, "v1")
+		constants.GlanceAPIPort, "v1", true)
 }
 
 type registerServiceComponent struct {
@@ -877,7 +876,32 @@ func NewRegisterEndpointComponent(
 }
 
 func (c *registerEndpointComponent) Setup() error {
-	return c.RegisterCloudServiceEndpoint(c.cType, c.serviceName, c.serviceType, c.port, c.prefix)
+	return c.RegisterCloudServiceEndpoint(c.cType, c.serviceName, c.serviceType, c.port, c.prefix, true)
+}
+
+type itsmComponent struct {
+	*registerEndpointComponent
+}
+
+func NewItsmEndpointComponent(man ComponentManager,
+	ctype v1alpha1.ComponentType,
+	serviceName string,
+	serviceType string,
+	port int, prefix string) PhaseControl {
+	return &itsmComponent{
+		registerEndpointComponent: &registerEndpointComponent{
+			baseComponent: newBaseComponent(man),
+			cType:         ctype,
+			serviceName:   serviceName,
+			serviceType:   serviceType,
+			port:          port,
+			prefix:        prefix,
+		},
+	}
+}
+
+func (c *itsmComponent) Setup() error {
+	return c.RegisterCloudServiceEndpoint(c.cType, c.serviceName, c.serviceType, c.port, c.prefix, false)
 }
 
 type yunionagentComponent struct {
@@ -888,7 +912,7 @@ func (c yunionagentComponent) Setup() error {
 	return c.RegisterCloudServiceEndpoint(
 		v1alpha1.YunionagentComponentType,
 		constants.ServiceNameYunionAgent, constants.ServiceTypeYunionAgent,
-		constants.YunionAgentPort, "")
+		constants.YunionAgentPort, "", true)
 }
 
 func (c yunionagentComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
@@ -923,7 +947,7 @@ type devtoolComponent struct {
 func (c devtoolComponent) Setup() error {
 	return c.RegisterCloudServiceEndpoint(v1alpha1.DevtoolComponentType,
 		constants.ServiceNameDevtool, constants.ServiceTypeDevtool,
-		constants.DevtoolPort, "")
+		constants.DevtoolPort, "", true)
 }
 
 func (c devtoolComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
