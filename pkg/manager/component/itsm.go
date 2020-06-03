@@ -165,9 +165,9 @@ func (m *itsmManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha
 }
 
 func (m *itsmManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
-	return controller.NewRegisterEndpointComponent(man, v1alpha1.ItsmComponentType,
+	return controller.NewItsmEndpointComponent(man, v1alpha1.ItsmComponentType,
 		constants.ServiceNameItsm, constants.ServiceTypeItsm,
-		constants.MonitorPort, "")
+		constants.ItsmPort, "")
 }
 
 func (m *itsmManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
