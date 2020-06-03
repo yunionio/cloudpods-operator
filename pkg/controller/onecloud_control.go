@@ -786,9 +786,11 @@ func initScheduleData(s *mcclient.ClientSession) error {
 	if err := registerSchedSameProjectCloudprovider(s); err != nil {
 		return err
 	}
-	if err := registerSchedAzureClassicHost(s); err != nil {
-		return err
-	}
+	/*
+	 *if err := registerSchedAzureClassicHost(s); err != nil {
+	 *    return err
+	 *}
+	 */
 	return nil
 }
 
