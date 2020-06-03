@@ -115,6 +115,8 @@ const (
 	// Etcd component types
 	EtcdComponentType       ComponentType = "etcd"
 	EtcdClientComponentType ComponentType = "etcd-client"
+
+	ItsmComponentType ComponentType = "itsm"
 )
 
 // ComponentPhase is the current state of component
@@ -233,6 +235,8 @@ type OnecloudClusterSpec struct {
 	CloudmonReportHost CronJobSpec `json:"cloudmonreporthost"`
 	// EsxiAgent hols configuration for esxi agent
 	EsxiAgent StatefulDeploymentSpec `json:"esxiagent"`
+	// Itsm holds configuration for itsm service
+	Itsm DeploymentSpec `json:"itsm"`
 
 	// ServiceOperator hols configuration for service-operator
 	ServiceOperator DeploymentSpec `json:"onecloudServiceOperator"`
@@ -269,6 +273,7 @@ type OnecloudClusterStatus struct {
 	OvnNorth       DeploymentStatus `json:"ovnNorth,omitempty"`
 	VpcAgent       DeploymentStatus `json:"vpcAgent,omitempty"`
 	Etcd           EctdStatus       `json:"etcd,omitempty"`
+	Itsm           DeploymentStatus `json:"itsm,omitempty"`
 }
 
 type Etcd struct {
@@ -545,6 +550,12 @@ type VpcAgentConfig struct {
 	ServiceCommonOptions
 }
 
+type ItsmConfig struct {
+	ServiceDBCommonOptions
+	SecondDatabase string `json:"secondDatabase"`
+	EncryptionKey  string `json:"encryptionKey"`
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type OnecloudClusterConfig struct {
@@ -573,4 +584,5 @@ type OnecloudClusterConfig struct {
 	EsxiAgent       EsxiAgentConfig        `json:"esxiagent"`
 	VpcAgent        VpcAgentConfig         `json:"vpcagent"`
 	ServiceOperator ServiceCommonOptions   `json:"onecloudServiceOperator"`
+	Itsm            ItsmConfig             `json:"itsm"`
 }
