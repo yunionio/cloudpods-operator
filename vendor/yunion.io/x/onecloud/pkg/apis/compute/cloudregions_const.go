@@ -56,6 +56,7 @@ const (
 	CITY_NAN_JING      = "Nanjing"     //南京
 	CITY_FO_SHAN       = "Foshan"      //佛山
 	CITY_QUAN_ZHOU     = "Quanzhou"    //泉州
+	CITY_NEI_MENG_GU   = "Neimenggu"   //内蒙古
 
 	// 日本
 	CITY_TOKYO = "Tokyo" //东京
@@ -111,6 +112,7 @@ const (
 	CITY_US_GOV_WEST    = "us-gov-west"    //???
 	CITY_SOUTH_CAROLINA = "South Carolina" //南卡罗来纳州
 	CITY_SALT_LAKE_CITY = "Salt Lake City" //盐湖城
+	CITY_LAS_VEGAS      = "Las Vegas"      //拉斯维加斯
 
 	// 英国
 	CITY_LONDON      = "London"      //伦敦
@@ -148,6 +150,12 @@ const (
 
 	// 巴西
 	CITY_SAO_PAULO = "Sao Paulo" //圣保罗
+
+	// 智利
+	CITY_SANTIAGO = "Santiago" // 圣地亚哥
+
+	// 墨西哥
+	CITY_MEXICO = "Mexico" // 墨西哥
 
 	// 荷兰
 	CITY_HOLLAND = "Holland" //荷兰
@@ -194,4 +202,6 @@ const (
 	COUNTRY_CODE_VN = "VN" //越南
 	COUNTRY_CODE_CH = "CH" //瑞士
 	COUNTRY_CODE_NO = "NO" //挪威
+	COUNTRY_CODE_MX = "MX" //墨西哥
+	COUNTRY_CODE_CL = "CL" //智利
 )
