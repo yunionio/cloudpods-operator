@@ -1089,6 +1089,10 @@ func (m *ComponentManager) Register() manager.Manager {
 	return newRegisterManager(m)
 }
 
+func (m *ComponentManager) Billing() manager.Manager {
+	return newBillingManager(m)
+}
+
 func (m *ComponentManager) Region() manager.Manager {
 	return newRegionManager(m)
 }
