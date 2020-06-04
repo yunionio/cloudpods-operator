@@ -17,6 +17,8 @@ package cloudprovider
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"time"
 
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
@@ -155,6 +157,18 @@ type ProviderConfig struct {
 	ProxyFunc httputils.TransportProxyFunc
 }
 
+func (cp *ProviderConfig) HttpClient() *http.Client {
+	client := httputils.GetClient(true, 15*time.Second)
+	httputils.SetClientProxyFunc(client, cp.ProxyFunc)
+	return client
+}
+
+func (cp *ProviderConfig) AdaptiveTimeoutHttpClient() *http.Client {
+	client := httputils.GetAdaptiveTimeoutClient()
+	httputils.SetClientProxyFunc(client, cp.ProxyFunc)
+	return client
+}
+
 type ICloudProviderFactory interface {
 	GetProvider(cfg ProviderConfig) (ICloudProvider, error)
 
@@ -186,6 +200,7 @@ type ICloudProvider interface {
 
 	GetIRegions() []ICloudRegion
 	GetIProjects() ([]ICloudProject, error)
+	CreateIProject(name string) (ICloudProject, error)
 	GetIRegionById(id string) (ICloudRegion, error)
 
 	GetOnPremiseIRegion() (ICloudRegion, error)
@@ -203,7 +218,6 @@ type ICloudProvider interface {
 
 	GetCapabilities() []string
 	GetICloudQuotas() ([]ICloudQuota, error)
-	GetICloudPolicyDefinitions() ([]ICloudPolicyDefinition, error)
 }
 
 func IsSupportProject(prod ICloudProvider) bool {
@@ -245,7 +259,7 @@ func GetProviderFactory(provider string) (ICloudProviderFactory, error) {
 	if ok {
 		return factory, nil
 	}
-	log.Errorf("Provider %s not registerd", provider)
+	log.Errorf("Provider %s not registered", provider)
 	return nil, fmt.Errorf("No such provider %s", provider)
 }
 
@@ -307,12 +321,12 @@ func (self *SBaseProvider) GetICloudQuotas() ([]ICloudQuota, error) {
 	return nil, ErrNotImplemented
 }
 
-func (self *SBaseProvider) GetICloudPolicyDefinitions() ([]ICloudPolicyDefinition, error) {
-	return nil, ErrNotImplemented
-}
-
 func (self *SBaseProvider) GetCloudRegionExternalIdPrefix() string {
 	return self.factory.GetId()
+}
+
+func (self *SBaseProvider) CreateIProject(name string) (ICloudProject, error) {
+	return nil, ErrNotImplemented
 }
 
 func NewBaseProvider(factory ICloudProviderFactory) SBaseProvider {

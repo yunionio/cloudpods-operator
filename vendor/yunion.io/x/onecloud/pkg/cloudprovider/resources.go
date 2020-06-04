@@ -172,6 +172,7 @@ type ICloudImage interface {
 	GetMinRamSizeMb() int
 	GetImageFormat() string
 	GetCreatedAt() time.Time
+	UEFI() bool
 }
 
 type ICloudStoragecache interface {
@@ -203,7 +204,7 @@ type ICloudStorage interface {
 	GetStorageConf() jsonutils.JSONObject
 	GetEnabled() bool
 
-	CreateIDisk(name string, sizeGb int, desc string) (ICloudDisk, error)
+	CreateIDisk(conf *DiskCreateConfig) (ICloudDisk, error)
 
 	GetIDiskById(idStr string) (ICloudDisk, error)
 
@@ -757,7 +758,9 @@ type ICloudDBInstance interface {
 
 	GetConnectionStr() string
 	GetInternalConnectionStr() string
-	GetIZoneId() string
+	GetZone1Id() string
+	GetZone2Id() string
+	GetZone3Id() string
 	GetIVpcId() string
 
 	GetDBNetwork() (*SDBInstanceNetwork, error)
@@ -949,12 +952,4 @@ type ICloudQuota interface {
 	GetQuotaType() string
 	GetMaxQuotaCount() int
 	GetCurrentQuotaUsedCount() int
-}
-
-type ICloudPolicyDefinition interface {
-	GetGlobalId() string
-	GetName() string
-	GetCategory() string
-	GetCondition() string
-	GetParameters() *jsonutils.JSONDict
 }

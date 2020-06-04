@@ -116,15 +116,11 @@ type StatusStandaloneResourceDetails struct {
 	StandaloneResourceDetails
 }
 
-type MetadataResourceInfo struct {
-	// 标签
-	Metadata map[string]string `json:"metadata"`
-}
-
 type StandaloneResourceDetails struct {
 	ResourceBaseDetails
 
-	MetadataResourceInfo
+	// 标签
+	Metadata map[string]string `json:"metadata"`
 }
 
 type DomainizedResourceInfo struct {

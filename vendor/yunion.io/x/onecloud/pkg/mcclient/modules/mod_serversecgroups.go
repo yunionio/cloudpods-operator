@@ -12,20 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cloudprovider
+package modules
 
-type SEip struct {
-	Name              string
-	BandwidthMbps     int
-	ChargeType        string
-	BGPType           string
-	NetworkExternalId string
-	IP                string
-	ProjectId         string
-}
+import "yunion.io/x/onecloud/pkg/mcclient/modulebase"
 
-type AssociateConfig struct {
-	InstanceId    string
-	AssociateType string
-	Bandwidth     int
+var (
+	Serversecgroups modulebase.JointResourceManager
+)
+
+func init() {
+	Serversecgroups = NewJointComputeManager(
+		"guestsecgroup",
+		"guestsecgroups",
+		[]string{},
+		[]string{},
+		&Servers,
+		&SecGroups)
+	registerCompute(&Serversecgroups)
 }

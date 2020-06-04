@@ -18,7 +18,9 @@ import "yunion.io/x/onecloud/pkg/apis"
 
 type ElasticcacheBackupDetails struct {
 	apis.StatusStandaloneResourceDetails
+	apis.ProjectizedResourceInfo
 	ElasticcacheResourceInfo
 
 	SElasticcacheBackup
+	ProjectId string `json:"tenant_id"`
 }
