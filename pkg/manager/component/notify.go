@@ -67,7 +67,7 @@ func (m *notifyManager) getPhaseControl(man controller.ComponentManager) control
 	return controller.NewRegisterEndpointComponent(
 		man, v1alpha1.NotifyComponentType,
 		constants.ServiceNameNotify, constants.ServiceTypeNotify,
-		constants.NotifyPort, "/api/v1")
+		constants.NotifyPort, "api/v1")
 }
 
 type NotifyPluginBaseConfig struct {
