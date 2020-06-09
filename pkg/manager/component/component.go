@@ -910,11 +910,20 @@ func (m *ComponentManager) newDefaultCronJob(
 		containersFactory, false, corev1.DNSClusterFirst, batchv1.ReplaceConcurrent, &(v1alpha1.StartingDeadlineSeconds), nil, nil, nil)
 }
 
+func (m *ComponentManager) newPvcName(ocName, storageClass string, cType v1alpha1.ComponentType) string {
+	prefix := controller.NewClusterComponentName(ocName, cType)
+	if storageClass != v1alpha1.DefaultStorageClass {
+		return fmt.Sprintf("%s-%s", prefix, storageClass)
+	} else {
+		return prefix
+	}
+}
+
 func (m *ComponentManager) newPVC(cType v1alpha1.ComponentType, oc *v1alpha1.OnecloudCluster, spec v1alpha1.StatefulDeploymentSpec) (*corev1.PersistentVolumeClaim, error) {
 	ocName := oc.GetName()
-	pvcName := controller.NewClusterComponentName(ocName, cType)
-
 	storageClass := spec.StorageClassName
+	pvcName := m.newPvcName(ocName, storageClass, cType)
+
 	size := spec.Requests.Storage
 	sizeQ, err := resource.ParseQuantity(size)
 	if err != nil {
