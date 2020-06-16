@@ -15,6 +15,7 @@
 package component
 
 import (
+	"fmt"
 	"path"
 
 	apps "k8s.io/api/apps/v1"
@@ -147,4 +148,9 @@ func (m *influxdbManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 
 func (m *influxdbManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Influxdb
+}
+
+func getInfluxDBInternalURL(oc *v1alpha1.OnecloudCluster) string {
+	internalAddress := controller.NewClusterComponentName(oc.GetName(), v1alpha1.InfluxdbComponentType)
+	return fmt.Sprintf("https://%s:%d", internalAddress, constants.InfluxdbPort)
 }

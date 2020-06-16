@@ -117,6 +117,8 @@ const (
 	EtcdClientComponentType ComponentType = "etcd-client"
 
 	ItsmComponentType ComponentType = "itsm"
+	// Telegraf is monitor agent component type
+	TelegrafComponentType ComponentType = "telegraf"
 )
 
 // ComponentPhase is the current state of component
@@ -193,6 +195,8 @@ type OnecloudClusterSpec struct {
 	Yunionagent DaemonSetSpec `json:"yunionagent"`
 	// Influxdb holds configuration for influxdb
 	Influxdb StatefulDeploymentSpec `json:"influxdb"`
+	// Telegraf holds configuration for telegraf
+	Telegraf TelegrafSpec `json:"telegraf"`
 	// Monitor holds configuration for monitor service
 	Monitor DeploymentSpec `json:"monitor"`
 	// LoadBalancerEndpoint is upstream loadbalancer virtual ip address or DNS domain
@@ -461,6 +465,11 @@ type HostAgentSpec struct {
 	DaemonSetSpec
 	SdnAgent      ContainerSpec
 	OvnController ContainerSpec
+}
+
+type TelegrafSpec struct {
+	DaemonSetSpec
+	InitContainerImage string
 }
 
 // ContainerSpec is the container spec of a pod

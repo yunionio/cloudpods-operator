@@ -47,6 +47,11 @@ const (
 	DefaultOvnImageTag  = DefaultOvnVersion + "-0"
 
 	DefaultInfluxdbImageVersion = "1.7.7"
+
+	DefaultTelegrafImageName     = "telegraf"
+	DefaultTelegrafImageTag      = "release-1.5"
+	DefaultTelegrafInitImageName = "telegraf-init"
+	DefaultTelegrafInitImageTag  = "release-1.5"
 )
 
 func addDefaultingFuncs(scheme *runtime.Scheme) error {
@@ -149,6 +154,20 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		DefaultOvnImageTag, obj.OvnNorth.Tag,
 	)
 	obj.OvnNorth.ImagePullPolicy = corev1.PullIfNotPresent
+
+	// telegraf spec
+	obj.Telegraf.InitContainerImage = getImage(
+		obj.ImageRepository, obj.Telegraf.Repository,
+		DefaultTelegrafInitImageName, "",
+		DefaultTelegrafInitImageTag, "",
+	)
+	SetDefaults_DaemonSetSpec(
+		&obj.Telegraf.DaemonSetSpec,
+		getImage(obj.ImageRepository, obj.Telegraf.Repository,
+			DefaultTelegrafImageName, obj.Telegraf.ImageName,
+			DefaultTelegrafImageTag, obj.Telegraf.Tag,
+		),
+	)
 
 	type stateDeploy struct {
 		obj     *StatefulDeploymentSpec
