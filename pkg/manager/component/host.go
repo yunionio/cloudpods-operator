@@ -86,7 +86,7 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 						},
 						{
 							Name:  "HOST_SYSTEM_SERVICES_OFF",
-							Value: "host-deployer,host_sdnagent",
+							Value: "host-deployer,host_sdnagent,telegraf",
 						},
 						{
 							Name:  "OVN_CONTAINER_IMAGE_TAG",

@@ -773,7 +773,7 @@ func (m *ComponentManager) newDaemonSet(
 	cfg *v1alpha1.OnecloudClusterConfig,
 	volHelper *VolumeHelper,
 	spec v1alpha1.DaemonSetSpec, updateStrategy apps.DaemonSetUpdateStrategyType,
-	initContainersFactory func() []corev1.Container,
+	initContainers []corev1.Container,
 	containersFactory func([]corev1.VolumeMount) []corev1.Container,
 ) (*apps.DaemonSet, error) {
 	ns := oc.GetNamespace()
@@ -784,11 +784,6 @@ func (m *ComponentManager) newDaemonSet(
 	podAnnotations := spec.Annotations
 	if len(updateStrategy) == 0 {
 		updateStrategy = apps.RollingUpdateDaemonSetStrategyType
-	}
-
-	var initContainers []corev1.Container
-	if initContainersFactory != nil {
-		initContainers = initContainersFactory()
 	}
 
 	dsName := controller.NewClusterComponentName(ocName, componentType)
@@ -1189,4 +1184,8 @@ func (m *ComponentManager) ServiceOperator() manager.Manager {
 
 func (m *ComponentManager) Itsm() manager.Manager {
 	return newItsmManager(m)
+}
+
+func (m *ComponentManager) Telegraf() manager.Manager {
+	return newTelegrafManager(m)
 }

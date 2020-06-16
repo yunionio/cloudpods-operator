@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -35,16 +36,33 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	var masterAddress string
+	if length := len(node.Status.Conditions); length > 0 {
+		if node.Status.Conditions[length-1].Type == v1.NodeReady &&
+			node.Status.Conditions[length-1].Status == v1.ConditionTrue {
+			for _, addr := range node.Status.Addresses {
+				if addr.Type == v1.NodeInternalIP {
+					masterAddress = addr.Address
+					break
+				}
+			}
+		}
+	}
+
 	if node.Labels[constants.OnecloudEnableHostLabelKey] == "enable" {
 		// host enabled
 		checkTelegrafConfigExist()
 	} else {
 		// host disabled
-		generateTelegrafConfig(nodeName, influxAddr)
+		generateTelegrafConfig(nodeName, masterAddress, influxAddr)
+	}
+	if err := os.MkdirAll(TELEGRAF_DIR, 775); err != nil {
+		log.Fatal(err)
 	}
 }
 
 const TELEGRAF_CONF = "/etc/telegraf/telegraf.conf"
+const TELEGRAF_DIR = "/etc/telegraf/telegraf.d"
 
 func checkTelegrafConfigExist() {
 	if _, err := os.Stat(TELEGRAF_CONF); err != nil {
@@ -52,13 +70,16 @@ func checkTelegrafConfigExist() {
 	}
 }
 
-func generateTelegrafConfig(nodeName, influxAddr string) {
+func generateTelegrafConfig(nodeName, nodeIp, influxAddr string) {
 	kwargs := map[string]interface{}{
 		"influxdb": map[string]interface{}{
 			"database": "telegraf",
 			"url":      []string{influxAddr},
 		},
 		"hostname": nodeName,
+		"tags": map[string]string{
+			"host_ip": nodeIp,
+		},
 	}
 	conf := getConfig(kwargs)
 	var mode = os.O_WRONLY | os.O_CREATE | os.O_TRUNC
