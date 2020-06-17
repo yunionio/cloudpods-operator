@@ -49,6 +49,7 @@ type etcdManager struct {
 	members etcdutil.MemberSet
 
 	tlsConfig *tls.Config
+	defraging bool
 }
 
 const (
@@ -79,8 +80,8 @@ func newEtcdComponentManager(baseMan *ComponentManager) manager.Manager {
 		m = &etcdManager{
 			ComponentManager: baseMan,
 		}
+		go m.defrag()
 	}
-	go m.defrag()
 	return m
 }
 
@@ -172,6 +173,10 @@ func (m *etcdManager) sync(oc *v1alpha1.OnecloudCluster) {
 }
 
 func (m *etcdManager) defrag() {
+	if m.defraging {
+		return
+	}
+	m.defraging = true
 	for {
 		select {
 		case <-time.After(time.Hour * 1):
@@ -188,7 +193,7 @@ func (m *etcdManager) membersDefrag() {
 	}
 	etcdcli, err := clientv3.New(cfg)
 	if err != nil {
-		log.Errorf("add one member failed: creating etcd client failed %v", err)
+		log.Errorf("members defrag failed: creating etcd client failed %v", err)
 		return
 	}
 	defer etcdcli.Close()
