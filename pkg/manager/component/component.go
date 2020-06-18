@@ -1134,6 +1134,10 @@ func (m *ComponentManager) HostDeployer() manager.Manager {
 	return newHostDeployerManger(m)
 }
 
+func (m *ComponentManager) HostImage() manager.Manager {
+	return newHostImageManager(m)
+}
+
 func (m *ComponentManager) Cloudevent() manager.Manager {
 	return newCloudeventManager(m)
 }
