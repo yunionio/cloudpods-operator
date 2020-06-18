@@ -54,10 +54,10 @@ type OnecloudResourceOperatorOption struct {
 	AdminPassword        string
 	AdminDomain          string
 	AdminProject         string
-	APIntervalPending    int  `json:"ap_interval_pending"`
-	APIntervalWaiting    int  `json:"ap_interval_waiting"`
+	APIntervalPending    *int `json:"ap_interval_pending"`
+	APIntervalWaiting    *int `json:"ap_interval_waiting"`
 	APDense              bool `json:"ap_dense"`
-	VMIntervalPending    int  `json:"vm_interval_pending"`
+	VMIntervalPending    *int `json:"vm_interval_pending"`
 }
 
 func (m *serviceOperatorManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
