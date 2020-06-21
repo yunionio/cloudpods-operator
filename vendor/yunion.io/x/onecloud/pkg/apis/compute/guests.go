@@ -62,7 +62,9 @@ type ServerListInput struct {
 	UsableServerForEip string `json:"usable_server_for_eip"`
 
 	// 列出可以挂载磁盘的主机
-	AttachableServersForDisk string `json:"attachable_servers_for_disk" "yunion:deprecated-by":"disk"`
+	AttachableServersForDisk string `json:"attachable_servers_for_disk"`
+	// Deprecated:列出可以挂载磁盘的主机
+	Disk string `json:"disk" "yunion:deprecated-by":"attachable_servers_for_disk"`
 
 	// 按主机资源类型进行排序
 	// enum: shared,prepaid,dedicated
@@ -167,7 +169,7 @@ type ServerDetails struct {
 	AdminSecurityRules string `json:"admin_security_rules"`
 
 	// list
-	AttachTime time.Time `attach_time`
+	AttachTime time.Time `json:"attach_time"`
 
 	// common
 	IsPrepaidRecycle bool `json:"is_prepaid_recycle"`
@@ -237,7 +239,7 @@ type GuestDiskInfo struct {
 	DiskType    string `json:"disk_type"`
 	Index       int8   `json:"index"`
 	SizeMb      int    `json:"size"`
-	DiskFormat  string `json:"disk_format"'`
+	DiskFormat  string `json:"disk_format"`
 	Driver      string `json:"driver"`
 	CacheMode   string `json:"cache_mode"`
 	AioMode     string `json:"aio_mode"`
@@ -330,4 +332,11 @@ type ConvertEsxiToKvmInput struct {
 	TargetHypervisor string `json:"target_hypervisor"`
 	// 指定转换的宿主机
 	PreferHost string `json:"prefer_host"`
+}
+
+type GuestSaveToTemplateInput struct {
+	// The name of guest template
+	Name string `json:"name"`
+	// The generate name of guest template
+	GenerateName string `json:"generate_name"`
 }
