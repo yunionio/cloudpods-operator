@@ -125,7 +125,7 @@ type ComputeOptions struct {
 
 	SyncPurgeRemovedResources []string `help:"resources that shoud be purged immediately if found removed" default:"server"`
 
-	DisconnectedCloudAccountRetryProbeIntervalHours int `help:"interval to wait to probe status of a disconnected cloud account" default:"24"`
+	DisconnectedCloudAccountRetryProbeIntervalHours int `help:"interval to wait to probe status of a disconnected cloud account" default:"2"`
 
 	BaremetalServerReuseHostIp bool `help:"baremetal server reuse host IP address, default true" default:"true"`
 
@@ -133,6 +133,10 @@ type ComputeOptions struct {
 	HostHealthTimeout     int  `help:"second of wait host reconnect" default:"60"`
 
 	FetchEtcdServiceInfoAndUseEtcdLock bool `default:"true" help:"fetch etcd service info and use etcd lock"`
+
+	GuestTemplateCheckInterval int `help:"interval between two consecutive inspections of Guest Template in hour unit" default:"12"`
+
+	ScheduledTaskQueueSize int `help:"the maximum number of scheduled tasks that are being executed simultaneously" default:"100"`
 
 	SCapabilityOptions
 	SASControllerOptions

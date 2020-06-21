@@ -18,6 +18,9 @@ import "yunion.io/x/onecloud/pkg/apis"
 
 type SecgroupRuleDetails struct {
 	apis.ResourceBaseDetails
+	apis.ProjectizedResourceInfo
 	SSecurityGroupRule
 	SecurityGroupResourceInfo
+
+	ProjectId string `json:"tenant_id"`
 }

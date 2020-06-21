@@ -23,6 +23,7 @@ import (
 
 	"yunion.io/x/jsonutils"
 	ansibleapi "yunion.io/x/onecloud/pkg/apis/ansible"
+	monitorapi "yunion.io/x/onecloud/pkg/apis/monitor"
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/mcclient/modulebase"
 	"yunion.io/x/onecloud/pkg/mcclient/modules"
@@ -577,4 +578,92 @@ func SyncServiceConfig(
 		}
 	}
 	return modules.ServicesV3.PerformAction(s, serviceName, "config", conf)
+}
+
+type CommonAlertTem struct {
+	Database    string `json:"database"`
+	Measurement string `json:"measurement"`
+	//rule operator rule [and|or]
+	Operator string   `json:"operator"`
+	Field    []string `json:"field"`
+
+	Comparator string  `json:"comparator"`
+	Threshold  float64 `json:"threshold"`
+	Tag        string  `json:"tag"`
+	TagVal     string  `json:"tag_val"`
+	FieldOpt   string  `json:"field_opt"`
+	Name       string
+}
+
+func GetCommonAlertOfSys(session *mcclient.ClientSession) ([]jsonutils.JSONObject, error) {
+	param := jsonutils.NewDict()
+	param.Add(jsonutils.NewBool(true), "details")
+	param.Add(jsonutils.NewString(monitorapi.CommonAlertSystemAlertType), "alert_type")
+
+	rtn, err := modules.CommonAlertManager.List(session, param)
+	if err != nil {
+		return nil, err
+	}
+	return rtn.Data, nil
+}
+
+func CreateCommonAlert(s *mcclient.ClientSession, tem CommonAlertTem) (jsonutils.JSONObject, error) {
+	metricQ := monitorapi.MetricQuery{
+		Alias:        "",
+		Tz:           "",
+		Database:     tem.Database,
+		Measurement:  tem.Measurement,
+		Tags:         nil,
+		GroupBy:      nil,
+		Selects:      nil,
+		Interval:     "",
+		Policy:       "",
+		ResultFormat: "",
+	}
+
+	for _, field := range tem.Field {
+		sel := monitorapi.MetricQueryPart{
+			Type:   "field",
+			Params: []string{field},
+		}
+		selectPart := []monitorapi.MetricQueryPart{sel}
+		metricQ.Selects = append(metricQ.Selects, selectPart)
+	}
+
+	whereTag := monitorapi.MetricQueryTag{
+		Key:       tem.Tag,
+		Operator:  "=",
+		Value:     tem.TagVal,
+		Condition: "AND",
+	}
+	metricQ.Tags = append(metricQ.Tags, whereTag)
+
+	alertQ := new(monitorapi.AlertQuery)
+	alertQ.Model = metricQ
+	alertQ.From = "60m"
+
+	commonAlert := monitorapi.CommonAlertQuery{
+		AlertQuery: alertQ,
+		Reduce:     "avg",
+		Comparator: tem.Comparator,
+		Threshold:  tem.Threshold,
+	}
+	if tem.FieldOpt != "" {
+		commonAlert.FieldOpt = monitorapi.CommonAlertFieldOpt_Division
+	}
+
+	input := monitorapi.CommonAlertCreateInput{
+		CommonMetricInputQuery: monitorapi.CommonMetricInputQuery{
+			MetricQuery: []*monitorapi.CommonAlertQuery{&commonAlert},
+		},
+		AlertCreateInput: monitorapi.AlertCreateInput{
+			Name:  tem.Name,
+			Level: "important",
+		},
+		Recipients: []string{monitorapi.CommonAlertDefaultRecipient},
+		AlertType:  monitorapi.CommonAlertSystemAlertType,
+	}
+
+	param := jsonutils.Marshal(&input)
+	return modules.CommonAlertManager.Create(s, param)
 }
