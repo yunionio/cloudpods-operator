@@ -12,23 +12,22 @@ require (
 	github.com/onsi/ginkgo v1.8.0 // indirect
 	github.com/onsi/gomega v1.5.0 // indirect
 	github.com/pborman/uuid v1.2.0
-	github.com/pkg/errors v0.8.1
+	github.com/pkg/errors v0.9.1
 	github.com/spf13/pflag v1.0.3 // indirect
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 	k8s.io/api v0.17.3
 	k8s.io/apiextensions-apiserver v0.0.0
 	k8s.io/apimachinery v0.17.3
 	k8s.io/client-go v9.0.0+incompatible
-	k8s.io/code-generator v0.15.12-beta.0 // indirect
 	k8s.io/klog v0.3.3
 	k8s.io/kube-openapi v0.0.0-20190603182131-db7b694dc208 // indirect
 	k8s.io/kubernetes v1.16.0
 	k8s.io/utils v0.0.0-20190607212802-c55fbcfc754a // indirect
-	yunion.io/x/jsonutils v0.0.0-20200415132054-2bf8a5e94501
+	yunion.io/x/jsonutils v0.0.0-20200615014624-f9c3576579c9
 	yunion.io/x/log v0.0.0-20200313080802-57a4ce5966b3
-	yunion.io/x/onecloud v0.0.0-20200507033831-618e721114d9
-	yunion.io/x/pkg v0.0.0-20200416145704-22c189971435
-	yunion.io/x/structarg v0.0.0-20200423163001-168d0687be7e
+	yunion.io/x/onecloud v0.0.0-20200621051013-c991cdc76afc
+	yunion.io/x/pkg v0.0.0-20200615071345-60a252beb982
+	yunion.io/x/structarg v0.0.0-20200619020316-f93fbe32ffc7
 )
 
 replace (

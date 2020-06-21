@@ -17,6 +17,8 @@ package cloudprovider
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"time"
 
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
@@ -30,6 +32,8 @@ import (
 
 const (
 	ErrNoSuchProvder = errors.Error("no such provider")
+
+	TEST_CLOUDID_USER_NAME = "cloud-id-user"
 )
 
 type SCloudaccountCredential struct {
@@ -155,6 +159,18 @@ type ProviderConfig struct {
 	ProxyFunc httputils.TransportProxyFunc
 }
 
+func (cp *ProviderConfig) HttpClient() *http.Client {
+	client := httputils.GetClient(true, 15*time.Second)
+	httputils.SetClientProxyFunc(client, cp.ProxyFunc)
+	return client
+}
+
+func (cp *ProviderConfig) AdaptiveTimeoutHttpClient() *http.Client {
+	client := httputils.GetAdaptiveTimeoutClient()
+	httputils.SetClientProxyFunc(client, cp.ProxyFunc)
+	return client
+}
+
 type ICloudProviderFactory interface {
 	GetProvider(cfg ProviderConfig) (ICloudProvider, error)
 
@@ -176,6 +192,14 @@ type ICloudProviderFactory interface {
 	IsCloudeventRegional() bool
 	GetMaxCloudEventSyncDays() int
 	GetMaxCloudEventKeepDays() int
+
+	IsSupportClouduser() bool
+	IsSupportClouduserPolicy() bool
+	IsSupportResetClouduserPassword() bool
+	GetClouduserMinPolicyCount() int
+	IsClouduserNeedInitPolicy() bool
+	IsClouduserBelongCloudprovider() bool
+	IsSupportCreateCloudgroup() bool
 }
 
 type ICloudProvider interface {
@@ -183,9 +207,12 @@ type ICloudProvider interface {
 
 	GetSysInfo() (jsonutils.JSONObject, error)
 	GetVersion() string
+	GetIamLoginUrl() string
+	IsSupportCloudId() bool
 
 	GetIRegions() []ICloudRegion
 	GetIProjects() ([]ICloudProject, error)
+	CreateIProject(name string) (ICloudProject, error)
 	GetIRegionById(id string) (ICloudRegion, error)
 
 	GetOnPremiseIRegion() (ICloudRegion, error)
@@ -203,7 +230,15 @@ type ICloudProvider interface {
 
 	GetCapabilities() []string
 	GetICloudQuotas() ([]ICloudQuota, error)
-	GetICloudPolicyDefinitions() ([]ICloudPolicyDefinition, error)
+
+	IsClouduserSupportPassword() bool
+	GetICloudusers() ([]IClouduser, error)
+	GetISystemCloudpolicies() ([]ICloudpolicy, error)
+	GetICloudgroups() ([]ICloudgroup, error)
+	GetICloudgroupByName(name string) (ICloudgroup, error)
+	CreateICloudgroup(name, desc string) (ICloudgroup, error)
+	GetIClouduserByName(name string) (IClouduser, error)
+	CreateIClouduser(conf *SClouduserCreateConfig) (IClouduser, error)
 }
 
 func IsSupportProject(prod ICloudProvider) bool {
@@ -245,7 +280,7 @@ func GetProviderFactory(provider string) (ICloudProviderFactory, error) {
 	if ok {
 		return factory, nil
 	}
-	log.Errorf("Provider %s not registerd", provider)
+	log.Errorf("Provider %s not registered", provider)
 	return nil, fmt.Errorf("No such provider %s", provider)
 }
 
@@ -307,12 +342,70 @@ func (self *SBaseProvider) GetICloudQuotas() ([]ICloudQuota, error) {
 	return nil, ErrNotImplemented
 }
 
-func (self *SBaseProvider) GetICloudPolicyDefinitions() ([]ICloudPolicyDefinition, error) {
+func (self *SBaseProvider) GetIamLoginUrl() string {
+	return ""
+}
+
+func (self *SBaseProvider) IsSupportCloudId() bool {
+	return false
+}
+
+func IsSupportCloudId(provider ICloudProvider) bool {
+	defer func() {
+		iUser, err := provider.GetIClouduserByName(TEST_CLOUDID_USER_NAME)
+		if err != nil {
+			return
+		}
+		err = iUser.Delete()
+		if err != nil {
+			log.Errorf("failed to delete test user: %v", err)
+		}
+	}()
+	_, err := provider.CreateIClouduser(&SClouduserCreateConfig{Name: TEST_CLOUDID_USER_NAME})
+	if err != nil {
+		return false
+	}
+	return true
+}
+
+func (self *SBaseProvider) IsClouduserSupportPassword() bool {
+	return true
+}
+
+func (self *SBaseProvider) GetICloudusers() ([]IClouduser, error) {
+	return nil, ErrNotImplemented
+}
+
+func (self *SBaseProvider) GetICloudgroups() ([]ICloudgroup, error) {
+	return nil, ErrNotImplemented
+}
+
+func (self *SBaseProvider) GetICloudgroupByName(name string) (ICloudgroup, error) {
+	return nil, ErrNotImplemented
+}
+
+func (self *SBaseProvider) CreateICloudgroup(name, desc string) (ICloudgroup, error) {
+	return nil, ErrNotImplemented
+}
+
+func (self *SBaseProvider) GetISystemCloudpolicies() ([]ICloudpolicy, error) {
+	return nil, ErrNotImplemented
+}
+
+func (self *SBaseProvider) GetIClouduserByName(name string) (IClouduser, error) {
+	return nil, ErrNotImplemented
+}
+
+func (self *SBaseProvider) CreateIClouduser(conf *SClouduserCreateConfig) (IClouduser, error) {
 	return nil, ErrNotImplemented
 }
 
 func (self *SBaseProvider) GetCloudRegionExternalIdPrefix() string {
 	return self.factory.GetId()
+}
+
+func (self *SBaseProvider) CreateIProject(name string) (ICloudProject, error) {
+	return nil, ErrNotImplemented
 }
 
 func NewBaseProvider(factory ICloudProviderFactory) SBaseProvider {
@@ -333,6 +426,16 @@ func GetPrivateProviders() []string {
 	providers := make([]string, 0)
 	for p, d := range providerTable {
 		if !d.IsPublicCloud() && !d.IsOnPremise() {
+			providers = append(providers, p)
+		}
+	}
+	return providers
+}
+
+func GetSupportCloudgroupProviders() []string {
+	providers := []string{}
+	for p, d := range providerTable {
+		if d.IsSupportCreateCloudgroup() {
 			providers = append(providers, p)
 		}
 	}
@@ -392,6 +495,35 @@ func (factory *baseProviderFactory) GetMaxCloudEventSyncDays() int {
 
 func (factory *baseProviderFactory) GetMaxCloudEventKeepDays() int {
 	return 7
+}
+
+func (factory *baseProviderFactory) IsSupportClouduser() bool {
+	return false
+}
+
+func (factory *baseProviderFactory) IsSupportClouduserPolicy() bool {
+	return true
+}
+
+func (factory *baseProviderFactory) IsSupportResetClouduserPassword() bool {
+	return true
+}
+
+func (factory *baseProviderFactory) IsClouduserNeedInitPolicy() bool {
+	return false
+}
+
+func (factory *baseProviderFactory) GetClouduserMinPolicyCount() int {
+	// unlimited
+	return -1
+}
+
+func (factory *baseProviderFactory) IsSupportCreateCloudgroup() bool {
+	return false
+}
+
+func (factory *baseProviderFactory) IsClouduserBelongCloudprovider() bool {
+	return false
 }
 
 type SPremiseBaseProviderFactory struct {

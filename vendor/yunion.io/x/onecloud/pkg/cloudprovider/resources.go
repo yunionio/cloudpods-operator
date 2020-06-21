@@ -20,7 +20,6 @@ import (
 
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/pkg/tristate"
-	"yunion.io/x/pkg/util/secrules"
 
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/util/billing"
@@ -172,6 +171,7 @@ type ICloudImage interface {
 	GetMinRamSizeMb() int
 	GetImageFormat() string
 	GetCreatedAt() time.Time
+	UEFI() bool
 }
 
 type ICloudStoragecache interface {
@@ -203,7 +203,7 @@ type ICloudStorage interface {
 	GetStorageConf() jsonutils.JSONObject
 	GetEnabled() bool
 
-	CreateIDisk(name string, sizeGb int, desc string) (ICloudDisk, error)
+	CreateIDisk(conf *DiskCreateConfig) (ICloudDisk, error)
 
 	GetIDiskById(idStr string) (ICloudDisk, error)
 
@@ -345,10 +345,10 @@ type ICloudSecurityGroup interface {
 	ICloudResource
 
 	GetDescription() string
-	GetRules() ([]secrules.SecurityRule, error)
+	GetRules() ([]SecurityRule, error)
 	GetVpcId() string
 
-	SyncRules(rules []secrules.SecurityRule) error
+	SyncRules(common, inAdds, outAdds, inDels, outDels []SecurityRule) error
 	Delete() error
 }
 
@@ -757,7 +757,9 @@ type ICloudDBInstance interface {
 
 	GetConnectionStr() string
 	GetInternalConnectionStr() string
-	GetIZoneId() string
+	GetZone1Id() string
+	GetZone2Id() string
+	GetZone3Id() string
 	GetIVpcId() string
 
 	GetDBNetwork() (*SDBInstanceNetwork, error)
@@ -951,10 +953,43 @@ type ICloudQuota interface {
 	GetCurrentQuotaUsedCount() int
 }
 
-type ICloudPolicyDefinition interface {
+// 公有云子账号
+type IClouduser interface {
 	GetGlobalId() string
 	GetName() string
-	GetCategory() string
-	GetCondition() string
-	GetParameters() *jsonutils.JSONDict
+
+	GetICloudgroups() ([]ICloudgroup, error)
+
+	GetISystemCloudpolicies() ([]ICloudpolicy, error)
+	AttachSystemPolicy(policyType string) error
+	DetachSystemPolicy(policyId string) error
+	Delete() error
+
+	ResetPassword(password string) error
+	IsConsoleLogin() bool
+}
+
+// 公有云子账号权限
+type ICloudpolicy interface {
+	GetGlobalId() string
+	GetName() string
+	//GetPolicyType() string
+	GetDescription() string
+}
+
+// 公有云用户组
+type ICloudgroup interface {
+	GetGlobalId() string
+	GetName() string
+	GetDescription() string
+	GetISystemCloudpolicies() ([]ICloudpolicy, error)
+	GetICloudusers() ([]IClouduser, error)
+
+	AddUser(name string) error
+	RemoveUser(name string) error
+
+	AttachSystemPolicy(policyId string) error
+	DetachSystemPolicy(policyId string) error
+
+	Delete() error
 }

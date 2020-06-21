@@ -36,7 +36,7 @@ type SKeystoneOptions struct {
 
 	DefaultSyncIntervalSeconds int `help:"frequency to do auto sync tasks" default:"900"`
 
-	FetchProjectResourceCountIntervalSeconds int `help:"frequency tp fetch project resource counts" default:"900"`
+	FetchScopeResourceCountIntervalSeconds int `help:"frequency tp fetch project resource counts" default:"900"`
 
 	PasswordExpirationSeconds  int `help:"password expires after the duration in seconds"`
 	PasswordMinimalLength      int `help:"password minimal length" default:"6"`
@@ -49,6 +49,8 @@ type SKeystoneOptions struct {
 	DefaultProjectQuota int `default:"100" help:"default quota for project per domain, default is 500"`
 	DefaultRoleQuota    int `default:"100" help:"default quota for role per domain, default is 500"`
 	DefaultPolicyQuota  int `default:"100" help:"default quota for policy per domain, default is 500"`
+
+	SessionEndpointType string `help:"Client session end point type"`
 }
 
 var (

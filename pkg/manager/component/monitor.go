@@ -49,9 +49,7 @@ func (m *monitorManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1al
 }
 
 func (m *monitorManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
-	return controller.NewRegisterEndpointComponent(man, v1alpha1.MonitorComponentType,
-		constants.ServiceNameMonitor, constants.ServiceTypeMonitor,
-		constants.MonitorPort, "")
+	return man.Monitor()
 }
 
 func (m *monitorManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {

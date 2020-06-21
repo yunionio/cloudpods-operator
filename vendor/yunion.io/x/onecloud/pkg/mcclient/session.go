@@ -352,6 +352,10 @@ func (this *ClientSession) WaitTaskNotify() {
 	}
 }
 
+func (this *ClientSession) SetApiVersion(version string) {
+	this.defaultApiVersion = version
+}
+
 func (this *ClientSession) GetApiVersion() string {
 	apiVersion := this.getApiVersion("")
 	if len(apiVersion) == 0 {
@@ -385,4 +389,15 @@ func (this *ClientSession) ToJson() jsonutils.JSONObject {
 
 func (cs *ClientSession) GetToken() TokenCredential {
 	return cs.token
+}
+
+func (cs *ClientSession) GetContext() context.Context {
+	if cs.ctx == nil {
+		return context.Background()
+	}
+	return cs.ctx
+}
+
+func (cs *ClientSession) GetCommonEtcdEndpoint() (*api.EndpointDetails, error) {
+	return cs.GetClient().GetCommonEtcdEndpoint(cs.GetToken(), cs.region, cs.endpointType)
 }
