@@ -84,6 +84,7 @@ const (
 	NotifyComponentType         ComponentType = "notify"
 	HostComponentType           ComponentType = "host"
 	HostDeployerComponentType   ComponentType = "host-deployer"
+	HostImageComponentType      ComponentType = "host-image"
 	BaremetalAgentComponentType ComponentType = "baremetal-agent"
 	// S3gatewayComponentType is multi-cloud S3 object storage gateway
 	S3gatewayComponentType ComponentType = "s3gateway"
@@ -219,6 +220,8 @@ type OnecloudClusterSpec struct {
 	HostAgent HostAgentSpec `json:"hostagent"`
 	// HostDeployer holds configuration for host-deployer
 	HostDeployer DaemonSetSpec `json:"hostdeployer"`
+	// HostImage holds configration for host-image
+	HostImage DaemonSetSpec `json:"hostimage"`
 	// BaremetalAgent holds configuration for baremetal agent
 	BaremetalAgent StatefulDeploymentSpec `json:"baremetalagent"`
 	// S3gateway holds configuration for s3gateway service
