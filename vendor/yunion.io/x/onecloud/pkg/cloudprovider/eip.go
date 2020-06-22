@@ -21,6 +21,7 @@ type SEip struct {
 	BGPType           string
 	NetworkExternalId string
 	IP                string
+	ProjectId         string
 }
 
 type AssociateConfig struct {

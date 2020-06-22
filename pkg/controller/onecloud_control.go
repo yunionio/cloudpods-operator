@@ -28,7 +28,9 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
 	kubeadmconstants "k8s.io/kubernetes/cmd/kubeadm/app/constants"
+
 	"yunion.io/x/jsonutils"
+	"yunion.io/x/log"
 	"yunion.io/x/pkg/errors"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
@@ -227,6 +229,7 @@ type ComponentManager interface {
 	Glance() PhaseControl
 	YunionAgent() PhaseControl
 	Devtool() PhaseControl
+	Monitor() PhaseControl
 }
 
 func (w *OnecloudControl) Components(oc *v1alpha1.OnecloudCluster) ComponentManager {
@@ -279,6 +282,10 @@ func (c *realComponent) YunionAgent() PhaseControl {
 
 func (c *realComponent) Devtool() PhaseControl {
 	return &devtoolComponent{newBaseComponent(c)}
+}
+
+func (c *realComponent) Monitor() PhaseControl {
+	return &monitorComponent{newBaseComponent(c)}
 }
 
 type baseComponent struct {
@@ -1029,4 +1036,120 @@ func (c devtoolComponent) ensureTemplateTelegraf() error {
 		_, err := onecloud.EnsureDevtoolTemplate(s, "install-telegraf-on-centos", hosts, mods, files, 86400)
 		return err
 	})
+}
+
+type monitorComponent struct {
+	*baseComponent
+}
+
+func (c monitorComponent) Setup() error {
+	return c.RegisterCloudServiceEndpoint(v1alpha1.MonitorComponentType, constants.ServiceNameMonitor, constants.ServiceTypeMonitor, constants.MonitorPort, "", true)
+}
+
+func (c monitorComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
+	alertInfo := c.getInitInfo()
+	//c.manager.GetController().getSession(c.GetCluster())
+	session := auth.GetAdminSession(context.Background(), "", "")
+	rtnAlert, err := onecloud.GetCommonAlertOfSys(session)
+	if err != nil {
+		return errors.Wrap(err, "monitorComponent GetCommonAlertOfSys")
+	}
+	for metric, tem := range alertInfo {
+		match := false
+	search:
+		for _, alert := range rtnAlert {
+			metricDs, err := alert.(*jsonutils.JSONDict).GetArray("common_alert_metric_details")
+			if err != nil {
+				log.Errorln(err)
+				return err
+			}
+			for _, metricD := range metricDs {
+				measurement, err := metricD.GetString("measurement")
+				if err != nil {
+					log.Errorln("get measurement", err)
+					return err
+				}
+				field, err := metricD.GetString("field")
+				if err != nil {
+					log.Errorln("get field", err)
+					return err
+				}
+				if metric == fmt.Sprintf("%s.%s", measurement, field) {
+					match = true
+					break search
+				}
+			}
+		}
+		if match {
+			continue
+		}
+		_, err = onecloud.CreateCommonAlert(session, tem)
+		if err != nil {
+			log.Errorln("CreateCommonAlert err:", err)
+		}
+	}
+	return nil
+}
+
+func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
+	cpuTem := onecloud.CommonAlertTem{
+		Database:    "telegraf",
+		Measurement: "cpu",
+		Field:       []string{"usage_active"},
+		Comparator:  ">=",
+		Threshold:   90,
+		Name:        "cpu.usage_active",
+	}
+	memTem := onecloud.CommonAlertTem{
+		Database:    "telegraf",
+		Measurement: "mem",
+		Field:       []string{"free"},
+		Comparator:  "<=",
+		Threshold:   524288000,
+		Name:        "mem.free",
+	}
+	diskAvaTem := onecloud.CommonAlertTem{
+		Database:    "telegraf",
+		Measurement: "disk",
+		Operator:    "",
+		Field:       []string{"free", "total"},
+		FieldOpt:    "/",
+		Comparator:  "<=",
+		Threshold:   0.2,
+		Tag:         "path",
+		TagVal:      "/",
+		Name:        "disk.free/total",
+	}
+	diskAvaOptTem := onecloud.CommonAlertTem{
+		Database:    "telegraf",
+		Measurement: "disk",
+		Operator:    "",
+		Field:       []string{"free", "total"},
+		FieldOpt:    "/",
+		Comparator:  "<=",
+		Threshold:   0.2,
+		Tag:         "path",
+		TagVal:      "/opt",
+		Name:        "disk.free/total",
+	}
+	diskNodeAvaTem := onecloud.CommonAlertTem{
+		Database:    "telegraf",
+		Measurement: "disk",
+		Operator:    "",
+		Field:       []string{"inodes_free", "inodes_total"},
+		FieldOpt:    "/",
+		Comparator:  "<=",
+		Threshold:   0.15,
+		Tag:         "path",
+		TagVal:      "/",
+		Name:        "disk.inodes_free/inodes_total",
+	}
+	speAlert := map[string]onecloud.CommonAlertTem{
+		cpuTem.Name:         cpuTem,
+		memTem.Name:         memTem,
+		diskAvaTem.Name:     diskAvaTem,
+		diskAvaOptTem.Name:  diskAvaOptTem,
+		diskNodeAvaTem.Name: diskNodeAvaTem,
+	}
+	return speAlert
 }

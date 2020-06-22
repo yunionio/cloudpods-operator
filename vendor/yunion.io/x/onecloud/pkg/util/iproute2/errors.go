@@ -12,26 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package modulebase
+package iproute2
 
 import (
-	"io/ioutil"
+	"syscall"
 
-	"yunion.io/x/jsonutils"
-
-	"yunion.io/x/onecloud/pkg/mcclient"
+	"yunion.io/x/pkg/errors"
 )
 
-func GetProjectResources(s *mcclient.ClientSession, serviceType string) (jsonutils.JSONObject, error) {
-	man := &BaseManager{serviceType: serviceType}
-	resp, err := man.rawRequest(s, "GET", "/project-resources", nil, nil)
-	if err != nil {
-		return nil, err
+func IsErrSrch(err error) bool {
+	err = errors.Cause(err)
+	if e, ok := err.(syscall.Errno); ok && e == 3 {
+		return true
 	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	return jsonutils.Parse(body)
+	return false
 }
