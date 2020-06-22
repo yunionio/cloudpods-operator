@@ -16,17 +16,17 @@ package compute
 
 import "time"
 
-type ScalingTimerCreateInput struct {
+type TimerCreateInput struct {
 
 	// description: 执行时间
 	ExecTime time.Time
 }
 
-type ScalingCycleTimerCreateInput struct {
+type CycleTimerCreateInput struct {
 
 	// description: 周期类型
 	// enum: day,week,month
-	CycleType string `json:"cycle_type""`
+	CycleType string `json:"cycle_type"`
 
 	// description: 分(0-59)
 	// example: 13
@@ -81,12 +81,12 @@ type ScalingAlarmCreateInput struct {
 	Value float64 `json:"value"`
 }
 
-type ScalingTimerDetails struct {
+type TimerDetails struct {
 	// description: 执行时间
 	ExecTime time.Time `json:"exec_time"`
 }
 
-type ScalingCycleTimerDetails struct {
+type CycleTimerDetails struct {
 	// description: 周期类型：按天/周/月
 	CycleType string `json:"cycle_type"`
 	// description: 分钟

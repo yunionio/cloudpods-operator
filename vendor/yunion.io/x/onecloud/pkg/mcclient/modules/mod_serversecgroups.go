@@ -14,13 +14,19 @@
 
 package modules
 
-import (
-	"yunion.io/x/jsonutils"
+import "yunion.io/x/onecloud/pkg/mcclient/modulebase"
 
-	"yunion.io/x/onecloud/pkg/mcclient"
-	"yunion.io/x/onecloud/pkg/mcclient/modulebase"
+var (
+	Serversecgroups modulebase.JointResourceManager
 )
 
-func GetProjectResources(s *mcclient.ClientSession, serviceType string) (jsonutils.JSONObject, error) {
-	return modulebase.GetProjectResources(s, serviceType)
+func init() {
+	Serversecgroups = NewJointComputeManager(
+		"guestsecgroup",
+		"guestsecgroups",
+		[]string{},
+		[]string{},
+		&Servers,
+		&SecGroups)
+	registerCompute(&Serversecgroups)
 }
