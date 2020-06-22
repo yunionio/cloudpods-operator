@@ -179,7 +179,7 @@ func (m *etcdManager) defrag() {
 	m.defraging = true
 	for {
 		select {
-		case <-time.After(time.Hour * 1):
+		case <-time.After(time.Minute * 3):
 			m.membersDefrag()
 		}
 	}
@@ -197,12 +197,35 @@ func (m *etcdManager) membersDefrag() {
 		return
 	}
 	defer etcdcli.Close()
-	for _, m := range m.members {
-		_, err := etcdcli.Defragment(context.Background(), m.ClientURL())
+
+	for _, mx := range m.members {
+		ctx, cancel := context.WithTimeout(context.Background(), constants.EtcdDefaultRequestTimeout)
+		defer cancel()
+		status, err := etcdcli.Status(ctx, mx.ClientURL())
 		if err != nil {
-			log.Errorf("member %s defrag failed: %s", m.Name, err)
+			log.Errorf("fetch etcd status failed: %s", err)
+			return
 		}
+		if status.DbSize > etcdBackendQuotaSize/2 {
+			ctx, cancel = context.WithTimeout(context.Background(), constants.EtcdDefaultRequestTimeout)
+			defer cancel()
+			_, err = etcdcli.Compact(ctx, status.Header.Revision)
+			if err != nil {
+				log.Errorf("etcd cluster compact failed: %s", err)
+				return
+			}
+			for _, m := range m.members {
+				ctx, cancel = context.WithTimeout(context.Background(), constants.EtcdDefaultRequestTimeout)
+				defer cancel()
+				_, err := etcdcli.Defragment(ctx, m.ClientURL())
+				if err != nil {
+					log.Errorf("member %s defrag failed: %s", m.Name, err)
+				}
+			}
+		}
+		break
 	}
+
 }
 
 func (m *etcdManager) isSecure() bool {
