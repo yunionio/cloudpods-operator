@@ -1193,3 +1193,7 @@ func (m *ComponentManager) Itsm() manager.Manager {
 func (m *ComponentManager) Telegraf() manager.Manager {
 	return newTelegrafManager(m)
 }
+
+func (m *ComponentManager) CloudId() manager.Manager {
+	return newCloudIdManager(m)
+}

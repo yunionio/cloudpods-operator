@@ -186,6 +186,12 @@ const (
 	CloudeventDB           = "yunioncloudevent"
 	CloudeventDBUser       = "yunioncloudevent"
 
+	CloudIdAdminUser    = "cloudidadmin"
+	CloudIdAdminProject = SysAdminProject
+	CloudIdPort         = 30893
+	CloudIdDB           = "yunioncloudid"
+	CloudIdDBUser       = "yunioncloudid"
+
 	EndpointTypeInternal = "internal"
 	EndpointTypePublic   = "public"
 	EndpointTypeAdmin    = "admin"
@@ -246,6 +252,9 @@ const (
 
 	ServiceNameCloudevent = "cloudevent"
 	ServiceTypeCloudevent = "cloudevent"
+
+	ServiceNameCloudId = "cloudid"
+	ServiceTypeCloudId = "cloudid"
 
 	ServiceNameNotify = "notify"
 	ServiceTypeNotify = "notify"
