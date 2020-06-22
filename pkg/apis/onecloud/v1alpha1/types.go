@@ -120,6 +120,7 @@ const (
 	ItsmComponentType ComponentType = "itsm"
 	// Telegraf is monitor agent component type
 	TelegrafComponentType ComponentType = "telegraf"
+	CloudIdComponentType  ComponentType = "cloudid"
 )
 
 // ComponentPhase is the current state of component
@@ -250,6 +251,9 @@ type OnecloudClusterSpec struct {
 
 	OvnNorth DeploymentSpec `json:"ovnNorth"`
 	VpcAgent DeploymentSpec `json:"vpcAgent"`
+
+	// Cloudid holds configuration for cloudid service
+	CloudId DeploymentSpec `json:"cloudid"`
 }
 
 // OnecloudClusterStatus describes cluster status
@@ -281,6 +285,7 @@ type OnecloudClusterStatus struct {
 	VpcAgent       DeploymentStatus `json:"vpcAgent,omitempty"`
 	Etcd           EctdStatus       `json:"etcd,omitempty"`
 	Itsm           DeploymentStatus `json:"itsm,omitempty"`
+	CloudId        DeploymentStatus `json:"cloudid,omitempty"`
 }
 
 type Etcd struct {
@@ -597,4 +602,5 @@ type OnecloudClusterConfig struct {
 	VpcAgent        VpcAgentConfig         `json:"vpcagent"`
 	ServiceOperator ServiceCommonOptions   `json:"onecloudServiceOperator"`
 	Itsm            ItsmConfig             `json:"itsm"`
+	CloudId         ServiceDBCommonOptions `json:"cloudid"`
 }
