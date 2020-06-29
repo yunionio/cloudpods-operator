@@ -18,7 +18,7 @@ import (
 type CronJobControlInterface interface {
 	CreateCronJob(*v1alpha1.OnecloudCluster, *batchv1.CronJob) error
 	UpdateCronJob(*v1alpha1.OnecloudCluster, *batchv1.CronJob) (*batchv1.CronJob, error)
-	DeleteCronJob(*v1alpha1.OnecloudCluster, *batchv1.CronJob) error
+	DeleteCronJob(*v1alpha1.OnecloudCluster, string) error
 }
 
 type cronJobControl struct {
@@ -76,9 +76,9 @@ func (c *cronJobControl) UpdateCronJob(
 }
 
 func (c *cronJobControl) DeleteCronJob(
-	oc *v1alpha1.OnecloudCluster, cronJob *batchv1.CronJob,
+	oc *v1alpha1.OnecloudCluster, cronJobName string,
 ) error {
-	err := c.kubeCli.BatchV1beta1().CronJobs(oc.Namespace).Delete(cronJob.Name, nil)
-	c.RecordDeleteEvent(oc, cronJob, err)
+	err := c.kubeCli.BatchV1beta1().CronJobs(oc.Namespace).Delete(cronJobName, nil)
+	c.RecordDeleteEvent(oc, newFakeObject(cronJobName), err)
 	return err
 }
