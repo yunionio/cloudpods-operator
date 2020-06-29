@@ -124,20 +124,17 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 		components.Yunionconf(),
 		components.Monitor(),
 		components.S3gateway(),
-		components.CloudmonPing(),
-		components.CloudmonReportUsage(),
 		components.Notify(),
 		components.Host(),
 		components.HostDeployer(),
 		components.HostImage(),
 		components.VpcAgent(),
 		components.Baremetal(),
-		components.CloudmonReportServer(),
-		components.CloudmonReportHost(),
 		components.ServiceOperator(),
 		components.Itsm(),
 		components.Telegraf(),
 		components.CloudId(),
+		components.Cloudmon(),
 	}
 	var grp errgroup.Group
 	for _, component := range dependComponents {

@@ -1158,28 +1158,12 @@ func (m *ComponentManager) AutoUpdate() manager.Manager {
 	return newAutoUpdateManager(m)
 }
 
-func (m *ComponentManager) CloudmonPing() manager.Manager {
-	return newCloudmonPingManager(m)
-}
-
-func (m *ComponentManager) CloudmonReportUsage() manager.Manager {
-	return newCloudmonReportUsageManager(m)
-}
-
 func (m *ComponentManager) EsxiAgent() manager.Manager {
 	return newEsxiManager(m)
 }
 
 func (m *ComponentManager) Monitor() manager.Manager {
 	return newMonitorManager(m)
-}
-
-func (m *ComponentManager) CloudmonReportServer() manager.Manager {
-	return newCloudmonReportServerManager(m)
-}
-
-func (m *ComponentManager) CloudmonReportHost() manager.Manager {
-	return newCloudmonReportHostManager(m)
 }
 
 func (m *ComponentManager) ServiceOperator() manager.Manager {
@@ -1196,4 +1180,8 @@ func (m *ComponentManager) Telegraf() manager.Manager {
 
 func (m *ComponentManager) CloudId() manager.Manager {
 	return newCloudIdManager(m)
+}
+
+func (m *ComponentManager) Cloudmon() manager.Manager {
+	return newCloudMonManager(m)
 }

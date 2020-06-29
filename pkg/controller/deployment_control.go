@@ -36,7 +36,7 @@ type DeploymentControlInterface interface {
 	// UpdateDeployment updates a deployment in a OnecloudCluster.
 	UpdateDeployment(*v1alpha1.OnecloudCluster, *apps.Deployment) (*apps.Deployment, error)
 	// DeleteDeployment deletes a deployment in a OnecloudCluster.
-	DeleteDeployment(*v1alpha1.OnecloudCluster, *apps.Deployment) error
+	DeleteDeployment(*v1alpha1.OnecloudCluster, string) error
 }
 
 type realDeploymentControl struct {
@@ -90,8 +90,8 @@ func (c *realDeploymentControl) UpdateDeployment(oc *v1alpha1.OnecloudCluster, d
 	return updatedDeploy, err
 }
 
-func (c *realDeploymentControl) DeleteDeployment(oc *v1alpha1.OnecloudCluster, deploy *apps.Deployment) error {
-	err := c.kubeCli.AppsV1beta1().Deployments(oc.Namespace).Delete(deploy.Name, nil)
-	c.RecordDeleteEvent(oc, deploy, err)
+func (c *realDeploymentControl) DeleteDeployment(oc *v1alpha1.OnecloudCluster, deploymentName string) error {
+	err := c.kubeCli.AppsV1beta1().Deployments(oc.Namespace).Delete(deploymentName, nil)
+	c.RecordDeleteEvent(oc, newFakeObject(deploymentName), err)
 	return err
 }
