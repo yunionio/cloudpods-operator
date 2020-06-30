@@ -141,6 +141,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		HostComponentType:         &obj.HostAgent.DaemonSetSpec,
 		HostDeployerComponentType: &obj.HostDeployer,
 		YunionagentComponentType:  &obj.Yunionagent,
+		HostImageComponentType:    &obj.HostImage,
 	} {
 		SetDefaults_DaemonSetSpec(spec, getImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag))
 	}
