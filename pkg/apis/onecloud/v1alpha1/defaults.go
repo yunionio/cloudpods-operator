@@ -372,6 +372,7 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		&obj.APIGateway:                          {constants.APIGatewayAdminUser, constants.APIGatewayPort},
 		&obj.HostAgent.ServiceCommonOptions:      {constants.HostAdminUser, constants.HostPort},
 		&obj.BaremetalAgent.ServiceCommonOptions: {constants.BaremetalAdminUser, constants.BaremetalPort},
+		&obj.BillingTask:                         {constants.BillingTaskAdminUser, constants.BillingTaskPort},
 		&obj.S3gateway:                           {constants.S3gatewayAdminUser, constants.S3gatewayPort},
 		&obj.AutoUpdate:                          {constants.AutoUpdateAdminUser, constants.AutoUpdatePort},
 		&obj.EsxiAgent.ServiceCommonOptions:      {constants.EsxiAgentAdminUser, constants.EsxiAgentPort},

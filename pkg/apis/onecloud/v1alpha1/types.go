@@ -70,6 +70,8 @@ const (
 	RegisterComponentType ComponentType = "register"
 	// BillingComponentType is billing service component type
 	BillingComponentType ComponentType = "billing"
+	// BillingTaskComponentType is billingTask service component type
+	BillingTaskComponentType ComponentType = "billing-task"
 	// InfluxdbComponentType is influxdb component type
 	InfluxdbComponentType ComponentType = "influxdb"
 	// MonitorComponentType is alert monitor component type
@@ -204,6 +206,8 @@ type OnecloudClusterSpec struct {
 	Register DeploymentSpec `json:"register"`
 	// Billing holds configuration for billing service
 	Billing DeploymentSpec `json:"billing"`
+	// BillingTask holds configuration for billingtask service
+	BillingTask DeploymentSpec `json:"billingtask"`
 	// Yunionconf holds configuration for yunionconf service
 	Yunionconf DeploymentSpec `json:"yunionconf"`
 	// Yunionagent holds configuration for yunionagent service
@@ -278,6 +282,7 @@ type OnecloudClusterStatus struct {
 	Logger         DeploymentStatus `json:"logger,omitempty"`
 	Register       DeploymentStatus `json:"register,omitempty"`
 	Billing        DeploymentStatus `json:"billing,omitempty"`
+	BillingTask    DeploymentStatus `json:"billingtask,omitempty"`
 	APIGateway     DeploymentStatus `json:"apiGateway,omitempty"`
 	Web            DeploymentStatus `json:"web,omitempty"`
 	Yunionconf     DeploymentStatus `json:"yunionconf,omitempty"`

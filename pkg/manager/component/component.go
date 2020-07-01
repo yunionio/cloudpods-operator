@@ -1093,6 +1093,10 @@ func (m *ComponentManager) Billing() manager.Manager {
 	return newBillingManager(m)
 }
 
+func (m *ComponentManager) BillingTask() manager.Manager {
+	return newBillingTaskManager(m)
+}
+
 func (m *ComponentManager) Region() manager.Manager {
 	return newRegionManager(m)
 }
