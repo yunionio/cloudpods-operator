@@ -71,6 +71,8 @@ const (
 	LoggerComponentType ComponentType = "logger"
 	// RegisterComponentType is register service component type
 	RegisterComponentType ComponentType = "register"
+	// BillingTaskComponentType is billingTask service component type
+	BillingTaskComponentType ComponentType = "billing-task"
 	// InfluxdbComponentType is influxdb component type
 	InfluxdbComponentType ComponentType = "influxdb"
 	// VictoriaMetricsComponentType is VictoriaMetrics component type
@@ -263,6 +265,8 @@ type OnecloudClusterSpec struct {
 	Logger DeploymentServicePortSpec `json:"logger"`
 	// Register holds configuration for register service
 	Register DeploymentSpec `json:"register"`
+	// BillingTask holds configuration for billingtask service
+	BillingTask DeploymentServicePortSpec `json:"billingtask"`
 	// Yunionconf holds configuration for yunionconf service
 	Yunionconf DeploymentServicePortSpec `json:"yunionconf"`
 	// Yunionagent holds configuration for yunionagent service
@@ -386,6 +390,7 @@ type OnecloudClusterStatus struct {
 	S3gateway       DeploymentStatus     `json:"s3gateway,omitempty"`
 	Devtool         DeploymentStatus     `json:"devtool,omitempty"`
 	Meter           MeterStatus          `json:"meter,omitempty"`
+	BillingTask     DeploymentStatus     `json:"billingtask,omitempty"`
 	BillingStatus   DeploymentStatus     `json:"billing,omitempty"`
 	AutoUpdate      DeploymentStatus     `json:"autoupdate,omitempty"`
 	EsxiAgent       EsxiAgentStatus      `json:"esxiagent,omitempty"`
@@ -1227,6 +1232,7 @@ type OnecloudClusterConfig struct {
 	Devtool         ServiceDBCommonOptions `json:"devtool"`
 	Meter           MeterConfig            `json:"meter"`
 	Billing         ServiceDBCommonOptions `json:"billing"`
+	BillingTask     ServiceCommonOptions   `json:"billingtask"`
 	AutoUpdate      ServiceDBCommonOptions `json:"autoupdate"`
 	EsxiAgent       EsxiAgentConfig        `json:"esxiagent"`
 	VpcAgent        VpcAgentConfig         `json:"vpcagent"`

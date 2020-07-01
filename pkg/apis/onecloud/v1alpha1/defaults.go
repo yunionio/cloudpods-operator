@@ -168,6 +168,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool, isEEOr
 
 	useHyperImage := obj.UseHyperImage
 
+<<<<<<< HEAD
 	SetDefaults_KeystoneSpec(&obj.Keystone, obj.ImageRepository, obj.Version, useHyperImage, isEE)
 	SetDefaults_RegionSpec(&obj.RegionServer, obj.ImageRepository, obj.Version, useHyperImage, isEE)
 	SetDefaults_RegionDNSSpec(&obj.RegionDNS, obj.ImageRepository, obj.Version)
@@ -201,6 +202,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool, isEEOr
 		BastionHostComponentType:     nHP(&obj.BastionHost.DeploymentSpec, useHyperImage),
 		ExtdbComponentType:           nHP(&obj.Extdb.DeploymentSpec, useHyperImage),
 		BillingComponentType:         nHP(&obj.Billing.DeploymentSpec, useHyperImage),
+		BillingTaskComponentType:   nHP(&obj.BillingTask.DeploymentSpec, false),
 	} {
 		SetDefaults_DeploymentSpec(spec.DeploymentSpec, getImage(
 			obj.ImageRepository, spec.Repository,
@@ -760,6 +762,7 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		&obj.APIGateway:                          {constants.APIGatewayAdminUser, constants.APIGatewayPort},
 		&obj.HostAgent.ServiceCommonOptions:      {constants.HostAdminUser, constants.HostPort},
 		&obj.BaremetalAgent.ServiceCommonOptions: {constants.BaremetalAdminUser, constants.BaremetalPort},
+		&obj.BillingTask:                         {constants.BillingTaskAdminUser, constants.BillingTaskPort},
 		&obj.S3gateway:                           {constants.S3gatewayAdminUser, constants.S3gatewayPort},
 		&obj.EsxiAgent.ServiceCommonOptions:      {constants.EsxiAgentAdminUser, constants.EsxiAgentPort},
 		&obj.VpcAgent.ServiceCommonOptions:       {constants.VpcAgentAdminUser, constants.VpcAgentPort},
