@@ -102,6 +102,8 @@ const (
 	CloudmonReportServerComponentType ComponentType = "cloudmon-report-server"
 	// CloudmonReportHost is report-host cronjob
 	CloudmonReportHostComponentType ComponentType = "cloudmon-report-host"
+	// Cloudmon is report monitor data deployment
+	CloudmonComponentType ComponentType = "cloudmon"
 	// Esxi Agent
 	EsxiAgentComponentType ComponentType = "esxi-agent"
 	// Onecloud Reource Operator
@@ -233,14 +235,8 @@ type OnecloudClusterSpec struct {
 	Meter StatefulDeploymentSpec `json:"meter"`
 	// AutoUpdate holds configuration for autoupdate
 	AutoUpdate DeploymentSpec `json:"autoupdate"`
-	// CloudmonPing holds configuration for ping-probe cronjob
-	CloudmonPing CronJobSpec `json:"cloudmonping"`
-	// CloudmonReportUsage holds configuration for report-usage cronjob
-	CloudmonReportUsage CronJobSpec `json:"cloudmonreportusage"`
-	// CloudmonReportServerAli holds configuration for report-server cronjob
-	CloudmonReportServer CronJobSpec `json:"cloudmonreportserver"`
-	// CloudmonReportHost holds configuration for report-usage cronjob
-	CloudmonReportHost CronJobSpec `json:"cloudmonreporthost"`
+	// Cloudmon holds configuration for report monitor data
+	Cloudmon CloudmonSpec `json:"cloudmon"`
 	// EsxiAgent hols configuration for esxi agent
 	EsxiAgent StatefulDeploymentSpec `json:"esxiagent"`
 	// Itsm holds configuration for itsm service
@@ -451,6 +447,14 @@ type RegionSpec struct {
 	DNSServer string `json:"dnsServer"`
 	// DNSDomain is the global default dns domain suffix for virtual servers
 	DNSDomain string `json:"dnsDomain"`
+}
+
+type CloudmonSpec struct {
+	DeploymentSpec
+	CloudmonPingDuration         uint
+	CloudmonReportHostDuration   uint
+	CloudmonReportServerDuration uint
+	CloudmonReportUsageDuration  uint
 }
 
 type RegionDNSProxy struct {
