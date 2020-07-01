@@ -38,8 +38,8 @@ func (m *billingTaskManager) getPhaseControl(man controller.ComponentManager) co
 		constants.BillingTaskPort, "")
 }
 
-type aliPayOptions struct {
-	AlipayAppId       string `help:"APPID"`
+type AliPayOptions struct {
+	AlipayAppId       string `help:"APPID" default:"20002020"`
 	AlipayCertPath    string `help:"支付宝证书文件所在路径" default:"/etc/yunion/alipay"`
 	AlipayNotifyUrl   string `help:"支付成功回调地址.支付宝服务器主动通知商户服务器里指定的页面http/https路径。" default:"https://api.yunion.cn/api/v2/paymentnotify/alipay"`
 	AlipayReturnUrl   string `help:"支付成功后跳回指定页面http/https路径" default:""`
@@ -49,7 +49,7 @@ type aliPayOptions struct {
 
 type billingTaskOptions struct {
 	common_options.CommonOptions
-	aliPayOptions
+	AliPayOptions
 
 	BillingPaymentStatusSyncIntervals int `help:"billing payment status sync intervals(seconds)" default:"60"`
 }
@@ -72,7 +72,7 @@ func (m *billingTaskManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Se
 }
 
 func (m *billingTaskManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
-	return m.newCloudServiceSinglePortDeployment(v1alpha1.BillingTaskComponentType, oc, oc.Spec.Billing, constants.BillingTaskPort, true)
+	return m.newCloudServiceSinglePortDeployment(v1alpha1.BillingTaskComponentType, oc, oc.Spec.BillingTask, constants.BillingTaskPort, false)
 }
 
 func (m *billingTaskManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {

@@ -130,7 +130,7 @@ const (
 	BillingDB        = "yunionbilling"
 	BillingDBUser    = "yunionbilling"
 
-	BillingTaskAdminUser = "billingadmin"
+	BillingTaskAdminUser = "billingtaskadmin"
 	BillingTaskPort      = 30405
 
 	ServiceNameAPIGateway = "yunionapi"
@@ -215,8 +215,8 @@ const (
 	ServiceNameBilling = "billing"
 	ServiceTypeBilling = "billing"
 
-	ServiceNameBillingTask = "billingTask"
-	ServiceTypeBillingTask = "billingTask"
+	ServiceNameBillingTask = "billingtask"
+	ServiceTypeBillingTask = "billingtask"
 
 	ServiceNameYunionConf = "yunionconf"
 	ServiceTypeYunionConf = "yunionconf"
