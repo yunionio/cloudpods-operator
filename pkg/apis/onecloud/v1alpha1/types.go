@@ -72,7 +72,7 @@ const (
 	// RegisterComponentType is register service component type
 	RegisterComponentType ComponentType = "register"
 	// BillingTaskComponentType is billingTask service component type
-	BillingTaskComponentType ComponentType = "billing-task"
+	BillingTaskComponentType ComponentType = "billingtask"
 	// InfluxdbComponentType is influxdb component type
 	InfluxdbComponentType ComponentType = "influxdb"
 	// VictoriaMetricsComponentType is VictoriaMetrics component type

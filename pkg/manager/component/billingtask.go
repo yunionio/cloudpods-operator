@@ -53,8 +53,8 @@ func (m *billingTaskManager) getPhaseControl(man controller.ComponentManager, zo
 		constants.BillingTaskPort, "")
 }
 
-type aliPayOptions struct {
-	AlipayAppId       string `help:"APPID"`
+type AliPayOptions struct {
+	AlipayAppId       string `help:"APPID" default:"20002020"`
 	AlipayCertPath    string `help:"支付宝证书文件所在路径" default:"/etc/yunion/alipay"`
 	AlipayNotifyUrl   string `help:"支付成功回调地址.支付宝服务器主动通知商户服务器里指定的页面http/https路径。" default:"https://api.yunion.cn/api/v2/paymentnotify/alipay"`
 	AlipayReturnUrl   string `help:"支付成功后跳回指定页面http/https路径" default:""`
@@ -64,7 +64,7 @@ type aliPayOptions struct {
 
 type billingTaskOptions struct {
 	common_options.CommonOptions
-	aliPayOptions
+	AliPayOptions
 
 	BillingPaymentStatusSyncIntervals int `help:"billing payment status sync intervals(seconds)" default:"60"`
 }
