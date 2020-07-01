@@ -110,6 +110,7 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 		components.Logger(),
 		components.Register(),
 		components.Billing(),
+		components.BillingTask(),
 		components.Influxdb(),
 		components.Climc(),
 		components.AutoUpdate(),
