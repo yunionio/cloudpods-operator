@@ -52,7 +52,7 @@ const (
 	// BillingComponentType is billing service component type
 	BillingComponentType ComponentType = "billing"
 	// BillingTaskComponentType is billingTask service component type
-	BillingTaskComponentType ComponentType = "billing-task"
+	BillingTaskComponentType ComponentType = "billingtask"
 	// InfluxdbComponentType is influxdb component type
 	InfluxdbComponentType ComponentType = "influxdb"
 	// MonitorComponentType is alert monitor component type
