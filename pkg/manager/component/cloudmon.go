@@ -6,6 +6,7 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
@@ -25,9 +26,14 @@ func (m *cloudmonManager) ensureOldCronjobsDeleted(oc *v1alpha1.OnecloudCluster)
 		v1alpha1.CloudmonPingComponentType, v1alpha1.CloudmonReportHostComponentType,
 		v1alpha1.CloudmonReportServerComponentType, v1alpha1.CloudmonReportUsageComponentType,
 	} {
-		err := m.cronControl.DeleteCronJob(oc, controller.NewClusterComponentName(oc.GetName(), componentType))
-		if err != nil && !errors.IsNotFound(err) {
+		if _, err := m.kubeCli.BatchV1beta1().CronJobs(oc.GetNamespace()).
+			Get(controller.NewClusterComponentName(oc.GetName(), componentType), metav1.GetOptions{}); err != nil && !errors.IsNotFound(err) {
 			return err
+		} else if err == nil {
+			err := m.cronControl.DeleteCronJob(oc, controller.NewClusterComponentName(oc.GetName(), componentType))
+			if err != nil && !errors.IsNotFound(err) {
+				return err
+			}
 		}
 	}
 	return nil
@@ -38,10 +44,14 @@ func (m *cloudmonManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 		return err
 	}
 	if !IsEnterpriseEdition(oc) {
-		if err := m.deployControl.DeleteDeployment(
-			oc, controller.NewClusterComponentName(oc.GetName(), v1alpha1.CloudmonComponentType),
-		); err != nil && !errors.IsNotFound(err) {
+		if _, err := m.deployLister.Deployments(oc.GetNamespace()).Get(controller.NewClusterComponentName(oc.GetName(), v1alpha1.CloudmonComponentType)); err != nil && !errors.IsNotFound(err) {
 			return err
+		} else if err == nil {
+			if err := m.deployControl.DeleteDeployment(
+				oc, controller.NewClusterComponentName(oc.GetName(), v1alpha1.CloudmonComponentType),
+			); err != nil && !errors.IsNotFound(err) {
+				return err
+			}
 		}
 		return nil
 	}
