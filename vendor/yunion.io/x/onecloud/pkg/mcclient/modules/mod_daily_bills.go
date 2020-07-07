@@ -12,22 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package compute
+package modules
 
-import "yunion.io/x/onecloud/pkg/apis"
+import "yunion.io/x/onecloud/pkg/mcclient/modulebase"
 
-const (
-	EXTERNAL_PROJECT_STATUS_AVAILABLE   = "available"   // 可用
-	EXTERNAL_PROJECT_STATUS_UNAVAILABLE = "unavailable" // 不可用
-	EXTERNAL_PROJECT_STATUS_CREATING    = "creating"    // 创建中
-	EXTERNAL_PROJECT_STATUS_DELETING    = "deleting"    // 删除中
-	EXTERNAL_PROJECT_STATUS_UNKNOWN     = "unknown"     // 未知
+var (
+	DailyBills modulebase.ResourceManager
 )
 
-type ExternalProjectDetails struct {
-	apis.StatusStandaloneResourceDetails
-	apis.ProjectizedResourceInfo
-	ManagedResourceInfo
-
-	SExternalProject
+func init() {
+	DailyBills = NewMeterManager("daily_bill", "daily_bills",
+		[]string{"account", "account_id", "charge_type", "region", "region_id", "domain", "domain_id", "project",
+			"tenant_id", "brand", "resource_id", "resource_type", "resource_name", "rate", "reserved", "spec",
+			"usage_type", "associate_id", "day", "price_unit", "currency", "cloudprovider_id", "cloudprovider_name",
+			"amount", "gross_amount", "usage"},
+		[]string{},
+	)
+	register(&DailyBills)
 }

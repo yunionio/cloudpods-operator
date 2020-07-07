@@ -151,6 +151,9 @@ type ProjectListInput struct {
 
 	UserFilterListInput
 	GroupFilterListInput
+
+	// 过滤出指定用户或者组可以加入的项目
+	Jointable *bool `json:"jointable"`
 }
 
 type DomainListInput struct {
@@ -287,6 +290,8 @@ func (input SProjectRemoveUserGroupInput) Validate() error {
 
 type IdentityProviderListInput struct {
 	apis.EnabledStatusStandaloneResourceListInput
+
+	apis.DomainizedResourceListInput
 
 	// 以驱动类型过滤
 	Driver []string `json:"driver"`
