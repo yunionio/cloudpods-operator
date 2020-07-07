@@ -12,22 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package compute
+package modules
 
-import "yunion.io/x/onecloud/pkg/apis"
+import "yunion.io/x/onecloud/pkg/mcclient/modulebase"
 
-const (
-	EXTERNAL_PROJECT_STATUS_AVAILABLE   = "available"   // 可用
-	EXTERNAL_PROJECT_STATUS_UNAVAILABLE = "unavailable" // 不可用
-	EXTERNAL_PROJECT_STATUS_CREATING    = "creating"    // 创建中
-	EXTERNAL_PROJECT_STATUS_DELETING    = "deleting"    // 删除中
-	EXTERNAL_PROJECT_STATUS_UNKNOWN     = "unknown"     // 未知
+var (
+	AmountEstimations modulebase.ResourceManager
 )
 
-type ExternalProjectDetails struct {
-	apis.StatusStandaloneResourceDetails
-	apis.ProjectizedResourceInfo
-	ManagedResourceInfo
-
-	SExternalProject
+func init() {
+	AmountEstimations = NewMeterManager("amount_estimation", "amount_estimations",
+		[]string{"amount"},
+		[]string{},
+	)
+	register(&AmountEstimations)
 }

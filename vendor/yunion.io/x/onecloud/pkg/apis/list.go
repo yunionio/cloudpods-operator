@@ -53,8 +53,8 @@ type ProjectizedResourceListInput struct {
 	OrderByTenant string `json:"order_by_tenant" "yunion:deprecated-by":"order_by_project"`
 }
 
-type StatusUserResourceListInput struct {
-	StatusResourceBaseListInput
+type StatusDomainLevelUserResourceListInput struct {
+	StatusDomainLevelResourceListInput
 	UserResourceListInput
 }
 
@@ -263,6 +263,8 @@ type DeletePreventableResourceBaseListInput struct {
 
 type ScopedResourceBaseListInput struct {
 	ProjectizedResourceListInput
+	// 指定匹配的范围，可能值为project, domain or system
+	BelongScope string `json:"belong_scope"`
 }
 
 type InfrasResourceBaseListInput struct {

@@ -75,9 +75,11 @@ type SharableVirtualResourceCreateInput struct {
 	SharableResourceBaseCreateInput
 }
 
-type StatusUserResourceCreateInput struct {
-	StatusBaseResourceCreateInput
-	UserResourceCreateInput
+type StatusDomainLevelUserResourceCreateInput struct {
+	StatusDomainLevelResourceCreateInput
+
+	// 本地用户Id，若为空则使用当前用户Id作为此参数值
+	OwnerId string `json:"owner_id"`
 }
 
 type UserResourceCreateInput struct {
@@ -255,6 +257,11 @@ type StatusInfrasResourceBaseCreateInput struct {
 type EnabledStatusInfrasResourceBaseCreateInput struct {
 	StatusInfrasResourceBaseCreateInput
 	EnabledBaseResourceCreateInput
+}
+
+type ScopedResourceCreateInput struct {
+	ProjectizedResourceCreateInput
+	Scope string `json:"scope"`
 }
 
 type OpsLogCreateInput struct {
