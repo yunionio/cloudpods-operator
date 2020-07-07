@@ -121,8 +121,11 @@ type MetadataResourceInfo struct {
 	Metadata map[string]string `json:"metadata"`
 }
 
-type StatusUserResourceDetails struct {
-	UserResourceDetails
+type StatusDomainLevelUserResourceDetails struct {
+	StatusDomainLevelResourceDetails
+
+	// 用户名称
+	OwnerName string `json:"owner_name"`
 }
 
 type UserResourceDetails struct {
