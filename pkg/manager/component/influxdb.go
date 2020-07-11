@@ -138,7 +138,7 @@ func (m *influxdbManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 		Name: "data",
 		VolumeSource: corev1.VolumeSource{
 			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-				ClaimName: controller.NewClusterComponentName(oc.GetName(), v1alpha1.InfluxdbComponentType),
+				ClaimName: m.newPvcName(oc.GetName(), oc.Spec.Influxdb.StorageClassName, v1alpha1.InfluxdbComponentType),
 				ReadOnly:  false,
 			},
 		},
