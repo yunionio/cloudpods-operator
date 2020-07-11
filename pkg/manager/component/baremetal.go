@@ -142,7 +142,7 @@ func newBaremetalVolHelper(oc *v1alpha1.OnecloudCluster, optCfgMap string, compo
 		Name: "opt",
 		VolumeSource: corev1.VolumeSource{
 			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-				ClaimName: controller.NewClusterComponentName(oc.GetName(), v1alpha1.BaremetalAgentComponentType),
+				ClaimName: m.newPvcName(oc.GetName(), oc.Spec.BaremetalAgent.StorageClassName, v1alpha1.BaremetalAgentComponentType),
 				ReadOnly:  false,
 			},
 		},

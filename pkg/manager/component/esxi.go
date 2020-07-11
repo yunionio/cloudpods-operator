@@ -23,7 +23,6 @@ import (
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
-	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
 )
 
@@ -86,7 +85,7 @@ func (m *esxiManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 		Name: "opt",
 		VolumeSource: corev1.VolumeSource{
 			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-				ClaimName: controller.NewClusterComponentName(oc.GetName(), v1alpha1.EsxiAgentComponentType),
+				ClaimName: m.newPvcName(oc.GetName(), oc.Spec.EsxiAgent.StorageClassName, v1alpha1.EsxiAgentComponentType),
 				ReadOnly:  false,
 			},
 		},
