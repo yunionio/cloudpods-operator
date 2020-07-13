@@ -599,6 +599,7 @@ func GetCommonAlertOfSys(session *mcclient.ClientSession) ([]jsonutils.JSONObjec
 	param := jsonutils.NewDict()
 	param.Add(jsonutils.NewBool(true), "details")
 	param.Add(jsonutils.NewString(monitorapi.CommonAlertSystemAlertType), "alert_type")
+	param.Add(jsonutils.NewString("system"), "scope")
 
 	rtn, err := modules.CommonAlertManager.List(session, param)
 	if err != nil {
@@ -662,6 +663,7 @@ func CreateCommonAlert(s *mcclient.ClientSession, tem CommonAlertTem) (jsonutils
 		},
 		Recipients: []string{monitorapi.CommonAlertDefaultRecipient},
 		AlertType:  monitorapi.CommonAlertSystemAlertType,
+		Scope:      "system",
 	}
 
 	param := jsonutils.Marshal(&input)
