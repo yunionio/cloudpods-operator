@@ -36,6 +36,8 @@ policy:
 	PolicyMember = `
 # rbac for normal user, not allow for delete
 scope: project
+roles:
+  - member
 policy:
   '*':
     '*':
