@@ -122,6 +122,10 @@ func (m *baremetalManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	if err != nil {
 		return nil, err
 	}
+	if oc.Spec.BaremetalAgent.StorageClassName != v1alpha1.DefaultStorageClass {
+		dm.Spec.Strategy.Type = apps.RecreateDeploymentStrategyType
+	}
+
 	if dm.Spec.Template.Spec.NodeSelector == nil {
 		dm.Spec.Template.Spec.NodeSelector = make(map[string]string)
 	}
