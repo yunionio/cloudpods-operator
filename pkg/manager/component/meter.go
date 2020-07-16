@@ -122,6 +122,10 @@ func (m *meterManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 		MountPath: constants.MeterDataStore,
 	})
 
+	if oc.Spec.Meter.StorageClassName != v1alpha1.DefaultStorageClass {
+		deploy.Spec.Strategy.Type = apps.RecreateDeploymentStrategyType
+	}
+
 	// var run
 	var hostPathDirectory = corev1.HostPathDirectory
 	podVols = append(podVols, corev1.Volume{

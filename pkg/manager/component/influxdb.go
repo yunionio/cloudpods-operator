@@ -143,6 +143,9 @@ func (m *influxdbManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 			},
 		},
 	})
+	if oc.Spec.Influxdb.StorageClassName != v1alpha1.DefaultStorageClass {
+		deploy.Spec.Strategy.Type = apps.RecreateDeploymentStrategyType
+	}
 	return deploy, nil
 }
 
