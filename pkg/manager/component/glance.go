@@ -121,6 +121,7 @@ func (m *glanceManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 		podTemplate.Containers[0].SecurityContext = &corev1.SecurityContext{
 			Privileged: &privileged,
 		}
+		deploy.Spec.Strategy.Type = apps.RecreateDeploymentStrategyType
 	}
 
 	// data store pvc, mount path: /opt/cloud/workspace/data/glance
