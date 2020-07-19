@@ -96,6 +96,10 @@ func (m *esxiManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 		MountPath: constants.EsxiAgentDataStore,
 	})
 
+	if oc.Spec.EsxiAgent.StorageClassName != v1alpha1.DefaultStorageClass {
+		dm.Spec.Strategy.Type = apps.RecreateDeploymentStrategyType
+	}
+
 	// /var/run
 	var hostPathDirectory = corev1.HostPathDirectory
 
