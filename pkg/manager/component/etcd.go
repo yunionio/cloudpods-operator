@@ -26,6 +26,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
@@ -107,13 +108,32 @@ func (m *etcdManager) setUnsync() {
 }
 
 func (m *etcdManager) fixEtcdSize(oc *v1alpha1.OnecloudCluster) (bool, error) {
-	nodes, err := m.nodeLister.List(labels.NewSelector())
+	// list nodes by master node selector
+	masterNodeSelector := labels.NewSelector()
+	r, err := labels.NewRequirement(
+		constants.LabelNodeRoleMaster, selection.Exists, nil)
 	if err != nil {
 		return false, err
 	}
+	masterNodeSelector = masterNodeSelector.Add(*r)
+
+	nodes, err := m.nodeLister.List(masterNodeSelector)
+	if err != nil {
+		return false, err
+	}
+	readyMasterCount := 0
+	for _, node := range nodes {
+		if length := len(node.Status.Conditions); length > 0 {
+			if node.Status.Conditions[length-1].Type == corev1.NodeReady &&
+				node.Status.Conditions[length-1].Status == corev1.ConditionTrue {
+				readyMasterCount += 1
+			}
+		}
+	}
+	log.Infof("Ready master node count %d", readyMasterCount)
 
 	oldSize := oc.Spec.Etcd.Size
-	if len(nodes) < 3 {
+	if readyMasterCount < 3 {
 		oc.Spec.Etcd.Size = 1
 	} else {
 		if oc.Spec.Etcd.Size < constants.EtcdDefaultClusterSize {
