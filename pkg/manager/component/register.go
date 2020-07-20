@@ -77,12 +77,12 @@ func (m *registerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 	return m.newServiceConfigMap(v1alpha1.RegisterComponentType, oc, opt), nil
 }
 
-func (m *registerManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {
-	return m.newSingleNodePortService(v1alpha1.RegisterComponentType, oc, constants.RegisterPort)
+func (m *registerManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.RegisterComponentType, oc, constants.RegisterPort)}
 }
 
 func (m *registerManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
-	return m.newCloudServiceSinglePortDeployment(v1alpha1.RegisterComponentType, oc, oc.Spec.Register, constants.RegisterPort, true)
+	return m.newCloudServiceSinglePortDeployment(v1alpha1.RegisterComponentType, oc, oc.Spec.Register, constants.RegisterPort, true, false)
 }
 
 func (m *registerManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
