@@ -74,12 +74,12 @@ func (m *billingManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 	return m.newServiceConfigMap(v1alpha1.BillingComponentType, oc, opt), nil
 }
 
-func (m *billingManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {
-	return m.newSingleNodePortService(v1alpha1.BillingComponentType, oc, constants.BillingPort)
+func (m *billingManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.BillingComponentType, oc, constants.BillingPort)}
 }
 
 func (m *billingManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
-	return m.newCloudServiceSinglePortDeployment(v1alpha1.BillingComponentType, oc, oc.Spec.Billing, constants.BillingPort, true)
+	return m.newCloudServiceSinglePortDeployment(v1alpha1.BillingComponentType, oc, oc.Spec.Billing, constants.BillingPort, true, false)
 }
 
 func (m *billingManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
