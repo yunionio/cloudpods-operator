@@ -35,6 +35,10 @@ const (
 	InstanceLabelKey string = "app.kubernetes.io/instance"
 	AppLabelKey      string = "app"
 
+	// LabelNodeRoleMaster specifies that a node is a control-plane
+	// This is a duplicate definition of the constant in pkg/controller/service/service_controller.go
+	LabelNodeRoleMaster string = "node-role.kubernetes.io/master"
+
 	ServiceAccountOnecloudOperator string = "onecloud-operator"
 )
 
