@@ -47,7 +47,7 @@ type apiOptions struct {
 	options.CommonOptions
 	WsPort      int  `default:"10443"`
 	ShowCaptcha bool `default:"true"`
-	EnableTotp  bool `default:"false"`
+	EnableTotp  bool `default:"true"`
 }
 
 func (m *apiGatewayManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
