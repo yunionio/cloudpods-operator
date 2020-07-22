@@ -15,6 +15,7 @@
 package component
 
 import (
+	"fmt"
 	"path"
 
 	apps "k8s.io/api/apps/v1"
@@ -87,8 +88,8 @@ func (m *influxdbManager) getPhaseControl(man controller.ComponentManager) contr
 		constants.InfluxdbPort, "")
 }
 
-func (m *influxdbManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {
-	return m.newSingleNodePortService(v1alpha1.InfluxdbComponentType, oc, constants.InfluxdbPort)
+func (m *influxdbManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.InfluxdbComponentType, oc, constants.InfluxdbPort)}
 }
 
 func (m *influxdbManager) getPVC(oc *v1alpha1.OnecloudCluster) (*corev1.PersistentVolumeClaim, error) {
@@ -137,14 +138,22 @@ func (m *influxdbManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 		Name: "data",
 		VolumeSource: corev1.VolumeSource{
 			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-				ClaimName: controller.NewClusterComponentName(oc.GetName(), v1alpha1.InfluxdbComponentType),
+				ClaimName: m.newPvcName(oc.GetName(), oc.Spec.Influxdb.StorageClassName, v1alpha1.InfluxdbComponentType),
 				ReadOnly:  false,
 			},
 		},
 	})
+	if oc.Spec.Influxdb.StorageClassName != v1alpha1.DefaultStorageClass {
+		deploy.Spec.Strategy.Type = apps.RecreateDeploymentStrategyType
+	}
 	return deploy, nil
 }
 
 func (m *influxdbManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Influxdb
+}
+
+func getInfluxDBInternalURL(oc *v1alpha1.OnecloudCluster) string {
+	internalAddress := controller.NewClusterComponentName(oc.GetName(), v1alpha1.InfluxdbComponentType)
+	return fmt.Sprintf("https://%s:%d", internalAddress, constants.InfluxdbPort)
 }

@@ -61,12 +61,12 @@ func (m *s3gatewayManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 	return m.newServiceConfigMap(v1alpha1.S3gatewayComponentType, oc, opt), nil
 }
 
-func (m *s3gatewayManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {
-	return m.newSingleNodePortService(v1alpha1.S3gatewayComponentType, oc, constants.S3gatewayPort)
+func (m *s3gatewayManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.S3gatewayComponentType, oc, constants.S3gatewayPort)}
 }
 
 func (m *s3gatewayManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
-	return m.newCloudServiceSinglePortDeployment(v1alpha1.S3gatewayComponentType, oc, oc.Spec.S3gateway, constants.S3gatewayPort, false)
+	return m.newCloudServiceSinglePortDeployment(v1alpha1.S3gatewayComponentType, oc, oc.Spec.S3gateway, constants.S3gatewayPort, false, false)
 }
 
 func (m *s3gatewayManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {

@@ -67,12 +67,12 @@ func (m *yunoinconfManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	return m.newServiceConfigMap(v1alpha1.YunionconfComponentType, oc, opt), nil
 }
 
-func (m *yunoinconfManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {
-	return m.newSingleNodePortService(v1alpha1.YunionconfComponentType, oc, constants.YunionConfPort)
+func (m *yunoinconfManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.YunionconfComponentType, oc, constants.YunionConfPort)}
 }
 
 func (m *yunoinconfManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
-	return m.newCloudServiceSinglePortDeployment(v1alpha1.YunionconfComponentType, oc, oc.Spec.Yunionconf, constants.YunionConfPort, false)
+	return m.newCloudServiceSinglePortDeployment(v1alpha1.YunionconfComponentType, oc, oc.Spec.Yunionconf, constants.YunionConfPort, false, false)
 }
 
 func (m *yunoinconfManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {

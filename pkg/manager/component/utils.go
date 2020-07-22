@@ -34,8 +34,6 @@ import (
 	"k8s.io/kubernetes/cmd/kubeadm/app/util/apiclient"
 	deploymentutil "k8s.io/kubernetes/pkg/kubectl/util/deployment"
 
-	"yunion.io/x/onecloud/pkg/cloudcommon/options"
-	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/pkg/util/reflectutils"
 	"yunion.io/x/structarg"
 
@@ -44,6 +42,8 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/util/mysql"
 	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
+	"yunion.io/x/onecloud/pkg/cloudcommon/options"
+	"yunion.io/x/onecloud/pkg/mcclient"
 )
 
 const (
@@ -246,7 +246,7 @@ func cronJobEqual(new, old *batchv1.CronJob) bool {
 			return false
 		}
 		return apiequality.Semantic.DeepEqual(oldConfig.Spec.Schedule, new.Spec.Schedule) &&
-			apiequality.Semantic.DeepEqual(oldConfig.Spec.JobTemplate.Spec.Template, oldConfig.Spec.JobTemplate.Spec.Template)
+			apiequality.Semantic.DeepEqual(oldConfig.Spec.JobTemplate.Spec.Template, new.Spec.JobTemplate.Spec.Template)
 	}
 	return false
 }
@@ -436,7 +436,8 @@ func NewVolumeHelper(oc *v1alpha1.OnecloudCluster, optCfgMap string, component v
 			},
 		},
 	}
-	h.volumeMounts = append(h.volumeMounts, corev1.VolumeMount{Name: constants.VolumeCertsName, ReadOnly: true, MountPath: constants.CertDir})
+	h.volumeMounts = append(h.volumeMounts, corev1.VolumeMount{
+		Name: constants.VolumeCertsName, ReadOnly: true, MountPath: constants.CertDir})
 
 	if h.optionCfgMap != "" {
 		cfgVol := corev1.Volume{
@@ -455,6 +456,14 @@ func NewVolumeHelper(oc *v1alpha1.OnecloudCluster, optCfgMap string, component v
 		h.volumes = append(h.volumes, cfgVol)
 		h.volumeMounts = append(h.volumeMounts, corev1.VolumeMount{Name: constants.VolumeConfigName, ReadOnly: true, MountPath: constants.ConfigDir})
 	}
+	return h
+}
+
+func NewVolumeHelperWithEtcdTLS(
+	oc *v1alpha1.OnecloudCluster, optCfgMap string, component v1alpha1.ComponentType,
+) *VolumeHelper {
+	h := NewVolumeHelper(oc, optCfgMap, component)
+	h.addEtcdClientTLSVolumes(oc)
 	return h
 }
 
@@ -502,6 +511,23 @@ func (h *VolumeHelper) addVmwareVolumes() *VolumeHelper {
 			},
 		},
 	)
+	return h
+}
+
+func (h *VolumeHelper) addEtcdClientTLSVolumes(oc *v1alpha1.OnecloudCluster) *VolumeHelper {
+	if !oc.Spec.Etcd.Disable && oc.Spec.Etcd.EnableTls {
+		h.volumes = append(h.volumes, corev1.Volume{
+			Name: constants.EtcdClientSecret,
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{SecretName: constants.EtcdClientSecret},
+			},
+		})
+		h.volumeMounts = append(h.volumeMounts, corev1.VolumeMount{
+			MountPath: constants.EtcdClientTLSDir,
+			Name:      constants.EtcdClientSecret,
+			ReadOnly:  true,
+		})
+	}
 	return h
 }
 
@@ -567,7 +593,7 @@ func SetServiceBaseOptions(opt *options.BaseOptions, region string, input v1alph
 }
 
 func SetServiceCommonOptions(opt *options.CommonOptions, oc *v1alpha1.OnecloudCluster, input v1alpha1.ServiceCommonOptions) {
-	SetServiceBaseOptions(&opt.BaseOptions, oc.Spec.Region, input.ServiceBaseConfig)
+	SetServiceBaseOptions(&opt.BaseOptions, oc.GetRegion(), input.ServiceBaseConfig)
 	opt.AuthURL = controller.GetAuthURL(oc)
 	opt.AdminUser = input.CloudUser.Username
 	opt.AdminDomain = constants.DefaultDomain
@@ -800,6 +826,7 @@ func NewHostVolume(
 	}
 	h.addVmwareVolumes()
 	h.addOvsVolumes()
+	h.addEtcdClientTLSVolumes(oc)
 	return h
 }
 

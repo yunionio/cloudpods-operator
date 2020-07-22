@@ -43,18 +43,16 @@ const (
 `
 
 	EEConfig = `
+    location ~ ^/v[12]/ { rewrite ^/v.(.*)$ $1 redirect; }
+
     location / {
-        return 301 https://$host/v1/;
-    }
-
-    location ^~/v1 {
-        alias /usr/share/nginx/html/web;
+        root   /usr/share/nginx/html/dashboard;
         index index.html;
-        try_files $uri $uri/ /index.html last;
+        try_files $uri $uri/ /index.html;
     }
 
-    location ^~/v2 {
-        alias /usr/share/nginx/html/dashboard;
+    location /docs/ {
+        alias /usr/share/nginx/html/docs/;
         index index.html;
         try_files $uri $uri/ /index.html last;
     }
@@ -88,24 +86,6 @@ server {
     location /static/ {
         # Some basic cache-control for static files to be sent to the browser
         root /usr/share/nginx/html/web;
-        expires max;
-        add_header Pragma public;
-        add_header Cache-Control "public, must-revalidate, proxy-revalidate";
-    }
-
-    location /servicetree {
-        alias /usr/share/nginx/html/servicetree;
-        index index.html;
-        add_header Cache-Control no-cache;
-        expires 1s;
-        if (!-e $request_filename) {
-            rewrite ^/(.*) /servicetree/index.html last;
-            break;
-        }
-    }
-
-    location /static-servicetree/ {
-        root /usr/share/nginx/html/servicetree;
         expires max;
         add_header Pragma public;
         add_header Cache-Control "public, must-revalidate, proxy-revalidate";
@@ -192,22 +172,6 @@ server {
         proxy_read_timeout 86400;
     }
 
-    location /bi {
-        alias /usr/share/nginx/html/bi;
-        index index.html;
-        if (!-e $request_filename) {
-            rewrite ^/(.*) /bi/index.html last;
-            break;
-        }
-    }
-
-    location /static-bi/ {
-        root /usr/share/nginx/html/bi;
-        expires max;
-        add_header Pragma public;
-        add_header Cache-Control "public, must-revalidate, proxy-revalidate";
-    }
-
     location /web-console {
         alias /usr/share/nginx/html/web-console;
         index index.html;
@@ -218,6 +182,20 @@ server {
     }
 
     location /ws {
+        proxy_pass {{.APIGatewayWsURL}};
+        proxy_redirect   off;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        proxy_read_timeout 86400;
+    }
+
+    location /socket.io/ {
         proxy_pass {{.APIGatewayWsURL}};
         proxy_redirect   off;
         proxy_set_header Host $host;
@@ -270,7 +248,7 @@ func (m *webManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.Web.Disable)
 }
 
-func (m *webManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {
+func (m *webManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
 	ports := []corev1.ServicePort{
 		{
 			Name:       "https",
@@ -279,11 +257,11 @@ func (m *webManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {
 			TargetPort: intstr.FromInt(443),
 		},
 	}
-	return m.newService(v1alpha1.WebComponentType, oc, corev1.ServiceTypeClusterIP, ports)
+	return []*corev1.Service{m.newService(v1alpha1.WebComponentType, oc, corev1.ServiceTypeClusterIP, ports)}
 }
 
 func (m *webManager) getIngress(oc *v1alpha1.OnecloudCluster) *extensions.Ingress {
-	svc := m.getService(oc)
+	svc := m.getService(oc)[0]
 	ocName := oc.GetName()
 	svcName := controller.NewClusterComponentName(ocName, v1alpha1.WebComponentType)
 	appLabel := m.getComponentLabel(oc, v1alpha1.WebComponentType)
@@ -351,6 +329,11 @@ func (m *webManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 				Name:            "web",
 				Image:           oc.Spec.Web.Image,
 				ImagePullPolicy: oc.Spec.Web.ImagePullPolicy,
+				Command: []string{
+					"nginx",
+					"-g",
+					"daemon off;",
+				},
 				Ports: []corev1.ContainerPort{
 					{
 						Name:          "web",

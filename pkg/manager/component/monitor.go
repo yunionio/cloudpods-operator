@@ -15,9 +15,10 @@
 package component
 
 import (
+	"path"
+
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"path"
 
 	"yunion.io/x/onecloud/pkg/monitor/options"
 
@@ -48,9 +49,7 @@ func (m *monitorManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1al
 }
 
 func (m *monitorManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
-	return controller.NewRegisterEndpointComponent(man, v1alpha1.MonitorComponentType,
-		constants.ServiceNameMonitor, constants.ServiceTypeMonitor,
-		constants.MonitorPort, "")
+	return man.Monitor()
 }
 
 func (m *monitorManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
@@ -69,8 +68,8 @@ func (m *monitorManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 	return m.newServiceConfigMap(v1alpha1.MonitorComponentType, oc, opt), nil
 }
 
-func (m *monitorManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {
-	return m.newSingleNodePortService(v1alpha1.MonitorComponentType, oc, constants.MonitorPort)
+func (m *monitorManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.MonitorComponentType, oc, constants.MonitorPort)}
 }
 
 func (m *monitorManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {

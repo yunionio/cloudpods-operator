@@ -14,8 +14,10 @@
 
 package identity
 
+import "yunion.io/x/onecloud/pkg/apis"
+
 const (
-	SERVICE_TYPE = "identity"
+	SERVICE_TYPE = apis.SERVICE_TYPE_KEYSTONE
 
 	DEFAULT_DOMAIN_ID   = "default"
 	DEFAULT_DOMAIN_NAME = "Default"
@@ -32,6 +34,8 @@ const (
 	AUTH_METHOD_TOKEN    = "token"
 	AUTH_METHOD_AKSK     = "aksk"
 	AUTH_METHOD_CAS      = "cas"
+	AUTH_METHOD_SAML     = "saml"
+	AUTH_METHOD_OIDC     = "oidc"
 
 	// AUTH_METHOD_ID_PASSWORD = 1
 	// AUTH_METHOD_ID_TOKEN    = 2
@@ -58,6 +62,8 @@ const (
 	IdentityDriverSQL  = "sql"
 	IdentityDriverLDAP = "ldap"
 	IdentityDriverCAS  = "cas"
+	IdentityDriverSAML = "saml"
+	IdentityDriverOIDC = "oidc" // OpenID Connect
 
 	IdentityDriverStatusConnected    = "connected"
 	IdentityDriverStatusDisconnected = "disconnected"
@@ -102,6 +108,9 @@ var (
 
 	ServiceBlacklistOptionMap = map[string][]string{
 		"default": []string{
+			// ############################
+			// common blacklist options
+			// ############################
 			"help",
 			"version",
 			"config",
@@ -120,7 +129,9 @@ var (
 			"session_endpoint_type",
 			"admin_password",
 			"admin_project",
+			"admin_project_domain",
 			"admin_user",
+			"admin_domain",
 			"auth_url",
 			"enable_ssl",
 			"ssl_certfile",
@@ -130,6 +141,9 @@ var (
 			"is_slave_node",
 			"config_sync_period_seconds",
 
+			// ############################
+			// db blacklist options
+			// ############################
 			"sql_connection",
 			"auto_sync_table",
 			"exit_after_db_init",
@@ -146,6 +160,43 @@ var (
 			"etcd_cacert",
 			"etcd_cert",
 			"etcd_key",
+
+			// ############################
+			// keystone blacklist options
+			// ############################
+			"bootstrap_admin_user_password",
+			"reset_admin_user_password",
+			"fernet_key_repository",
+
+			// ############################
+			// baremetal blacklist options
+			// ############################
+			"listen_interface",
+			"access_address",
+			"listen_address",
+			"tftp_root",
+			// "AutoRegisterBaremetal",
+			"baremetals_path",
+			// "LinuxDefaultRootUser",
+			"ipmi_lan_port_shared",
+			"zone",
+			"dhcp_lease_time",
+			"dhcp_renewal_time",
+			"enable_general_guest_dhcp",
+			"force_dhcp_probe_ipmi",
+			"tftp_block_size_in_bytes",
+			"tftp_max_timeout_retries",
+			"lengthy_worker_count",
+			"short_worker_count",
+			// "default_ipmi_password",
+			// "default_strong_ipmi_password",
+			// "windows_default_admin_user",
+			"cache_path",
+			"enable_pxe_boot",
+			"boot_iso_path",
+			// "status_probe_interval_seconds",
+			// "log_fetch_interval_seconds",
+			// "send_metrics_interval_seconds",
 		},
 	}
 )

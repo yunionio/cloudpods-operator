@@ -43,11 +43,16 @@ const (
 	// rancher local-path-provisioner: https://github.com/rancher/local-path-provisioner
 	DefaultStorageClass = "local-path"
 
-	DefaultOvnVersion   = "2.9.6"
+	DefaultOvnVersion   = "2.10.4"
 	DefaultOvnImageName = "openvswitch"
-	DefaultOvnImageTag  = DefaultOvnVersion + "-2"
+	DefaultOvnImageTag  = DefaultOvnVersion + "-0"
 
 	DefaultInfluxdbImageVersion = "1.7.7"
+
+	DefaultTelegrafImageName     = "telegraf"
+	DefaultTelegrafImageTag      = "release-1.5"
+	DefaultTelegrafInitImageName = "telegraf-init"
+	DefaultTelegrafInitImageTag  = "release-1.5"
 )
 
 func addDefaultingFuncs(scheme *runtime.Scheme) error {
@@ -98,24 +103,27 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	SetDefaults_RegionDNSSpec(&obj.RegionDNS, obj.ImageRepository, obj.Version)
 
 	for cType, spec := range map[ComponentType]*DeploymentSpec{
-		ClimcComponentType:         &obj.Climc,
-		WebconsoleComponentType:    &obj.Webconsole,
-		SchedulerComponentType:     &obj.Scheduler,
-		LoggerComponentType:        &obj.Logger,
-		RegisterComponentType:      &obj.Register,
-		BillingComponentType:       &obj.Billing,
-		BillingTaskComponentType:   &obj.BillingTask,
-		YunionconfComponentType:    &obj.Yunionconf,
-		KubeServerComponentType:    &obj.KubeServer,
-		AnsibleServerComponentType: &obj.AnsibleServer,
-		CloudnetComponentType:      &obj.Cloudnet,
-		CloudeventComponentType:    &obj.Cloudevent,
-		S3gatewayComponentType:     &obj.S3gateway,
-		DevtoolComponentType:       &obj.Devtool,
-		AutoUpdateComponentType:    &obj.AutoUpdate,
-		OvnNorthComponentType:      &obj.OvnNorth,
-		VpcAgentComponentType:      &obj.VpcAgent,
-		MonitorComponentType:       &obj.Monitor,
+		ClimcComponentType:           &obj.Climc,
+		WebconsoleComponentType:      &obj.Webconsole,
+		SchedulerComponentType:       &obj.Scheduler,
+		LoggerComponentType:          &obj.Logger,
+		RegisterComponentType:        &obj.Register,
+		BillingComponentType:         &obj.Billing,
+		BillingTaskComponentType:     &obj.BillingTask,
+		YunionconfComponentType:      &obj.Yunionconf,
+		KubeServerComponentType:      &obj.KubeServer,
+		AnsibleServerComponentType:   &obj.AnsibleServer,
+		CloudnetComponentType:        &obj.Cloudnet,
+		CloudeventComponentType:      &obj.Cloudevent,
+		S3gatewayComponentType:       &obj.S3gateway,
+		DevtoolComponentType:         &obj.Devtool,
+		AutoUpdateComponentType:      &obj.AutoUpdate,
+		OvnNorthComponentType:        &obj.OvnNorth,
+		VpcAgentComponentType:        &obj.VpcAgent,
+		MonitorComponentType:         &obj.Monitor,
+		ServiceOperatorComponentType: &obj.ServiceOperator,
+		ItsmComponentType:            &obj.Itsm,
+		CloudIdComponentType:         &obj.CloudId,
 	} {
 		SetDefaults_DeploymentSpec(spec, getImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag))
 	}
@@ -133,6 +141,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		HostComponentType:         &obj.HostAgent.DaemonSetSpec,
 		HostDeployerComponentType: &obj.HostDeployer,
 		YunionagentComponentType:  &obj.Yunionagent,
+		HostImageComponentType:    &obj.HostImage,
 	} {
 		SetDefaults_DaemonSetSpec(spec, getImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag))
 	}
@@ -152,6 +161,20 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	)
 	obj.OvnNorth.ImagePullPolicy = corev1.PullIfNotPresent
 
+	// telegraf spec
+	obj.Telegraf.InitContainerImage = getImage(
+		obj.ImageRepository, obj.Telegraf.Repository,
+		DefaultTelegrafInitImageName, "",
+		DefaultTelegrafInitImageTag, "",
+	)
+	SetDefaults_DaemonSetSpec(
+		&obj.Telegraf.DaemonSetSpec,
+		getImage(obj.ImageRepository, obj.Telegraf.Repository,
+			DefaultTelegrafImageName, obj.Telegraf.ImageName,
+			DefaultTelegrafImageTag, obj.Telegraf.Tag,
+		),
+	)
+
 	type stateDeploy struct {
 		obj     *StatefulDeploymentSpec
 		size    string
@@ -168,17 +191,22 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		SetDefaults_StatefulDeploymentSpec(cType, spec.obj, spec.size, obj.ImageRepository, spec.version)
 	}
 
-	SetDefaults_CronJobSpec(&obj.CloudmonPing,
-		getImage(obj.ImageRepository, obj.CloudmonPing.Repository, APIGatewayComponentTypeEE,
-			obj.CloudmonPing.ImageName, obj.Version, obj.APIGateway.Tag))
-
-	SetDefaults_CronJobSpec(&obj.CloudmonReportUsage,
-		getImage(obj.ImageRepository, obj.CloudmonReportUsage.Repository, APIGatewayComponentTypeEE,
-			obj.CloudmonReportUsage.ImageName, obj.Version, obj.APIGateway.Tag))
-
-	SetDefaults_CronJobSpec(&obj.CloudmonReportServer,
-		getImage(obj.ImageRepository, obj.CloudmonReportServer.Repository, APIGatewayComponentTypeEE,
-			obj.CloudmonReportServer.ImageName, obj.Version, obj.APIGateway.Tag))
+	// cloudmon spec
+	SetDefaults_DeploymentSpec(&obj.Cloudmon.DeploymentSpec,
+		getImage(obj.ImageRepository, obj.Cloudmon.Repository, APIGatewayComponentTypeEE,
+			obj.Cloudmon.ImageName, obj.Version, obj.APIGateway.Tag))
+	if obj.Cloudmon.CloudmonReportUsageDuration == 0 {
+		obj.Cloudmon.CloudmonReportUsageDuration = 15
+	}
+	if obj.Cloudmon.CloudmonReportServerDuration == 0 {
+		obj.Cloudmon.CloudmonReportServerDuration = 4
+	}
+	if obj.Cloudmon.CloudmonReportHostDuration == 0 {
+		obj.Cloudmon.CloudmonReportHostDuration = 4
+	}
+	if obj.Cloudmon.CloudmonPingDuration == 0 {
+		obj.Cloudmon.CloudmonPingDuration = 5
+	}
 }
 
 func SetDefaults_Mysql(obj *Mysql) {
@@ -332,6 +360,7 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		&obj.AutoUpdate:                          {constants.AutoUpdateAdminUser, constants.AutoUpdatePort},
 		&obj.EsxiAgent.ServiceCommonOptions:      {constants.EsxiAgentAdminUser, constants.EsxiAgentPort},
 		&obj.VpcAgent.ServiceCommonOptions:       {constants.VpcAgentAdminUser, 0},
+		&obj.ServiceOperator:                     {constants.ServiceOperatorAdminUser, constants.ServiceOperatorPort},
 	} {
 		SetDefaults_ServiceCommonOptions(opt, userPort.user, userPort.port)
 	}
@@ -361,6 +390,8 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		&obj.Devtool:                             {constants.DevtoolAdminUser, constants.DevtoolPort, constants.DevtoolDB, constants.DevtoolDBUser},
 		&obj.Meter.ServiceDBCommonOptions:        {constants.MeterAdminUser, constants.MeterPort, constants.MeterDB, constants.MeterDBUser},
 		&obj.Monitor:                             {constants.MonitorAdminUser, constants.MonitorPort, constants.MonitorDB, constants.MonitorDBUser},
+		&obj.Itsm.ServiceDBCommonOptions:         {constants.ItsmAdminUser, constants.ItsmPort, constants.ItsmDB, constants.ItsmDBUser},
+		&obj.CloudId:                             {constants.CloudIdAdminUser, constants.CloudIdPort, constants.CloudIdDB, constants.CloudIdDBUser},
 	} {
 		if user, ok := registryPorts[tmp.port]; ok {
 			log.Fatalf("port %d has been registered by %s", tmp.port, user)
@@ -368,6 +399,7 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		registryPorts[tmp.port] = tmp.user
 		SetDefaults_ServiceDBCommonOptions(opt, tmp.db, tmp.dbUser, tmp.user, tmp.port)
 	}
+	SetDefaults_ItsmConfig(&obj.Itsm)
 }
 
 func SetDefaults_ServiceBaseConfig(obj *ServiceBaseConfig, port int) {
@@ -410,4 +442,9 @@ func setDefaults_CloudUser(obj *CloudUser, username string) {
 	if obj.Password == "" {
 		obj.Password = passwd.GeneratePassword()
 	}
+}
+
+func SetDefaults_ItsmConfig(obj *ItsmConfig) {
+	obj.SecondDatabase = fmt.Sprintf("%s_engine", obj.DB.Database)
+	obj.EncryptionKey = passwd.GeneratePassword()
 }

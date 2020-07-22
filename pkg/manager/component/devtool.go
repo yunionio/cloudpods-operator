@@ -65,12 +65,12 @@ func (m *devtoolManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 	return m.newServiceConfigMap(v1alpha1.DevtoolComponentType, oc, opt), nil
 }
 
-func (m *devtoolManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {
-	return m.newSingleNodePortService(v1alpha1.DevtoolComponentType, oc, constants.DevtoolPort)
+func (m *devtoolManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.DevtoolComponentType, oc, constants.DevtoolPort)}
 }
 
 func (m *devtoolManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
-	return m.newCloudServiceSinglePortDeployment(v1alpha1.DevtoolComponentType, oc, oc.Spec.Devtool, constants.DevtoolPort, false)
+	return m.newCloudServiceSinglePortDeployment(v1alpha1.DevtoolComponentType, oc, oc.Spec.Devtool, constants.DevtoolPort, false, false)
 }
 
 func (m *devtoolManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {

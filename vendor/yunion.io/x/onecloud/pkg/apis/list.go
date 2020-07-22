@@ -50,16 +50,27 @@ type ProjectizedResourceListInput struct {
 	OrderByProject string `json:"order_by_project"`
 	// swagger:ignore
 	// Deprecated
-	OrderByTenant string `json:"order_by_tenant" deprecated-by:"order_by_project"`
+	OrderByTenant string `json:"order_by_tenant" "yunion:deprecated-by":"order_by_project"`
+}
+
+type StatusDomainLevelUserResourceListInput struct {
+	StatusDomainLevelResourceListInput
+	UserResourceListInput
 }
 
 type UserResourceListInput struct {
+	StandaloneResourceListInput
+	ScopedResourceInput
+
+	// list in admin mode
+	Admin *bool `json:"admin"`
+
 	// 查询指定的用户（ID或名称）拥有的资源
 	User string `json:"user"`
 	// swagger:ignore
 	// Deprecated
 	// Filter by userId
-	UserId string `json:"user_id" deprecated-by:"user"`
+	UserId string `json:"user_id" "yunion:deprecated-by":"user"`
 }
 
 type ModelBaseListInput struct {
@@ -67,7 +78,7 @@ type ModelBaseListInput struct {
 
 	// 查询限制量
 	// default: 20
-	Limit *int `json:"limit"`
+	Limit *int `json:"limit" default:"20" help:"max items per page"`
 	// 查询偏移量
 	// default: 0
 	Offset *int `json:"offset"`
@@ -107,11 +118,11 @@ type ModelBaseListInput struct {
 	Filter []string `json:"filter"`
 	// 指定关联过滤条件，允许指定多个，后端将根据关联过滤条件和其他表关联查询，支持的查询语法和filter相同，
 	// 和其他表关联的语法如下：
-	//     joint_tbl.related_key(origin_key).filter_col.filter_ops(values)
-	// 其中，joint_tbl为要关联的表，related_key为关联表column，origin_key为当前表column, filter_col为
+	//     joint_resources.related_key(origin_key).filter_col.filter_ops(values)
+	// 其中，joint_resources为要关联的资源名称，related_key为关联表column，origin_key为当前表column, filter_col为
 	// 关联表用于查询匹配的field名称，field_ops为filter支持的操作，values为匹配的值
 	// 举例：
-	//     guestnetworks_tbl.guest_id(id).ip_addr.equals('10.168.21.222')
+	//     guestnetworks.guest_id(id).ip_addr.equals('10.168.21.222')
 	JointFilter []string `json:"joint_filter"`
 	// 如果filter_any为true，则查询所有filter的并集，否则为交集
 	FilterAny *bool `json:"filter_any"`
@@ -163,9 +174,7 @@ type STag struct {
 	Value string
 }
 
-type StandaloneResourceListInput struct {
-	ResourceBaseListInput
-
+type MetadataResourceListInput struct {
 	// 通过标签过滤
 	Tags []STag `json:"tags"`
 
@@ -176,14 +185,20 @@ type StandaloneResourceListInput struct {
 	WithoutUserMeta bool `json:"without_user_meta"`
 	// 返回列表数据中包含资源的标签数据（Metadata）
 	WithMeta *bool `json:"with_meta"`
+}
+
+type StandaloneResourceListInput struct {
+	ResourceBaseListInput
+
+	MetadataResourceListInput
 
 	// 显示所有的资源，包括模拟的资源
-	ShowEmulated *bool `json:"show_emulated"`
+	ShowEmulated *bool `json:"show_emulated" help:"show emulated resources" negative:"do not show emulated resources"`
 
 	// 以资源名称过滤列表
-	Names []string `json:"name"`
+	Names []string `json:"name" help:"filter by names"`
 	// 以资源ID过滤列表
-	Ids []string `json:"id"`
+	Ids []string `json:"id" help:"filter by ids"`
 }
 
 type StatusResourceBaseListInput struct {
@@ -248,6 +263,8 @@ type DeletePreventableResourceBaseListInput struct {
 
 type ScopedResourceBaseListInput struct {
 	ProjectizedResourceListInput
+	// 指定匹配的范围，可能值为project, domain or system
+	BelongScope string `json:"belong_scope"`
 }
 
 type InfrasResourceBaseListInput struct {

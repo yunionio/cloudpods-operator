@@ -23,7 +23,6 @@ import (
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
-	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
 )
 
@@ -51,7 +50,7 @@ func (m *esxiManager) getConfigMap(
 		return nil, err
 	}
 	// fill options
-	opt.Zone = oc.Spec.Zone
+	opt.Zone = oc.GetZone()
 	opt.ListenInterface = "eth0"
 
 	config := cfg.EsxiAgent
@@ -74,7 +73,7 @@ func (m *esxiManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 	Deployment, error) {
 
 	dm, err := m.newCloudServiceSinglePortDeployment(v1alpha1.EsxiAgentComponentType, oc,
-		oc.Spec.EsxiAgent.DeploymentSpec, constants.EsxiAgentPort, false)
+		oc.Spec.EsxiAgent.DeploymentSpec, constants.EsxiAgentPort, false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +85,7 @@ func (m *esxiManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 		Name: "opt",
 		VolumeSource: corev1.VolumeSource{
 			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-				ClaimName: controller.NewClusterComponentName(oc.GetName(), v1alpha1.EsxiAgentComponentType),
+				ClaimName: m.newPvcName(oc.GetName(), oc.Spec.EsxiAgent.StorageClassName, v1alpha1.EsxiAgentComponentType),
 				ReadOnly:  false,
 			},
 		},
@@ -96,6 +95,10 @@ func (m *esxiManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 		Name:      "opt",
 		MountPath: constants.EsxiAgentDataStore,
 	})
+
+	if oc.Spec.EsxiAgent.StorageClassName != v1alpha1.DefaultStorageClass {
+		dm.Spec.Strategy.Type = apps.RecreateDeploymentStrategyType
+	}
 
 	// /var/run
 	var hostPathDirectory = corev1.HostPathDirectory

@@ -26,6 +26,9 @@ type GlobalVpcDetails struct {
 	apis.EnabledStatusInfrasResourceBaseDetails
 
 	SGlobalVpc
+
+	// vpc数量
+	VpcCount int `json:"vpc_count"`
 }
 
 type GlobalVpcResourceInfo struct {
@@ -39,7 +42,7 @@ type GlobalVpcResourceInput struct {
 
 	// swagger:ignore
 	// Deprecated
-	GlobalvpcId string `json:"globalvpc_id" deprecated-by:"globalvpc"`
+	GlobalvpcId string `json:"globalvpc_id" "yunion:deprecated-by":"globalvpc"`
 }
 
 type GlobalVpcResourceListInput struct {

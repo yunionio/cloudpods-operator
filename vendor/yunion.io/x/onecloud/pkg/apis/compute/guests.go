@@ -17,8 +17,6 @@ package compute
 import (
 	"time"
 
-	"yunion.io/x/jsonutils"
-
 	"yunion.io/x/onecloud/pkg/apis"
 	"yunion.io/x/onecloud/pkg/apis/billing"
 )
@@ -30,13 +28,14 @@ type ServerListInput struct {
 
 	HostFilterListInput
 
-	NetworkFilterListInput
+	NetworkFilterListInput `"yunion:ambiguous-prefix":"vpc_"`
 
 	billing.BillingResourceListInput
 
 	GroupFilterListInput
 	SecgroupFilterListInput
-	DiskFilterListInput
+	//DiskFilterListInput `"yunion:ambiguous-prefix":"storage_"`
+	ScalingGroupFilterListInput
 
 	// 只列出裸金属主机
 	Baremetal *bool `json:"baremetal"`
@@ -61,6 +60,11 @@ type ServerListInput struct {
 
 	// 列出可以挂载指定EIP的主机
 	UsableServerForEip string `json:"usable_server_for_eip"`
+
+	// 列出可以挂载磁盘的主机
+	AttachableServersForDisk string `json:"attachable_servers_for_disk"`
+	// Deprecated:列出可以挂载磁盘的主机
+	Disk string `json:"disk" "yunion:deprecated-by":"attachable_servers_for_disk"`
 
 	// 按主机资源类型进行排序
 	// enum: shared,prepaid,dedicated
@@ -152,7 +156,7 @@ type ServerDetails struct {
 	Disks string `json:"disks"`
 
 	// 磁盘详情
-	DisksInfo *jsonutils.JSONArray `json:"disks_info"`
+	DisksInfo []GuestDiskInfo `json:"disks_info"`
 	// 虚拟机Ip列表
 	VirtualIps string `json:"virtual_ips"`
 	// 安全组规则
@@ -165,7 +169,7 @@ type ServerDetails struct {
 	AdminSecurityRules string `json:"admin_security_rules"`
 
 	// list
-	AttachTime time.Time `attach_time`
+	AttachTime time.Time `json:"attach_time"`
 
 	// common
 	IsPrepaidRecycle bool `json:"is_prepaid_recycle"`
@@ -219,6 +223,32 @@ type ServerDetails struct {
 
 	// Cdrom信息
 	Cdrom string `json:"cdrom,allowempty"`
+
+	// 主机在伸缩组中的状态
+	ScalingStatus string `json:"scaling_status"`
+
+	// 伸缩组id
+	ScalingGroupId string `json:"scaling_group_id"`
+}
+
+// GuestDiskInfo describe the information of disk on the guest.
+type GuestDiskInfo struct {
+	Id          string `json:"id"`
+	Name        string `json:"name"`
+	FsFormat    string `json:"fs,omitempty"`
+	DiskType    string `json:"disk_type"`
+	Index       int8   `json:"index"`
+	SizeMb      int    `json:"size"`
+	DiskFormat  string `json:"disk_format"`
+	Driver      string `json:"driver"`
+	CacheMode   string `json:"cache_mode"`
+	AioMode     string `json:"aio_mode"`
+	MediumType  string `json:"medium_type"`
+	StorageType string `json:"storage_type"`
+	Iops        int    `json:"iops"`
+	Bps         int    `json:"bps"`
+	ImageId     string `json:"image_id,omitempty"`
+	Image       string `json:"image,omitemtpy"`
 }
 
 type GuestJointResourceDetails struct {
@@ -255,15 +285,15 @@ type ServerResourceInput struct {
 	// swagger:ignore
 	// Deprecated
 	// Filter by guest Id
-	ServerId string `json:"server_id" deprecated-by:"server"`
+	ServerId string `json:"server_id" "yunion:deprecated-by":"server"`
 	// swagger:ignore
 	// Deprecated
 	// Filter by guest Id
-	Guest string `json:"guest" deprecated-by:"server"`
+	Guest string `json:"guest" "yunion:deprecated-by":"server"`
 	// swagger:ignore
 	// Deprecated
 	// Filter by guest Id
-	GuestId string `json:"guest_id" deprecated-by:"server"`
+	GuestId string `json:"guest_id" "yunion:deprecated-by":"server"`
 }
 
 type ServerFilterListInput struct {
@@ -293,4 +323,25 @@ type GuestAutoRenewInput struct {
 	// 若公有云本身支持自动续费功能, 则使用云上设置
 	// 若公有云本身不支持自动续费, 则在本地周期(默认三小时)检查快过期虚拟机并进行续费一个月
 	AutoRenew bool `json:"auto_renew"`
+}
+
+type ConvertEsxiToKvmInput struct {
+	apis.Meta
+
+	// target hypervisor
+	TargetHypervisor string `json:"target_hypervisor"`
+	// 指定转换的宿主机
+	PreferHost string `json:"prefer_host"`
+}
+
+type GuestSaveToTemplateInput struct {
+	// The name of guest template
+	Name string `json:"name"`
+	// The generate name of guest template
+	GenerateName string `json:"generate_name"`
+}
+
+type GuestSyncFixNicsInput struct {
+	// 需要修正的IP地址列表
+	Ip []string `json:"ip"`
 }

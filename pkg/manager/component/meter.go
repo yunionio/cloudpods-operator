@@ -57,8 +57,8 @@ func (m *meterManager) getPhaseControl(man controller.ComponentManager) controll
 		constants.MeterPort, "")
 }
 
-func (m *meterManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {
-	return m.newSingleNodePortService(v1alpha1.MeterComponentType, oc, constants.MeterPort)
+func (m *meterManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.MeterComponentType, oc, constants.MeterPort)}
 }
 
 type meterOptions struct {
@@ -101,7 +101,7 @@ func (m *meterManager) getPVC(oc *v1alpha1.OnecloudCluster) (*corev1.PersistentV
 }
 
 func (m *meterManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
-	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.MeterComponentType, oc, oc.Spec.Meter.DeploymentSpec, constants.MeterPort, true)
+	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.MeterComponentType, oc, oc.Spec.Meter.DeploymentSpec, constants.MeterPort, true, false)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +111,7 @@ func (m *meterManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 		Name: "data",
 		VolumeSource: corev1.VolumeSource{
 			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-				ClaimName: controller.NewClusterComponentName(oc.GetName(), v1alpha1.MeterComponentType),
+				ClaimName: m.newPvcName(oc.GetName(), oc.Spec.Meter.StorageClassName, v1alpha1.MeterComponentType),
 				ReadOnly:  false,
 			},
 		},
@@ -121,6 +121,10 @@ func (m *meterManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 		Name:      "data",
 		MountPath: constants.MeterDataStore,
 	})
+
+	if oc.Spec.Meter.StorageClassName != v1alpha1.DefaultStorageClass {
+		deploy.Spec.Strategy.Type = apps.RecreateDeploymentStrategyType
+	}
 
 	// var run
 	var hostPathDirectory = corev1.HostPathDirectory

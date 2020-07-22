@@ -18,6 +18,8 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"yunion.io/x/jsonutils"
+	"yunion.io/x/pkg/errors"
+
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/mcclient/modules"
 
@@ -36,6 +38,8 @@ policy:
 	PolicyMember = `
 # rbac for normal user, not allow for delete
 scope: project
+roles:
+  - member
 policy:
   '*':
     '*':
@@ -165,8 +169,17 @@ func PoliciesPublic(s *mcclient.ClientSession, types []string) error {
 	for _, t := range types {
 		pt := t
 		errgrp.Go(func() error {
-			_, err := modules.Policies.PerformAction(s, pt, "public", nil)
-			return err
+			policyJson, err := modules.Policies.Get(s, pt, nil)
+			if err != nil {
+				return errors.Wrapf(err, "modules.Policies.Get %s", pt)
+			}
+			if !jsonutils.QueryBoolean(policyJson, "is_public", false) {
+				_, err = modules.Policies.PerformAction(s, pt, "public", nil)
+				if err != nil {
+					return errors.Wrap(err, "Policies.PerformAction")
+				}
+			}
+			return nil
 		})
 	}
 	if err := errgrp.Wait(); err != nil {
@@ -180,8 +193,17 @@ func RolesPublic(s *mcclient.ClientSession, roles []string) error {
 	for _, t := range roles {
 		pt := t
 		errgrp.Go(func() error {
-			_, err := modules.RolesV3.PerformAction(s, pt, "public", nil)
-			return err
+			roleJson, err := modules.RolesV3.Get(s, pt, nil)
+			if err != nil {
+				return errors.Wrapf(err, "modules.RolesV3.Get %s", pt)
+			}
+			if !jsonutils.QueryBoolean(roleJson, "is_public", false) {
+				_, err := modules.RolesV3.PerformAction(s, pt, "public", nil)
+				if err != nil {
+					return errors.Wrap(err, "RolesV3.PerformAction")
+				}
+			}
+			return nil
 		})
 	}
 	if err := errgrp.Wait(); err != nil {

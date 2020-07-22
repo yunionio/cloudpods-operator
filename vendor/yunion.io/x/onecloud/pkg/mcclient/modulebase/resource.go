@@ -47,27 +47,27 @@ type ResourceManager struct {
 	idFieldName   string
 }
 
-func (this *ResourceManager) GetKeyword() string {
+func (this ResourceManager) GetKeyword() string {
 	return this.Keyword
 }
 
-func (this *ResourceManager) KeyString() string {
+func (this ResourceManager) KeyString() string {
 	return this.KeywordPlural
 }
 
-func (this *ResourceManager) Version() string {
+func (this ResourceManager) Version() string {
 	return this.version
 }
 
-func (this *ResourceManager) ServiceType() string {
+func (this ResourceManager) ServiceType() string {
 	return this.serviceType
 }
 
-func (this *ResourceManager) EndpointType() string {
+func (this ResourceManager) EndpointType() string {
 	return this.endpointType
 }
 
-func (this *ResourceManager) URLPath() string {
+func (this ResourceManager) URLPath() string {
 	return strings.Replace(this.KeywordPlural, ":", "/", -1)
 }
 
@@ -381,7 +381,7 @@ func (this *ResourceManager) BatchCreateInContexts(session *mcclient.ClientSessi
 					dat = val
 				}
 			}
-			idstr, _ := json.GetString(this.getIdFieldName())
+			idstr, _ := dat.GetString(this.getIdFieldName())
 			ret[i] = SubmitResult{Status: int(code), Id: idstr, Data: dat}
 		}
 	}
@@ -403,6 +403,32 @@ func (this *ResourceManager) PutInContext(session *mcclient.ClientSession, id st
 func (this *ResourceManager) PutInContexts(session *mcclient.ClientSession, id string, params jsonutils.JSONObject, ctxs []ManagerContext) (jsonutils.JSONObject, error) {
 	path := fmt.Sprintf("/%s/%s", this.ContextPath(ctxs), url.PathEscape(id))
 	result, err := this._put(session, path, this.params2Body(session, params, this.Keyword), this.Keyword)
+	if err != nil {
+		return nil, err
+	}
+	return this.filterSingleResult(session, result, nil)
+}
+
+func (this *ResourceManager) PutSpecific(session *mcclient.ClientSession, id string, spec string, query, body jsonutils.JSONObject) (jsonutils.JSONObject, error) {
+	return this.PutSpecificInContexts(session, id, spec, query, body, nil)
+}
+
+func (this *ResourceManager) PutSpecificInContext(session *mcclient.ClientSession, id string, spec string, query, body jsonutils.JSONObject, ctx Manager, ctxid string) (jsonutils.JSONObject, error) {
+	return this.PutSpecificInContexts(session, id, spec, query, body, []ManagerContext{{ctx, ctxid}})
+}
+
+func (this *ResourceManager) PutSpecificInContexts(session *mcclient.ClientSession, id string, spec string, query, body jsonutils.JSONObject, ctxs []ManagerContext) (jsonutils.JSONObject, error) {
+	path := fmt.Sprintf("/%s/%s/%s", this.ContextPath(ctxs), url.PathEscape(id), url.PathEscape(spec))
+	if query != nil {
+		qs := query.QueryString()
+		if len(qs) > 0 {
+			path = fmt.Sprintf("%s?%s", path, qs)
+		}
+	}
+	if body != nil {
+		body = this.params2Body(session, body, this.Keyword)
+	}
+	result, err := this._put(session, path, body, this.Keyword)
 	if err != nil {
 		return nil, err
 	}

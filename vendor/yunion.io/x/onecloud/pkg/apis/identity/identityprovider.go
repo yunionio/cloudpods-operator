@@ -18,6 +18,7 @@ import "yunion.io/x/onecloud/pkg/apis"
 
 type IdentityProviderDetails struct {
 	apis.EnabledStatusStandaloneResourceDetails
+	apis.DomainizedResourceInfo
 
 	// 认证源账号信息同步周期
 	SyncIntervalSeconds int `json:"sync_interval_seconds"`
@@ -42,6 +43,8 @@ type IdentityProviderDetails struct {
 
 	// 该认证源关联的所有域的组数量
 	GroupCount int `json:"group_count,allowempty"`
+
+	SIdentityProvider
 }
 
 type IdpResourceInfo struct {
@@ -56,4 +59,34 @@ type IdpResourceInfo struct {
 
 	// 认证源类型, 例如sql, cas, ldap等
 	IdpDriver string `json:"idp_driver"`
+}
+
+type IdentityProviderCreateInput struct {
+	apis.EnabledStatusStandaloneResourceCreateInput
+
+	// 后端驱动名称
+	Driver string `json:"driver"`
+
+	// 模板名称
+	Template string `json:"template"`
+
+	// 默认导入用户和组的域
+	TargetDomain string `json:"target_domain"`
+	// swagger:ignore
+	// Deprecated
+	TargetDomainId string `json:"target_domain_id" "yunion:deprecated-by":"target_domain"`
+
+	// 新建域的时候是否自动新建第一个项目
+	AutoCreateProject *bool `json:"auto_create_project"`
+
+	// 自动同步间隔，单位：秒
+	SyncIntervalSeconds *int `json:"sync_interval_seconds"`
+
+	// 配置信息
+	Config TConfigs `json:"config"`
+}
+
+type GetIdpSamlMetadataInput struct {
+	// 缩进展示SAML sp metadata
+	Pretty *bool `json:"pretty"`
 }

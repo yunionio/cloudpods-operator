@@ -86,7 +86,7 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 						},
 						{
 							Name:  "HOST_SYSTEM_SERVICES_OFF",
-							Value: "host-deployer,host_sdnagent",
+							Value: "host-deployer,host_sdnagent,telegraf",
 						},
 						{
 							Name:  "OVN_CONTAINER_IMAGE_TAG",
@@ -95,21 +95,6 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 					},
 					Command: []string{
 						fmt.Sprintf("/opt/yunion/bin/%s", cType.String()),
-						"--common-config-file",
-						"/etc/yunion/common/common.conf",
-					},
-					VolumeMounts: volMounts,
-					SecurityContext: &corev1.SecurityContext{
-						Privileged: &privileged,
-					},
-					WorkingDir: "/opt/cloud",
-				},
-				{
-					Name:            fmt.Sprintf("%s-image", cType.String()),
-					Image:           dsSpec.Image,
-					ImagePullPolicy: dsSpec.ImagePullPolicy,
-					Command: []string{
-						fmt.Sprintf("/opt/yunion/bin/%s-image", cType.String()),
 						"--common-config-file",
 						"/etc/yunion/common/common.conf",
 					},
@@ -138,8 +123,12 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 					Name:            "sdnagent",
 					Image:           dsSpec.SdnAgent.Image,
 					ImagePullPolicy: dsSpec.SdnAgent.ImagePullPolicy,
-					Command:         []string{"/opt/yunion/bin/sdnagent"},
-					VolumeMounts:    volMounts,
+					Command: []string{
+						"/opt/yunion/bin/sdnagent",
+						"--common-config-file",
+						"/etc/yunion/common/common.conf",
+					},
+					VolumeMounts: volMounts,
 					SecurityContext: &corev1.SecurityContext{
 						Privileged: &privileged,
 					},

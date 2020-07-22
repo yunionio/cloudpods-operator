@@ -80,12 +80,12 @@ func (m *autoUpdateManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	return m.newServiceConfigMap(v1alpha1.AutoUpdateComponentType, oc, opt), nil
 }
 
-func (m *autoUpdateManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {
-	return m.newSingleNodePortService(v1alpha1.AutoUpdateComponentType, oc, constants.AutoUpdatePort)
+func (m *autoUpdateManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.AutoUpdateComponentType, oc, constants.AutoUpdatePort)}
 }
 
 func (m *autoUpdateManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
-	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.AutoUpdateComponentType, oc, oc.Spec.AutoUpdate, constants.AutoUpdatePort, false)
+	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.AutoUpdateComponentType, oc, oc.Spec.AutoUpdate, constants.AutoUpdatePort, false, false)
 	if err != nil {
 		return nil, err
 	}

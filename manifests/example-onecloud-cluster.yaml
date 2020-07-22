@@ -9,3 +9,4 @@ spec:
     username: root
     password: "your-sql-passwd"
   region: "region0"
+  imageRepository: "registry.cn-beijing.aliyuncs.com/yunionio"

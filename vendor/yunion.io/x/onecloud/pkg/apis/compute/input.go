@@ -37,12 +37,7 @@ type DeletePreventableCreateInput struct {
 }
 
 type KeypairListInput struct {
-	apis.StandaloneResourceListInput
-
 	apis.UserResourceListInput
-
-	// list in admin mode
-	Admin *bool `json:"admin"`
 
 	// 加密类型
 	// example: RSA
@@ -66,7 +61,7 @@ type CachedimageListInput struct {
 }
 
 type ExternalProjectListInput struct {
-	apis.StandaloneResourceListInput
+	apis.StatusStandaloneResourceListInput
 	apis.ProjectizedResourceListInput
 	apis.ExternalizedResourceBaseListInput
 
@@ -134,10 +129,6 @@ type DynamicschedtagListInput struct {
 	Enabled *bool `json:"enabled"`
 }
 
-type GuestTemplateListInput struct {
-	apis.SharableVirtualResourceListInput
-}
-
 type SchedpolicyListInput struct {
 	apis.StandaloneResourceListInput
 	SchedtagFilterListInput
@@ -154,7 +145,7 @@ type GuestTemplateFilterListInput struct {
 	GuestTemplate string `json:"guest_template"`
 	// swagger:ignore
 	// Deprecated
-	GuestTemplateId string `json:"guest_template_id" deprecated-by:"guest_template"`
+	GuestTemplateId string `json:"guest_template_id" "yunion:deprecated-by":"guest_template"`
 }
 
 type ServiceCatalogListInput struct {

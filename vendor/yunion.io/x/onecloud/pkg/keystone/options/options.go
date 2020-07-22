@@ -36,13 +36,21 @@ type SKeystoneOptions struct {
 
 	DefaultSyncIntervalSeconds int `help:"frequency to do auto sync tasks" default:"900"`
 
-	FetchProjectResourceCountIntervalSeconds int `help:"frequency tp fetch project resource counts" default:"900"`
+	FetchScopeResourceCountIntervalSeconds int `help:"frequency tp fetch project resource counts" default:"900"`
 
 	PasswordExpirationSeconds  int `help:"password expires after the duration in seconds"`
 	PasswordMinimalLength      int `help:"password minimal length" default:"6"`
 	PasswordUniqueHistoryCheck int `help:"password must be unique in last N passwords"`
 
 	PasswordErrorLockCount int `help:"lock user account if given number of failed auth"`
+
+	DefaultUserQuota    int `default:"500" help:"default quota for user per domain, default is 500"`
+	DefaultGroupQuota   int `default:"500" help:"default quota for group per domain, default is 500"`
+	DefaultProjectQuota int `default:"100" help:"default quota for project per domain, default is 500"`
+	DefaultRoleQuota    int `default:"100" help:"default quota for role per domain, default is 500"`
+	DefaultPolicyQuota  int `default:"100" help:"default quota for policy per domain, default is 500"`
+
+	SessionEndpointType string `help:"Client session end point type"`
 }
 
 var (
@@ -53,9 +61,10 @@ func OnOptionsChange(oldOptions, newOptions interface{}) bool {
 	oldOpts := oldOptions.(*SKeystoneOptions)
 	newOpts := newOptions.(*SKeystoneOptions)
 
+	changed := false
 	if options.OnBaseOptionsChange(&oldOpts.BaseOptions, &newOpts.BaseOptions) {
-		return true
+		changed = true
 	}
 
-	return false
+	return changed
 }

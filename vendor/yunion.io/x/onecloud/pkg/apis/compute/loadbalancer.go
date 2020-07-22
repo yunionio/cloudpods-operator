@@ -48,6 +48,8 @@ type LoadbalancerListenerListInput struct {
 
 	Scheduler []string `json:"scheduler"`
 
+	Certificate []string `json:"certificate_id"`
+
 	SendProxy []string `json:"send_proxy"`
 
 	AclStatus []string `json:"acl_status"`
@@ -164,7 +166,13 @@ type LoadbalancerAclListInput struct {
 
 type LoadbalancerDetails struct {
 	apis.VirtualResourceDetails
-	VpcResourceInfo
+
+	ManagedResourceInfo
+	CloudregionResourceInfo
+
+	LoadbalancerClusterResourceInfo
+
+	VpcResourceInfoBase
 	ZoneResourceInfoBase
 	NetworkResourceInfoBase
 
@@ -202,7 +210,7 @@ type LoadbalancerResourceInput struct {
 
 	// swagger:ignore
 	// Deprecated
-	LoadbalancerId string `json:"loadbalancer_id" deprecated-by:"loadbalancer"`
+	LoadbalancerId string `json:"loadbalancer_id" "yunion:deprecated-by":"loadbalancer"`
 }
 
 type LoadbalancerFilterListInput struct {
@@ -234,6 +242,9 @@ type LoadbalancerCreateInput struct {
 
 	// 套餐名称
 	LoadbalancerSpec string `json:"loadbalancer_spec"`
+
+	// EIP ID
+	Eip string `json:"eip"`
 
 	// LB的其他配置信息
 	LBInfo jsonutils.JSONObject `json:"lb_info"`

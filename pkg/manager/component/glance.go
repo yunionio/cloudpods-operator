@@ -50,8 +50,8 @@ func (m *glanceManager) getPhaseControl(man controller.ComponentManager) control
 	return man.Glance()
 }
 
-func (m *glanceManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {
-	return m.newSingleNodePortService(v1alpha1.GlanceComponentType, oc, constants.GlanceAPIPort)
+func (m *glanceManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.GlanceComponentType, oc, constants.GlanceAPIPort)}
 }
 
 func (m *glanceManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
@@ -88,22 +88,52 @@ func (m *glanceManager) getPVC(oc *v1alpha1.OnecloudCluster) (*corev1.Persistent
 }
 
 func (m *glanceManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
-	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.GlanceComponentType, oc, oc.Spec.Glance.DeploymentSpec, constants.GlanceAPIPort, true)
+	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.GlanceComponentType, oc, oc.Spec.Glance.DeploymentSpec, constants.GlanceAPIPort, true, false)
 	if err != nil {
 		return nil, err
 	}
 	podTemplate := &deploy.Spec.Template.Spec
 	podVols := podTemplate.Volumes
+	volMounts := podTemplate.Containers[0].VolumeMounts
+
+	// if we are not use local path, propagation mount '/opt/cloud' to glance
+	// and persistent volume will propagate to host, then host deployer can find it
+	if oc.Spec.Glance.StorageClassName != v1alpha1.DefaultStorageClass {
+		var (
+			hostPathDirOrCreate = corev1.HostPathDirectoryOrCreate
+			mountMode           = corev1.MountPropagationBidirectional
+			privileged          = true
+		)
+		podVols = append(podVols, corev1.Volume{
+			Name: "opt-cloud",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/opt/cloud",
+					Type: &hostPathDirOrCreate,
+				},
+			},
+		})
+		volMounts = append(volMounts, corev1.VolumeMount{
+			Name:             "opt-cloud",
+			MountPath:        "/opt/cloud",
+			MountPropagation: &mountMode,
+		})
+		podTemplate.Containers[0].SecurityContext = &corev1.SecurityContext{
+			Privileged: &privileged,
+		}
+		deploy.Spec.Strategy.Type = apps.RecreateDeploymentStrategyType
+	}
+
+	// data store pvc, mount path: /opt/cloud/workspace/data/glance
 	podVols = append(podVols, corev1.Volume{
 		Name: "data",
 		VolumeSource: corev1.VolumeSource{
 			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-				ClaimName: controller.NewClusterComponentName(oc.GetName(), v1alpha1.GlanceComponentType),
+				ClaimName: m.newPvcName(oc.GetName(), oc.Spec.Glance.StorageClassName, v1alpha1.GlanceComponentType),
 				ReadOnly:  false,
 			},
 		},
 	})
-	volMounts := podTemplate.Containers[0].VolumeMounts
 	volMounts = append(volMounts, corev1.VolumeMount{
 		Name:      "data",
 		MountPath: constants.GlanceDataStore,

@@ -87,7 +87,7 @@ func (c *apiGatewayPhaseControl) Setup() error {
 	return nil
 }
 
-func (c *apiGatewayPhaseControl) SystemInit() error {
+func (c *apiGatewayPhaseControl) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 	return nil
 }
 
@@ -100,16 +100,17 @@ func (m *apiGatewayManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	SetServiceCommonOptions(&opt.CommonOptions, oc, cfg.APIGateway)
 	opt.Port = constants.APIGatewayPort
 	opt.WsPort = constants.APIWebsocketPort
+	opt.CorsHosts = []string{"*"}
 
 	return m.newServiceConfigMap(v1alpha1.APIGatewayComponentType, oc, opt), nil
 }
 
-func (m *apiGatewayManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {
+func (m *apiGatewayManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
 	ports := []corev1.ServicePort{
 		NewServiceNodePort("api", constants.APIGatewayPort),
 		NewServiceNodePort("ws", constants.APIWebsocketPort),
 	}
-	return m.newNodePortService(v1alpha1.APIGatewayComponentType, oc, ports)
+	return []*corev1.Service{m.newNodePortService(v1alpha1.APIGatewayComponentType, oc, ports)}
 }
 
 func (m *apiGatewayManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {

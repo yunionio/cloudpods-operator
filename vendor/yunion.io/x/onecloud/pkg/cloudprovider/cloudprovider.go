@@ -17,9 +17,10 @@ package cloudprovider
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"time"
 
 	"yunion.io/x/jsonutils"
-	"yunion.io/x/log"
 	"yunion.io/x/pkg/errors"
 	"yunion.io/x/pkg/utils"
 
@@ -33,66 +34,66 @@ const (
 )
 
 type SCloudaccountCredential struct {
-	// 账号所在的项目
+	// 账号所在的项目 (openstack)
 	ProjectName string `json:"project_name"`
 
-	// 账号所在的域
+	// 账号所在的域 (openstack)
 	// default: Default
 	DomainName string `json:"domain_name"`
 
-	// 用户名
+	// 用户名 (openstack, zstack, esxi)
 	Username string `json:"username"`
 
-	// 密码
+	// 密码 (openstack, zstack, esxi)
 	Password string `json:"password"`
 
-	// 认证地址
+	// 认证地址 (openstack,zstack)
 	AuthUrl string `json:"auto_url"`
 
-	// 秘钥id
+	// 秘钥id (Aliyun, Aws, huawei, ucloud, ctyun, zstack, s3)
 	AccessKeyId string `json:"access_key_id"`
 
-	// 秘钥key
+	// 秘钥key (Aliyun, Aws, huawei, ucloud, ctyun, zstack, s3)
 	AccessKeySecret string `json:"access_key_secret"`
 
-	// 环境
+	// 环境 (Azure, Aws, huawei, ctyun)
 	Environment string `json:"environment"`
 
-	// 目录ID
+	// 目录ID (Azure)
 	DirectoryId string `json:"directory_id"`
 
-	// 客户端ID
+	// 客户端ID (Azure)
 	ClientId string `json:"client_id"`
 
-	// 客户端秘钥
+	// 客户端秘钥 (Azure)
 	ClientSecret string `json:"client_secret"`
 
-	// 主机IP
+	// 主机IP (esxi)
 	Host string `json:"host"`
 
-	// 主机端口
+	// 主机端口 (esxi)
 	Port int `json:"port"`
 
-	// 端点
+	// 端点 (s3)
 	Endpoint string `json:"endpoint"`
 
-	// app id
+	// app id (Qcloud)
 	AppId string `json:"app_id"`
 
-	//秘钥ID
+	//秘钥ID (Qcloud)
 	SecretId string `json:"secret_id"`
 
-	//秘钥key
+	//秘钥key (Qcloud)
 	SecretKey string `json:"secret_key"`
 
-	// Google服务账号email
-	ClientEmail string `json:"client_email"`
-	// Google服务账号project id
-	ProjectId string `json:"project_id"`
-	// Google服务账号秘钥id
-	PrivateKeyId string `json:"private_key_id"`
-	// Google服务账号秘钥
-	PrivateKey string `json:"private_key"`
+	// Google服务账号email (gcp)
+	GCPClientEmail string `json:"gcp_client_email"`
+	// Google服务账号project id (gcp)
+	GCPProjectId string `json:"gcp_project_id"`
+	// Google服务账号秘钥id (gcp)
+	GCPPrivateKeyId string `json:"gcp_private_key_id"`
+	// Google服务账号秘钥 (gcp)
+	GCPPrivateKey string `json:"gcp_private_key"`
 }
 
 type SCloudaccount struct {
@@ -155,6 +156,18 @@ type ProviderConfig struct {
 	ProxyFunc httputils.TransportProxyFunc
 }
 
+func (cp *ProviderConfig) HttpClient() *http.Client {
+	client := httputils.GetClient(true, 15*time.Second)
+	httputils.SetClientProxyFunc(client, cp.ProxyFunc)
+	return client
+}
+
+func (cp *ProviderConfig) AdaptiveTimeoutHttpClient() *http.Client {
+	client := httputils.GetAdaptiveTimeoutClient()
+	httputils.SetClientProxyFunc(client, cp.ProxyFunc)
+	return client
+}
+
 type ICloudProviderFactory interface {
 	GetProvider(cfg ProviderConfig) (ICloudProvider, error)
 
@@ -176,6 +189,14 @@ type ICloudProviderFactory interface {
 	IsCloudeventRegional() bool
 	GetMaxCloudEventSyncDays() int
 	GetMaxCloudEventKeepDays() int
+
+	IsSupportClouduser() bool
+	IsSupportClouduserPolicy() bool
+	IsSupportResetClouduserPassword() bool
+	GetClouduserMinPolicyCount() int
+	IsClouduserNeedInitPolicy() bool
+	IsClouduserBelongCloudprovider() bool
+	IsSupportCreateCloudgroup() bool
 }
 
 type ICloudProvider interface {
@@ -183,9 +204,11 @@ type ICloudProvider interface {
 
 	GetSysInfo() (jsonutils.JSONObject, error)
 	GetVersion() string
+	GetIamLoginUrl() string
 
 	GetIRegions() []ICloudRegion
 	GetIProjects() ([]ICloudProject, error)
+	CreateIProject(name string) (ICloudProject, error)
 	GetIRegionById(id string) (ICloudRegion, error)
 
 	GetOnPremiseIRegion() (ICloudRegion, error)
@@ -203,6 +226,15 @@ type ICloudProvider interface {
 
 	GetCapabilities() []string
 	GetICloudQuotas() ([]ICloudQuota, error)
+
+	IsClouduserSupportPassword() bool
+	GetICloudusers() ([]IClouduser, error)
+	GetISystemCloudpolicies() ([]ICloudpolicy, error)
+	GetICloudgroups() ([]ICloudgroup, error)
+	GetICloudgroupByName(name string) (ICloudgroup, error)
+	CreateICloudgroup(name, desc string) (ICloudgroup, error)
+	GetIClouduserByName(name string) (IClouduser, error)
+	CreateIClouduser(conf *SClouduserCreateConfig) (IClouduser, error)
 }
 
 func IsSupportProject(prod ICloudProvider) bool {
@@ -244,7 +276,6 @@ func GetProviderFactory(provider string) (ICloudProviderFactory, error) {
 	if ok {
 		return factory, nil
 	}
-	log.Errorf("Provider %s not registerd", provider)
 	return nil, fmt.Errorf("No such provider %s", provider)
 }
 
@@ -306,8 +337,48 @@ func (self *SBaseProvider) GetICloudQuotas() ([]ICloudQuota, error) {
 	return nil, ErrNotImplemented
 }
 
+func (self *SBaseProvider) GetIamLoginUrl() string {
+	return ""
+}
+
+func (self *SBaseProvider) IsClouduserSupportPassword() bool {
+	return true
+}
+
+func (self *SBaseProvider) GetICloudusers() ([]IClouduser, error) {
+	return nil, ErrNotImplemented
+}
+
+func (self *SBaseProvider) GetICloudgroups() ([]ICloudgroup, error) {
+	return nil, ErrNotImplemented
+}
+
+func (self *SBaseProvider) GetICloudgroupByName(name string) (ICloudgroup, error) {
+	return nil, ErrNotImplemented
+}
+
+func (self *SBaseProvider) CreateICloudgroup(name, desc string) (ICloudgroup, error) {
+	return nil, ErrNotImplemented
+}
+
+func (self *SBaseProvider) GetISystemCloudpolicies() ([]ICloudpolicy, error) {
+	return nil, ErrNotImplemented
+}
+
+func (self *SBaseProvider) GetIClouduserByName(name string) (IClouduser, error) {
+	return nil, ErrNotImplemented
+}
+
+func (self *SBaseProvider) CreateIClouduser(conf *SClouduserCreateConfig) (IClouduser, error) {
+	return nil, ErrNotImplemented
+}
+
 func (self *SBaseProvider) GetCloudRegionExternalIdPrefix() string {
 	return self.factory.GetId()
+}
+
+func (self *SBaseProvider) CreateIProject(name string) (ICloudProject, error) {
+	return nil, ErrNotImplemented
 }
 
 func NewBaseProvider(factory ICloudProviderFactory) SBaseProvider {
@@ -328,6 +399,16 @@ func GetPrivateProviders() []string {
 	providers := make([]string, 0)
 	for p, d := range providerTable {
 		if !d.IsPublicCloud() && !d.IsOnPremise() {
+			providers = append(providers, p)
+		}
+	}
+	return providers
+}
+
+func GetSupportCloudgroupProviders() []string {
+	providers := []string{}
+	for p, d := range providerTable {
+		if d.IsSupportCreateCloudgroup() {
 			providers = append(providers, p)
 		}
 	}
@@ -387,6 +468,35 @@ func (factory *baseProviderFactory) GetMaxCloudEventSyncDays() int {
 
 func (factory *baseProviderFactory) GetMaxCloudEventKeepDays() int {
 	return 7
+}
+
+func (factory *baseProviderFactory) IsSupportClouduser() bool {
+	return false
+}
+
+func (factory *baseProviderFactory) IsSupportClouduserPolicy() bool {
+	return true
+}
+
+func (factory *baseProviderFactory) IsSupportResetClouduserPassword() bool {
+	return true
+}
+
+func (factory *baseProviderFactory) IsClouduserNeedInitPolicy() bool {
+	return false
+}
+
+func (factory *baseProviderFactory) GetClouduserMinPolicyCount() int {
+	// unlimited
+	return -1
+}
+
+func (factory *baseProviderFactory) IsSupportCreateCloudgroup() bool {
+	return false
+}
+
+func (factory *baseProviderFactory) IsClouduserBelongCloudprovider() bool {
+	return false
 }
 
 type SPremiseBaseProviderFactory struct {

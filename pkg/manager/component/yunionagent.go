@@ -73,7 +73,7 @@ func (m *yunionagentManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1a
 	return m.newServiceConfigMap(v1alpha1.YunionagentComponentType, oc, opt), nil
 }
 
-func (m *yunionagentManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {
+func (m *yunionagentManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
 	// use headless service
 	svcName := controller.NewClusterComponentName(oc.GetName(), v1alpha1.YunionagentComponentType)
 	appLabel := m.getComponentLabel(oc, v1alpha1.YunionagentComponentType)
@@ -84,7 +84,7 @@ func (m *yunionagentManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Se
 			Selector:  appLabel,
 		},
 	}
-	return svc
+	return []*corev1.Service{svc}
 }
 
 func (m *yunionagentManager) getDaemonSet(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.DaemonSet, error) {

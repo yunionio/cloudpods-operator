@@ -48,3 +48,15 @@ func (c *baseControl) RecordUpdateEvent(oc *v1alpha1.OnecloudCluster, obj Object
 func (c *baseControl) RecordDeleteEvent(oc *v1alpha1.OnecloudCluster, obj Object, err error) {
 	recordDeleteEvent(c.Recorder(), oc, c.Kind(), obj, err)
 }
+
+type fakeObject struct {
+	name string
+}
+
+func (o *fakeObject) GetName() string {
+	return o.name
+}
+
+func newFakeObject(name string) *fakeObject {
+	return &fakeObject{name: name}
+}

@@ -20,7 +20,6 @@ import (
 
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/pkg/tristate"
-	"yunion.io/x/pkg/util/secrules"
 
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/util/billing"
@@ -172,6 +171,7 @@ type ICloudImage interface {
 	GetMinRamSizeMb() int
 	GetImageFormat() string
 	GetCreatedAt() time.Time
+	UEFI() bool
 }
 
 type ICloudStoragecache interface {
@@ -203,7 +203,7 @@ type ICloudStorage interface {
 	GetStorageConf() jsonutils.JSONObject
 	GetEnabled() bool
 
-	CreateIDisk(name string, sizeGb int, desc string) (ICloudDisk, error)
+	CreateIDisk(conf *DiskCreateConfig) (ICloudDisk, error)
 
 	GetIDiskById(idStr string) (ICloudDisk, error)
 
@@ -308,6 +308,9 @@ type ICloudVM interface {
 
 	Renew(bc billing.SBillingCycle) error
 
+	MigrateVM(hostid string) error
+	LiveMigrateVM(hostid string) error
+
 	GetError() error
 }
 
@@ -345,10 +348,10 @@ type ICloudSecurityGroup interface {
 	ICloudResource
 
 	GetDescription() string
-	GetRules() ([]secrules.SecurityRule, error)
+	GetRules() ([]SecurityRule, error)
 	GetVpcId() string
 
-	SyncRules(rules []secrules.SecurityRule) error
+	SyncRules(common, inAdds, outAdds, inDels, outDels []SecurityRule) error
 	Delete() error
 }
 
@@ -497,7 +500,7 @@ type ICloudLoadbalancer interface {
 
 	GetIEIP() (ICloudEIP, error)
 
-	Delete() error
+	Delete(ctx context.Context) error
 
 	Start() error
 	Stop() error
@@ -508,7 +511,7 @@ type ICloudLoadbalancer interface {
 	CreateILoadBalancerBackendGroup(group *SLoadbalancerBackendGroup) (ICloudLoadbalancerBackendGroup, error)
 	GetILoadBalancerBackendGroupById(groupId string) (ICloudLoadbalancerBackendGroup, error)
 
-	CreateILoadBalancerListener(listener *SLoadbalancerListener) (ICloudLoadbalancerListener, error)
+	CreateILoadBalancerListener(ctx context.Context, listener *SLoadbalancerListener) (ICloudLoadbalancerListener, error)
 	GetILoadBalancerListenerById(listenerId string) (ICloudLoadbalancerListener, error)
 }
 
@@ -558,9 +561,9 @@ type ICloudLoadbalancerListener interface {
 
 	Start() error
 	Stop() error
-	Sync(listener *SLoadbalancerListener) error
+	Sync(ctx context.Context, listener *SLoadbalancerListener) error
 
-	Delete() error
+	Delete(ctx context.Context) error
 }
 
 type ICloudLoadbalancerListenerRule interface {
@@ -572,7 +575,7 @@ type ICloudLoadbalancerListenerRule interface {
 	GetCondition() string
 	GetBackendGroupId() string
 
-	Delete() error
+	Delete(ctx context.Context) error
 }
 
 type ICloudLoadbalancerBackendGroup interface {
@@ -590,8 +593,8 @@ type ICloudLoadbalancerBackendGroup interface {
 	AddBackendServer(serverId string, weight int, port int) (ICloudLoadbalancerBackend, error)
 	RemoveBackendServer(serverId string, weight int, port int) error
 
-	Delete() error
-	Sync(group *SLoadbalancerBackendGroup) error
+	Delete(ctx context.Context) error
+	Sync(ctx context.Context, group *SLoadbalancerBackendGroup) error
 }
 
 type ICloudLoadbalancerBackend interface {
@@ -602,7 +605,7 @@ type ICloudLoadbalancerBackend interface {
 	GetBackendType() string
 	GetBackendRole() string
 	GetBackendId() string
-	SyncConf(port, weight int) error
+	SyncConf(ctx context.Context, port, weight int) error
 }
 
 type ICloudLoadbalancerCertificate interface {
@@ -757,7 +760,9 @@ type ICloudDBInstance interface {
 
 	GetConnectionStr() string
 	GetInternalConnectionStr() string
-	GetIZoneId() string
+	GetZone1Id() string
+	GetZone2Id() string
+	GetZone3Id() string
 	GetIVpcId() string
 
 	GetDBNetwork() (*SDBInstanceNetwork, error)
@@ -949,4 +954,45 @@ type ICloudQuota interface {
 	GetQuotaType() string
 	GetMaxQuotaCount() int
 	GetCurrentQuotaUsedCount() int
+}
+
+// 公有云子账号
+type IClouduser interface {
+	GetGlobalId() string
+	GetName() string
+
+	GetICloudgroups() ([]ICloudgroup, error)
+
+	GetISystemCloudpolicies() ([]ICloudpolicy, error)
+	AttachSystemPolicy(policyType string) error
+	DetachSystemPolicy(policyId string) error
+	Delete() error
+
+	ResetPassword(password string) error
+	IsConsoleLogin() bool
+}
+
+// 公有云子账号权限
+type ICloudpolicy interface {
+	GetGlobalId() string
+	GetName() string
+	//GetPolicyType() string
+	GetDescription() string
+}
+
+// 公有云用户组
+type ICloudgroup interface {
+	GetGlobalId() string
+	GetName() string
+	GetDescription() string
+	GetISystemCloudpolicies() ([]ICloudpolicy, error)
+	GetICloudusers() ([]IClouduser, error)
+
+	AddUser(name string) error
+	RemoveUser(name string) error
+
+	AttachSystemPolicy(policyId string) error
+	DetachSystemPolicy(policyId string) error
+
+	Delete() error
 }

@@ -37,7 +37,7 @@ import (
 )
 
 func (this *JSONValue) Unmarshal(obj interface{}, keys ...string) error {
-	return ErrUnsupported
+	return jsonUnmarshal(this, obj, keys)
 }
 
 func (this *JSONArray) Unmarshal(obj interface{}, keys ...string) error {
@@ -337,19 +337,30 @@ func (this *JSONString) unmarshalValue(val reflect.Value) error {
 		}
 	}
 	switch val.Kind() {
-	case reflect.Int, reflect.Uint, reflect.Int8, reflect.Uint8,
-		reflect.Int16, reflect.Uint16, reflect.Int32, reflect.Uint32, reflect.Int64, reflect.Uint64:
-		intVal, err := strconv.ParseInt(this.data, 10, 64)
-		if err != nil {
-			return err
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		if len(this.data) > 0 {
+			intVal, err := strconv.ParseInt(normalizeCurrencyString(this.data), 10, 64)
+			if err != nil {
+				return err
+			}
+			val.SetInt(intVal)
 		}
-		val.SetInt(intVal)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		if len(this.data) > 0 {
+			intVal, err := strconv.ParseUint(normalizeCurrencyString(this.data), 10, 64)
+			if err != nil {
+				return err
+			}
+			val.SetUint(intVal)
+		}
 	case reflect.Float32, reflect.Float64:
-		floatVal, err := strconv.ParseFloat(normalizeCurrencyString(this.data), 64)
-		if err != nil {
-			return err
+		if len(this.data) > 0 {
+			floatVal, err := strconv.ParseFloat(normalizeCurrencyString(this.data), 64)
+			if err != nil {
+				return err
+			}
+			val.SetFloat(floatVal)
 		}
-		val.SetFloat(floatVal)
 	case reflect.Bool:
 		val.SetBool(utils.ToBool(this.data))
 	case reflect.String:
@@ -520,7 +531,7 @@ func (this *JSONDict) unmarshalMap(val reflect.Value) error {
 	return nil
 }
 
-func setStructFieldAt(key string, v JSONObject, fieldValues reflectutils.SStructFieldValueSet, visited map[string]bool) error {
+func setStructFieldAt(key string, v JSONObject, fieldValues reflectutils.SStructFieldValueSet, keyIndexMap map[string][]int, visited map[string]bool) error {
 	if visited == nil {
 		visited = make(map[string]bool)
 	}
@@ -529,10 +540,14 @@ func setStructFieldAt(key string, v JSONObject, fieldValues reflectutils.SStruct
 		return nil
 	}
 	visited[key] = true
-	indexes := fieldValues.GetStructFieldIndexes(key)
-	if len(indexes) == 0 {
-		// no field match k, ignore
-		return nil
+	indexes, ok := keyIndexMap[key]
+	if !ok || len(indexes) == 0 {
+		// try less strict match name
+		indexes = fieldValues.GetStructFieldIndexes2(key, false)
+		if len(indexes) == 0 {
+			// no field match k, ignore
+			return nil
+		}
 	}
 	for _, index := range indexes {
 		err := v.unmarshalValue(fieldValues[index].Value)
@@ -541,7 +556,7 @@ func setStructFieldAt(key string, v JSONObject, fieldValues reflectutils.SStruct
 		}
 		depInfo, ok := fieldValues[index].Info.Tags[TAG_DEPRECATED_BY]
 		if ok {
-			err := setStructFieldAt(depInfo, v, fieldValues, visited)
+			err := setStructFieldAt(depInfo, v, fieldValues, keyIndexMap, visited)
 			if err != nil {
 				return errors.Wrap(err, "setStructFieldAt")
 			}
@@ -552,14 +567,21 @@ func setStructFieldAt(key string, v JSONObject, fieldValues reflectutils.SStruct
 
 func (this *JSONDict) unmarshalStruct(val reflect.Value) error {
 	fieldValues := reflectutils.FetchStructFieldValueSetForWrite(val)
+	keyIndexMap := fieldValues.GetStructFieldIndexesMap()
+	errs := make([]error, 0)
 	for k, v := range this.data {
-		err := setStructFieldAt(k, v, fieldValues, nil)
+		err := setStructFieldAt(k, v, fieldValues, keyIndexMap, nil)
 		if err != nil {
-			return errors.Wrapf(err, "setStructFieldAt %s: %s", k, v)
+			// store error, not interrupt the process
+			errs = append(errs, errors.Wrapf(err, "setStructFieldAt %s: %s", k, v))
 		}
 	}
 	callStructAfterUnmarshal(val)
-	return nil
+	if len(errs) > 0 {
+		return errors.NewAggregate(errs)
+	} else {
+		return nil
+	}
 }
 
 func callStructAfterUnmarshal(val reflect.Value) {

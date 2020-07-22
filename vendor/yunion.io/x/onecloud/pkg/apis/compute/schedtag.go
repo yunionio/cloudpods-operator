@@ -21,13 +21,9 @@ type SchedtagShortDescDetails struct {
 	Default string `json:"default"`
 }
 
-type ScopedResourceCreateInput struct {
-	Scope string `json:"scope"`
-}
-
 type SchedtagCreateInput struct {
 	apis.StandaloneResourceCreateInput
-	ScopedResourceCreateInput
+	apis.ScopedResourceCreateInput
 
 	// 动态标签策略
 	// enum: exclude, prefer, avoid
@@ -45,7 +41,7 @@ type SchedtagResourceInput struct {
 	// swagger:ignore
 	// Deprecated
 	// filter by schedtag_id
-	SchedtagId string `json:"schedtag_id" deprecated-by:"schedtag"`
+	SchedtagId string `json:"schedtag_id" "yunion:deprecated-by":"schedtag"`
 }
 
 type SchedtagFilterListInput struct {
@@ -69,7 +65,7 @@ type SchedtagListInput struct {
 	// swagger:ignore
 	// Deprecated
 	// filter by type, alias for resource_type
-	Type string `json:"type" deprecated-by:"resource_type"`
+	Type string `json:"type" "yunion:deprecated-by":"resource_type"`
 
 	DefaultStrategy []string `json:"default_strategy"`
 }

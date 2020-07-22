@@ -80,6 +80,13 @@ const (
 	ErrNoBalancePermission = errors.Error("NoBalancePermission")
 
 	ErrTooLarge = errors.Error("TooLargeEntity")
+
+	ErrTooManyAttempts = errors.Error("TooManyFailedAttempts")
+	ErrTooManyRequests = errors.Error("TooManyRequests")
+
+	ErrUnsupportedProtocol = errors.Error("UnsupportedProtocol")
+
+	ErrPolicyDefinition = errors.Error("PolicyDefinitionError")
 )
 
 var (
@@ -149,6 +156,11 @@ var (
 		ErrNoProject:         403,
 
 		ErrTooLarge: 413,
+
+		ErrTooManyAttempts: 429,
+		ErrTooManyRequests: 429,
+
+		ErrPolicyDefinition: 409,
 	}
 )
 

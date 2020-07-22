@@ -14,7 +14,11 @@
 
 package compute
 
-import "yunion.io/x/onecloud/pkg/apis"
+import (
+	"time"
+
+	"yunion.io/x/onecloud/pkg/apis"
+)
 
 type DBInstanceCreateInput struct {
 	apis.VirtualResourceCreateInput
@@ -75,6 +79,10 @@ type DBInstanceCreateInput struct {
 	Duration string `json:"duration"`
 
 	// swagger:ignore
+	ExpiredAt time.Time `json:"expired_at"`
+
+	// 计费方式
+	// enum: postpaid, prepaid
 	BillingType string
 	// swagger:ignore
 	BillingCycle string
@@ -284,6 +292,13 @@ type DBInstanceDetails struct {
 	// IP子网名称
 	// example: test-network
 	Network string `json:"network"`
+
+	// Zone1名称
+	Zone1Name string `json:"zone1_name"`
+	// Zone2名称
+	Zone2Name string `json:"zone2_name"`
+	// Zone3名称
+	Zone3Name string `json:"zone3_name"`
 }
 
 type DBInstanceResourceInfoBase struct {
@@ -306,7 +321,7 @@ type DBInstanceResourceInput struct {
 
 	// swagger:ignore
 	// Deprecated
-	DBInstanceId string `json:"dbinstance_id" deprecated-by:"dbinstance"`
+	DBInstanceId string `json:"dbinstance_id" "yunion:deprecated-by":"dbinstance"`
 }
 
 type DBInstanceFilterListInputBase struct {

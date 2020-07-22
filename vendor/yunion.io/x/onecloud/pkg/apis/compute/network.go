@@ -24,7 +24,7 @@ type WireResourceInput struct {
 	// swagger:ignore
 	// Deprecated
 	// fitler by wire id
-	WireId string `json:"wire_id" deprecated-by:"wire"`
+	WireId string `json:"wire_id" "yunion:deprecated-by":"wire"`
 }
 
 type WireFilterListBase struct {
@@ -47,7 +47,7 @@ type NetworkResourceInput struct {
 	// swagger:ignore
 	// Deprecated
 	// filter by networkId
-	NetworkId string `json:"network_id" deprecated-by:"network"`
+	NetworkId string `json:"network_id" "yunion:deprecated-by":"network"`
 }
 
 type NetworkFilterListBase struct {
@@ -65,15 +65,20 @@ type NetworkFilterListInput struct {
 type NetworkListInput struct {
 	apis.SharableVirtualResourceListInput
 	apis.ExternalizedResourceBaseListInput
+	SchedtagResourceInput
 	WireFilterListInput
 
 	HostResourceInput
 
 	UsableResourceListInput
 
-	// description: search ip address in network.
+	// description: Exact matching ip address in network.
 	// example: 10.168.222.1
 	Ip string `json:"ip"`
+
+	// description: Fuzzy matching ip address in network.
+	// example: 10.168.222.1
+	IpMatch string `json:"ip_match"`
 
 	IfnameHint []string `json:"ifname_hint"`
 	// 起始IP地址

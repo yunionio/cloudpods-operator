@@ -51,7 +51,7 @@ func (m *baremetalManager) getConfigMap(
 	opt.AutoRegisterBaremetal = false
 	opt.LinuxDefaultRootUser = true
 	opt.DefaultIpmiPassword = "YunionDev@123"
-	opt.Zone = oc.Spec.Zone
+	opt.Zone = oc.GetZone()
 	return m.newServiceConfigMap(v1alpha1.BaremetalAgentComponentType, oc, opt), nil
 }
 
@@ -122,6 +122,10 @@ func (m *baremetalManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	if err != nil {
 		return nil, err
 	}
+	if oc.Spec.BaremetalAgent.StorageClassName != v1alpha1.DefaultStorageClass {
+		dm.Spec.Strategy.Type = apps.RecreateDeploymentStrategyType
+	}
+
 	if dm.Spec.Template.Spec.NodeSelector == nil {
 		dm.Spec.Template.Spec.NodeSelector = make(map[string]string)
 	}
@@ -142,7 +146,7 @@ func newBaremetalVolHelper(oc *v1alpha1.OnecloudCluster, optCfgMap string, compo
 		Name: "opt",
 		VolumeSource: corev1.VolumeSource{
 			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-				ClaimName: controller.NewClusterComponentName(oc.GetName(), v1alpha1.BaremetalAgentComponentType),
+				ClaimName: m.newPvcName(oc.GetName(), oc.Spec.BaremetalAgent.StorageClassName, v1alpha1.BaremetalAgentComponentType),
 				ReadOnly:  false,
 			},
 		},

@@ -53,7 +53,7 @@ type ELasticcacheResourceInput struct {
 
 	// swagger:ignore
 	// Deprecated
-	ElasticcacheId string `json:"elasticcache_id" deprecated-by:"elasticcache"`
+	ElasticcacheId string `json:"elasticcache_id" "yunion:deprecated-by":"elasticcache"`
 }
 
 type ElasticcacheFilterListInput struct {
@@ -69,16 +69,20 @@ type ElasticcacheFilterListInput struct {
 
 type ElasticcacheAccountDetails struct {
 	apis.StatusStandaloneResourceDetails
+	apis.ProjectizedResourceInfo
 	ElasticcacheResourceInfo
 
 	SElasticcacheAccount
+	ProjectId string `json:"tenant_id"`
 }
 
 type ElasticcacheAclDetails struct {
 	apis.StandaloneResourceDetails
+	apis.ProjectizedResourceInfo
 	ElasticcacheResourceInfo
 
 	SElasticcacheAcl
+	ProjectId string `json:"tenant_id"`
 }
 
 type ElasticcacheParameterDetails struct {

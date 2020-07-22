@@ -17,19 +17,19 @@ package apis
 type DomainizedResourceInput struct {
 	// 指定项目归属域名称或ID
 	// required: false
-	ProjectDomain string `json:"project_domain"`
+	ProjectDomain string `json:"project_domain" help:"name or id of the belonging domain"`
 
 	// swagger:ignore
 	// Deprecated
-	Domain string `json:"domain" deprecated-by:"project_domain"`
+	Domain string `json:"domain" "yunion:deprecated-by":"project_domain"`
 	// swagger:ignore
 	// Deprecated
 	// Project domain Id filter, alias for project_domain
-	ProjectDomainId string `json:"project_domain_id" deprecated-by:"project_domain"`
+	ProjectDomainId string `json:"project_domain_id" "yunion:deprecated-by":"project_domain"`
 	// swagger:ignore
 	// Deprecated
 	// Domain Id filter, alias for project_domain
-	DomainId string `json:"domain_id" deprecated-by:"project_domain"`
+	DomainId string `json:"domain_id" "yunion:deprecated-by":"project_domain"`
 }
 
 type ProjectizedResourceInput struct {
@@ -39,15 +39,15 @@ type ProjectizedResourceInput struct {
 	// swagger:ignore
 	// Deprecated
 	// Filter by project_id, alias for project
-	ProjectId string `json:"project_id" deprecated-by:"project"`
+	ProjectId string `json:"project_id" "yunion:deprecated-by":"project"`
 	// swagger:ignore
 	// Deprecated
 	// Filter by tenant ID or Name, alias for project
-	Tenant string `json:"tenant" deprecated-by:"project"`
+	Tenant string `json:"tenant" "yunion:deprecated-by":"project"`
 	// swagger:ignore
 	// Deprecated
 	// Filter by tenant_id, alias for project
-	TenantId string `json:"tenant_id" deprecated-by:"project"`
+	TenantId string `json:"tenant_id" "yunion:deprecated-by":"project"`
 }
 
 type DomainizedResourceCreateInput struct {
@@ -59,16 +59,34 @@ type ProjectizedResourceCreateInput struct {
 	ProjectizedResourceInput
 }
 
+type SharableResourceBaseCreateInput struct {
+	// 是否共享
+	// required: false
+	IsPublic *bool `json:"is_public" token:"public" negative:"private" help:"Turn on/off public/private"`
+
+	// 共享范围
+	// required: false
+	PublicScope string `json:"public_scope" help:"set public_scope, either project, domain or system" choices:"project|domain|system"`
+}
+
 type SharableVirtualResourceCreateInput struct {
 	VirtualResourceCreateInput
 
-	// description: indicate the resource is a public resource
-	// required: false
-	IsPublic *bool `json:"is_public"`
+	SharableResourceBaseCreateInput
+}
 
-	// description: indicate the shared scope for a public resource, which can be domain or system or none
-	// required: false
-	PublicScope string `json:"public_scope"`
+type StatusDomainLevelUserResourceCreateInput struct {
+	StatusDomainLevelResourceCreateInput
+
+	// 本地用户Id，若为空则使用当前用户Id作为此参数值
+	OwnerId string `json:"owner_id"`
+}
+
+type UserResourceCreateInput struct {
+	StandaloneResourceCreateInput
+
+	// 本地用户Id，若为空则使用当前用户Id作为此参数值
+	OwnerId string `json:"owner_id"`
 }
 
 type VirtualResourceCreateInput struct {
@@ -83,13 +101,24 @@ type VirtualResourceCreateInput struct {
 type EnabledBaseResourceCreateInput struct {
 	// 该资源是否被管理员*人为*启用或者禁用
 	// required: false
-	Enabled *bool `json:"enabled"`
+	Enabled *bool `json:"enabled" help:"turn on enabled flag"`
+
+	// 该资源是否被管理员*人为*禁用, 和enabled互斥
+	// required: false
+	Disabled *bool `json:"disabled" help:"turn off enabled flag"`
+}
+
+func (input *EnabledBaseResourceCreateInput) AfterUnmarshal() {
+	if input.Disabled != nil && input.Enabled == nil {
+		enabled := !(*input.Disabled)
+		input.Enabled = &enabled
+	}
 }
 
 type StatusBaseResourceCreateInput struct {
 	// 用来存储资源的状态
 	// required: false
-	Status string `json:"status"`
+	Status string `json:"status" help:"set initial status"`
 }
 
 type EnabledStatusDomainLevelResourceCreateInput struct {
@@ -125,28 +154,28 @@ type StandaloneResourceCreateInput struct {
 	// unique: true
 	// required: true
 	// example: test-network
-	Name string `json:"name"`
+	Name string `json:"name" help:"name of newly created resource" positional:"true" required:"true"`
 
 	// 生成资源名称的模板，如果name为空，则为必填项
 	// description: generated resource name, given a pattern to generate name, required if name is not given
 	// unique: false
 	// required: false
 	// example: test###
-	GenerateName string `json:"generate_name"`
+	GenerateName string `json:"generate_name" help:"pattern for generating name if no name is given"`
 
 	// 资源描述
 	// required: false
 	// example: test create network
-	Description string `json:"description"`
+	Description string `json:"description" token:"desc" help:"description"`
 
 	// 资源是否为模拟资源
 	// description: the resource is an emulated resource
 	// required: false
-	IsEmulated *bool `json:"is_emulated"`
+	IsEmulated *bool `json:"is_emulated" token:"emulated" negative:"no_emulated" help:"set is_emulated flag"`
 
 	// 标签列表,最多支持20个
 	// example: { "user:rd": "op" }
-	Metadata map[string]string `json:"__meta__"`
+	Metadata map[string]string `json:"__meta__" token:"tag" help:"tags in the form of key=value"`
 }
 
 type JoinResourceBaseCreateInput struct {
@@ -176,16 +205,20 @@ type GetDetailsStatusOutput struct {
 	Status string `json:"status"`
 }
 
-type PerformPublicInput struct {
+type PerformPublicDomainInput struct {
 	// 共享项目资源的共享范围，可能的值为：project, domain和system
 	// pattern: project|domain|system
 	Scope string `json:"scope"`
 
-	// 如果共享范围为项目，则在此列表中指定共享的目标项目
-	SharedProjects []string `json:"shared_projects"`
-
 	// 如果共享范围为域，则在此列表中指定共享的目标域
 	SharedDomains []string `json:"shared_domains"`
+}
+
+type PerformPublicProjectInput struct {
+	PerformPublicDomainInput
+
+	// 如果共享范围为项目，则在此列表中指定共享的目标项目
+	SharedProjects []string `json:"shared_projects"`
 }
 
 type PerformPrivateInput struct {
@@ -205,8 +238,15 @@ type PerformEnableInput struct {
 type PerformDisableInput struct {
 }
 
+type StorageForceDetachHostInput struct {
+	// Host id or name
+	Host string `json:"host"`
+}
+
 type InfrasResourceBaseCreateInput struct {
 	DomainLevelResourceCreateInput
+
+	SharableResourceBaseCreateInput
 }
 
 type StatusInfrasResourceBaseCreateInput struct {
@@ -218,3 +258,59 @@ type EnabledStatusInfrasResourceBaseCreateInput struct {
 	StatusInfrasResourceBaseCreateInput
 	EnabledBaseResourceCreateInput
 }
+
+type ScopedResourceCreateInput struct {
+	ProjectizedResourceCreateInput
+	Scope string `json:"scope"`
+}
+
+type OpsLogCreateInput struct {
+	ModelBaseCreateInput
+
+	ObjType string `json:"obj_type"`
+	ObjId   string `json:"obj_id"`
+	ObjName string `json:"obj_name"`
+	Action  string `json:"action"`
+	Notes   string `json:"notes"`
+
+	ProjectId string `json:"tenant_id"`
+	Project   string `json:"tenant"`
+
+	ProjectDomainId string `json:"project_domain_id"`
+	ProjectDomain   string `json:"project_domain"`
+
+	UserId   string `json:"user_id"`
+	User     string `json:"user"`
+	DomainId string `json:"domain_id"`
+	Domain   string `json:"domain"`
+	Roles    string `json:"roles"`
+
+	OwnerDomainId  string `json:"owner_domain_id"`
+	OwnerProjectId string `json:"owner_tenant_id"`
+}
+
+// 设置资源的标签（元数据）输入
+type PerformMetadataInput map[string]string
+
+// 设置资源的用户标签（元数据）输入
+type PerformUserMetadataInput map[string]string
+
+// 全量替换资源的用户标签（元数据）输入
+type PerformSetUserMetadataInput map[string]string
+
+// 获取资源的元数据输入
+type GetMetadataInput struct {
+	// 指定需要获取的所有标签的KEY列表，如果列表为空，则获取全部标签
+	// 标签分为
+	//
+	// | 类型     | 说明                                        |
+	// |----------|---------------------------------------------|
+	// | 系统标签 | 平台定义的标签                              |
+	// | 用户标签 | key以user:为前缀，用户自定义标签            |
+	// | 外部标签 | key以ext:为前缀，为从其他平台同步过来的标签 |
+	//
+	Field []string `json:"field"`
+}
+
+// 获取资源标签（元数据）输出
+type GetMetadataOutput map[string]string

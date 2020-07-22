@@ -1,3 +1,20 @@
+# cloud.google.com/go v0.50.0
+cloud.google.com/go/compute/metadata
+# github.com/coreos/etcd v3.3.13+incompatible
+github.com/coreos/etcd/auth/authpb
+github.com/coreos/etcd/clientv3
+github.com/coreos/etcd/etcdserver/api/v3rpc/rpctypes
+github.com/coreos/etcd/etcdserver/etcdserverpb
+github.com/coreos/etcd/mvcc/mvccpb
+github.com/coreos/etcd/pkg/tlsutil
+github.com/coreos/etcd/pkg/transport
+github.com/coreos/etcd/pkg/types
+# github.com/coreos/etcd-operator v0.9.4
+github.com/coreos/etcd-operator/pkg/apis/etcd/v1beta2
+github.com/coreos/etcd-operator/pkg/util/constants
+github.com/coreos/etcd-operator/pkg/util/etcdutil
+github.com/coreos/etcd-operator/pkg/util/k8sutil
+github.com/coreos/etcd-operator/pkg/util/retryutil
 # github.com/davecgh/go-spew v1.1.1
 github.com/davecgh/go-spew/spew
 # github.com/docker/distribution v0.0.0-20170726174610-edc3ab29cdff
@@ -24,7 +41,9 @@ github.com/go-playground/universal-translator
 # github.com/go-sql-driver/mysql v1.4.1
 github.com/go-sql-driver/mysql
 # github.com/gogo/protobuf v1.2.1
+github.com/gogo/protobuf/gogoproto
 github.com/gogo/protobuf/proto
+github.com/gogo/protobuf/protoc-gen-gogo/descriptor
 github.com/gogo/protobuf/sortkeys
 # github.com/golang-plus/errors v1.0.0
 github.com/golang-plus/errors
@@ -53,6 +72,8 @@ github.com/google/go-cmp/cmp/internal/function
 github.com/google/go-cmp/cmp/internal/value
 # github.com/google/gofuzz v1.0.0
 github.com/google/gofuzz
+# github.com/google/uuid v1.0.0
+github.com/google/uuid
 # github.com/googleapis/gnostic v0.3.0
 github.com/googleapis/gnostic/OpenAPIv2
 github.com/googleapis/gnostic/compiler
@@ -90,7 +111,9 @@ github.com/modern-go/reflect2
 github.com/moul/http2curl
 # github.com/opencontainers/go-digest v0.0.0-20170106003457-a6d0ee40d420
 github.com/opencontainers/go-digest
-# github.com/pkg/errors v0.8.1
+# github.com/pborman/uuid v1.2.0
+github.com/pborman/uuid
+# github.com/pkg/errors v0.9.1
 github.com/pkg/errors
 # github.com/sirupsen/logrus v1.4.2
 github.com/sirupsen/logrus
@@ -122,7 +145,7 @@ golang.org/x/crypto/internal/subtle
 golang.org/x/crypto/poly1305
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/terminal
-# golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553
+# golang.org/x/net v0.0.0-20200226121028-0de0cce0169b
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
 golang.org/x/net/http/httpguts
@@ -134,7 +157,10 @@ golang.org/x/net/publicsuffix
 golang.org/x/net/trace
 # golang.org/x/oauth2 v0.0.0-20191202225959-858c2ad4c8b6
 golang.org/x/oauth2
+golang.org/x/oauth2/google
 golang.org/x/oauth2/internal
+golang.org/x/oauth2/jws
+golang.org/x/oauth2/jwt
 # golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 golang.org/x/sync/errgroup
 # golang.org/x/sys v0.0.0-20191228213918-04cbcbbfeed8
@@ -149,11 +175,14 @@ golang.org/x/text/unicode/norm
 # golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 golang.org/x/time/rate
 # google.golang.org/appengine v1.6.5
+google.golang.org/appengine
 google.golang.org/appengine/cloudsql
 google.golang.org/appengine/internal
+google.golang.org/appengine/internal/app_identity
 google.golang.org/appengine/internal/base
 google.golang.org/appengine/internal/datastore
 google.golang.org/appengine/internal/log
+google.golang.org/appengine/internal/modules
 google.golang.org/appengine/internal/remote_api
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/urlfetch
@@ -174,6 +203,7 @@ google.golang.org/grpc/credentials/internal
 google.golang.org/grpc/encoding
 google.golang.org/grpc/encoding/proto
 google.golang.org/grpc/grpclog
+google.golang.org/grpc/health/grpc_health_v1
 google.golang.org/grpc/internal
 google.golang.org/grpc/internal/backoff
 google.golang.org/grpc/internal/balancerload
@@ -464,9 +494,11 @@ k8s.io/client-go/pkg/apis/clientauthentication/v1alpha1
 k8s.io/client-go/pkg/apis/clientauthentication/v1beta1
 k8s.io/client-go/pkg/version
 k8s.io/client-go/plugin/pkg/client/auth/exec
+k8s.io/client-go/plugin/pkg/client/auth/gcp
 k8s.io/client-go/rest
 k8s.io/client-go/rest/watch
 k8s.io/client-go/testing
+k8s.io/client-go/third_party/forked/golang/template
 k8s.io/client-go/tools/auth
 k8s.io/client-go/tools/cache
 k8s.io/client-go/tools/clientcmd
@@ -485,6 +517,7 @@ k8s.io/client-go/util/cert
 k8s.io/client-go/util/connrotation
 k8s.io/client-go/util/flowcontrol
 k8s.io/client-go/util/homedir
+k8s.io/client-go/util/jsonpath
 k8s.io/client-go/util/keyutil
 k8s.io/client-go/util/retry
 k8s.io/client-go/util/workqueue
@@ -525,12 +558,12 @@ sigs.k8s.io/yaml
 # yunion.io/x/executor v0.0.0-20200227030256-a18417815e74
 yunion.io/x/executor/apis
 yunion.io/x/executor/client
-# yunion.io/x/jsonutils v0.0.0-20200330063846-589d9924bb8b
+# yunion.io/x/jsonutils v0.0.0-20200701074723-fea7ff9d66b6
 yunion.io/x/jsonutils
 # yunion.io/x/log v0.0.0-20200313080802-57a4ce5966b3
 yunion.io/x/log
 yunion.io/x/log/hooks
-# yunion.io/x/onecloud v0.0.0-20200331084538-4a796f066a93
+# yunion.io/x/onecloud v0.0.0-20200707065357-a6c8089674ac
 yunion.io/x/onecloud/pkg/ansibleserver/options
 yunion.io/x/onecloud/pkg/apis
 yunion.io/x/onecloud/pkg/apis/ansible
@@ -539,6 +572,7 @@ yunion.io/x/onecloud/pkg/apis/cloudcommon/proxy
 yunion.io/x/onecloud/pkg/apis/cloudprovider
 yunion.io/x/onecloud/pkg/apis/compute
 yunion.io/x/onecloud/pkg/apis/identity
+yunion.io/x/onecloud/pkg/apis/monitor
 yunion.io/x/onecloud/pkg/apis/scheduler
 yunion.io/x/onecloud/pkg/appctx
 yunion.io/x/onecloud/pkg/appsrv
@@ -584,7 +618,7 @@ yunion.io/x/onecloud/pkg/util/stringutils2
 yunion.io/x/onecloud/pkg/vpcagent/options
 yunion.io/x/onecloud/pkg/webconsole/options
 yunion.io/x/onecloud/pkg/yunionconf/options
-# yunion.io/x/pkg v0.0.0-20200312093207-f07f4cb157e0
+# yunion.io/x/pkg v0.0.0-20200702065158-82d1bf2beb3a
 yunion.io/x/pkg/errors
 yunion.io/x/pkg/gotypes
 yunion.io/x/pkg/trace
@@ -605,7 +639,7 @@ yunion.io/x/pkg/util/version
 yunion.io/x/pkg/utils
 # yunion.io/x/s3cli v0.0.0-20190917004522-13ac36d8687e
 yunion.io/x/s3cli
-# yunion.io/x/sqlchemy v0.0.0-20200312002602-1177cd8fbc57
+# yunion.io/x/sqlchemy v0.0.0-20200702064124-195445bc4b11
 yunion.io/x/sqlchemy
-# yunion.io/x/structarg v0.0.0-20190809075558-115bed041de3
+# yunion.io/x/structarg v0.0.0-20200619020316-f93fbe32ffc7
 yunion.io/x/structarg
