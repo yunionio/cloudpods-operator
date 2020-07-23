@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/coreos/etcd-operator/pkg/util/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -28,7 +29,6 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
 	kubeadmconstants "k8s.io/kubernetes/cmd/kubeadm/app/constants"
-	"github.com/coreos/etcd-operator/pkg/util/k8sutil"
 
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
@@ -940,7 +940,7 @@ func (c yunionagentComponent) addWelcomeNotice() error {
 		}
 		params := jsonutils.NewDict()
 		params.Add(jsonutils.NewString("欢迎使用云管平台"), "title")
-		params.Add(jsonutils.NewString("欢迎使用OneCloud多云云管平台。这里告栏。您可以在这里发布需要告知所有用户的消息。"), "content")
+		params.Add(jsonutils.NewString("欢迎使用OneCloud多云云管平台。这是公告栏，您可以在这里发布需要告知所有用户的消息。"), "content")
 
 		_, err = modules.Notice.Create(s, params)
 		return err
