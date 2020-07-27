@@ -15,6 +15,7 @@
 package component
 
 import (
+	"fmt"
 	"path/filepath"
 
 	apps "k8s.io/api/apps/v1"
@@ -27,6 +28,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/util/image"
 )
 
 type meterManager struct {
@@ -101,7 +103,51 @@ func (m *meterManager) getPVC(oc *v1alpha1.OnecloudCluster) (*corev1.PersistentV
 }
 
 func (m *meterManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
-	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.MeterComponentType, oc, oc.Spec.Meter.DeploymentSpec, constants.MeterPort, true, false)
+	cmd := "/opt/yunion/bin/meter"
+	img := oc.Spec.Meter.Image
+	parts, _ := image.ParseImageReference(img)
+	noMeterImage := fmt.Sprintf("%s/%s:%s", parts.Repository, "nocloudmeter", parts.Tag)
+	cf := func(volMounts []corev1.VolumeMount) []corev1.Container {
+		ports := []corev1.ContainerPort{
+			{
+				Name:          "api",
+				ContainerPort: constants.MeterPort,
+				Protocol:      corev1.ProtocolTCP,
+			},
+		}
+		cs := []corev1.Container{
+			{
+				Name:            "meter",
+				Image:           noMeterImage,
+				ImagePullPolicy: oc.Spec.Meter.ImagePullPolicy,
+				Command:         []string{cmd, "--config", "/etc/yunion/meter.conf"},
+				Ports:           ports,
+				VolumeMounts:    volMounts,
+			},
+		}
+		return cs
+	}
+	initCf := func(volMounts []corev1.VolumeMount) []corev1.Container {
+		cs := []corev1.Container{
+			{
+				Name:            "init",
+				Image:           noMeterImage,
+				ImagePullPolicy: oc.Spec.Meter.ImagePullPolicy,
+				Command: []string{
+					cmd,
+					"--config",
+					"/etc/yunion/meter.conf",
+					"--auto-sync-table",
+					"--exit-after-db-init",
+				},
+				VolumeMounts: volMounts,
+			},
+		}
+		return cs
+	}
+	configMap := controller.ComponentConfigMapName(oc, v1alpha1.MeterComponentType)
+	h := NewVolumeHelper(oc, configMap, v1alpha1.MeterComponentType)
+	deploy, err := m.newDefaultDeployment(v1alpha1.MeterComponentType, oc, h, oc.Spec.Meter.DeploymentSpec, initCf, cf)
 	if err != nil {
 		return nil, err
 	}
