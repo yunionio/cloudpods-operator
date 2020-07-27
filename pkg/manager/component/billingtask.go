@@ -55,7 +55,6 @@ func (m *billingTaskManager) getPhaseControl(man controller.ComponentManager, zo
 
 type AliPayOptions struct {
 	AlipayAppId       string `help:"APPID" default:"20002020"`
-	AlipayCertPath    string `help:"支付宝证书文件所在路径" default:"/etc/yunion/alipay"`
 	AlipayNotifyUrl   string `help:"支付成功回调地址.支付宝服务器主动通知商户服务器里指定的页面http/https路径。" default:"https://api.yunion.cn/api/v2/paymentnotify/alipay"`
 	AlipayReturnUrl   string `help:"支付成功后跳回指定页面http/https路径" default:""`
 	AlipayExpiredTime int    `help:"支付超时时间(分钟)" default:"5"`
@@ -87,7 +86,42 @@ func (m *billingTaskManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 }
 
 func (m *billingTaskManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
-	return m.newCloudServiceSinglePortDeployment(v1alpha1.BillingTaskComponentType, "", oc, &oc.Spec.BillingTask.DeploymentSpec, constants.BillingTaskPort, true, false)
+	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.BillingTaskComponentType, "", oc, &oc.Spec.BillingTask.DeploymentSpec, constants.BillingTaskPort, true, false)
+	if err != nil {
+		return nil, err
+	}
+
+	// insert AlipayCerts volume
+	alipayVol := corev1.Volume{
+		Name: "alipay-certs",
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: constants.BillingTaskSecret,
+				Items: []corev1.KeyToPath{
+					{Key: constants.AlipayCertPublicKeyRSA2, Path: constants.AlipayCertPublicKeyRSA2},
+					{Key: constants.AlipayRootCert, Path: constants.AlipayRootCert},
+					{Key: constants.AlipayAppCertPublicKey, Path: constants.AlipayAppCertPublicKey},
+					{Key: constants.YunionCsr, Path: constants.YunionCsr},
+					{Key: constants.YunionPublic, Path: constants.YunionPublic},
+					{Key: constants.YunionPrivate, Path: constants.YunionPrivate},
+				},
+			},
+		},
+	}
+
+	// mount AlipayCerts
+	alipayVolMount := corev1.VolumeMount{
+		Name:      "alipay-certs",
+		ReadOnly:  true,
+		MountPath: constants.AlipayCertDir,
+	}
+
+	// update Deployment
+	spec := deploy.Spec.Template.Spec
+	billingtask := &spec.Containers[0]
+	billingtask.VolumeMounts = append(billingtask.VolumeMounts, alipayVolMount)
+	spec.Volumes = append(spec.Volumes, alipayVol)
+	return deploy, nil
 }
 
 func (m *billingTaskManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {

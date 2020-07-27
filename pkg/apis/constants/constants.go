@@ -256,9 +256,6 @@ const (
 	ServiceNameRegister = "register"
 	ServiceTypeRegister = "register"
 
-	ServiceNameBilling = "billing"
-	ServiceTypeBilling = "billing"
-
 	ServiceNameBillingTask = "billingtask"
 	ServiceTypeBillingTask = "billingtask"
 
@@ -532,4 +529,18 @@ const (
 
 const (
 	DockerComposeClusterName = "docker-compose-cluster"
+)
+
+var (
+	// billingtask Secret
+	BillingTaskSecret = "billingtask-alipay"
+	// 支付宝证书文件所在路径
+	AlipayCertDir = "/etc/yunion/alipay"
+	// 支付宝证书文件
+	AlipayCertPublicKeyRSA2 = "alipayrsa2.crt"
+	AlipayRootCert          = "alipayroot.crt"
+	AlipayAppCertPublicKey  = "app.crt"
+	YunionCsr               = "yunion.csr"
+	YunionPublic            = "yunionpublic.txt"
+	YunionPrivate           = "yunionprivate.txt"
 )
