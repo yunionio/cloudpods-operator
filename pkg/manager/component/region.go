@@ -24,7 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	kubeadmconstants "k8s.io/kubernetes/cmd/kubeadm/app/constants"
-	"github.com/coreos/etcd-operator/pkg/util/k8sutil"
 
 	"yunion.io/x/onecloud/pkg/compute/options"
 
@@ -32,6 +31,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/util/k8sutil"
 )
 
 type regionManager struct {
