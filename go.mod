@@ -3,8 +3,6 @@ module yunion.io/x/onecloud-operator
 go 1.12
 
 require (
-	github.com/coreos/etcd v3.3.13+incompatible
-	github.com/coreos/etcd-operator v0.9.4
 	github.com/docker/distribution v0.0.0-20170726174610-edc3ab29cdff
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/googleapis/gnostic v0.3.0 // indirect
@@ -14,6 +12,7 @@ require (
 	github.com/pborman/uuid v1.2.0
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/pflag v1.0.3 // indirect
+	go.etcd.io/etcd v0.5.0-alpha.5.0.20191023171146-3cf2f69b5738
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 	k8s.io/api v0.17.3
 	k8s.io/apiextensions-apiserver v0.0.0
