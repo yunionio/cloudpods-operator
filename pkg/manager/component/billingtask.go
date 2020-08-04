@@ -117,7 +117,7 @@ func (m *billingTaskManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1
 	}
 
 	// update Deployment
-	spec := deploy.Spec.Template.Spec
+	spec := &deploy.Spec.Template.Spec
 	billingtask := &spec.Containers[0]
 	billingtask.VolumeMounts = append(billingtask.VolumeMounts, alipayVolMount)
 	spec.Volumes = append(spec.Volumes, alipayVol)
