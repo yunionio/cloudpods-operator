@@ -12,27 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package modules
+package jsonutils
 
-import "yunion.io/x/onecloud/pkg/mcclient/modulebase"
+// Deprecated
+func (this *JSONString) Value() string {
+	return this.data
+}
 
-var (
-	CloudproviderregionManager modulebase.JointResourceManager
-)
+// Deprecated
+func (this *JSONInt) Value() int64 {
+	return this.data
+}
 
-func init() {
-	CloudproviderregionManager = NewJointComputeManager("cloudproviderregion",
-		"cloudproviderregions",
-		[]string{"Cloudaccount_ID", "Cloudaccount",
-			"Cloudprovider_ID", "CloudProvider",
-			"Cloudregion_ID", "CloudRegion",
-			"Enabled", "Sync_Status",
-			"Last_Sync", "Last_Sync_End_At", "Auto_Sync",
-			"last_deep_sync_at",
-		},
-		[]string{},
-		&Cloudproviders,
-		&Cloudregions)
+// Deprecated
+func (this *JSONFloat) Value() float64 {
+	return this.data
+}
 
-	registerCompute(&CloudproviderregionManager)
+// Deprecated
+func (this *JSONBool) Value() bool {
+	return this.data
+}
+
+// Deprecated
+func (this *JSONDict) Value() map[string]JSONObject {
+	mapJson, _ := this.GetMap()
+	return mapJson
+}
+
+// Deprecated
+func (this *JSONArray) Value() []JSONObject {
+	arrJson, _ := this.GetArray()
+	return arrJson
 }
