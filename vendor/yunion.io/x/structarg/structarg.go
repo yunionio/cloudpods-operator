@@ -192,6 +192,10 @@ const (
 		Token for negative value, applicable to boolean values
 	*/
 	TAG_NEGATIVE_TOKEN = "negative"
+	/*
+	   Token for ignore
+	*/
+	TAG_IGNORE = "ignore"
 )
 
 func (this *ArgumentParser) addStructArgument(prefix string, tpVal reflect.Value) error {
@@ -228,6 +232,10 @@ func (this *ArgumentParser) addArgument(prefix string, fv reflect.Value, info *r
 		// deprecated field, ignore
 		return nil
 	}
+	if val, ok := tagMap[TAG_IGNORE]; ok && val == "true" {
+		// ignore field
+		return nil
+	}
 	help := tagMap[TAG_HELP]
 	token, ok := tagMap[TAG_TOKEN]
 	if !ok {
@@ -257,14 +265,9 @@ func (this *ArgumentParser) addArgument(prefix string, fv reflect.Value, info *r
 	if len(defval) == 0 {
 		use_default = false
 	}
-	choices_str := tagMap[TAG_CHOICES]
-	choices := make([]string, 0)
-	if len(choices_str) > 0 {
-		for _, s := range strings.Split(choices_str, "|") {
-			if len(s) > 0 {
-				choices = append(choices, s)
-			}
-		}
+	var choices []string
+	if choices_str, ok := tagMap[TAG_CHOICES]; ok {
+		choices = strings.Split(choices_str, "|")
 	}
 	// heuristic guessing "positional"
 	var positional bool
@@ -512,7 +515,7 @@ func (this *SingleArgument) ShortToken() string {
 }
 
 func (this *SingleArgument) NegativeToken() string {
-	return this.negaToken
+	return strings.ReplaceAll(this.negaToken, "_", "-")
 }
 
 func (this *SingleArgument) String() string {
@@ -1083,7 +1086,11 @@ func (this *ArgumentParser) ParseYAMLFile(filepath string) error {
 }
 
 func (this *ArgumentParser) parseJSONDict(dict *jsonutils.JSONDict) error {
-	for key, obj := range dict.Value() {
+	mapJson, err := dict.GetMap()
+	if err != nil {
+		return errors.Wrap(err, "GetMap")
+	}
+	for key, obj := range mapJson {
 		if err := this.parseJSONKeyValue(key, obj); err != nil {
 			return fmt.Errorf("parse json %s: %s: %v", key, obj.String(), err)
 		}
@@ -1111,11 +1118,11 @@ func (this *ArgumentParser) parseJSONKeyValue(key string, obj jsonutils.JSONObje
 	}
 	// process multi argument
 	if arg.IsMulti() {
-		array, ok := obj.(*jsonutils.JSONArray)
-		if !ok {
-			return fmt.Errorf("%s object value is not array", key)
+		array, err := obj.GetArray()
+		if err != nil {
+			return errors.Wrap(err, "GetArray")
 		}
-		for _, item := range array.Value() {
+		for _, item := range array {
 			str, err := item.GetString()
 			if err != nil {
 				return err

@@ -12,27 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package modules
+package sortedmap
 
-import "yunion.io/x/onecloud/pkg/mcclient/modulebase"
+type SSortedMapIterator struct {
+	smap  SSortedMap
+	index int
+}
 
-var (
-	CloudproviderregionManager modulebase.JointResourceManager
-)
+func (i *SSortedMapIterator) Init(smap SSortedMap) {
+	i.smap = smap
+	i.index = 0
+}
 
-func init() {
-	CloudproviderregionManager = NewJointComputeManager("cloudproviderregion",
-		"cloudproviderregions",
-		[]string{"Cloudaccount_ID", "Cloudaccount",
-			"Cloudprovider_ID", "CloudProvider",
-			"Cloudregion_ID", "CloudRegion",
-			"Enabled", "Sync_Status",
-			"Last_Sync", "Last_Sync_End_At", "Auto_Sync",
-			"last_deep_sync_at",
-		},
-		[]string{},
-		&Cloudproviders,
-		&Cloudregions)
+func (i SSortedMapIterator) HasMore() bool {
+	return i.index < len(i.smap)
+}
 
-	registerCompute(&CloudproviderregionManager)
+func (i *SSortedMapIterator) Next() {
+	i.index += 1
+}
+
+func (i SSortedMapIterator) Get() (string, interface{}) {
+	return i.smap[i.index].key, i.smap[i.index].value
+}
+
+func NewIterator(smap SSortedMap) *SSortedMapIterator {
+	iter := &SSortedMapIterator{}
+	iter.Init(smap)
+	return iter
 }
