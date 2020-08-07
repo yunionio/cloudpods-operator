@@ -587,6 +587,7 @@ type CommonAlertTem struct {
 	Operator string   `json:"operator"`
 	Field    []string `json:"field"`
 
+	Reduce     string
 	Comparator string  `json:"comparator"`
 	Threshold  float64 `json:"threshold"`
 	Filters    []monitorapi.MetricQueryTag
@@ -641,7 +642,7 @@ func CreateCommonAlert(s *mcclient.ClientSession, tem CommonAlertTem) (jsonutils
 
 	commonAlert := monitorapi.CommonAlertQuery{
 		AlertQuery: alertQ,
-		Reduce:     "avg",
+		Reduce:     tem.Reduce,
 		Comparator: tem.Comparator,
 		Threshold:  tem.Threshold,
 	}

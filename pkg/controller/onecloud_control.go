@@ -1098,6 +1098,7 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		Comparator:  ">=",
 		Threshold:   90,
 		Name:        "cpu.usage_active",
+		Reduce:      "avg",
 	}
 	memTem := onecloud.CommonAlertTem{
 		Database:    "telegraf",
@@ -1106,6 +1107,7 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		Comparator:  "<=",
 		Threshold:   524288000,
 		Name:        "mem.free",
+		Reduce:      "avg",
 	}
 	diskAvaTem := onecloud.CommonAlertTem{
 		Database:    "telegraf",
@@ -1129,7 +1131,8 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 				Condition: "OR",
 			},
 		},
-		Name: "disk.free/total",
+		Name:   "disk.free/total",
+		Reduce: "avg",
 	}
 	diskNodeAvaTem := onecloud.CommonAlertTem{
 		Database:    "telegraf",
@@ -1147,13 +1150,24 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 				Condition: "AND",
 			},
 		},
-		Name: "disk.inodes_free/inodes_total",
+		Name:   "disk.inodes_free/inodes_total",
+		Reduce: "avg",
+	}
+	cloudaccountTem := onecloud.CommonAlertTem{
+		Database:    "meter_db",
+		Measurement: "cloudaccount_balance",
+		Field:       []string{"balance"},
+		Comparator:  "<=",
+		Threshold:   100,
+		Name:        "cloudaccount_balance.balance",
+		Reduce:      "last",
 	}
 	speAlert := map[string]onecloud.CommonAlertTem{
-		cpuTem.Name:         cpuTem,
-		memTem.Name:         memTem,
-		diskAvaTem.Name:     diskAvaTem,
-		diskNodeAvaTem.Name: diskNodeAvaTem,
+		cpuTem.Name:          cpuTem,
+		memTem.Name:          memTem,
+		diskAvaTem.Name:      diskAvaTem,
+		diskNodeAvaTem.Name:  diskNodeAvaTem,
+		cloudaccountTem.Name: cloudaccountTem,
 	}
 	return speAlert
 }
