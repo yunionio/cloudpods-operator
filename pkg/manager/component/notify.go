@@ -41,6 +41,8 @@ const (
 	NotifyPluginFeishu        = "feishu"
 	NotifyPluginFeishuRobot   = "feishu-robot"
 	NotifyPluginDingtalkRobot = "dingtalk-robot"
+	NotifyPluginWorkwx        = "workwx"
+	NotifyPluginWorkwxRobot   = "workwx-robot"
 )
 
 type notifyManager struct {
@@ -196,6 +198,17 @@ func (m *notifyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 			},
 		}
 	}
+	newPluginCWithoutConf := func(name string) corev1.Container {
+		return corev1.Container{
+			Name:            name,
+			Image:           pluginImg,
+			ImagePullPolicy: oc.Spec.Notify.ImagePullPolicy,
+			Command:         []string{fmt.Sprintf("/opt/yunion/bin/%s", name), "--log-level", "info", "--sock-file-dir", NotifySocketFileDir},
+			VolumeMounts: []corev1.VolumeMount{
+				socketVolMount,
+			},
+		}
+	}
 	pluginCs := []corev1.Container{
 		newPluginC(NotifyPluginDingtalk),
 		newPluginC(NotifyPluginEmail),
@@ -204,6 +217,8 @@ func (m *notifyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 		newPluginC(NotifyPluginFeishu),
 		newPluginC(NotifyPluginFeishuRobot),
 		newPluginC(NotifyPluginDingtalkRobot),
+		newPluginCWithoutConf(NotifyPluginWorkwx),
+		newPluginCWithoutConf(NotifyPluginWorkwxRobot),
 	}
 	spec := &deploy.Spec.Template.Spec
 	cs := spec.Containers
