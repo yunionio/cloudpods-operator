@@ -204,6 +204,9 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	if obj.Cloudmon.CloudmonPingDuration == 0 {
 		obj.Cloudmon.CloudmonPingDuration = 5
 	}
+	if obj.Cloudmon.CloudmonReportCloudAccountDuration == 0 {
+		obj.Cloudmon.CloudmonReportCloudAccountDuration = 30
+	}
 }
 
 func SetDefaults_Mysql(obj *Mysql) {
