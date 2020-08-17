@@ -909,7 +909,7 @@ func NewItsmEndpointComponent(man ComponentManager,
 }
 
 func (c *itsmComponent) Setup() error {
-	return c.RegisterCloudServiceEndpoint(c.cType, c.serviceName, c.serviceType, c.port, c.prefix, false)
+	return c.RegisterCloudServiceEndpoint(c.cType, c.serviceName, c.serviceType, c.port, c.prefix, true)
 }
 
 type yunionagentComponent struct {
