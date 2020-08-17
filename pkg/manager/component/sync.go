@@ -41,6 +41,7 @@ type serviceFactory interface {
 
 type ingressFactory interface {
 	getIngress(*v1alpha1.OnecloudCluster) *extensions.Ingress
+	updateIngress(oc *v1alpha1.OnecloudCluster, oldIng *extensions.Ingress) *extensions.Ingress
 }
 
 type configMapFactory interface {
@@ -83,7 +84,7 @@ func syncComponent(factory cloudComponentFactory, oc *v1alpha1.OnecloudCluster, 
 	if err := m.syncService(oc, factory.getService); err != nil {
 		return errors.Wrap(err, "sync service")
 	}
-	if err := m.syncIngress(oc, factory.getIngress); err != nil {
+	if err := m.syncIngress(oc, factory.(ingressFactory)); err != nil {
 		return errors.Wrap(err, "sync ingress")
 	}
 	if err := m.syncConfigMap(oc, factory.getDBConfig, factory.getCloudUser, factory.getConfigMap); err != nil {
