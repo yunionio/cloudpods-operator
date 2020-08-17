@@ -256,17 +256,21 @@ func (m *webManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service 
 			Port:       443,
 			TargetPort: intstr.FromInt(443),
 		},
+		{
+			Name:       "overview",
+			Protocol:   corev1.ProtocolTCP,
+			Port:       8080,
+			TargetPort: intstr.FromInt(8080),
+		},
 	}
 	return []*corev1.Service{m.newService(v1alpha1.WebComponentType, oc, corev1.ServiceTypeClusterIP, ports)}
 }
 
 func (m *webManager) getIngress(oc *v1alpha1.OnecloudCluster) *extensions.Ingress {
-	svc := m.getService(oc)[0]
 	ocName := oc.GetName()
 	svcName := controller.NewClusterComponentName(ocName, v1alpha1.WebComponentType)
 	appLabel := m.getComponentLabel(oc, v1alpha1.WebComponentType)
 	secretName := controller.ClustercertSecretName(oc)
-
 	ing := &extensions.Ingress{
 		ObjectMeta: m.getObjectMeta(oc, svcName, appLabel),
 		Spec: extensions.IngressSpec{
@@ -283,7 +287,7 @@ func (m *webManager) getIngress(oc *v1alpha1.OnecloudCluster) *extensions.Ingres
 								{
 									Path: "/",
 									Backend: extensions.IngressBackend{
-										ServiceName: svc.GetName(),
+										ServiceName: svcName,
 										ServicePort: intstr.FromInt(443),
 									},
 								},
@@ -294,7 +298,44 @@ func (m *webManager) getIngress(oc *v1alpha1.OnecloudCluster) *extensions.Ingres
 			},
 		},
 	}
+
+	return m.addIngressPaths(IsEnterpriseEdition(oc), svcName, ing)
+}
+
+func (m *webManager) addIngressPaths(isEE bool, svcName string, ing *extensions.Ingress) *extensions.Ingress {
+	rule := &ing.Spec.Rules[0]
+	if !isEE {
+		return ing
+	}
+	rule.HTTP.Paths = append(rule.HTTP.Paths, extensions.HTTPIngressPath{
+		Path: "/overview",
+		Backend: extensions.IngressBackend{
+			ServiceName: svcName,
+			ServicePort: intstr.FromInt(8080),
+		},
+	})
 	return ing
+}
+
+func (m *webManager) updateIngress(oc *v1alpha1.OnecloudCluster, oldIng *extensions.Ingress) *extensions.Ingress {
+	newIng := oldIng.DeepCopy()
+	spec := &newIng.Spec
+	overviewFound := false
+	for _, rule := range spec.Rules {
+		if rule.IngressRuleValue.HTTP == nil {
+			continue
+		}
+		for _, path := range rule.IngressRuleValue.HTTP.Paths {
+			if path.Path == "/overview" {
+				overviewFound = true
+			}
+		}
+	}
+	if !overviewFound {
+		svcName := m.getService(oc)[0].GetName()
+		newIng = m.addIngressPaths(IsEnterpriseEdition(oc), svcName, newIng)
+	}
+	return newIng
 }
 
 func (m *webManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
@@ -320,11 +361,12 @@ func (m *webManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.On
 }
 
 func (m *webManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
+	repo, _, tag := getRepoImageName(oc.Spec.Web.Image)
 	cf := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		confVol := volMounts[len(volMounts)-1]
 		confVol.MountPath = "/etc/nginx/conf.d"
 		volMounts[len(volMounts)-1] = confVol
-		return []corev1.Container{
+		containers := []corev1.Container{
 			{
 				Name:            "web",
 				Image:           oc.Spec.Web.Image,
@@ -344,6 +386,23 @@ func (m *webManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 				VolumeMounts: volMounts,
 			},
 		}
+		if IsEnterpriseEdition(oc) {
+			overviewImg := fmt.Sprintf("%s/dashboard-overview:%s", repo, tag)
+			containers = append(containers, corev1.Container{
+				Name:            "overview",
+				Image:           overviewImg,
+				ImagePullPolicy: oc.Spec.Web.ImagePullPolicy,
+				Ports: []corev1.ContainerPort{
+					{
+						Name:          "overview",
+						ContainerPort: 8080,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				},
+				VolumeMounts: volMounts,
+			})
+		}
+		return containers
 	}
 	deploy, err := m.newDefaultDeploymentNoInit(
 		v1alpha1.WebComponentType, oc,

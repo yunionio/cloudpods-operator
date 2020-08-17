@@ -152,10 +152,12 @@ func (m *ComponentManager) syncService(
 
 func (m *ComponentManager) syncIngress(
 	oc *v1alpha1.OnecloudCluster,
-	ingFactory func(*v1alpha1.OnecloudCluster) *extensions.Ingress,
+	ingFactory ingressFactory,
 ) error {
 	ns := oc.GetNamespace()
-	newIng := ingFactory(oc)
+	newF := ingFactory.getIngress
+	updateF := ingFactory.updateIngress
+	newIng := newF(oc)
 	if newIng == nil {
 		return nil
 	}
@@ -171,6 +173,7 @@ func (m *ComponentManager) syncIngress(
 		return err
 	}
 
+	// update old ingress
 	oldIng := oldIngTmp.DeepCopy()
 
 	equal, err := ingressEqual(newIng, oldIng)
@@ -178,13 +181,12 @@ func (m *ComponentManager) syncIngress(
 		return err
 	}
 	if !equal {
-		ing := *oldIng
-		ing.Spec = newIng.Spec
-		err = SetIngressLastAppliedConfigAnnotation(&ing)
+		ing := updateF(oc, oldIng)
+		err = SetIngressLastAppliedConfigAnnotation(ing)
 		if err != nil {
 			return err
 		}
-		_, err = m.ingControl.UpdateIngress(oc, &ing)
+		_, err = m.ingControl.UpdateIngress(oc, ing)
 		return err
 	}
 	return nil
@@ -1004,6 +1006,10 @@ func (m *ComponentManager) getService(_ *v1alpha1.OnecloudCluster) []*corev1.Ser
 }
 
 func (m *ComponentManager) getIngress(_ *v1alpha1.OnecloudCluster) *extensions.Ingress {
+	return nil
+}
+
+func (m *ComponentManager) updateIngress(_ *v1alpha1.OnecloudCluster, _ *extensions.Ingress) *extensions.Ingress {
 	return nil
 }
 
