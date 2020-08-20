@@ -38,7 +38,7 @@ const (
 	DefaultMeterStorageSize        = "100G"
 	DefaultInfluxdbStorageSize     = "20G"
 	DefaultNotifyStorageSize       = "1G" // for plugin template
-	DefaultBaremetalStorageSize    = "1G"
+	DefaultBaremetalStorageSize    = "100G"
 	DefaultEsxiAgentStorageSize    = "30G"
 	// rancher local-path-provisioner: https://github.com/rancher/local-path-provisioner
 	DefaultStorageClass = "local-path"
