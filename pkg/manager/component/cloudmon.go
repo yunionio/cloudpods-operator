@@ -69,49 +69,57 @@ func (m *cloudmonManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 				Image: spec.Image,
 				Command: []string{"/bin/sh", "-c", fmt.Sprintf(`
 					# = = = = = = = ping probe = = = = = = =
-					echo '*/%d * * * * /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf ping-probe 2>&1' > /etc/crontabs/root
+					echo '*/%d * * * * timeout -t %d /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf ping-probe 2>&1' > /etc/crontabs/root
 					# = = = = = = = report host = = = = = = =
-					echo '*/%d * * * * /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-host --interval %d --provider VMware 2>&1' >> /etc/crontabs/root
-					echo '*/%d * * * * /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-host --interval %d --provider ZStack 2>&1' >> /etc/crontabs/root
+					echo '*/%d * * * * timeout -t %d /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-host --interval %d --provider VMware 2>&1' >> /etc/crontabs/root
+					echo '*/%d * * * * timeout -t %d /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-host --interval %d --provider ZStack 2>&1' >> /etc/crontabs/root
 					# = = = = = = = report server = = = = = = =
-					echo '*/%d * * * * /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-server --interval %d --provider Aliyun 2>&1' >> /etc/crontabs/root
-					echo '*/%d * * * * /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-server --interval %d --provider Huawei 2>&1' >> /etc/crontabs/root
-					echo '*/%d * * * * /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-server --interval %d --provider Qcloud 2>&1' >> /etc/crontabs/root
-					echo '*/%d * * * * /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-server --interval %d --provider Google 2>&1' >> /etc/crontabs/root
-					echo '*/%d * * * * /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-server --interval %d --provider Aws 2>&1' >> /etc/crontabs/root
-					echo '*/%d * * * * /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-server --interval %d --provider Azure 2>&1' >> /etc/crontabs/root
-					echo '*/%d * * * * /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-server --interval %d --provider VMware 2>&1' >> /etc/crontabs/root
-					echo '*/%d * * * * /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-server --interval %d --provider ZStack 2>&1' >> /etc/crontabs/root
+					echo '*/%d * * * *  timeout -t %d /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-server --interval %d --provider Aliyun 2>&1' >> /etc/crontabs/root
+					echo '*/%d * * * *  timeout -t %d /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-server --interval %d --provider Huawei 2>&1' >> /etc/crontabs/root
+					echo '*/%d * * * *  timeout -t %d /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-server --interval %d --provider Qcloud 2>&1' >> /etc/crontabs/root
+					echo '*/%d * * * *  timeout -t %d /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-server --interval %d --provider Google 2>&1' >> /etc/crontabs/root
+					echo '*/%d * * * *  timeout -t %d /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-server --interval %d --provider Aws 2>&1' >> /etc/crontabs/root
+					echo '*/%d * * * *  timeout -t %d /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-server --interval %d --provider Azure 2>&1' >> /etc/crontabs/root
+					echo '*/%d * * * *  timeout -t %d /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-server --interval %d --provider VMware 2>&1' >> /etc/crontabs/root
+					echo '*/%d * * * *  timeout -t %d /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-server --interval %d --provider ZStack 2>&1' >> /etc/crontabs/root
 					# = = = = = = = report usage = = = = = = =
-					echo '*/%d * * * * /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-usage 2>&1' >> /etc/crontabs/root
+					echo '*/%d * * * *  timeout -t %d /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-usage 2>&1' >> /etc/crontabs/root
 					# = = = = = = = report rds = = = = = = =
-					echo '*/%d * * * * /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-rds --interval %d --provider Aliyun 2>&1' >> /etc/crontabs/root
-					echo '*/%d * * * * /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-rds --interval %d --provider Huawei 2>&1' >> /etc/crontabs/root
+					echo '*/%d * * * *  timeout -t %d /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-rds --interval %d --provider Aliyun 2>&1' >> /etc/crontabs/root
+					echo '*/%d * * * *  timeout -t %d /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-rds --interval %d --provider Huawei 2>&1' >> /etc/crontabs/root
 					# = = = = = = = report redis = = = = = = =
-					echo '*/%d * * * * /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-redis --interval %d --provider Aliyun 2>&1' >> /etc/crontabs/root
-					echo '*/%d * * * * /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-redis --interval %d --provider Huawei 2>&1' >> /etc/crontabs/root
+					echo '*/%d * * * *  timeout -t %d /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-redis --interval %d --provider Aliyun 2>&1' >> /etc/crontabs/root
+					echo '*/%d * * * *  timeout -t %d /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-redis --interval %d --provider Huawei 2>&1' >> /etc/crontabs/root
 					# = = = = = = = report oss = = = = = = =
-					echo '*/%d * * * * /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-oss --interval %d --provider Aliyun 2>&1' >> /etc/crontabs/root
-					echo '*/%d * * * * /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-oss --interval %d --provider Huawei 2>&1' >> /etc/crontabs/root
+					echo '*/%d * * * *  timeout -t %d /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-oss --interval %d --provider Aliyun 2>&1' >> /etc/crontabs/root
+					echo '*/%d * * * *  timeout -t %d /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-oss --interval %d --provider Huawei 2>&1' >> /etc/crontabs/root
+					# = = = = = = = report cloudaccount = = = = = = =
+					echo '*/%d * * * *  timeout -t %d /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-cloudaccount 2>&1' >> /etc/crontabs/root
 					crond -f -d 8
-					`, oc.Spec.Cloudmon.CloudmonPingDuration, v1alpha1.APIGatewayComponentType,
-					oc.Spec.Cloudmon.CloudmonReportHostDuration, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportHostDuration,
-					oc.Spec.Cloudmon.CloudmonReportHostDuration, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportHostDuration,
-					oc.Spec.Cloudmon.CloudmonReportServerDuration, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
-					oc.Spec.Cloudmon.CloudmonReportServerDuration, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
-					oc.Spec.Cloudmon.CloudmonReportServerDuration, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
-					oc.Spec.Cloudmon.CloudmonReportServerDuration, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
-					oc.Spec.Cloudmon.CloudmonReportServerDuration, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
-					oc.Spec.Cloudmon.CloudmonReportServerDuration, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
-					oc.Spec.Cloudmon.CloudmonReportServerDuration, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
-					oc.Spec.Cloudmon.CloudmonReportServerDuration, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
-					oc.Spec.Cloudmon.CloudmonReportUsageDuration, v1alpha1.APIGatewayComponentType,
-					oc.Spec.Cloudmon.CloudmonReportServerDuration, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
-					oc.Spec.Cloudmon.CloudmonReportServerDuration, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
-					oc.Spec.Cloudmon.CloudmonReportServerDuration, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
-					oc.Spec.Cloudmon.CloudmonReportServerDuration, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
-					oc.Spec.Cloudmon.CloudmonReportServerDuration, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
-					oc.Spec.Cloudmon.CloudmonReportServerDuration, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
+					`, oc.Spec.Cloudmon.CloudmonPingDuration, oc.Spec.Cloudmon.CloudmonPingDuration*60, v1alpha1.APIGatewayComponentType,
+
+					oc.Spec.Cloudmon.CloudmonReportHostDuration, oc.Spec.Cloudmon.CloudmonReportHostDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
+					oc.Spec.Cloudmon.CloudmonReportHostDuration, oc.Spec.Cloudmon.CloudmonReportHostDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
+
+					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
+					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
+					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
+					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
+					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
+					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
+					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
+					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
+
+					oc.Spec.Cloudmon.CloudmonReportUsageDuration, oc.Spec.Cloudmon.CloudmonReportUsageDuration*60, v1alpha1.APIGatewayComponentType,
+
+					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
+					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
+
+					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
+					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
+
+					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
+					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
 				)},
 				ImagePullPolicy: spec.ImagePullPolicy,
 				VolumeMounts:    volMounts,
