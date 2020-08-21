@@ -430,6 +430,29 @@ func (m *ComponentManager) newDefaultDeploymentWithoutCloudAffinity(
 	return m.newDeployment(componentType, oc, volHelper, spec, initContainersFactory, containersFactory, false, corev1.DNSClusterFirst)
 }
 
+func (m *ComponentManager) SetComponentAffinity(spec *v1alpha1.DeploymentSpec) {
+	if spec.Affinity == nil {
+		spec.Affinity = &corev1.Affinity{}
+	}
+	if spec.Affinity.NodeAffinity == nil {
+		spec.Affinity.NodeAffinity = &corev1.NodeAffinity{}
+	}
+	spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution = []corev1.PreferredSchedulingTerm{
+		{
+			Weight: 1,
+			Preference: corev1.NodeSelectorTerm{
+				MatchExpressions: []corev1.NodeSelectorRequirement{
+					{
+						Key:      constants.OnecloudControllerLabelKey,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"enable"},
+					},
+				},
+			},
+		},
+	}
+}
+
 func (m *ComponentManager) newDefaultDeploymentWithCloudAffinity(
 	componentType v1alpha1.ComponentType,
 	oc *v1alpha1.OnecloudCluster,

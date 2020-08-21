@@ -88,6 +88,7 @@ func (m *glanceManager) getPVC(oc *v1alpha1.OnecloudCluster) (*corev1.Persistent
 }
 
 func (m *glanceManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
+	m.SetComponentAffinity(&oc.Spec.Glance.DeploymentSpec)
 	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.GlanceComponentType, oc, oc.Spec.Glance.DeploymentSpec, constants.GlanceAPIPort, true, false)
 	if err != nil {
 		return nil, err

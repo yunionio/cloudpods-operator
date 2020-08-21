@@ -126,6 +126,7 @@ func (m *influxdbManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 			},
 		}
 	}
+	m.SetComponentAffinity(&oc.Spec.Influxdb.DeploymentSpec)
 	deploy, err := m.newDefaultDeploymentNoInit(v1alpha1.InfluxdbComponentType, oc,
 		NewVolumeHelper(oc, configMap, v1alpha1.InfluxdbComponentType),
 		oc.Spec.Influxdb.DeploymentSpec, containersF)
