@@ -47,6 +47,9 @@ const (
 	DefaultOvnImageName = "openvswitch"
 	DefaultOvnImageTag  = DefaultOvnVersion + "-0"
 
+	DefaultHostImageName = "host-image"
+	DefaultHostImageTag  = "v1.0.1"
+
 	DefaultInfluxdbImageVersion = "1.7.7"
 
 	DefaultTelegrafImageName     = "telegraf"
@@ -157,6 +160,12 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		DefaultOvnImageTag, obj.OvnNorth.Tag,
 	)
 	obj.OvnNorth.ImagePullPolicy = corev1.PullIfNotPresent
+	// host-image
+	obj.HostImage.Image = getImage(
+		obj.ImageRepository, obj.HostImage.Repository,
+		DefaultHostImageName, obj.HostImage.ImageName,
+		DefaultHostImageTag, obj.HostImage.Tag,
+	)
 
 	// telegraf spec
 	obj.Telegraf.InitContainerImage = getImage(
