@@ -369,6 +369,10 @@ func (m *etcdManager) customPodSpec(pod *corev1.Pod, mb *etcdutil.Member, state,
 			Effect: corev1.TaintEffectNoSchedule,
 		},
 	}...)
+	if pod.Spec.NodeSelector == nil {
+		pod.Spec.NodeSelector = make(map[string]string)
+	}
+	pod.Spec.NodeSelector[constants.OnecloudControllerLabelKey] = "enable"
 }
 
 func (m *etcdManager) newLivenessProbe(isSecure bool) *corev1.Probe {
