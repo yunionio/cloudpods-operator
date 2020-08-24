@@ -44,7 +44,7 @@ func (m *hostImageManager) newHostPrivilegedDaemonSet(
 			return []corev1.Container{
 				{
 					Name:  cType.String(),
-					Image: oc.Spec.HostAgent.Image,
+					Image: oc.Spec.HostImage.Image,
 					Command: []string{
 						fmt.Sprintf("/opt/yunion/bin/%s", cType.String()),
 						"--config",
