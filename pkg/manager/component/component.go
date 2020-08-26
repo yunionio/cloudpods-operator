@@ -446,10 +446,9 @@ func (m *ComponentManager) newDefaultDeploymentWithCloudAffinity(
 	if spec.Affinity.NodeAffinity == nil {
 		spec.Affinity.NodeAffinity = &corev1.NodeAffinity{}
 	}
-	spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution = []corev1.PreferredSchedulingTerm{
-		{
-			Weight: 1,
-			Preference: corev1.NodeSelectorTerm{
+	spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &corev1.NodeSelector{
+		NodeSelectorTerms: []corev1.NodeSelectorTerm{
+			corev1.NodeSelectorTerm{
 				MatchExpressions: []corev1.NodeSelectorRequirement{
 					{
 						Key:      constants.OnecloudControllerLabelKey,
