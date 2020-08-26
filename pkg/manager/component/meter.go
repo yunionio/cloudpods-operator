@@ -101,11 +101,11 @@ func (m *meterManager) getPVC(oc *v1alpha1.OnecloudCluster) (*corev1.PersistentV
 }
 
 func (m *meterManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
-	m.SetComponentAffinity(&oc.Spec.Meter.DeploymentSpec)
 	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.MeterComponentType, oc, oc.Spec.Meter.DeploymentSpec, constants.MeterPort, true, false)
 	if err != nil {
 		return nil, err
 	}
+	deploy = m.removeDeploymentAffinity(deploy)
 	podTemplate := &deploy.Spec.Template.Spec
 	podVols := podTemplate.Volumes
 	podVols = append(podVols, corev1.Volume{
