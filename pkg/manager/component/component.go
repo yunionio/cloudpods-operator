@@ -432,6 +432,11 @@ func (m *ComponentManager) newDefaultDeploymentWithoutCloudAffinity(
 	return m.newDeployment(componentType, oc, volHelper, spec, initContainersFactory, containersFactory, false, corev1.DNSClusterFirst)
 }
 
+func (m *ComponentManager) removeDeploymentAffinity(deploy *apps.Deployment) *apps.Deployment {
+	deploy.Spec.Template.Spec.Affinity = nil
+	return deploy
+}
+
 func (m *ComponentManager) SetComponentAffinity(spec *v1alpha1.DeploymentSpec) {
 	if spec.Affinity == nil {
 		spec.Affinity = &corev1.Affinity{}
@@ -695,6 +700,7 @@ func (m *ComponentManager) newCloudServiceDeployment(
 	initContainersF func([]corev1.VolumeMount) []corev1.Container,
 	ports []corev1.ContainerPort,
 	mountEtcdTLS bool,
+	keepAffinity bool,
 ) (*apps.Deployment, error) {
 	configMap := controller.ComponentConfigMapName(oc, cType)
 	containersF := func(volMounts []corev1.VolumeMount) []corev1.Container {
@@ -721,8 +727,15 @@ func (m *ComponentManager) newCloudServiceDeployment(
 		h = NewVolumeHelper(oc, configMap, cType)
 	}
 
-	return m.newDefaultDeployment(cType, oc, h,
+	deploy, err := m.newDefaultDeployment(cType, oc, h,
 		deployCfg, initContainersF, containersF)
+	if err != nil {
+		return nil, err
+	}
+	if keepAffinity {
+		return deploy, nil
+	}
+	return m.removeDeploymentAffinity(deploy), nil
 }
 
 func (m *ComponentManager) newCloudServiceDeploymentWithInit(
@@ -749,7 +762,7 @@ func (m *ComponentManager) newCloudServiceDeploymentWithInit(
 			},
 		}
 	}
-	return m.newCloudServiceDeployment(cType, oc, deployCfg, initContainersF, ports, mountEtcdTLS)
+	return m.newCloudServiceDeployment(cType, oc, deployCfg, initContainersF, ports, mountEtcdTLS, true)
 }
 
 func (m *ComponentManager) newCloudServiceDeploymentNoInit(
@@ -759,7 +772,7 @@ func (m *ComponentManager) newCloudServiceDeploymentNoInit(
 	ports []corev1.ContainerPort,
 	mountEtcdTLS bool,
 ) (*apps.Deployment, error) {
-	return m.newCloudServiceDeployment(cType, oc, deployCfg, nil, ports, mountEtcdTLS)
+	return m.newCloudServiceDeployment(cType, oc, deployCfg, nil, ports, mountEtcdTLS, true)
 }
 
 func (m *ComponentManager) newCloudServiceSinglePortDeployment(
