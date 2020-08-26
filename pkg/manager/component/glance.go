@@ -92,6 +92,7 @@ func (m *glanceManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 	if err != nil {
 		return nil, err
 	}
+	deploy = m.removeDeploymentAffinity(deploy)
 	podTemplate := &deploy.Spec.Template.Spec
 	podVols := podTemplate.Volumes
 	volMounts := podTemplate.Containers[0].VolumeMounts

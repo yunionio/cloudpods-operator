@@ -133,6 +133,7 @@ func (m *influxdbManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 	if err != nil {
 		return nil, err
 	}
+	deploy = m.removeDeploymentAffinity(deploy)
 	pod := &deploy.Spec.Template.Spec
 	pod.Volumes = append(pod.Volumes, corev1.Volume{
 		Name: "data",
