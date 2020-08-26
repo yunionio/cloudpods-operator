@@ -71,12 +71,12 @@ func (m *esxiManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha
 
 func (m *esxiManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.
 	Deployment, error) {
-	m.SetComponentAffinity(&oc.Spec.EsxiAgent.DeploymentSpec)
 	dm, err := m.newCloudServiceSinglePortDeployment(v1alpha1.EsxiAgentComponentType, oc,
 		oc.Spec.EsxiAgent.DeploymentSpec, constants.EsxiAgentPort, false, false)
 	if err != nil {
 		return nil, err
 	}
+	dm = m.removeDeploymentAffinity(dm)
 
 	// workspace
 	podTemplate := &dm.Spec.Template.Spec
