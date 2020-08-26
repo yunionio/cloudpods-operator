@@ -148,6 +148,7 @@ func (m *notifyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 	img := oc.Spec.Notify.Image
 	pluginImg := strings.ReplaceAll(img, "notify", "notify-plugins")
 	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.NotifyComponentType, oc, oc.Spec.Notify.DeploymentSpec, constants.NotifyPort, true, false)
+	deploy = m.removeDeploymentAffinity(deploy)
 	if err != nil {
 		return nil, err
 	}

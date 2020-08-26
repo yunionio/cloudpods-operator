@@ -105,6 +105,7 @@ func (m *meterManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	if err != nil {
 		return nil, err
 	}
+	deploy = m.removeDeploymentAffinity(deploy)
 	podTemplate := &deploy.Spec.Template.Spec
 	podVols := podTemplate.Volumes
 	podVols = append(podVols, corev1.Volume{
