@@ -464,10 +464,10 @@ func (m *etcdManager) removePod(name string) error {
 	return nil
 }
 
-func (m *etcdManager) pollPods() (running, pending []*corev1.Pod, err error) {
+func (m *etcdManager) pollPods() (running, pending, failed []*corev1.Pod, err error) {
 	podList, err := m.kubeCli.CoreV1().Pods(m.oc.Namespace).List(k8sutil.ClusterListOpt(m.getEtcdClusterPrefix()))
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to list running pods: %v", err)
+		return nil, nil, nil, fmt.Errorf("failed to list running pods: %v", err)
 	}
 
 	for i := range podList.Items {
@@ -491,10 +491,12 @@ func (m *etcdManager) pollPods() (running, pending []*corev1.Pod, err error) {
 			running = append(running, pod)
 		case corev1.PodPending:
 			pending = append(pending, pod)
+		case corev1.PodFailed, corev1.PodUnknown:
+			failed = append(failed, pod)
 		}
 	}
 
-	return running, pending, nil
+	return running, pending, failed, nil
 }
 
 func (m *etcdManager) customEtcdSpec() v1alpha1.EtcdClusterSpec {
@@ -700,7 +702,7 @@ Loop:
 				log.Warningf("fetch cluster failed %s", err)
 				continue
 			}
-			running, pending, err := m.pollPods()
+			running, pending, failed, err := m.pollPods()
 			if err != nil {
 				log.Warningf("failed poll pods %s", err)
 				continue
@@ -711,6 +713,15 @@ Loop:
 				log.Infof("skip reconciliation: running (%v), pending (%v)",
 					k8sutil.GetPodNames(running), k8sutil.GetPodNames(pending))
 				continue
+			}
+			if len(failed) > 0 {
+				// Clean etcd pod in failed status
+				for i := 0; i < len(failed); i++ {
+					log.Infof("remove failed status pod %s", failed[i].GetName())
+					if err := m.removePod(failed[i].Name); err != nil {
+						log.Errorf("faield remove pod %s", failed[i].GetName())
+					}
+				}
 			}
 			if len(running) == 0 {
 				log.Warningf("all etcd pods are dead.")
