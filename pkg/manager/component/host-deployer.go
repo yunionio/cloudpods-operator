@@ -6,6 +6,10 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/klog"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -80,5 +84,32 @@ func (m *hostDeployerManager) newHostPrivilegedDaemonSet(
 			TopologyKey: "kubernetes.io/hostname",
 		},
 	}
+	if ds.Spec.UpdateStrategy.RollingUpdate != nil {
+		ds.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable, err = m.getMaxUnavailablePodCount()
+		if err != nil {
+			return nil, err
+		}
+	}
 	return ds, nil
+}
+
+func (m *hostDeployerManager) getMaxUnavailablePodCount() (*intstr.IntOrString, error) {
+	masterNodeSelector := labels.NewSelector()
+	r, err := labels.NewRequirement(
+		constants.OnecloudControllerLabelKey, selection.Exists, nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+	masterNodeSelector = masterNodeSelector.Add(*r)
+	nodes, err := m.nodeLister.List(masterNodeSelector)
+	if err != nil {
+		return nil, err
+	}
+	klog.Infof("List nodes by controller selector, node count %v", len(nodes))
+	if len(nodes) == 0 {
+		return nil, nil
+	}
+	count := intstr.FromInt(len(nodes))
+	return &count, nil
 }
