@@ -23,14 +23,11 @@ controller-manager:
 telegraf-init:
 	$(GO) -mod vendor -ldflags $(LDFLAGS) -o $(BIN_DIR)/telegraf-init cmd/telegraf-init/main.go
 
-image: build
-	sudo docker build -f images/onecloud-operator/Dockerfile -t $(REGISTRY)/onecloud-operator:$(VERSION) .
-	sudo docker push $(REGISTRY)/onecloud-operator:$(VERSION)
+image:
+	DOCKER_DIR=${CURDIR}/images/onecloud-operator IMAGE_KEYWORD=onecloud-operator PUSH=true DEBUG=${DEBUG} REGISTRY=${REGISTRY} TAG=${VERSION} ARCH=${ARCH} ${CURDIR}/scripts/docker_push.sh controller-manager
 
 telegraf-init-image: telegraf-init
-	sudo docker build -f images/telegraf-init/Dockerfile -t $(REGISTRY)/telegraf-init:$(VERSION) .
-	sudo docker push $(REGISTRY)/telegraf-init:$(VERSION)
-
+	DOCKER_DIR=${CURDIR}/images/telegraf-init IMAGE_KEYWORD=telegraf-init PUSH=true DEBUG=${DEBUG} REGISTRY=${REGISTRY} TAG=${VERSION} ARCH=${ARCH} ${CURDIR}/scripts/docker_push.sh telegraf-init
 
 fmt:
 	find . -type f -name "*.go" -not -path "./_output/*" \
