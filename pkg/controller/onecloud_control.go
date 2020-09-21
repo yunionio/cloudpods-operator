@@ -44,8 +44,9 @@ import (
 )
 
 var (
-	SessionDebug bool
-	SyncUser     bool
+	SessionDebug       bool
+	SyncUser           bool
+	EtcdKeepFailedPods bool
 
 	sessionLock sync.Mutex
 )
