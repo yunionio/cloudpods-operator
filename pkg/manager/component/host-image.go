@@ -12,6 +12,8 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/manager"
 )
 
+const YUNION_HOST_ROOT = "/yunion-host-root"
+
 type hostImageManager struct {
 	*ComponentManager
 }
@@ -46,18 +48,25 @@ func (m *hostImageManager) newHostPrivilegedDaemonSet(
 					Name:  cType.String(),
 					Image: oc.Spec.HostAgent.Image,
 					Command: []string{
-						fmt.Sprintf("/opt/yunion/bin/%s", cType.String()),
-						"--config",
-						fmt.Sprintf("/etc/yunion/%s.conf", v1alpha1.HostComponentType.String()),
-						"--common-config-file",
-						"/etc/yunion/common/common.conf",
+						"sh", "-c", fmt.Sprintf(`
+							mount --bind /etc/hosts %s/etc/hosts
+							mount --bind /etc/resolv.conf %s/etc/resolv.conf
+							mkdir -p %s/etc/yunion/common
+							mount --bind /etc/yunion/common %s/etc/yunion/common
+							mkdir -p %s/etc/yunion/pki
+							mount --bind /etc/yunion/pki %s/etc/yunion/pki
+							mkdir -p %s/opt/yunion/bin
+							mount --bind /opt/yunion/bin %s/opt/yunion/bin
+							chroot %s /opt/yunion/bin/%s --config /etc/yunion/%s.conf --common-config-file /etc/yunion/common/common.conf`,
+							YUNION_HOST_ROOT, YUNION_HOST_ROOT, YUNION_HOST_ROOT, YUNION_HOST_ROOT,
+							YUNION_HOST_ROOT, YUNION_HOST_ROOT, YUNION_HOST_ROOT, YUNION_HOST_ROOT,
+							YUNION_HOST_ROOT, cType.String(), v1alpha1.HostComponentType.String()),
 					},
 					ImagePullPolicy: dsSpec.ImagePullPolicy,
 					VolumeMounts:    volMounts,
 					SecurityContext: &corev1.SecurityContext{
 						Privileged: &privileged,
 					},
-					WorkingDir: "/opt/cloud",
 				},
 			}
 		}
@@ -67,7 +76,7 @@ func (m *hostImageManager) newHostPrivilegedDaemonSet(
 	}
 	dsSpec.NodeSelector[constants.OnecloudEnableHostLabelKey] = "enable"
 	ds, err := m.newDaemonSet(cType, oc, cfg,
-		NewHostVolume(cType, oc, configMap), dsSpec, "", nil, containersF)
+		NewHostImageVolumeHelper(cType, oc, configMap), dsSpec, "", nil, containersF)
 	if err != nil {
 		return nil, err
 	}
