@@ -843,3 +843,72 @@ func NewOvsVolumeHelper(
 	h.addOvsVolumes()
 	return h
 }
+
+func NewHostImageVolumeHelper(
+	cType v1alpha1.ComponentType,
+	oc *v1alpha1.OnecloudCluster,
+	configMap string,
+) *VolumeHelper {
+	h := &VolumeHelper{
+		cluster:      oc,
+		optionCfgMap: configMap,
+		component:    cType,
+	}
+	var hostPathDirectory = corev1.HostPathDirectory
+	h.volumes = []corev1.Volume{
+		{
+			Name: "host-root",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/",
+					Type: &hostPathDirectory,
+				},
+			},
+		},
+		{
+			Name: constants.VolumeCertsName,
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: controller.ClustercertSecretName(h.cluster),
+					Items: []corev1.KeyToPath{
+						{Key: constants.CACertName, Path: constants.CACertName},
+						{Key: constants.ServiceCertName, Path: constants.ServiceCertName},
+						{Key: constants.ServiceKeyName, Path: constants.ServiceKeyName},
+					},
+				},
+			},
+		},
+		{
+			Name: constants.VolumeConfigName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: h.optionCfgMap,
+					},
+					Items: []corev1.KeyToPath{
+						{Key: constants.VolumeConfigName, Path: "common.conf"},
+					},
+				},
+			},
+		},
+	}
+	h.volumeMounts = []corev1.VolumeMount{
+		{
+			Name:      "host-root",
+			ReadOnly:  false,
+			MountPath: YUNION_HOST_ROOT,
+		},
+		{
+			Name:      constants.VolumeCertsName,
+			ReadOnly:  true,
+			MountPath: constants.CertDir,
+		},
+		{
+			Name:      constants.VolumeConfigName,
+			ReadOnly:  true,
+			MountPath: path.Join(constants.ConfigDir, "common"),
+		},
+	}
+
+	return h
+}
