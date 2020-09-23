@@ -714,7 +714,7 @@ Loop:
 					k8sutil.GetPodNames(running), k8sutil.GetPodNames(pending))
 				continue
 			}
-			if len(failed) > 0 {
+			if len(failed) > 0 && !controller.EtcdKeepFailedPods {
 				// Clean etcd pod in failed status
 				for i := 0; i < len(failed); i++ {
 					log.Infof("remove failed status pod %s", failed[i].GetName())
