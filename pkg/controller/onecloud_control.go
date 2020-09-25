@@ -942,7 +942,7 @@ func (c yunionagentComponent) addWelcomeNotice() error {
 		}
 		params := jsonutils.NewDict()
 		params.Add(jsonutils.NewString("欢迎使用云管平台"), "title")
-		params.Add(jsonutils.NewString("欢迎使用OneCloud多云云管平台。这是公告栏，您可以在这里发布需要告知所有用户的消息。"), "content")
+		params.Add(jsonutils.NewString("欢迎使用云管平台。这是公告栏，您可以在这里发布需要告知所有用户的消息。"), "content")
 
 		_, err = modules.Notice.Create(s, params)
 		return err
