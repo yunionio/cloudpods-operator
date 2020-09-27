@@ -766,7 +766,7 @@ type OnecloudClusterConfig struct {
 	Logger          ServiceDBCommonOptions `json:"logger"`
 	Register        ServiceDBCommonOptions `json:"register"`
 	Billing         ServiceDBCommonOptions `json:"billing"`
-	BillingTask     ServiceCommonOptions   `json:"billingtask"`
+	BillingTask     ServiceDBCommonOptions `json:"billingtask"`
 	Yunionconf      ServiceDBCommonOptions `json:"yunionconf"`
 	Yunionagent     ServiceDBCommonOptions `json:"yunionagent"`
 	KubeServer      ServiceDBCommonOptions `json:"kubeserver"`

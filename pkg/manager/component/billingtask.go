@@ -48,6 +48,7 @@ type AliPayOptions struct {
 
 type billingTaskOptions struct {
 	common_options.CommonOptions
+	common_options.DBOptions
 	AliPayOptions
 
 	BillingPaymentStatusSyncIntervals int `help:"billing payment status sync intervals(seconds)" default:"60"`
@@ -59,8 +60,9 @@ func (m *billingTaskManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1a
 		return nil, err
 	}
 	config := cfg.BillingTask
+	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
 	SetOptionsServiceTLS(&opt.BaseOptions)
-	SetServiceCommonOptions(&opt.CommonOptions, oc, config)
+	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 	opt.Port = constants.BillingTaskPort
 
 	return m.newServiceConfigMap(v1alpha1.BillingTaskComponentType, oc, opt), nil
