@@ -1232,7 +1232,7 @@ type OnecloudClusterConfig struct {
 	Devtool         ServiceDBCommonOptions `json:"devtool"`
 	Meter           MeterConfig            `json:"meter"`
 	Billing         ServiceDBCommonOptions `json:"billing"`
-	BillingTask     ServiceCommonOptions   `json:"billingtask"`
+	BillingTask     ServiceDBCommonOptions `json:"billingtask"`
 	AutoUpdate      ServiceDBCommonOptions `json:"autoupdate"`
 	EsxiAgent       EsxiAgentConfig        `json:"esxiagent"`
 	VpcAgent        VpcAgentConfig         `json:"vpcagent"`
