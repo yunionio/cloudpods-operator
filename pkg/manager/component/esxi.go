@@ -76,7 +76,10 @@ func (m *esxiManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 	if err != nil {
 		return nil, err
 	}
-	dm = m.removeDeploymentAffinity(dm)
+	if oc.Spec.EsxiAgent.StorageClassName == v1alpha1.DefaultStorageClass {
+		// if use local path storage, remove cloud affinity
+		dm = m.removeDeploymentAffinity(dm)
+	}
 
 	// workspace
 	podTemplate := &dm.Spec.Template.Spec

@@ -180,6 +180,23 @@ func (m *serviceOperatorManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg
 			},
 		},
 	}
+	deploy.Spec.Template.Spec.Affinity = &corev1.Affinity{
+		NodeAffinity: &corev1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+				NodeSelectorTerms: []corev1.NodeSelectorTerm{
+					corev1.NodeSelectorTerm{
+						MatchExpressions: []corev1.NodeSelectorRequirement{
+							{
+								Key:      constants.OnecloudControllerLabelKey,
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{"enable"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
 	return deploy, nil
 }
 
