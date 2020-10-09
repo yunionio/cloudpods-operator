@@ -38,10 +38,12 @@ const (
         fallthrough .
     }
 
-    {{range .Proxies}}
+    {{- range .Proxies }}
+
     proxy {{.From}} {{.To}} {
     }
-    {{end}}
+    {{- end }}
+
     log {
         class error
     }
