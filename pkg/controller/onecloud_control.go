@@ -932,7 +932,7 @@ func (c yunionagentComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 }
 
 func (c yunionagentComponent) addWelcomeNotice() error {
-	return c.RunWithSession(func(s *mcclient.ClientSession) error {
+	/*return c.RunWithSession(func(s *mcclient.ClientSession) error {
 		ret, err := modules.Notice.List(s, nil)
 		if err != nil {
 			return err
@@ -946,7 +946,8 @@ func (c yunionagentComponent) addWelcomeNotice() error {
 
 		_, err = modules.Notice.Create(s, params)
 		return err
-	})
+	})*/
+	return nil
 }
 
 type devtoolComponent struct {
