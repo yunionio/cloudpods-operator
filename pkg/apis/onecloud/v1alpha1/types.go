@@ -633,6 +633,7 @@ type HostAgentSpec struct {
 type TelegrafSpec struct {
 	DaemonSetSpec
 	InitContainerImage string
+	TelegrafRaidImage  string
 }
 
 // ContainerSpec is the container spec of a pod
