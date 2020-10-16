@@ -78,7 +78,10 @@ func generateTelegrafConfig(nodeName, nodeIp, influxAddr string) {
 		},
 		"hostname": nodeName,
 		"tags": map[string]string{
-			"host_ip": nodeIp,
+			"host_ip":   nodeIp,
+			"brand":     "OneCloud",
+			"res_type":  "host",
+			"host_type": "controller",
 		},
 	}
 	conf := getConfig(kwargs)
@@ -185,6 +188,9 @@ func getConfig(kwargs map[string]interface{}) string {
 	conf += "[[inputs.swap]]\n"
 	conf += "\n"
 	conf += "[[inputs.system]]\n"
+	conf += "\n"
+	conf += "[[inputs.smart]]\n"
+	conf += "  path=\"/usr/sbin/smartctl\"\n"
 	conf += "\n"
 	conf += "[[inputs.net]]\n"
 	if nics, ok := kwargs["nics"]; ok {
