@@ -1155,6 +1155,54 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		Name:   "disk.inodes_free/inodes_total",
 		Reduce: "avg",
 	}
+	smartDevTem := onecloud.CommonAlertTem{
+		Database:    "telegraf",
+		Measurement: "smart_device",
+		Field:       []string{"exit_status"},
+		FieldFunc:   "last",
+		Comparator:  "==",
+		Threshold:   0,
+		Filters: []monitor.MetricQueryTag{
+			{
+				Key:       "health_ok",
+				Operator:  "=",
+				Value:     "false",
+				Condition: "AND",
+			},
+		},
+		Name:   "smart_device.exit_status",
+		Reduce: "last",
+	}
+	genHostRaidStatusFilter := func(status ...string) []monitor.MetricQueryTag {
+		ret := make([]monitor.MetricQueryTag, 0)
+		for _, s := range status {
+			filter := monitor.MetricQueryTag{
+				Key:       "status",
+				Value:     s,
+				Operator:  "==",
+				Condition: "OR",
+			}
+			ret = append(ret, filter)
+		}
+		return ret
+	}
+	hostRaidTem := onecloud.CommonAlertTem{
+		Database:    "telegraf",
+		Measurement: "host_raid",
+		Field:       []string{"adapter"},
+		FieldFunc:   "last",
+		Comparator:  "==",
+		Threshold:   0,
+		Filters: genHostRaidStatusFilter(
+			"offline",
+			"failed",
+			"degraded",
+			"rebuilding",
+			"out of sync",
+		),
+		Name:   "host_raid.adapter",
+		Reduce: "last",
+	}
 	cloudaccountTem := onecloud.CommonAlertTem{
 		Database:    "meter_db",
 		Measurement: "cloudaccount_balance",
@@ -1170,6 +1218,8 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		diskAvaTem.Name:      diskAvaTem,
 		diskNodeAvaTem.Name:  diskNodeAvaTem,
 		cloudaccountTem.Name: cloudaccountTem,
+		smartDevTem.Name:     smartDevTem,
+		hostRaidTem.Name:     hostRaidTem,
 	}
 	return speAlert
 }
