@@ -1191,7 +1191,7 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		Measurement: "host_raid",
 		Field:       []string{"adapter"},
 		FieldFunc:   "last",
-		Comparator:  "==",
+		Comparator:  ">=",
 		Threshold:   0,
 		Filters: genHostRaidStatusFilter(
 			"offline",
