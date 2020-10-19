@@ -41,6 +41,11 @@ const (
 	CLOUD_EC2                   = "ec2"
 )
 
+type SPublicIpInfo struct {
+	PublicIpBw         int
+	PublicIpChargeType TElasticipChargeType
+}
+
 type SManagedVMCreateConfig struct {
 	Name                string
 	ExternalImageId     string
@@ -63,6 +68,10 @@ type SManagedVMCreateConfig struct {
 	Password            string
 	UserData            string
 	ProjectId           string
+
+	SPublicIpInfo
+
+	Tags map[string]string
 
 	BillingCycle *billing.SBillingCycle
 }

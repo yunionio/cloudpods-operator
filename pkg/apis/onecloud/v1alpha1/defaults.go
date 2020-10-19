@@ -53,9 +53,11 @@ const (
 	DefaultInfluxdbImageVersion = "1.7.7"
 
 	DefaultTelegrafImageName     = "telegraf"
-	DefaultTelegrafImageTag      = "release-1.5"
+	DefaultTelegrafImageTag      = "release-1.5.2"
 	DefaultTelegrafInitImageName = "telegraf-init"
-	DefaultTelegrafInitImageTag  = "release-1.5"
+	DefaultTelegrafInitImageTag  = "release-1.5.2"
+	DefaultTelegrafRaidImageName = "telegraf-raid-plugin"
+	DefaultTelegrafRaidImageTag  = "release-1.5.2"
 )
 
 func addDefaultingFuncs(scheme *runtime.Scheme) error {
@@ -172,6 +174,11 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		obj.ImageRepository, obj.Telegraf.Repository,
 		DefaultTelegrafInitImageName, "",
 		DefaultTelegrafInitImageTag, "",
+	)
+	obj.Telegraf.TelegrafRaidImage = getImage(
+		obj.ImageRepository, obj.Telegraf.Repository,
+		DefaultTelegrafRaidImageName, "",
+		DefaultTelegrafRaidImageTag, "",
 	)
 	SetDefaults_DaemonSetSpec(
 		&obj.Telegraf.DaemonSetSpec,

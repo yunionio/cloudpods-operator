@@ -285,11 +285,11 @@ type ServerConfigs struct {
 	// swagger:ignore
 	// Deprecated
 	// alias for InstanceType
-	Sku string `json:"sku" "yunion:deprecated-by":"instance_type"`
+	Sku string `json:"sku" yunion-deprecated-by:"instance_type"`
 
 	// 虚拟机高可用(创建备机)
 	// default: false
-	// requried: false
+	// required: false
 	Backup bool `json:"backup"`
 
 	// 创建虚拟机数量
@@ -359,11 +359,11 @@ type ServerCreateInput struct {
 
 	// swagger:ignore
 	// Deprecated
-	KeypairId string `json:"keypair_id" "yunion:deprecated-by":"keypair"`
+	Keypair string `json:"keypair" yunion-deprecated-by:"keypair_id"`
 
 	// 秘钥对Id
 	// required: false
-	Keypair string `json:"keypair"`
+	KeypairId string `json:"keypair_id"`
 
 	// 密码
 	// 要求: 密码长度 >= 20, 至少包含一个数字一个小写字母一个大小字母及特殊字符~`!@#$%^&*()-_=+[]{}|:';\",./<>?中的一个
@@ -447,6 +447,7 @@ type ServerCreateInput struct {
 
 	// 弹性公网IP带宽
 	// 指定此参数后会创建新的弹性公网IP并绑定到新建的虚拟机
+	// 此参数优先级低于public_ip
 	// 私有云不支持此参数
 	EipBw int `json:"eip_bw,omitzero"`
 	// 弹性公网IP计费类型
@@ -458,6 +459,25 @@ type ServerCreateInput struct {
 	// 绑定已有弹性公网IP, 此参数会限制虚拟机再谈下公网IP所在的区域创建
 	// required: false
 	Eip string `json:"eip,omitempty"`
+
+	// 公网IP带宽(单位MB)
+	// 若指定此参数则忽略eip相关参数
+	// 私有云不支持此参数
+	//
+	//
+	// |平台				|支持范围	|
+	// |----				|-------	|
+	// |腾讯云				|按量计费1-100, 包年包月1-200 |
+	PublicIpBw int `json:"public_ip_bw,omitzero"`
+	// 公网IP计费类型
+	// 默认按流量计费
+	//
+	//
+	// |类别					|说明	|
+	// |----					|-------	|
+	// |traffic					|按流量计费|
+	// |bandwidth				|按带宽计费|
+	PublicIpChargeType string `json:"public_ip_charge_type,omitempty"`
 
 	// 使用主机快照创建虚拟机, 主机快照不会重置密码及秘钥信息
 	// 使用主机快照创建的虚拟机将沿用之前的密码秘钥及安全组信息
@@ -471,7 +491,8 @@ type ServerCreateInput struct {
 
 	// swagger:ignore
 	OsType string `json:"os_type"`
-
+	// swagger:ignore
+	DisableUsbKbd bool `json:"disable_usb_kbd"`
 	// swagger:ignore
 	OsProfile jsonutils.JSONObject `json:"__os_profile__"`
 	// swagger:ignore
@@ -511,7 +532,7 @@ type ServerCloneInput struct {
 	EipChargeType string `json:"eip_charge_type,omitempty"`
 	Eip           string `json:"eip,omitempty"`
 
-	PreferHost string `json:"prefer_host_id"`
+	PreferHostId string `json:"prefer_host_id"`
 }
 
 type ServerDeployInput struct {
@@ -530,8 +551,12 @@ type ServerDeployInput struct {
 type GuestBatchMigrateRequest struct {
 	apis.Meta
 
-	GuestIds   []string
-	PreferHost string
+	GuestIds []string `json:"guest_ids"`
+
+	PreferHostId string `json:"prefer_host_id"`
+	// Deprecated
+	// swagger:ignore
+	PreferHost string `json:"prefer_host" yunion-deprecated-by:"prefer_host_id"`
 }
 
 type GuestBatchMigrateParams struct {

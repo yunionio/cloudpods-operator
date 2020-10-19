@@ -4,7 +4,7 @@ go 1.12
 
 require (
 	github.com/docker/distribution v0.0.0-20170726174610-edc3ab29cdff
-	github.com/go-sql-driver/mysql v1.4.1
+	github.com/go-sql-driver/mysql v1.5.0
 	github.com/googleapis/gnostic v0.3.0 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/onsi/ginkgo v1.8.0 // indirect
@@ -18,16 +18,15 @@ require (
 	k8s.io/apiextensions-apiserver v0.0.0
 	k8s.io/apimachinery v0.17.3
 	k8s.io/client-go v9.0.0+incompatible
-	k8s.io/code-generator v0.15.13-beta.0 // indirect
 	k8s.io/klog v0.3.3
 	k8s.io/kube-openapi v0.0.0-20190603182131-db7b694dc208 // indirect
 	k8s.io/kubernetes v1.16.0
 	k8s.io/utils v0.0.0-20190607212802-c55fbcfc754a // indirect
-	yunion.io/x/jsonutils v0.0.0-20200701074723-fea7ff9d66b6
+	yunion.io/x/jsonutils v0.0.0-20201014025429-7ce189228db6
 	yunion.io/x/log v0.0.0-20200313080802-57a4ce5966b3
-	yunion.io/x/onecloud v0.0.0-20200707065357-a6c8089674ac
-	yunion.io/x/pkg v0.0.0-20200702065158-82d1bf2beb3a
-	yunion.io/x/structarg v0.0.0-20200619020316-f93fbe32ffc7
+	yunion.io/x/onecloud v0.0.0-20201019035712-93d682503e2d
+	yunion.io/x/pkg v0.0.0-20200814072949-4f1b541857d6
+	yunion.io/x/structarg v0.0.0-20200720093445-9f850fa222ce
 )
 
 replace (

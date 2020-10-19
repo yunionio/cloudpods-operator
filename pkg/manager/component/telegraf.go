@@ -34,6 +34,7 @@ func (m *telegrafManager) newTelegrafDaemonSet(
 	cfg *v1alpha1.OnecloudClusterConfig,
 ) (*apps.DaemonSet, error) {
 	dsSpec := oc.Spec.Telegraf
+	privileged := true
 	containersF := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		return []corev1.Container{
 			{
@@ -46,6 +47,31 @@ func (m *telegrafManager) newTelegrafDaemonSet(
 					"-config-directory", "/etc/telegraf/telegraf.d",
 				},
 				VolumeMounts: volMounts,
+				SecurityContext: &corev1.SecurityContext{
+					Privileged: &privileged,
+				},
+			},
+			{
+				Name:            "telegraf-raid-plugin",
+				Image:           dsSpec.TelegrafRaidImage,
+				ImagePullPolicy: dsSpec.ImagePullPolicy,
+				Command: []string{
+					"/opt/yunion/bin/telegraf-raid-plugin",
+				},
+				VolumeMounts: volMounts,
+				SecurityContext: &corev1.SecurityContext{
+					Privileged: &privileged,
+				},
+				Env: []corev1.EnvVar{
+					{
+						Name: "NODENAME",
+						ValueFrom: &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{
+								FieldPath: "spec.nodeName",
+							},
+						},
+					},
+				},
 			},
 		}
 	}
@@ -125,6 +151,11 @@ func NewTelegrafVolume(
 			ReadOnly:  false,
 			MountPath: "/var/run",
 		},
+		{
+			Name:      "dev",
+			ReadOnly:  false,
+			MountPath: "/dev",
+		},
 	}...)
 
 	var volSrcType = corev1.HostPathDirectoryOrCreate
@@ -171,6 +202,15 @@ func NewTelegrafVolume(
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: "/sys",
+					Type: &hostPathDirectory,
+				},
+			},
+		},
+		{
+			Name: "dev",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/dev",
 					Type: &hostPathDirectory,
 				},
 			},

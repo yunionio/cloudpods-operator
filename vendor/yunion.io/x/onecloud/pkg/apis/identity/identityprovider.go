@@ -59,34 +59,66 @@ type IdpResourceInfo struct {
 
 	// 认证源类型, 例如sql, cas, ldap等
 	IdpDriver string `json:"idp_driver"`
+
+	// 认证源模板
+	Template string `json:"template"`
 }
 
 type IdentityProviderCreateInput struct {
 	apis.EnabledStatusStandaloneResourceCreateInput
 
 	// 后端驱动名称
-	Driver string `json:"driver"`
+	Driver string `json:"driver" ignore:"true"`
 
 	// 模板名称
-	Template string `json:"template"`
+	Template string `json:"template" ignore:"true"`
+
+	// 归属域
+	OwnerDomainId string `json:"owner_domain_id"`
 
 	// 默认导入用户和组的域
-	TargetDomain string `json:"target_domain"`
+	TargetDomainId string `json:"target_domain_id"`
 	// swagger:ignore
 	// Deprecated
-	TargetDomainId string `json:"target_domain_id" "yunion:deprecated-by":"target_domain"`
+	TargetDomain string `json:"target_domain" yunion-deprecated-by:"target_domain_id"`
 
 	// 新建域的时候是否自动新建第一个项目
 	AutoCreateProject *bool `json:"auto_create_project"`
+	// 当用户不存在时，是否自动新建用户
+	AutoCreateUser *bool `json:"auto_create_user"`
 
 	// 自动同步间隔，单位：秒
 	SyncIntervalSeconds *int `json:"sync_interval_seconds"`
 
 	// 配置信息
-	Config TConfigs `json:"config"`
+	Config TConfigs `json:"config" ignore:"true"`
+
+	// 图标URL
+	IconUri string `json:"icon_uri"`
 }
 
 type GetIdpSamlMetadataInput struct {
 	// 缩进展示SAML sp metadata
 	Pretty *bool `json:"pretty"`
+	// AssertionConsumer callback URL
+	RedirectUri string `json:"redirect_uri"`
+}
+
+type GetIdpSamlMetadataOutput struct {
+	// SAML 2.0 SP metadata
+	Metadata string `json:"metadata"`
+}
+
+type GetIdpSsoRedirectUriInput struct {
+	// SSO回调地址
+	RedirectUri string `json:"redirect_uri"`
+	// SSO状态信息
+	State string `json:"state"`
+}
+
+type GetIdpSsoRedirectUriOutput struct {
+	// SSO跳转URI
+	Uri string `json:"uri"`
+	// Driver
+	Driver string `json:"driver"`
 }

@@ -174,21 +174,30 @@ type SecurityGroupRuleListInput struct {
 	apis.ResourceBaseListInput
 	SecgroupFilterListInput
 
+	Projects []string `json:"projects"`
+
 	// 以direction字段过滤安全组规则
 	Direction string `json:"direction"`
 	// 以action字段过滤安全组规则
 	Action string `json:"action"`
 	// 以protocol字段过滤安全组规则
 	Protocol string `json:"protocol"`
+	// 以ports字段过滤安全组规则
+	Ports string `json:"ports"`
+	// 根据ip模糊匹配安全组规则
+	Ip string `json:"ip"`
 }
 
 type SecgroupResourceInput struct {
 	// 过滤关联指定安全组（ID或Name）的列表结果
-	Secgroup string `json:"secgroup"`
+	SecgroupId string `json:"secgroup_id"`
 	// swagger:ignore
 	// Deprecated
 	// filter by secgroup_id
-	SecgroupId string `json:"secgroup_id" "yunion:deprecated-by":"secgroup"`
+	Secgroup string `json:"secgroup" yunion-deprecated-by:"secgroup_id"`
+
+	// 模糊匹配安全组规则名称
+	SecgroupName string `json:"secgroup_name"`
 }
 
 type SecgroupFilterListInput struct {
@@ -238,4 +247,16 @@ type GuestsecgroupDetails struct {
 
 	// 安全组名称
 	Secgroup string `json:"secgroup"`
+}
+
+type SecgroupMergeInput struct {
+	// 安全组id列表
+	SecgroupIds []string `json:"secgroup_ids"`
+
+	// swagger:ignore
+	// Deprecated
+	Secgroups []string `json:"secgroup" yunion-deprecated-by:"secgroup_ids"`
+}
+
+type SecurityGroupPurgeInput struct {
 }
