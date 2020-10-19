@@ -93,6 +93,12 @@ func (this *ImageManager) GetByName(session *mcclient.ClientSession, id string, 
 }
 
 func (this *ImageManager) Get(session *mcclient.ClientSession, id string, params jsonutils.JSONObject) (jsonutils.JSONObject, error) {
+	// hack: some GetPropertiesMethod must use HTTP GET action like:
+	// - GET /images/distinct-field
+	// hard code this id currently, should found a better solution
+	if ok, _ := utils.InStringArray(id, []string{"distinct-field"}); ok {
+		return this.ResourceManager.Get(session, id, params)
+	}
 	r, e := this.GetById(session, id, params)
 	if e == nil {
 		return r, e
@@ -466,7 +472,7 @@ func (this *ImageManager) _create(s *mcclient.ClientSession, params jsonutils.JS
 		}
 	}
 	resp, err := modulebase.RawRequest(this.ResourceManager, s, method, path, headers, body)
-	_, json, err := s.ParseJSONResponse(resp, err)
+	_, json, err := s.ParseJSONResponse("", resp, err)
 	if err != nil {
 		return nil, err
 	}
@@ -506,7 +512,7 @@ func (this *ImageManager) _update(s *mcclient.ClientSession, id string, params j
 	}
 	path := fmt.Sprintf("/%s/%s", this.URLPath(), url.PathEscape(id))
 	resp, err := modulebase.RawRequest(this.ResourceManager, s, "PUT", path, headers, body)
-	_, json, err := s.ParseJSONResponse(resp, err)
+	_, json, err := s.ParseJSONResponse("", resp, err)
 	if err != nil {
 		return nil, err
 	}
@@ -560,7 +566,7 @@ func (this *ImageManager) Download(s *mcclient.ClientSession, id string, format 
 		}
 		return FetchImageMeta(resp.Header), resp.Body, sizeBytes, nil
 	} else {
-		_, _, err = s.ParseJSONResponse(resp, err)
+		_, _, err = s.ParseJSONResponse("", resp, err)
 		return nil, nil, -1, err
 	}
 }

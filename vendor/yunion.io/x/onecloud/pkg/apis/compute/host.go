@@ -23,13 +23,23 @@ import (
 type HostSpec struct {
 	apis.Meta
 
-	Cpu         int            `json:"cpu"`
-	Mem         int            `json:"mem"`
-	NicCount    int            `json:"nic_count"`
-	Manufacture string         `json:"manufacture"`
-	Model       string         `json:"model"`
-	Disk        DiskDriverSpec `json:"disk"`
-	Driver      string         `json:"driver"`
+	Cpu             int                  `json:"cpu"`
+	Mem             int                  `json:"mem"`
+	NicCount        int                  `json:"nic_count"`
+	Manufacture     string               `json:"manufacture"`
+	Model           string               `json:"model"`
+	Disk            DiskDriverSpec       `json:"disk"`
+	Driver          string               `json:"driver"`
+	IsolatedDevices []IsolatedDeviceSpec `json:"isolated_devices"`
+}
+
+type IsolatedDeviceSpec struct {
+	apis.Meta
+
+	DevType string `json:"dev_type"`
+	Model   string `json:"model"`
+	PciId   string `json:"pci_id"`
+	Vendor  string `json:"vendor"`
 }
 
 type DiskDriverSpec map[string]DiskAdapterSpec
@@ -141,7 +151,7 @@ type HostDetails struct {
 	NonsystemGuests int `json:"nonsystem_guests"`
 	// 运行中云主机数量
 	// example: 2
-	RunningGuests int `json:"running_geusts"`
+	RunningGuests int `json:"running_guests"`
 	// CPU超分率
 	CpuCommitRate float64 `json:"cpu_commit_rate"`
 	// 内存超分率
@@ -154,6 +164,8 @@ type HostDetails struct {
 	Storage int64 `json:"storage"`
 	// 已使用存储大小
 	StorageUsed int64 `json:"storage_used"`
+	// 实际已使用存储大小
+	ActualStorageUsed int64 `json:"actual_storage_used"`
 	// 浪费存储大小(异常磁盘存储大小)
 	StorageWaste int64 `json:"storage_waste"`
 	// 虚拟存储大小
@@ -161,18 +173,25 @@ type HostDetails struct {
 	// 可用存储大小
 	StorageFree int64 `json:"storage_free"`
 	// 存储超分率
-	StorageCommitRate float64             `json:"storage_commit_rate"`
+	StorageCommitRate float64 `json:"storage_commit_rate"`
+
 	Spec              *jsonutils.JSONDict `json:"spec"`
 	IsPrepaidRecycle  bool                `json:"is_prepaid_recycle"`
 	CanPrepare        bool                `json:"can_prepare"`
 	PrepareFailReason string              `json:"prepare_fail_reason"`
 	// 允许开启宿主机健康检查
-	AllowHealthCheck bool `json:"allow_health_check"`
+	AllowHealthCheck      bool `json:"allow_health_check"`
+	AutoMigrateOnHostDown bool `json:"auto_migrate_on_host_down"`
 
 	// reserved resource for isolated device
 	ReservedResourceForGpu IsolatedDeviceReservedResourceInput `json:"reserved_resource_for_gpu"`
 	// isolated device count
 	IsolatedDeviceCount int
+
+	// host init warnning
+	SysWarn string `json:"sys_warn"`
+	// host init error info
+	SysError string `json:"sys_error"`
 
 	// 标签
 	Metadata map[string]string `json:"metadata"`
@@ -227,18 +246,22 @@ type HostFilterListInputBase struct {
 
 type HostResourceInput struct {
 	// 宿主机或物理机（ID或Name）
-	Host string `json:"host"`
+	HostId string `json:"host_id"`
 	// swagger:ignore
 	// Deprecated
 	// filter by host_id
-	HostId string `json:"host_id" "yunion:deprecated-by":"host"`
+	Host string `json:"host" yunion-deprecated-by:"host_id"`
 }
 
 type HostRegisterMetadata struct {
 	apis.Meta
 
-	OnKubernetes bool   `json:"on_kubernetes"`
-	Hostname     string `json:"hostname"`
+	OnKubernetes                 bool   `json:"on_kubernetes"`
+	Hostname                     string `json:"hostname"`
+	SysError                     string `json:"sys_error,allowempty"`
+	SysWarn                      string `json:"sys_warn,allowempty"`
+	RootPartitionTotalCapacityMB int64  `json:"root_partition_total_capacity_mb"`
+	RootPartitionUsedCapacityMB  int64  `json:"root_partition_used_capacity_mb"`
 }
 
 type HostAccessAttributes struct {

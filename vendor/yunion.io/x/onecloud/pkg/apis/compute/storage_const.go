@@ -106,8 +106,10 @@ const (
 )
 
 var (
-	DISK_TYPES            = []string{DISK_TYPE_ROTATE, DISK_TYPE_SSD, DISK_TYPE_HYBRID}
-	STORAGE_LOCAL_TYPES   = []string{STORAGE_LOCAL, STORAGE_BAREMETAL, STORAGE_UCLOUD_LOCAL_NORMAL, STORAGE_UCLOUD_LOCAL_SSD, STORAGE_UCLOUD_EXCLUSIVE_LOCAL_DISK}
+	DISK_TYPES          = []string{DISK_TYPE_ROTATE, DISK_TYPE_SSD, DISK_TYPE_HYBRID}
+	STORAGE_LOCAL_TYPES = []string{STORAGE_LOCAL, STORAGE_BAREMETAL, STORAGE_UCLOUD_LOCAL_NORMAL, STORAGE_UCLOUD_LOCAL_SSD, STORAGE_UCLOUD_EXCLUSIVE_LOCAL_DISK,
+		STORAGE_EPHEMERAL_SSD, STORAGE_LOCAL_BASIC, STORAGE_LOCAL_SSD, STORAGE_LOCAL_PRO, STORAGE_OPENSTACK_NOVA,
+		STORAGE_ZSTACK_LOCAL_STORAGE, STORAGE_GOOGLE_LOCAL_SSD}
 	STORAGE_SUPPORT_TYPES = STORAGE_LOCAL_TYPES
 	STORAGE_ALL_TYPES     = []string{
 		STORAGE_LOCAL, STORAGE_BAREMETAL, STORAGE_SHEEPDOG,
@@ -127,7 +129,7 @@ var (
 		STORAGE_ZSTACK_LOCAL_STORAGE, STORAGE_ZSTACK_CEPH, STORAGE_GPFS,
 	}
 
-	HOST_STORAGE_LOCAL_TYPES = []string{STORAGE_LOCAL, STORAGE_BAREMETAL, STORAGE_ZSTACK_LOCAL_STORAGE}
+	HOST_STORAGE_LOCAL_TYPES = []string{STORAGE_LOCAL, STORAGE_BAREMETAL, STORAGE_ZSTACK_LOCAL_STORAGE, STORAGE_OPENSTACK_NOVA}
 
 	STORAGE_LIMITED_TYPES = []string{STORAGE_LOCAL, STORAGE_BAREMETAL, STORAGE_NAS, STORAGE_RBD, STORAGE_NFS, STORAGE_GPFS}
 
@@ -140,11 +142,11 @@ var (
 
 type StorageResourceInput struct {
 	// 存储（ID或Name）
-	Storage string `json:"storage"`
+	StorageId string `json:"storage_id"`
 	// swagger:ignore
 	// Deprecated
 	// filter by storage_id
-	StorageId string `json:"storage_id" "yunion:deprecated-by":"storage"`
+	Storage string `json:"storage" yunion-deprecated-by:"storage_id"`
 }
 
 type StorageFilterListInputBase struct {
@@ -181,4 +183,10 @@ type StorageListInput struct {
 
 	UsableResourceListInput
 	StorageShareFilterListInput
+
+	// filter by host schedtag
+	HostSchedtagId string `json:"host_schedtag_id"`
+
+	// filter by cachedimage
+	ImageId string `json:"image_id"`
 }

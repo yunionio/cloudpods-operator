@@ -36,7 +36,3 @@ type CertificateDetails struct {
 	CaCertificate string `json:"ca_certificate"`
 	CaPrivateKey  string `json:"ca_private_key"`
 }
-
-const (
-	SERVICE_TYPE_ETCD = "etcd"
-)

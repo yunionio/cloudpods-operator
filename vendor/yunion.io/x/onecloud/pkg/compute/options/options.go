@@ -17,6 +17,7 @@ package options
 import (
 	common_options "yunion.io/x/onecloud/pkg/cloudcommon/options"
 	"yunion.io/x/onecloud/pkg/cloudcommon/pending_delete"
+	"yunion.io/x/onecloud/pkg/multicloud/esxi"
 )
 
 type ComputeOptions struct {
@@ -78,6 +79,7 @@ type ComputeOptions struct {
 
 	DefaultGlobalvpcQuota    int `default:"10" help:"Common global Vpc quota per domain, default 10"`
 	DefaultCloudaccountQuota int `default:"20" help:"Common cloud account quota per domain, default 20"`
+	DefaultDnsZoneQuota      int `default:"20" help:"Common dns zone quota per domain, default 10"`
 
 	DefaultHostQuota int `default:"500" help:"Common host quota per domain, default 500"`
 	DefaultVpcQuota  int `default:"500" help:"Common vpc quota per domain, default 500"`
@@ -138,10 +140,24 @@ type ComputeOptions struct {
 
 	ScheduledTaskQueueSize int `help:"the maximum number of scheduled tasks that are being executed simultaneously" default:"100"`
 
+	ReconcileGuestBackupIntervalSeconds int `help:"interval reconcile guest bakcups" default:"30"`
+
+	EnableAutoRenameProject bool `help:"when it set true, auto create project will rename when cloud project name changed" default:"false"`
+
+	SyncStorageCapacityUsedIntervalMinutes int `help:"interval sync storage capacity used" default:"10"`
+
+	LockStorageFromCachedimage bool `help:"must use storage in where selected cachedimage when creating vm"`
+
 	SCapabilityOptions
 	SASControllerOptions
 	common_options.CommonOptions
 	common_options.DBOptions
+
+	EnableAutoMergeSecurityGroup bool `help:"Enable auto merge secgroup when sync security group from cloud, default False" default:"false"`
+
+	DefaultNetworkGatewayAddressEsxi uint32 `help:"Default address for network gateway" default:"1"`
+
+	esxi.EsxiOptions
 }
 
 type SCapabilityOptions struct {
