@@ -37,11 +37,11 @@ type SchedtagCreateInput struct {
 
 type SchedtagResourceInput struct {
 	// 以关联的调度标签（ID或Name）过滤列表
-	Schedtag string `json:"schedtag"`
+	SchedtagId string `json:"schedtag_id"`
 	// swagger:ignore
 	// Deprecated
 	// filter by schedtag_id
-	SchedtagId string `json:"schedtag_id" "yunion:deprecated-by":"schedtag"`
+	Schedtag string `json:"schedtag" yunion-deprecated-by:"schedtag_id"`
 }
 
 type SchedtagFilterListInput struct {
@@ -61,11 +61,11 @@ type SchedtagListInput struct {
 	apis.ScopedResourceBaseListInput
 
 	// fitler by resource_type
-	ResourceType string `json:"resource_type"`
+	ResourceType []string `json:"resource_type"`
 	// swagger:ignore
 	// Deprecated
 	// filter by type, alias for resource_type
-	Type string `json:"type" "yunion:deprecated-by":"resource_type"`
+	Type string `json:"type" yunion-deprecated-by:"resource_type"`
 
 	DefaultStrategy []string `json:"default_strategy"`
 }
@@ -82,6 +82,7 @@ type SchedtagDetails struct {
 	HostCount        int    `json:"host_count"`
 	ServerCount      int    `json:"server_count"`
 	OtherCount       int    `json:"other_count"`
+	ResourceCount    int    `json:"resource_count"`
 	JoinModelKeyword string `json:"join_model_keyword"`
 }
 

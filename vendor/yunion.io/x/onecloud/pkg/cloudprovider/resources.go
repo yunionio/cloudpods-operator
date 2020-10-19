@@ -23,6 +23,7 @@ import (
 
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/util/billing"
+	"yunion.io/x/onecloud/pkg/util/rbacutils"
 )
 
 type ICloudResource interface {
@@ -70,7 +71,7 @@ type ICloudRegion interface {
 	GetIDiskById(id string) (ICloudDisk, error)
 
 	GetISecurityGroupById(secgroupId string) (ICloudSecurityGroup, error)
-	GetISecurityGroupByName(vpcId string, name string) (ICloudSecurityGroup, error)
+	GetISecurityGroupByName(opts *SecurityGroupFilterOptions) (ICloudSecurityGroup, error)
 	CreateISecurityGroup(conf *SecurityGroupCreateInput) (ICloudSecurityGroup, error)
 
 	CreateIVpc(name string, desc string, cidr string) (ICloudVpc, error)
@@ -155,7 +156,7 @@ type ICloudZone interface {
 }
 
 type ICloudImage interface {
-	ICloudResource
+	IVirtualResource
 
 	Delete(ctx context.Context) error
 	GetIStoragecache() ICloudStoragecache
@@ -172,6 +173,7 @@ type ICloudImage interface {
 	GetImageFormat() string
 	GetCreatedAt() time.Time
 	UEFI() bool
+	GetPublicScope() rbacutils.TRbacScope
 }
 
 type ICloudStoragecache interface {
@@ -200,6 +202,7 @@ type ICloudStorage interface {
 	GetStorageType() string
 	GetMediumType() string
 	GetCapacityMB() int64 // MB
+	GetCapacityUsedMB() int64
 	GetStorageConf() jsonutils.JSONObject
 	GetEnabled() bool
 
@@ -246,6 +249,8 @@ type ICloudHost interface {
 
 	CreateVM(desc *SManagedVMCreateConfig) (ICloudVM, error)
 	GetIHostNics() ([]ICloudHostNetInterface, error)
+
+	GetSchedtags() ([]string, error)
 }
 
 type ICloudVM interface {
@@ -312,6 +317,8 @@ type ICloudVM interface {
 	LiveMigrateVM(hostid string) error
 
 	GetError() error
+
+	SetMetadata(tags map[string]string, replace bool) error
 }
 
 type ICloudNic interface {
@@ -345,7 +352,7 @@ type ICloudEIP interface {
 }
 
 type ICloudSecurityGroup interface {
-	ICloudResource
+	IVirtualResource
 
 	GetDescription() string
 	GetRules() ([]SecurityRule, error)
@@ -442,6 +449,12 @@ type ICloudVpc interface {
 
 	GetIWireById(wireId string) (ICloudWire, error)
 	GetINatGateways() ([]ICloudNatGateway, error)
+
+	GetICloudVpcPeeringConnections() ([]ICloudVpcPeeringConnection, error)
+	GetICloudVpcPeeringConnectionById(id string) (ICloudVpcPeeringConnection, error)
+	CreateICloudVpcPeeringConnection(opts *VpcPeeringConnectionCreateOptions) (ICloudVpcPeeringConnection, error)
+	AcceptICloudVpcPeeringConnection(id string) error
+	GetAuthorityOwnerId() string
 }
 
 type ICloudWire interface {
@@ -453,7 +466,7 @@ type ICloudWire interface {
 
 	GetINetworkById(netid string) (ICloudNetwork, error)
 
-	CreateINetwork(name string, cidr string, desc string) (ICloudNetwork, error)
+	CreateINetwork(opts *SNetworkCreateOptions) (ICloudNetwork, error)
 }
 
 type ICloudNetwork interface {
@@ -466,8 +479,11 @@ type ICloudNetwork interface {
 	GetIpMask() int8
 	GetGateway() string
 	GetServerType() string
-	// GetIsPublic() bool
-	// GetPublicScope() rbacutils.TRbacScope
+	//GetIsPublic() bool
+	// 仅私有云有用，公有云无效
+	// 1. scope = none 非共享, network仅会属于一个项目,并且私有
+	// 2. scope = system 系统共享 云账号共享会跟随云账号共享，云账号非共享,会共享到network所在域
+	GetPublicScope() rbacutils.TRbacScope
 
 	Delete() error
 
@@ -483,6 +499,7 @@ type ICloudHostNetInterface interface {
 	GetIpAddr() string
 	GetMtu() int32
 	GetNicType() string
+	GetBridge() string
 }
 
 type ICloudLoadbalancer interface {
@@ -964,8 +981,14 @@ type IClouduser interface {
 	GetICloudgroups() ([]ICloudgroup, error)
 
 	GetISystemCloudpolicies() ([]ICloudpolicy, error)
-	AttachSystemPolicy(policyType string) error
-	DetachSystemPolicy(policyId string) error
+	GetICustomCloudpolicies() ([]ICloudpolicy, error)
+
+	AttachSystemPolicy(policyName string) error
+	DetachSystemPolicy(policyName string) error
+
+	AttachCustomPolicy(policyName string) error
+	DetachCustomPolicy(policyName string) error
+
 	Delete() error
 
 	ResetPassword(password string) error
@@ -976,8 +999,12 @@ type IClouduser interface {
 type ICloudpolicy interface {
 	GetGlobalId() string
 	GetName() string
-	//GetPolicyType() string
 	GetDescription() string
+
+	GetDocument() (*jsonutils.JSONDict, error)
+	UpdateDocument(*jsonutils.JSONDict) error
+
+	Delete() error
 }
 
 // 公有云用户组
@@ -986,13 +1013,61 @@ type ICloudgroup interface {
 	GetName() string
 	GetDescription() string
 	GetISystemCloudpolicies() ([]ICloudpolicy, error)
+	GetICustomCloudpolicies() ([]ICloudpolicy, error)
 	GetICloudusers() ([]IClouduser, error)
 
 	AddUser(name string) error
 	RemoveUser(name string) error
 
-	AttachSystemPolicy(policyId string) error
-	DetachSystemPolicy(policyId string) error
+	AttachSystemPolicy(policyName string) error
+	DetachSystemPolicy(policyName string) error
+
+	AttachCustomPolicy(policyName string) error
+	DetachCustomPolicy(policyName string) error
+
+	Delete() error
+}
+
+type ICloudDnsZone interface {
+	ICloudResource
+
+	GetZoneType() TDnsZoneType
+	GetOptions() *jsonutils.JSONDict
+
+	GetICloudVpcIds() ([]string, error)
+	AddVpc(*SPrivateZoneVpc) error
+	RemoveVpc(*SPrivateZoneVpc) error
+
+	GetIDnsRecordSets() ([]ICloudDnsRecordSet, error)
+	SyncDnsRecordSets(common, add, del, update []DnsRecordSet) error
+
+	Delete() error
+
+	GetDnsProductType() TDnsProductType
+}
+
+type ICloudDnsRecordSet interface {
+	GetGlobalId() string
+
+	GetDnsName() string
+	GetStatus() string
+	GetEnabled() bool
+	GetDnsType() TDnsType
+	GetDnsValue() string
+	GetTTL() int64
+	GetMxPriority() int64
+
+	GetPolicyType() TDnsPolicyType
+	GetPolicyValue() TDnsPolicyValue
+	GetPolicyOptions() *jsonutils.JSONDict
+}
+
+type ICloudVpcPeeringConnection interface {
+	ICloudResource
+
+	GetPeerVpcId() string
+	GetPeerAccountId() string
+	GetEnabled() bool
 
 	Delete() error
 }

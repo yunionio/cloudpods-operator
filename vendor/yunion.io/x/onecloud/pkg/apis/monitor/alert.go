@@ -165,10 +165,14 @@ type ResultLogEntry struct {
 
 // EvalMatch represents the series violating the threshold.
 type EvalMatch struct {
-	Condition string            `json:"condition"`
-	Value     *float64          `json:"value"`
-	Metric    string            `json:"metric"`
-	Tags      map[string]string `json:"tags"`
+	Condition       string            `json:"condition"`
+	Value           *float64          `json:"value"`
+	ValueStr        string            `json:"value_str"`
+	Metric          string            `json:"metric"`
+	MeasurementDesc string            `json:"measurement_desc"`
+	FieldDesc       string            `json:"field_desc"`
+	Tags            map[string]string `json:"tags"`
+	Unit            string            `json:"unit"`
 }
 
 type AlertTestRunOutput struct {

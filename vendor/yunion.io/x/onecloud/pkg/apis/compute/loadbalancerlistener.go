@@ -19,11 +19,12 @@ import "yunion.io/x/onecloud/pkg/apis"
 type LoadbalancerListenerDetails struct {
 	apis.VirtualResourceDetails
 	LoadbalancerResourceInfo
+	LoadbalancerAclResourceInfo
+	LoadbalancerCertificateResourceInfo
 
 	SLoadbalancerListener
 
 	BackendGroup        string `json:"backend_group"`
-	AclName             string `json:"acl_name"`
 	CertificateName     string `json:"certificate_name"`
 	OriginCertificateId string `json:"origin_certificate_id"`
 }
@@ -40,12 +41,12 @@ type LoadbalancerListenerResourceInfo struct {
 
 type LoadbalancerListenerResourceInput struct {
 	// 负载均衡监听器
-	Listener string `json:"listener"`
+	ListenerId string `json:"listener_id"`
 
 	// 负载均衡监听器ID
 	// swagger:ignore
 	// Deprecated
-	ListenerId string `json:"listener_id" "yunion:deprecated-by":"listener"`
+	Listener string `json:"listener" yunion-deprecated-by:"listener_id"`
 }
 
 type LoadbalancerListenerFilterListInput struct {

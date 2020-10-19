@@ -28,13 +28,13 @@ type ServerListInput struct {
 
 	HostFilterListInput
 
-	NetworkFilterListInput `"yunion:ambiguous-prefix":"vpc_"`
+	NetworkFilterListInput `yunion-ambiguous-prefix:"vpc_"`
 
 	billing.BillingResourceListInput
 
 	GroupFilterListInput
 	SecgroupFilterListInput
-	//DiskFilterListInput `"yunion:ambiguous-prefix":"storage_"`
+	//DiskFilterListInput `yunion-ambiguous-prefix:"storage_"`
 	ScalingGroupFilterListInput
 
 	// 只列出裸金属主机
@@ -58,19 +58,23 @@ type ServerListInput struct {
 	// enum: asc,desc
 	// OrderByDisk string `json:"order_by_disk"`
 
+	// 根据ip查找机器
+	IpAddr string `json:"ip_addr"`
+
 	// 列出可以挂载指定EIP的主机
 	UsableServerForEip string `json:"usable_server_for_eip"`
 
 	// 列出可以挂载磁盘的主机
 	AttachableServersForDisk string `json:"attachable_servers_for_disk"`
-	// Deprecated:列出可以挂载磁盘的主机
-	Disk string `json:"disk" "yunion:deprecated-by":"attachable_servers_for_disk"`
+	// Deprecated
+	// 列出可以挂载磁盘的主机
+	Disk string `json:"disk" yunion-deprecated-by:"attachable_servers_for_disk"`
 
 	// 按主机资源类型进行排序
 	// enum: shared,prepaid,dedicated
 	ResourceType string `json:"resource_type"`
-	// 返回开启主备机功能的主机
-	GetBackupGuestsOnHost *bool `json:"get_backup_guests_on_host"`
+	// 返回该宿主机上的所有虚拟机，包括备份机
+	GetAllGuestsOnHost string `json:"get_all_guests_on_host"`
 
 	// 根据宿主机 SN 过滤
 	// HostSn string `json:"host_sn"`
@@ -195,6 +199,8 @@ type ServerDetails struct {
 	// IP地址列表字符串
 	// example: 10.165.2.1,172.16.8.1
 	IPs string `json:"ips"`
+	// mac地址信息
+	Macs string `json:"macs"`
 	// 网卡信息
 	Nics []GuestnetworkShortDesc `json:"nics"`
 
@@ -281,19 +287,19 @@ type GuestResourceInfo struct {
 
 type ServerResourceInput struct {
 	// 主机（ID或Name）
-	Server string `json:"server"`
+	ServerId string `json:"server_id"`
 	// swagger:ignore
 	// Deprecated
 	// Filter by guest Id
-	ServerId string `json:"server_id" "yunion:deprecated-by":"server"`
+	Server string `json:"server" yunion-deprecated-by:"server_id"`
 	// swagger:ignore
 	// Deprecated
 	// Filter by guest Id
-	Guest string `json:"guest" "yunion:deprecated-by":"server"`
+	Guest string `json:"guest" yunion-deprecated-by:"server_id"`
 	// swagger:ignore
 	// Deprecated
 	// Filter by guest Id
-	GuestId string `json:"guest_id" "yunion:deprecated-by":"server"`
+	GuestId string `json:"guest_id" yunion-deprecated-by:"server_id"`
 }
 
 type ServerFilterListInput struct {
@@ -344,4 +350,69 @@ type GuestSaveToTemplateInput struct {
 type GuestSyncFixNicsInput struct {
 	// 需要修正的IP地址列表
 	Ip []string `json:"ip"`
+}
+
+type GuestMigrateInput struct {
+	PreferHost   string `json:"prefer_host"`
+	AutoStart    bool   `json:"auto_start"`
+	IsRescueMode bool   `json:"rescue_mode"`
+}
+
+type GuestLiveMigrateInput struct {
+	PreferHost string `json:"prefer_host"`
+}
+
+type GuestSetSecgroupInput struct {
+	// 安全组Id列表
+	// 实例必须处于运行,休眠或者关机状态
+	//
+	//
+	// | 平台		 | 最多绑定安全组数量	|
+	// |-------------|-------------------	|
+	// | Azure       | 1					|
+	// | VMware      | 不支持安全组			|
+	// | Baremetal   | 不支持安全组			|
+	// | ZStack	     | 1					|
+	// | 其他	     | 5					|
+	SecgroupIds []string `json:"secgroup_ids"`
+}
+
+type GuestRevokeSecgroupInput struct {
+	// 安全组Id列表
+	// 实例必须处于运行,休眠或者关机状态
+	SecgroupIds []string `json:"secgroup_ids"`
+}
+
+type GuestAssignSecgroupInput struct {
+	// 安全组Id
+	// 实例必须处于运行,休眠或者关机状态
+	SecgroupId string `json:"secgroup_id"`
+
+	// swagger:ignore
+	// Deprecated
+	Secgrp string `json:"secgrp" yunion-deprecated-by:"secgroup_id"`
+
+	// swagger:ignore
+	// Deprecated
+	Secgroup string `json:"secgroup" yunion-deprecated-by:"secgroup_id"`
+}
+
+type GuestAddSecgroupInput struct {
+	// 安全组Id列表
+	// 实例必须处于运行,休眠或者关机状态
+	//
+	//
+	// | 平台		 | 最多绑定安全组数量	|
+	// |-------------|-------------------	|
+	// | Azure       | 1					|
+	// | VMware      | 不支持安全组			|
+	// | Baremetal   | 不支持安全组			|
+	// | ZStack	     | 1					|
+	// | 其他	     | 5					|
+	SecgroupIds []string `json:"secgroup_ids"`
+}
+
+type ServerRemoteUpdateInput struct {
+	// 是否覆盖替换所有标签
+	ReplaceTags *bool `json:"replace_tags"`
 }

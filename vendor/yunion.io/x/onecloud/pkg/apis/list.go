@@ -30,7 +30,10 @@ type DomainizedResourceListInput struct {
 	DomainizedResourceInput
 
 	// 对具有域属性的资源，严格匹配域ID
-	ProjectDomains []string `json:"project_domains"`
+	ProjectDomainIds []string `json:"project_domain_ids"`
+	// Deprecated
+	// swagger:ignore
+	ProjectDomains []string `json:"project_domains" yunion-deprecated-by:"project_domain_ids"`
 
 	// 按domain名称排序，可能值为asc|desc
 	// pattern: asc|desc
@@ -43,34 +46,45 @@ type ProjectizedResourceListInput struct {
 	ProjectizedResourceInput
 
 	// 对具有项目属性的资源，严格匹配项目ID
-	Projects []string `json:"projects"`
+	ProjectIds []string `json:"project_ids"`
+	// Deprecated
+	// swagger:ignore
+	Projects []string `json:"projects" yunion-deprecated-by:"project_ids"`
 
 	// 按project名称排序，可能值为asc|desc
 	// pattern: asc|desc
 	OrderByProject string `json:"order_by_project"`
 	// swagger:ignore
 	// Deprecated
-	OrderByTenant string `json:"order_by_tenant" "yunion:deprecated-by":"order_by_project"`
+	OrderByTenant string `json:"order_by_tenant" yunion-deprecated-by:"order_by_project"`
 }
 
 type StatusDomainLevelUserResourceListInput struct {
 	StatusDomainLevelResourceListInput
-	UserResourceListInput
+
+	// 查询指定的用户（ID或名称）拥有的资源
+	UserId string `json:"user_id"`
+	// swagger:ignore
+	// Deprecated
+	// Filter by userId
+	User string `json:"user" yunion-deprecated-by:"user_id"`
 }
 
 type UserResourceListInput struct {
 	StandaloneResourceListInput
 	ScopedResourceInput
 
-	// list in admin mode
+	// swagger:ignore
+	// Is an admin call? equivalent to scope=system
+	// Deprecated
 	Admin *bool `json:"admin"`
 
 	// 查询指定的用户（ID或名称）拥有的资源
-	User string `json:"user"`
+	UserId string `json:"user_id"`
 	// swagger:ignore
 	// Deprecated
 	// Filter by userId
-	UserId string `json:"user_id" "yunion:deprecated-by":"user"`
+	User string `json:"user" yunion-deprecated-by:"user_id"`
 }
 
 type ModelBaseListInput struct {
@@ -181,8 +195,19 @@ type MetadataResourceListInput struct {
 	// 通过标签过滤
 	OrderByTag string `json:"order_by_tag"`
 
-	// 返回资源的标签不包含特定的用户标签
-	WithoutUserMeta bool `json:"without_user_meta"`
+	// deprecated
+	// 返回资源的标签不包含用户标签
+	WithoutUserMeta *bool `json:"without_user_meta"`
+
+	// 返回包含用户标签的资源
+	WithUserMeta *bool `json:"with_user_meta"`
+
+	// 返回包含外部标签的资源
+	WithCloudMeta *bool `json:"with_cloud_meta"`
+
+	// 返回包含任意标签的资源
+	WithAnyMeta *bool `json:"with_any_meta"`
+
 	// 返回列表数据中包含资源的标签数据（Metadata）
 	WithMeta *bool `json:"with_meta"`
 }

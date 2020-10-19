@@ -25,7 +25,7 @@ github.com/go-playground/locales
 github.com/go-playground/locales/currency
 # github.com/go-playground/universal-translator v0.16.0
 github.com/go-playground/universal-translator
-# github.com/go-sql-driver/mysql v1.4.1
+# github.com/go-sql-driver/mysql v1.5.0
 github.com/go-sql-driver/mysql
 # github.com/gogo/protobuf v1.2.1
 github.com/gogo/protobuf/gogoproto
@@ -119,6 +119,24 @@ github.com/vishvananda/netlink
 github.com/vishvananda/netlink/nl
 # github.com/vishvananda/netns v0.0.0-20191106174202-0a2b9b5464df
 github.com/vishvananda/netns
+# github.com/vmware/govmomi v0.20.1
+github.com/vmware/govmomi
+github.com/vmware/govmomi/nfc
+github.com/vmware/govmomi/object
+github.com/vmware/govmomi/ovf
+github.com/vmware/govmomi/performance
+github.com/vmware/govmomi/property
+github.com/vmware/govmomi/session
+github.com/vmware/govmomi/task
+github.com/vmware/govmomi/view
+github.com/vmware/govmomi/vim25
+github.com/vmware/govmomi/vim25/debug
+github.com/vmware/govmomi/vim25/methods
+github.com/vmware/govmomi/vim25/mo
+github.com/vmware/govmomi/vim25/progress
+github.com/vmware/govmomi/vim25/soap
+github.com/vmware/govmomi/vim25/types
+github.com/vmware/govmomi/vim25/xml
 # go.etcd.io/etcd v0.5.0-alpha.5.0.20191023171146-3cf2f69b5738
 go.etcd.io/etcd/auth/authpb
 go.etcd.io/etcd/clientv3
@@ -126,6 +144,7 @@ go.etcd.io/etcd/clientv3/balancer
 go.etcd.io/etcd/clientv3/balancer/connectivity
 go.etcd.io/etcd/clientv3/balancer/picker
 go.etcd.io/etcd/clientv3/balancer/resolver/endpoint
+go.etcd.io/etcd/clientv3/concurrency
 go.etcd.io/etcd/clientv3/credentials
 go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes
 go.etcd.io/etcd/etcdserver/etcdserverpb
@@ -183,7 +202,19 @@ golang.org/x/sync/errgroup
 golang.org/x/sys/cpu
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/text v0.3.2
+# golang.org/x/text v0.3.3
+golang.org/x/text/feature/plural
+golang.org/x/text/internal
+golang.org/x/text/internal/catmsg
+golang.org/x/text/internal/format
+golang.org/x/text/internal/language
+golang.org/x/text/internal/language/compact
+golang.org/x/text/internal/number
+golang.org/x/text/internal/stringset
+golang.org/x/text/internal/tag
+golang.org/x/text/language
+golang.org/x/text/message
+golang.org/x/text/message/catalog
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
@@ -191,7 +222,6 @@ golang.org/x/text/unicode/norm
 # golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 golang.org/x/time/rate
 # google.golang.org/appengine v1.6.5
-google.golang.org/appengine/cloudsql
 google.golang.org/appengine/internal
 google.golang.org/appengine/internal/base
 google.golang.org/appengine/internal/datastore
@@ -569,12 +599,13 @@ sigs.k8s.io/yaml
 # yunion.io/x/executor v0.0.0-20200227030256-a18417815e74
 yunion.io/x/executor/apis
 yunion.io/x/executor/client
-# yunion.io/x/jsonutils v0.0.0-20200701074723-fea7ff9d66b6
+# yunion.io/x/jsonutils v0.0.0-20201014025429-7ce189228db6
 yunion.io/x/jsonutils
 # yunion.io/x/log v0.0.0-20200313080802-57a4ce5966b3
 yunion.io/x/log
 yunion.io/x/log/hooks
-# yunion.io/x/onecloud v0.0.0-20200707065357-a6c8089674ac
+# yunion.io/x/onecloud v0.0.0-20201019035712-93d682503e2d
+yunion.io/x/onecloud/locales
 yunion.io/x/onecloud/pkg/ansibleserver/options
 yunion.io/x/onecloud/pkg/apis
 yunion.io/x/onecloud/pkg/apis/ansible
@@ -589,22 +620,35 @@ yunion.io/x/onecloud/pkg/appctx
 yunion.io/x/onecloud/pkg/appsrv
 yunion.io/x/onecloud/pkg/baremetal/options
 yunion.io/x/onecloud/pkg/cloudcommon/consts
+yunion.io/x/onecloud/pkg/cloudcommon/db/lockman
+yunion.io/x/onecloud/pkg/cloudcommon/etcd
+yunion.io/x/onecloud/pkg/cloudcommon/informer
 yunion.io/x/onecloud/pkg/cloudcommon/options
 yunion.io/x/onecloud/pkg/cloudcommon/pending_delete
+yunion.io/x/onecloud/pkg/cloudcommon/syncman
+yunion.io/x/onecloud/pkg/cloudcommon/syncman/watcher
 yunion.io/x/onecloud/pkg/cloudcommon/types
 yunion.io/x/onecloud/pkg/cloudnet/options
 yunion.io/x/onecloud/pkg/cloudprovider
 yunion.io/x/onecloud/pkg/compute/options
 yunion.io/x/onecloud/pkg/esxi/options
+yunion.io/x/onecloud/pkg/hostman/hostinfo/hostconsts
+yunion.io/x/onecloud/pkg/hostman/options
+yunion.io/x/onecloud/pkg/hostman/system_service
 yunion.io/x/onecloud/pkg/httperrors
+yunion.io/x/onecloud/pkg/i18n
 yunion.io/x/onecloud/pkg/image/options
 yunion.io/x/onecloud/pkg/keystone/options
 yunion.io/x/onecloud/pkg/logger/options
 yunion.io/x/onecloud/pkg/mcclient
 yunion.io/x/onecloud/pkg/mcclient/auth
+yunion.io/x/onecloud/pkg/mcclient/informer
 yunion.io/x/onecloud/pkg/mcclient/modulebase
 yunion.io/x/onecloud/pkg/mcclient/modules
 yunion.io/x/onecloud/pkg/monitor/options
+yunion.io/x/onecloud/pkg/multicloud
+yunion.io/x/onecloud/pkg/multicloud/esxi
+yunion.io/x/onecloud/pkg/multicloud/esxi/vcenter
 yunion.io/x/onecloud/pkg/notify/options
 yunion.io/x/onecloud/pkg/proxy
 yunion.io/x/onecloud/pkg/s3gateway/options
@@ -618,6 +662,7 @@ yunion.io/x/onecloud/pkg/util/hashcache
 yunion.io/x/onecloud/pkg/util/httputils
 yunion.io/x/onecloud/pkg/util/iproute2
 yunion.io/x/onecloud/pkg/util/netutils2
+yunion.io/x/onecloud/pkg/util/nopanic
 yunion.io/x/onecloud/pkg/util/ovsutils
 yunion.io/x/onecloud/pkg/util/procutils
 yunion.io/x/onecloud/pkg/util/rbacutils
@@ -626,12 +671,15 @@ yunion.io/x/onecloud/pkg/util/s3auth
 yunion.io/x/onecloud/pkg/util/seclib2
 yunion.io/x/onecloud/pkg/util/streamutils
 yunion.io/x/onecloud/pkg/util/stringutils2
+yunion.io/x/onecloud/pkg/util/version
+yunion.io/x/onecloud/pkg/util/vmdkutils
 yunion.io/x/onecloud/pkg/vpcagent/options
 yunion.io/x/onecloud/pkg/webconsole/options
 yunion.io/x/onecloud/pkg/yunionconf/options
-# yunion.io/x/pkg v0.0.0-20200702065158-82d1bf2beb3a
+# yunion.io/x/pkg v0.0.0-20200814072949-4f1b541857d6
 yunion.io/x/pkg/errors
 yunion.io/x/pkg/gotypes
+yunion.io/x/pkg/sortedmap
 yunion.io/x/pkg/trace
 yunion.io/x/pkg/tristate
 yunion.io/x/pkg/util/cache
@@ -650,7 +698,7 @@ yunion.io/x/pkg/util/version
 yunion.io/x/pkg/utils
 # yunion.io/x/s3cli v0.0.0-20190917004522-13ac36d8687e
 yunion.io/x/s3cli
-# yunion.io/x/sqlchemy v0.0.0-20200702064124-195445bc4b11
+# yunion.io/x/sqlchemy v0.0.0-20201009235752-2ef1a29656b0
 yunion.io/x/sqlchemy
-# yunion.io/x/structarg v0.0.0-20200619020316-f93fbe32ffc7
+# yunion.io/x/structarg v0.0.0-20200720093445-9f850fa222ce
 yunion.io/x/structarg
