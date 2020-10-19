@@ -584,8 +584,9 @@ type CommonAlertTem struct {
 	Database    string `json:"database"`
 	Measurement string `json:"measurement"`
 	//rule operator rule [and|or]
-	Operator string   `json:"operator"`
-	Field    []string `json:"field"`
+	Operator  string   `json:"operator"`
+	Field     []string `json:"field"`
+	FieldFunc string   `json:"field_func"`
 
 	Reduce     string
 	Comparator string  `json:"comparator"`
@@ -628,6 +629,12 @@ func CreateCommonAlert(s *mcclient.ClientSession, tem CommonAlertTem) (jsonutils
 			Params: []string{field},
 		}
 		selectPart := []monitorapi.MetricQueryPart{sel}
+		if len(tem.FieldFunc) != 0 {
+			selectPart = append(selectPart, monitorapi.MetricQueryPart{
+				Type:   tem.FieldFunc,
+				Params: []string{},
+			})
+		}
 		metricQ.Selects = append(metricQ.Selects, selectPart)
 	}
 	if len(tem.Filters) != 0 {
