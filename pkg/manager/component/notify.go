@@ -43,6 +43,7 @@ const (
 	NotifyPluginDingtalkRobot = "dingtalk-robot"
 	NotifyPluginWorkwx        = "workwx"
 	NotifyPluginWorkwxRobot   = "workwx-robot"
+	NotifyPluginWebhook       = "webhook"
 )
 
 type notifyManager struct {
@@ -214,6 +215,7 @@ func (m *notifyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 		newPluginC(NotifyPluginDingtalkRobot),
 		newPluginCWithoutConf(NotifyPluginWorkwx),
 		newPluginCWithoutConf(NotifyPluginWorkwxRobot),
+		newPluginCWithoutConf(NotifyPluginWebhook),
 	}
 	spec := &deploy.Spec.Template.Spec
 	cs := spec.Containers
