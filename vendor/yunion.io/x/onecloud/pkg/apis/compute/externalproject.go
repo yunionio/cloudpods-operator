@@ -25,9 +25,12 @@ const (
 )
 
 type ExternalProjectDetails struct {
-	apis.StatusStandaloneResourceDetails
-	apis.ProjectizedResourceInfo
+	apis.VirtualResourceDetails
 	ManagedResourceInfo
 
 	SExternalProject
+}
+
+type ExternalProjectChangeProjectInput struct {
+	apis.ProjectizedResourceInput
 }

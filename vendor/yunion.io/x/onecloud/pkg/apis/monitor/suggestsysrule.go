@@ -27,16 +27,26 @@ const (
 
 var PROPERTY_TYPE = []string{"databases", "measurements", "metric-measurement"}
 
+var FilterSuggestRuleMeasureMentMap = map[SuggestDriverType]string{
+	SCALE_DOWN:         "vm",
+	REDIS_UNREASONABLE: "dcs",
+	RDS_UNREASONABLE:   "rds",
+	OSS_UNREASONABLE:   "oss",
+}
+
 var METRIC_ATTRI = []string{METRIC_TAG, METRIC_FIELD}
 
 type InfluxMeasurement struct {
 	apis.Meta
-	Database    string
-	Measurement string
-	TagKey      []string
-	TagValue    map[string][]string
-	FieldKey    []string
-	Unit        []string
+	Database               string
+	Measurement            string
+	MeasurementDisplayName string
+	ResType                string
+	TagKey                 []string
+	TagValue               map[string][]string
+	FieldKey               []string
+	FieldDescriptions      map[string]MetricFieldDetail
+	Unit                   []string
 }
 
 type SuggestSysRuleListInput struct {
@@ -84,7 +94,6 @@ type SSuggestSysAlertSetting struct {
 }
 
 type EIPUnused struct {
-	//Status string `json:"status"`
 }
 
 type DiskUnused struct {

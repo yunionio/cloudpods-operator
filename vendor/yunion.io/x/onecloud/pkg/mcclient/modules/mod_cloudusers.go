@@ -15,10 +15,15 @@
 package modules
 
 import (
+	"fmt"
+	"net/url"
+	"strings"
+
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/pkg/errors"
 	"yunion.io/x/pkg/utils"
 
+	api "yunion.io/x/onecloud/pkg/apis/compute"
 	"yunion.io/x/onecloud/pkg/httperrors"
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/mcclient/modulebase"
@@ -50,6 +55,7 @@ func (this *SClouduserManager) GetLoginInfo(s *mcclient.ClientSession, id string
 		Id          string
 		Name        string
 		Secret      string
+		Provider    string
 		IamLoginUrl string
 	}{}
 
@@ -67,7 +73,30 @@ func (this *SClouduserManager) GetLoginInfo(s *mcclient.ClientSession, id string
 		return nil, errors.Wrap(err, "Descrypt")
 	}
 
+	account := ""
+
+	switch user.Provider {
+	case api.CLOUD_PROVIDER_ALIYUN:
+		suffix := strings.TrimPrefix(user.IamLoginUrl, "https://signin.aliyun.com/")
+		suffix = strings.TrimSuffix(suffix, "/login.htm")
+		if len(suffix) > 0 {
+			user.Name = fmt.Sprintf("%s@%s", user.Name, suffix)
+			account = suffix
+		}
+	case api.CLOUD_PROVIDER_QCLOUD, api.CLOUD_PROVIDER_HUAWEI:
+		u, _ := url.Parse(user.IamLoginUrl)
+		if u != nil {
+			account = u.Query().Get("account")
+		}
+	case api.CLOUD_PROVIDER_AWS:
+		account = strings.TrimPrefix(user.IamLoginUrl, "https://")
+		if info := strings.Split(account, "."); len(info) > 0 {
+			account = info[0]
+		}
+	}
+
 	return jsonutils.Marshal(map[string]string{
+		"account":  account,
 		"username": user.Name,
 		"password": password,
 		"url":      user.IamLoginUrl,

@@ -17,37 +17,37 @@ package apis
 type DomainizedResourceInput struct {
 	// 指定项目归属域名称或ID
 	// required: false
-	ProjectDomain string `json:"project_domain" help:"name or id of the belonging domain"`
+	ProjectDomainId string `json:"project_domain_id" help:"name or id of the belonging domain"`
 
 	// swagger:ignore
 	// Deprecated
-	Domain string `json:"domain" "yunion:deprecated-by":"project_domain"`
+	Domain string `json:"domain" yunion-deprecated-by:"project_domain_id"`
 	// swagger:ignore
 	// Deprecated
 	// Project domain Id filter, alias for project_domain
-	ProjectDomainId string `json:"project_domain_id" "yunion:deprecated-by":"project_domain"`
+	ProjectDomain string `json:"project_domain" yunion-deprecated-by:"project_domain_id"`
 	// swagger:ignore
 	// Deprecated
 	// Domain Id filter, alias for project_domain
-	DomainId string `json:"domain_id" "yunion:deprecated-by":"project_domain"`
+	DomainId string `json:"domain_id" yunion-deprecated-by:"project_domain_id"`
 }
 
 type ProjectizedResourceInput struct {
 	// 指定项目的名称或ID
 	// required: false
-	Project string `json:"project"`
+	ProjectId string `json:"project_id"`
 	// swagger:ignore
 	// Deprecated
 	// Filter by project_id, alias for project
-	ProjectId string `json:"project_id" "yunion:deprecated-by":"project"`
+	Project string `json:"project" yunion-deprecated-by:"project_id"`
 	// swagger:ignore
 	// Deprecated
 	// Filter by tenant ID or Name, alias for project
-	Tenant string `json:"tenant" "yunion:deprecated-by":"project"`
+	Tenant string `json:"tenant" yunion-deprecated-by:"project_id"`
 	// swagger:ignore
 	// Deprecated
 	// Filter by tenant_id, alias for project
-	TenantId string `json:"tenant_id" "yunion:deprecated-by":"project"`
+	TenantId string `json:"tenant_id" yunion-deprecated-by:"project_id"`
 }
 
 type DomainizedResourceCreateInput struct {
@@ -73,6 +73,13 @@ type SharableVirtualResourceCreateInput struct {
 	VirtualResourceCreateInput
 
 	SharableResourceBaseCreateInput
+}
+
+type AdminSharableVirtualResourceBaseCreateInput struct {
+	SharableVirtualResourceCreateInput
+
+	// 记录
+	Records string `json:"records"`
 }
 
 type StatusDomainLevelUserResourceCreateInput struct {
@@ -211,14 +218,20 @@ type PerformPublicDomainInput struct {
 	Scope string `json:"scope"`
 
 	// 如果共享范围为域，则在此列表中指定共享的目标域
-	SharedDomains []string `json:"shared_domains"`
+	SharedDomainIds []string `json:"shared_domain_ids"`
+	// Deprecated
+	// swagger:ignore
+	SharedDomains []string `json:"shared_domains" yunion-deprecated-by:"shared_domain_ids"`
 }
 
 type PerformPublicProjectInput struct {
 	PerformPublicDomainInput
 
 	// 如果共享范围为项目，则在此列表中指定共享的目标项目
-	SharedProjects []string `json:"shared_projects"`
+	SharedProjectIds []string `json:"shared_project_ids"`
+	// Deprecated
+	// swagger:ignore
+	SharedProjects []string `json:"shared_projects" yunion-deprecated-by:"shared_project_ids"`
 }
 
 type PerformPrivateInput struct {
@@ -226,6 +239,12 @@ type PerformPrivateInput struct {
 
 type PerformChangeProjectOwnerInput struct {
 	ProjectizedResourceInput
+}
+
+type PerformFreezeInput struct {
+}
+
+type PerformUnfreezeInput struct {
 }
 
 type PerformChangeDomainOwnerInput struct {
@@ -240,7 +259,10 @@ type PerformDisableInput struct {
 
 type StorageForceDetachHostInput struct {
 	// Host id or name
-	Host string `json:"host"`
+	HostId string `json:"host_id"`
+	// Deprecated
+	// swagger:ignore
+	Host string `json:"host" yunion-deprecated-by:"host_id"`
 }
 
 type InfrasResourceBaseCreateInput struct {
@@ -310,6 +332,9 @@ type GetMetadataInput struct {
 	// | 外部标签 | key以ext:为前缀，为从其他平台同步过来的标签 |
 	//
 	Field []string `json:"field"`
+
+	// 按标签前缀过滤
+	Prefix string `json:"prefix"`
 }
 
 // 获取资源标签（元数据）输出
