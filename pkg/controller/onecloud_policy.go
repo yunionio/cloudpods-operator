@@ -15,6 +15,9 @@
 package controller
 
 import (
+	"fmt"
+	"strings"
+
 	"golang.org/x/sync/errgroup"
 
 	"yunion.io/x/jsonutils"
@@ -22,146 +25,246 @@ import (
 
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/mcclient/modules"
-
-	"yunion.io/x/onecloud-operator/pkg/apis/constants"
+	"yunion.io/x/onecloud/pkg/util/httputils"
+	"yunion.io/x/onecloud/pkg/util/rbacutils"
 )
 
-const (
-	PolicyDomainAdmin = `
-# project owner, allow do any with her project resources
-roles:
-  - domainadmin
-scope: domain
-policy:
-  '*': allow
-`
-	PolicyMember = `
-# rbac for normal user, not allow for delete
-scope: project
-roles:
-  - member
-policy:
-  '*':
-    '*':
-      '*': allow
-      delete: deny
-  compute:
-    networks:
-      create: deny
-      perform: deny
-      delete: deny
-      update: deny
-`
-	PolicyProjectFA = `
-# project finance administrator, allow any operation in meter
-roles:
-  - fa
-scope: project
-policy:
-  meter: allow
-`
-	PolicyProjectOwner = `
-# project owner, allow do any with her project resources
-roles:
-  - project_owner
-  - admin
-scope: project
-policy:
-  '*': allow
-  compute:
-    networks:
-      create: deny
-      perform: deny
-      delete: deny
-      update: deny
-`
-	PolicyProjectSA = `
-# project system administrator, allow any operation in compute, image, k8s
-roles:
-  - sa
-scope: project
-policy:
-  compute: allow
-  image: allow
-  k8s: owner
-  compute:
-    networks:
-      create: deny
-      perform: deny
-      delete: deny
-      update: deny
-`
-	PolicySysAdmin = `
-# system wide administrator, root of the platform, can do anything
-projects:
-  - system
-roles:
-  - admin
-scope: system
-policy:
-  '*': allow
-`
-	PolicySysFA = `
-# system wide financial administrator, can do anything wrt billing&metering
-projects:
-  - system
-roles:
-  - fa
-scope: system
-policy:
-  meter: allow
-`
-	PolicySysSA = `
-# system wide ops administrator, can do anything wrt compute/image/k8s
-projects:
-  - system
-roles:
-  - sa
-scope: system
-policy:
-  compute: allow
-  image: allow
-  k8s: allow
-`
+var (
+	allowResult = jsonutils.NewString("allow")
+	denyResult  = jsonutils.NewString("deny")
+
+	editorAction = getEditActionPolicy()
+	viewerAction = getViewerActionPolicy()
 )
 
-type Policies map[string]string
-
-var DefaultPolicies Policies
-var DefaultRoles map[string]string
-
-func init() {
-	DefaultPolicies = map[string]string{
-		constants.PolicyTypeDomainAdmin:  PolicyDomainAdmin,
-		constants.PolicyTypeMember:       PolicyMember,
-		constants.PolicyTypeProjectFA:    PolicyProjectFA,
-		constants.PolicyTypeProjectOwner: PolicyProjectOwner,
-		constants.PolicyTypeProjectSA:    PolicyProjectSA,
-		constants.PolicyTypeSysAdmin:     PolicySysAdmin,
-		constants.PolicyTypeSysFA:        PolicySysFA,
-		constants.PolicyTypeSysSA:        PolicySysSA,
+func getAdminPolicy(services map[string][]string) jsonutils.JSONObject {
+	policy := jsonutils.NewDict()
+	for k, resList := range services {
+		if len(resList) == 0 {
+			policy.Add(allowResult, k)
+		} else {
+			resPolicy := jsonutils.NewDict()
+			for i := range resList {
+				resPolicy.Add(allowResult, resList[i])
+			}
+			policy.Add(resPolicy, k)
+		}
 	}
-
-	DefaultRoles = map[string]string{
-		constants.RoleAdmin:        "系统管理员",
-		constants.RoleFA:           "财务管理员",
-		constants.RoleSA:           "运维管理员",
-		constants.RoleProjectOwner: "项目主管",
-		constants.RoleMember:       "普通成员",
-		constants.RoleDomainAdmin:  "域管理员",
-	}
+	return policy
 }
 
-func PolicyCreate(s *mcclient.ClientSession, policyType string, content string, enable bool) (jsonutils.JSONObject, error) {
-	params := jsonutils.NewDict()
-	params.Add(jsonutils.NewString(policyType), "type")
-	params.Add(jsonutils.NewString(content), "policy")
-	if enable {
-		params.Add(jsonutils.JSONTrue, "enabled")
-	} else {
-		params.Add(jsonutils.JSONFalse, "enabled")
+func getEditActionPolicy() jsonutils.JSONObject {
+	p := jsonutils.NewDict()
+	p.Add(denyResult, "create")
+	p.Add(denyResult, "delete")
+	perform := jsonutils.NewDict()
+	perform.Add(denyResult, "purge")
+	perform.Add(denyResult, "clone")
+	perform.Add(allowResult, "*")
+	p.Add(perform, "perform")
+	p.Add(allowResult, "*")
+	return p
+}
+
+func getViewerActionPolicy() jsonutils.JSONObject {
+	p := jsonutils.NewDict()
+	p.Add(allowResult, "get")
+	p.Add(allowResult, "list")
+	p.Add(denyResult, "*")
+	return p
+}
+
+func getEditorPolicy(services map[string][]string) jsonutils.JSONObject {
+	policy := jsonutils.NewDict()
+	for k, resList := range services {
+		if len(resList) == 0 {
+			resList = []string{"*"}
+		}
+		resPolicy := jsonutils.NewDict()
+		for i := range resList {
+			resPolicy.Add(editorAction, resList[i])
+		}
+		policy.Add(resPolicy, k)
 	}
-	return modules.Policies.Create(s, params)
+	return policy
+}
+
+func getViewerPolicy(services map[string][]string) jsonutils.JSONObject {
+	policy := jsonutils.NewDict()
+	for k, resList := range services {
+		if len(resList) == 0 {
+			resList = []string{"*"}
+		}
+		resPolicy := jsonutils.NewDict()
+		for i := range resList {
+			resPolicy.Add(viewerAction, resList[i])
+		}
+		policy.Add(resPolicy, k)
+	}
+	return policy
+}
+
+func addExtraPolicy(policy *jsonutils.JSONDict, extra map[string]map[string][]string) jsonutils.JSONObject {
+	for s, resources := range extra {
+		resourcePolicy := jsonutils.NewDict()
+		for r, actions := range resources {
+			actionPolicy := jsonutils.NewDict()
+			for i := range actions {
+				actionPolicy.Add(allowResult, actions[i])
+			}
+			actionPolicy.Add(denyResult, "*")
+			resourcePolicy.Add(actionPolicy, r)
+		}
+		policy.Add(resourcePolicy, s)
+	}
+	return policy
+}
+
+func generateAllPolicies() []sPolicyData {
+	ret := make([]sPolicyData, 0)
+	for i := range policyDefinitons {
+		def := policyDefinitons[i]
+		for _, scope := range []rbacutils.TRbacScope{
+			rbacutils.ScopeSystem,
+			rbacutils.ScopeDomain,
+			rbacutils.ScopeProject,
+		} {
+			if scope.HigherEqual(def.Scope) {
+				ps := generatePolicies(scope, def)
+				ret = append(ret, ps...)
+			}
+		}
+	}
+	return ret
+}
+
+type sPolicyData struct {
+	name        string
+	scope       rbacutils.TRbacScope
+	policy      jsonutils.JSONObject
+	description string
+}
+
+func generatePolicies(scope rbacutils.TRbacScope, def sPolicyDefinition) []sPolicyData {
+	level := ""
+	switch scope {
+	case rbacutils.ScopeSystem:
+		level = "sys"
+		if def.Scope == rbacutils.ScopeSystem {
+			level = ""
+		}
+	case rbacutils.ScopeDomain:
+		level = "domain"
+	case rbacutils.ScopeProject:
+		level = "project"
+	}
+
+	type sRoleConf struct {
+		name       string
+		policyFunc func(services map[string][]string) jsonutils.JSONObject
+		fullName   string
+	}
+
+	var roleConfs []sRoleConf
+	if len(def.Services) > 0 {
+		roleConfs = []sRoleConf{
+			{
+				name:       "admin",
+				policyFunc: getAdminPolicy,
+				fullName:   "administrator",
+			},
+			{
+				name:       "editor",
+				policyFunc: getEditorPolicy,
+				fullName:   "editor/operator",
+			},
+			{
+				name:       "viewer",
+				policyFunc: getViewerPolicy,
+				fullName:   "read-only viewer",
+			},
+		}
+	} else {
+		roleConfs = []sRoleConf{
+			{
+				name:       "",
+				policyFunc: nil,
+				fullName:   "",
+			},
+		}
+	}
+
+	ret := make([]sPolicyData, 0)
+	for _, role := range roleConfs {
+		name := fmt.Sprintf("%s%s%s", level, def.Name, role.name)
+		var policy jsonutils.JSONObject
+		if def.Services != nil {
+			policy = role.policyFunc(def.Services)
+		} else {
+			policy = jsonutils.NewDict()
+		}
+		policy = addExtraPolicy(policy.(*jsonutils.JSONDict), def.Extra)
+		desc := fmt.Sprintf("%s-level", scope)
+		if len(def.Name) > 0 {
+			desc += " " + def.Name
+		}
+		if len(role.fullName) > 0 {
+			desc += " " + role.fullName
+		}
+		desc += " policies"
+		ret = append(ret, sPolicyData{
+			name:        name,
+			scope:       scope,
+			policy:      policy,
+			description: strings.TrimSpace(desc),
+		})
+	}
+	return ret
+}
+
+func createOrUpdatePolicy(s *mcclient.ClientSession, policy sPolicyData) error {
+	policyJson, err := modules.Policies.GetByName(s, policy.name, nil)
+	if err != nil {
+		if httputils.ErrorCode(err) == 404 {
+			// not found, to create
+			params := jsonutils.NewDict()
+			params.Add(jsonutils.NewString(policy.name), "name")
+			params.Add(jsonutils.NewString(policy.description), "description")
+			params.Add(policy.policy, "policy")
+			params.Add(jsonutils.NewString(string(policy.scope)), "scope")
+			params.Add(jsonutils.JSONTrue, "enabled")
+			params.Add(jsonutils.JSONTrue, "is_system")
+			params.Add(jsonutils.JSONTrue, "is_public")
+			_, err := modules.Policies.Create(s, params)
+			if err != nil {
+				return errors.Wrap(err, "Policies.Create")
+			}
+			return nil
+		} else {
+			return errors.Wrap(err, "Policies.GetByName")
+		}
+	} else {
+		// find policy, do update
+		remotePolicy, _ := policyJson.Get("policy")
+		if remotePolicy == nil || !policy.policy.Equals(remotePolicy) {
+			// need to update policy data
+			pid, _ := remotePolicy.GetString("id")
+			params := jsonutils.NewDict()
+			params.Add(jsonutils.NewString(policy.description), "description")
+			params.Add(policy.policy, "policy")
+			params.Add(jsonutils.NewString(string(policy.scope)), "scope")
+			params.Add(jsonutils.JSONTrue, "enabled")
+			params.Add(jsonutils.JSONTrue, "is_system")
+			_, err := modules.Policies.Update(s, pid, params)
+			if err != nil {
+				return errors.Wrap(err, "Policies.Update")
+			}
+			return nil
+		} else {
+			// no change, no need to update
+			return nil
+		}
+	}
 }
 
 func PoliciesPublic(s *mcclient.ClientSession, types []string) error {
@@ -208,6 +311,39 @@ func RolesPublic(s *mcclient.ClientSession, roles []string) error {
 	}
 	if err := errgrp.Wait(); err != nil {
 		return err
+	}
+	return nil
+}
+
+func createOrUpdateRole(s *mcclient.ClientSession, role sRoleDefiniton) error {
+	roleJson, err := modules.RolesV3.GetByName(s, role.Name, nil)
+	if err != nil {
+		if httputils.ErrorCode(err) == 404 {
+			// role not exists, create one
+			params := jsonutils.NewDict()
+			params.Add(jsonutils.NewString(role.Name), "name")
+			params.Add(jsonutils.NewString(role.Description), "description")
+			params.Add(jsonutils.JSONTrue, "is_public")
+			roleJson, err = modules.RolesV3.Create(s, params)
+			if err != nil {
+				return errors.Wrap(err, "RolesV3.Create")
+			}
+		} else {
+			return errors.Wrap(err, "RolesV3.GetByName")
+		}
+	} else {
+		// role exists
+	}
+	roleId, _ := roleJson.GetString("id")
+	// perform add policy
+	params := jsonutils.NewDict()
+	if len(role.Project) > 0 {
+		params.Add(jsonutils.NewString(role.Project), "project_id")
+	}
+	params.Add(jsonutils.NewString(role.Policy), "policy_id")
+	_, err = modules.RolesV3.PerformAction(s, roleId, "add-policy", params)
+	if err != nil {
+		return errors.Wrap(err, "RolesV3.PerformAction add-policy")
 	}
 	return nil
 }
