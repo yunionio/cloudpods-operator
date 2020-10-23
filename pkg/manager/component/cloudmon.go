@@ -87,6 +87,7 @@ func (m *cloudmonManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 					# = = = = = = = report rds = = = = = = =
 					echo '*/%d * * * *  timeout  %d /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-rds --interval %d --provider Aliyun 2>&1' >> /etc/crontabs/root
 					echo '*/%d * * * *  timeout  %d /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-rds --interval %d --provider Huawei 2>&1' >> /etc/crontabs/root
+					echo '*/%d * * * *  timeout  %d /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-rds --interval %d --provider Qcloud 2>&1' >> /etc/crontabs/root
 					# = = = = = = = report redis = = = = = = =
 					echo '*/%d * * * *  timeout  %d /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-redis --interval %d --provider Aliyun 2>&1' >> /etc/crontabs/root
 					echo '*/%d * * * *  timeout  %d /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-redis --interval %d --provider Huawei 2>&1' >> /etc/crontabs/root
@@ -107,11 +108,12 @@ func (m *cloudmonManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
 					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
 					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
-					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
+					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration*3,
 					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
 
 					oc.Spec.Cloudmon.CloudmonReportUsageDuration, oc.Spec.Cloudmon.CloudmonReportUsageDuration*60, v1alpha1.APIGatewayComponentType,
 
+					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
 					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
 					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
 
