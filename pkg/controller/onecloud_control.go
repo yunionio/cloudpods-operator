@@ -1179,7 +1179,7 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 			filter := monitor.MetricQueryTag{
 				Key:       "status",
 				Value:     s,
-				Operator:  "==",
+				Operator:  "=",
 				Condition: "OR",
 			}
 			ret = append(ret, filter)
