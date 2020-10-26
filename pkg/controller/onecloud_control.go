@@ -1055,41 +1055,68 @@ func (c monitorComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 	if err != nil {
 		return errors.Wrap(err, "monitorComponent GetCommonAlertOfSys")
 	}
+	tmpAlert := rtnAlert
 	for metric, tem := range alertInfo {
-		match := false
-	search:
-		for _, alert := range rtnAlert {
-			metricDs, err := alert.(*jsonutils.JSONDict).GetArray("common_alert_metric_details")
-			if err != nil {
-				log.Errorln(err)
-				return err
-			}
-			for _, metricD := range metricDs {
-				measurement, err := metricD.GetString("measurement")
-				if err != nil {
-					log.Errorln("get measurement", err)
-					return err
-				}
-				field, err := metricD.GetString("field")
-				if err != nil {
-					log.Errorln("get field", err)
-					return err
-				}
-				if metric == fmt.Sprintf("%s.%s", measurement, field) {
-					match = true
-					break search
-				}
-			}
+		match, id, deleteAlerts, err := c.matchFromRtnAlerts(metric, tmpAlert)
+		if err != nil {
+			return err
 		}
 		if match {
+			_, err := onecloud.UpdateCommonAlert(session, tem, id)
+			if err != nil {
+				log.Errorf("UpdateCommonAlert err:%v", err)
+			}
+			tmpAlert = deleteAlerts
 			continue
 		}
 		_, err = onecloud.CreateCommonAlert(session, tem)
 		if err != nil {
 			log.Errorln("CreateCommonAlert err:", err)
 		}
+		tmpAlert = deleteAlerts
+	}
+	ids := make([]string, 0)
+	for _, alert := range tmpAlert {
+		id, _ := alert.GetString("id")
+		ids = append(ids, id)
+	}
+	if len(ids) != 0 {
+		onecloud.DeleteCommonAlert(session, ids)
 	}
 	return nil
+}
+
+func (c monitorComponent) matchFromRtnAlerts(metric string, rtnAlert []jsonutils.JSONObject) (bool, string,
+	[]jsonutils.JSONObject, error) {
+	match := false
+	id := ""
+	deleteAlerts := make([]jsonutils.JSONObject, 0)
+	for i, alert := range rtnAlert {
+		metricDs, err := alert.(*jsonutils.JSONDict).GetArray("common_alert_metric_details")
+		if err != nil {
+			return match, id, deleteAlerts, errors.Wrap(err, "matchFromRtnAlerts get common_alert_metric_details error")
+		}
+		for _, metricD := range metricDs {
+			measurement, err := metricD.GetString("measurement")
+			if err != nil {
+				return match, id, deleteAlerts, errors.Wrap(err, "matchFromRtnAlerts get measurement error")
+			}
+			field, err := metricD.GetString("field")
+			if err != nil {
+				return match, id, deleteAlerts, errors.Wrap(err, "matchFromRtnAlerts get field error")
+			}
+			if metric == fmt.Sprintf("%s.%s", measurement, field) {
+				match = true
+				id, _ = alert.GetString("id")
+				for start := i + 1; start < len(rtnAlert); start++ {
+					deleteAlerts = append(deleteAlerts, rtnAlert[start])
+				}
+				return match, id, deleteAlerts, nil
+			}
+		}
+		deleteAlerts = append(deleteAlerts, alert)
+	}
+	return match, id, deleteAlerts, nil
 }
 
 func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
@@ -1105,10 +1132,10 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 	memTem := onecloud.CommonAlertTem{
 		Database:    "telegraf",
 		Measurement: "mem",
-		Field:       []string{"free"},
+		Field:       []string{"available"},
 		Comparator:  "<=",
 		Threshold:   524288000,
-		Name:        "mem.free",
+		Name:        "mem.available",
 		Reduce:      "avg",
 	}
 	diskAvaTem := onecloud.CommonAlertTem{
