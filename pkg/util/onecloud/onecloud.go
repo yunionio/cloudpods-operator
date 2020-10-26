@@ -610,6 +610,41 @@ func GetCommonAlertOfSys(session *mcclient.ClientSession) ([]jsonutils.JSONObjec
 }
 
 func CreateCommonAlert(s *mcclient.ClientSession, tem CommonAlertTem) (jsonutils.JSONObject, error) {
+	commonAlert := newCommonalertQuery(tem)
+	input := monitorapi.CommonAlertCreateInput{
+		CommonMetricInputQuery: monitorapi.CommonMetricInputQuery{
+			MetricQuery: []*monitorapi.CommonAlertQuery{&commonAlert},
+		},
+		AlertCreateInput: monitorapi.AlertCreateInput{
+			Name:  tem.Name,
+			Level: "important",
+		},
+		Recipients: []string{monitorapi.CommonAlertDefaultRecipient},
+		AlertType:  monitorapi.CommonAlertSystemAlertType,
+		Scope:      "system",
+	}
+
+	param := jsonutils.Marshal(&input)
+	return modules.CommonAlertManager.Create(s, param)
+}
+
+func UpdateCommonAlert(s *mcclient.ClientSession, tem CommonAlertTem, id string) (jsonutils.JSONObject, error) {
+	commonAlert := newCommonalertQuery(tem)
+	input := monitorapi.CommonAlertUpdateInput{
+		CommonMetricInputQuery: monitorapi.CommonMetricInputQuery{
+			MetricQuery: []*monitorapi.CommonAlertQuery{&commonAlert},
+		},
+	}
+	param := jsonutils.Marshal(&input)
+	param.(*jsonutils.JSONDict).Set("force_update", jsonutils.JSONTrue)
+	return modules.CommonAlertManager.Update(s, id, param)
+}
+
+func DeleteCommonAlert(s *mcclient.ClientSession, ids []string) {
+	modules.CommonAlertManager.BatchDelete(s, ids, jsonutils.NewDict())
+}
+
+func newCommonalertQuery(tem CommonAlertTem) monitorapi.CommonAlertQuery {
 	metricQ := monitorapi.MetricQuery{
 		Alias:        "",
 		Tz:           "",
@@ -656,20 +691,5 @@ func CreateCommonAlert(s *mcclient.ClientSession, tem CommonAlertTem) (jsonutils
 	if tem.FieldOpt != "" {
 		commonAlert.FieldOpt = monitorapi.CommonAlertFieldOpt_Division
 	}
-
-	input := monitorapi.CommonAlertCreateInput{
-		CommonMetricInputQuery: monitorapi.CommonMetricInputQuery{
-			MetricQuery: []*monitorapi.CommonAlertQuery{&commonAlert},
-		},
-		AlertCreateInput: monitorapi.AlertCreateInput{
-			Name:  tem.Name,
-			Level: "important",
-		},
-		Recipients: []string{monitorapi.CommonAlertDefaultRecipient},
-		AlertType:  monitorapi.CommonAlertSystemAlertType,
-		Scope:      "system",
-	}
-
-	param := jsonutils.Marshal(&input)
-	return modules.CommonAlertManager.Create(s, param)
+	return commonAlert
 }
