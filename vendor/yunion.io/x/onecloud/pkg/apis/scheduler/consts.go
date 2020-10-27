@@ -12,22 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package modules
+package scheduler
 
-import "yunion.io/x/onecloud/pkg/mcclient/modulebase"
+import "yunion.io/x/onecloud/pkg/apis"
 
-type DBInstanceSkusManager struct {
-	modulebase.ResourceManager
-}
-
-var (
-	DBInstanceSkus DBInstanceSkusManager
+const (
+	SERVICE_TYPE    = apis.SERVICE_TYPE_SCHEDULER
+	SERVICE_VERSION = ""
 )
-
-func init() {
-	DBInstanceSkus = DBInstanceSkusManager{NewComputeManager("dbinstance_sku", "dbinstance_skus",
-		[]string{},
-		[]string{})}
-
-	registerCompute(&DBInstanceSkus)
-}

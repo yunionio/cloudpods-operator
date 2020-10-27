@@ -86,6 +86,8 @@ type CommonAlertUpdateInput struct {
 	Channel []string `json:"channel"`
 	// 通知接受者
 	Recipients []string `json:"recipients"`
+	// systemalert policy may need update through operator
+	ForceUpdate bool `json:"force_update"`
 }
 
 type CommonAlertDetails struct {
@@ -105,13 +107,14 @@ type CommonAlertMetricDetails struct {
 	Comparator string  `json:"comparator"`
 	Threshold  float64 `json:"threshold"`
 	// metric points'value的运算方式
-	Reduce                 string `json:"reduce"`
-	DB                     string `json:"db"`
-	Measurement            string `json:"measurement"`
-	MeasurementDisplayName string `json:"measurement_display_name"`
-	ResType                string `json:"res_type"`
-	Field                  string `json:"field"`
-	Groupby                string `json:"groupby"`
+	Reduce                 string           `json:"reduce"`
+	DB                     string           `json:"db"`
+	Measurement            string           `json:"measurement"`
+	MeasurementDisplayName string           `json:"measurement_display_name"`
+	ResType                string           `json:"res_type"`
+	Field                  string           `json:"field"`
+	Groupby                string           `json:"groupby"`
+	Filters                []MetricQueryTag `json:"filters"`
 	FieldDescription       MetricFieldDetail
 	FieldOpt               string `json:"field_opt"`
 }

@@ -8,6 +8,7 @@ import (
 
 type sPolicyDefinition struct {
 	Name     string
+	Desc     string
 	Scope    rbacutils.TRbacScope
 	Services map[string][]string
 	Extra    map[string]map[string][]string
@@ -24,6 +25,7 @@ var (
 	policyDefinitons = []sPolicyDefinition{
 		{
 			Name:  "",
+			Desc:  "任意资源",
 			Scope: rbacutils.ScopeProject,
 			Services: map[string][]string{
 				"*": nil,
@@ -31,6 +33,7 @@ var (
 		},
 		{
 			Name:  "dashboard",
+			Desc:  "控制面板查看相关资源",
 			Scope: rbacutils.ScopeProject,
 			Extra: map[string]map[string][]string{
 				"meter": {
@@ -52,6 +55,7 @@ var (
 		},
 		{
 			Name:  "compute",
+			Desc:  "计算服务(云主机与容器)相关资源",
 			Scope: rbacutils.ScopeProject,
 			Services: map[string][]string{
 				"compute": nil,
@@ -61,6 +65,7 @@ var (
 		},
 		{
 			Name:  "server",
+			Desc:  "云主机相关资源",
 			Scope: rbacutils.ScopeProject,
 			Services: map[string][]string{
 				"compute": {
@@ -96,6 +101,7 @@ var (
 		},
 		{
 			Name:  "host",
+			Desc:  "宿主机和物理机相关资源",
 			Scope: rbacutils.ScopeDomain,
 			Services: map[string][]string{
 				"compute": {
@@ -111,6 +117,7 @@ var (
 		},
 		{
 			Name:  "storage",
+			Desc:  "云硬盘存储相关资源",
 			Scope: rbacutils.ScopeDomain,
 			Services: map[string][]string{
 				"compute": {
@@ -120,6 +127,7 @@ var (
 		},
 		{
 			Name:  "loadbalancer",
+			Desc:  "负载均衡相关资源",
 			Scope: rbacutils.ScopeProject,
 			Services: map[string][]string{
 				"compute": {
@@ -146,6 +154,7 @@ var (
 		},
 		{
 			Name:  "oss",
+			Desc:  "对象存储相关资源",
 			Scope: rbacutils.ScopeProject,
 			Services: map[string][]string{
 				"compute": {
@@ -155,6 +164,7 @@ var (
 		},
 		{
 			Name:  "dbinstance",
+			Desc:  "关系型数据库(MySQL等)相关资源",
 			Scope: rbacutils.ScopeProject,
 			Services: map[string][]string{
 				"compute": {
@@ -171,6 +181,7 @@ var (
 		},
 		{
 			Name:  "elasticcache",
+			Desc:  "弹性缓存(Redis等)相关资源",
 			Scope: rbacutils.ScopeProject,
 			Services: map[string][]string{
 				"compute": {
@@ -185,6 +196,7 @@ var (
 		},
 		{
 			Name:  "network",
+			Desc:  "网络相关资源",
 			Scope: rbacutils.ScopeDomain,
 			Services: map[string][]string{
 				"compute": {
@@ -211,6 +223,7 @@ var (
 		},
 		{
 			Name:  "meter",
+			Desc:  "计费计量分析服务相关资源",
 			Scope: rbacutils.ScopeProject,
 			Services: map[string][]string{
 				"meter": nil,
@@ -218,6 +231,7 @@ var (
 		},
 		{
 			Name:  "identity",
+			Desc:  "身份认证(IAM)服务相关资源",
 			Scope: rbacutils.ScopeDomain,
 			Services: map[string][]string{
 				"identity": nil,
@@ -225,6 +239,7 @@ var (
 		},
 		{
 			Name:  "image",
+			Desc:  "镜像服务相关资源",
 			Scope: rbacutils.ScopeProject,
 			Services: map[string][]string{
 				"image": nil,
@@ -232,6 +247,7 @@ var (
 		},
 		{
 			Name:  "monitor",
+			Desc:  "监控服务相关资源",
 			Scope: rbacutils.ScopeProject,
 			Services: map[string][]string{
 				"monitor": nil,
@@ -239,6 +255,7 @@ var (
 		},
 		{
 			Name:  "container",
+			Desc:  "容器服务相关资源",
 			Scope: rbacutils.ScopeProject,
 			Services: map[string][]string{
 				"k8s": nil,
@@ -246,6 +263,7 @@ var (
 		},
 		{
 			Name:  "cloudid",
+			Desc:  "云用户及权限管理相关资源",
 			Scope: rbacutils.ScopeDomain,
 			Services: map[string][]string{
 				"compute": {
@@ -262,6 +280,7 @@ var (
 		},
 		{
 			Name:  "cloudaccount",
+			Desc:  "云账号管理相关资源",
 			Scope: rbacutils.ScopeDomain,
 			Services: map[string][]string{
 				"compute": {
@@ -273,7 +292,8 @@ var (
 			},
 		},
 		{
-			Name:  "project",
+			Name:  "projectresource",
+			Desc:  "项目管理相关资源",
 			Scope: rbacutils.ScopeDomain,
 			Services: map[string][]string{
 				"compute": {
@@ -293,7 +313,8 @@ var (
 			},
 		},
 		{
-			Name:  "domain",
+			Name:  "domainresource",
+			Desc:  "域管理相关资源",
 			Scope: rbacutils.ScopeSystem,
 			Services: map[string][]string{
 				"compute": {
@@ -313,6 +334,7 @@ var (
 		},
 		{
 			Name:  "notify",
+			Desc:  "通知服务相关资源",
 			Scope: rbacutils.ScopeSystem,
 			Services: map[string][]string{
 				"notify": nil,

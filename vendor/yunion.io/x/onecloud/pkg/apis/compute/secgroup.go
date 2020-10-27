@@ -134,6 +134,9 @@ type SecgroupListInput struct {
 
 	ServerFilterListInput
 
+	DBInstanceResourceInput
+	ELasticcacheResourceInput
+
 	// equals
 	Equals string
 
@@ -240,10 +243,29 @@ type GuestsecgroupListInput struct {
 	SecgroupFilterListInput
 }
 
+type ElasticcachesecgroupListInput struct {
+	ElasticcacheJointsListInput
+	SecgroupFilterListInput
+}
+
 type GuestsecgroupDetails struct {
 	GuestJointResourceDetails
 
 	SGuestsecgroup
+
+	// 安全组名称
+	Secgroup string `json:"secgroup"`
+}
+
+//type SElasticcachesecgroup struct {
+//	SElasticcacheJointsBase
+//	SSecurityGroupResourceBase
+//}
+
+type ElasticcachesecgroupDetails struct {
+	ElasticcacheJointResourceDetails
+
+	SElasticcachesecgroup
 
 	// 安全组名称
 	Secgroup string `json:"secgroup"`
@@ -259,4 +281,9 @@ type SecgroupMergeInput struct {
 }
 
 type SecurityGroupPurgeInput struct {
+}
+
+type SecurityGroupCloneInput struct {
+	Name        string
+	Description string
 }

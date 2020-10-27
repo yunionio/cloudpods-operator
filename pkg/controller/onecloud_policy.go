@@ -171,17 +171,17 @@ func generatePolicies(scope rbacutils.TRbacScope, def sPolicyDefinition) []sPoli
 			{
 				name:       "admin",
 				policyFunc: getAdminPolicy,
-				fullName:   "administrator",
+				fullName:   "管理",
 			},
 			{
 				name:       "editor",
 				policyFunc: getEditorPolicy,
-				fullName:   "editor/operator",
+				fullName:   "编辑/操作",
 			},
 			{
 				name:       "viewer",
 				policyFunc: getViewerPolicy,
-				fullName:   "read-only viewer",
+				fullName:   "只读",
 			},
 		}
 	} else {
@@ -204,18 +204,28 @@ func generatePolicies(scope rbacutils.TRbacScope, def sPolicyDefinition) []sPoli
 			policy = jsonutils.NewDict()
 		}
 		policy = addExtraPolicy(policy.(*jsonutils.JSONDict), def.Extra)
-		desc := fmt.Sprintf("%s-level", scope)
-		if len(def.Name) > 0 {
-			desc += " " + def.Name
+		desc := ""
+		switch scope {
+		case rbacutils.ScopeSystem:
+			desc += "全局"
+		case rbacutils.ScopeDomain:
+			desc += "本域内"
+		case rbacutils.ScopeProject:
+			desc += "本项目内"
+		}
+		if len(def.Desc) > 0 {
+			desc += def.Desc
 		}
 		if len(role.fullName) > 0 {
-			desc += " " + role.fullName
+			desc += role.fullName
 		}
-		desc += " policies"
+		desc += "权限"
+		policyJson := jsonutils.NewDict()
+		policyJson.Add(policy, "policy")
 		ret = append(ret, sPolicyData{
 			name:        name,
 			scope:       scope,
-			policy:      policy,
+			policy:      policyJson,
 			description: strings.TrimSpace(desc),
 		})
 	}
@@ -229,6 +239,7 @@ func createOrUpdatePolicy(s *mcclient.ClientSession, policy sPolicyData) error {
 			// not found, to create
 			params := jsonutils.NewDict()
 			params.Add(jsonutils.NewString(policy.name), "name")
+			params.Add(jsonutils.NewString(policy.name), "type")
 			params.Add(jsonutils.NewString(policy.description), "description")
 			params.Add(policy.policy, "policy")
 			params.Add(jsonutils.NewString(string(policy.scope)), "scope")
@@ -246,9 +257,10 @@ func createOrUpdatePolicy(s *mcclient.ClientSession, policy sPolicyData) error {
 	} else {
 		// find policy, do update
 		remotePolicy, _ := policyJson.Get("policy")
-		if remotePolicy == nil || !policy.policy.Equals(remotePolicy) {
+		desc, _ := policyJson.GetString("description")
+		if remotePolicy == nil || !policy.policy.Equals(remotePolicy) || desc != policy.description {
 			// need to update policy data
-			pid, _ := remotePolicy.GetString("id")
+			pid, _ := policyJson.GetString("id")
 			params := jsonutils.NewDict()
 			params.Add(jsonutils.NewString(policy.description), "description")
 			params.Add(policy.policy, "policy")
