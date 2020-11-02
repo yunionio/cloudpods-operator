@@ -124,6 +124,7 @@ server {
     }
 
     location /api {
+        client_body_timeout 60s;
         proxy_pass {{.APIGatewayURL}};
         proxy_redirect   off;
         proxy_set_header Host $host;
@@ -137,6 +138,7 @@ server {
     }
 
     location /api/v1/imageutils/upload {
+        client_body_timeout 60s;
         proxy_pass {{.APIGatewayURL}};
         client_max_body_size 0;
         proxy_http_version 1.1;
@@ -148,6 +150,7 @@ server {
     }
 
     location /api/v1/s3uploads {
+        client_body_timeout 60s;
         proxy_pass {{.APIGatewayURL}};
         client_max_body_size 0;
         proxy_http_version 1.1;
