@@ -85,6 +85,8 @@ server {
     client_header_buffer_size 16k;
     client_max_body_size 8m;
     large_client_header_buffers 2 16k;
+    client_body_timeout 20s;
+    client_header_timeout 20s;
 
 {{.EditionConfig}}
 
