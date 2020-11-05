@@ -588,12 +588,13 @@ type CommonAlertTem struct {
 	Field     []string `json:"field"`
 	FieldFunc string   `json:"field_func"`
 
-	Reduce     string
-	Comparator string  `json:"comparator"`
-	Threshold  float64 `json:"threshold"`
-	Filters    []monitorapi.MetricQueryTag
-	FieldOpt   string `json:"field_opt"`
-	Name       string
+	Reduce      string
+	Comparator  string  `json:"comparator"`
+	Threshold   float64 `json:"threshold"`
+	Filters     []monitorapi.MetricQueryTag
+	FieldOpt    string `json:"field_opt"`
+	GetPointStr bool   `json:"get_point_str"`
+	Name        string
 }
 
 func GetCommonAlertOfSys(session *mcclient.ClientSession) ([]jsonutils.JSONObject, error) {
@@ -625,6 +626,9 @@ func CreateCommonAlert(s *mcclient.ClientSession, tem CommonAlertTem) (jsonutils
 	}
 
 	param := jsonutils.Marshal(&input)
+	if tem.GetPointStr {
+		param.(*jsonutils.JSONDict).Set("get_point_str", jsonutils.JSONTrue)
+	}
 	return modules.CommonAlertManager.Create(s, param)
 }
 
@@ -637,6 +641,9 @@ func UpdateCommonAlert(s *mcclient.ClientSession, tem CommonAlertTem, id string)
 	}
 	param := jsonutils.Marshal(&input)
 	param.(*jsonutils.JSONDict).Set("force_update", jsonutils.JSONTrue)
+	if tem.GetPointStr {
+		param.(*jsonutils.JSONDict).Set("get_point_str", jsonutils.JSONTrue)
+	}
 	return modules.CommonAlertManager.Update(s, id, param)
 }
 
@@ -669,6 +676,12 @@ func newCommonalertQuery(tem CommonAlertTem) monitorapi.CommonAlertQuery {
 				Type:   tem.FieldFunc,
 				Params: []string{},
 			})
+			if tem.GetPointStr {
+				selectPart = append(selectPart, monitorapi.MetricQueryPart{
+					Type:   "alias",
+					Params: []string{field},
+				})
+			}
 		}
 		metricQ.Selects = append(metricQ.Selects, selectPart)
 	}

@@ -1216,7 +1216,7 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 	hostRaidTem := onecloud.CommonAlertTem{
 		Database:    "telegraf",
 		Measurement: "host_raid",
-		Field:       []string{"adapter"},
+		Field:       []string{"adapter", "status", "slot"},
 		FieldFunc:   "last",
 		Comparator:  ">=",
 		Threshold:   0,
@@ -1227,8 +1227,9 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 			"rebuilding",
 			"out of sync",
 		),
-		Name:   "host_raid.adapter",
-		Reduce: "last",
+		Name:        "host_raid.adapter",
+		GetPointStr: true,
+		Reduce:      "last",
 	}
 	cloudaccountTem := onecloud.CommonAlertTem{
 		Database:    "meter_db",
