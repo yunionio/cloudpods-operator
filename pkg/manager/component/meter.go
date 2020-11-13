@@ -38,6 +38,9 @@ func newMeterManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *meterManager) Sync(oc *v1alpha1.OnecloudCluster) error {
+	if !IsEnterpriseEdition(oc) {
+		return nil
+	}
 	return syncComponent(m, oc, oc.Spec.Meter.Disable)
 }
 
