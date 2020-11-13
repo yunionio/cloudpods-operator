@@ -558,29 +558,18 @@ func shouldDoPolicyRoleInit(s *mcclient.ClientSession) (bool, error) {
 }
 
 func doPolicyRoleInit(s *mcclient.ClientSession) error {
-	doInit, err := shouldDoPolicyRoleInit(s)
-	if err != nil {
-		return errors.Wrap(err, "should do policy init")
-	}
-	if !doInit {
-		return nil
-	}
-	klog.Infof("Init policy and role...")
-	for policyType, content := range DefaultPolicies {
-		if _, err := PolicyCreate(s, policyType, content, true); err != nil {
-			return errors.Wrapf(err, "create policy %s", policyType)
+	policies := generateAllPolicies()
+	for i := range policies {
+		err := createOrUpdatePolicy(s, policies[i])
+		if err != nil {
+			return errors.Wrap(err, "createOrUpdatePolicy")
 		}
 	}
-	for role, desc := range DefaultRoles {
-		if _, err := onecloud.EnsureRole(s, role, desc); err != nil {
-			return errors.Wrapf(err, "create role %s", role)
+	for i := range roleDefinitions {
+		err := createOrUpdateRole(s, roleDefinitions[i])
+		if err != nil {
+			return errors.Wrap(err, "createOrUpdateRole")
 		}
-	}
-	if err := RolesPublic(s, constants.PublicRoles); err != nil {
-		return errors.Wrap(err, "public roles")
-	}
-	if err := PoliciesPublic(s, constants.PublicPolicies); err != nil {
-		return errors.Wrap(err, "public policies")
 	}
 	return nil
 }

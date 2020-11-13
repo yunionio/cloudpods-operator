@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vmware/govmomi/nfc"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
@@ -510,8 +511,16 @@ func (self *SVirtualMachine) shutdownVM(ctx context.Context) error {
 	return err
 }
 
-func (self *SVirtualMachine) doDelete(ctx context.Context) error {
+func (self *SVirtualMachine) doDestroy(ctx context.Context) error {
 	vm := self.getVmObj()
+	task, err := vm.Destroy(ctx)
+	if err != nil {
+		return errors.Wrap(err, "unable to destroy vm")
+	}
+	return task.Wait(ctx)
+}
+
+func (self *SVirtualMachine) doDelete(ctx context.Context) error {
 	// detach all disks first
 	for i := range self.vdisks {
 		err := self.doDetachAndDeleteDisk(ctx, &self.vdisks[i])
@@ -520,12 +529,7 @@ func (self *SVirtualMachine) doDelete(ctx context.Context) error {
 		}
 	}
 
-	task, err := vm.Destroy(ctx)
-	if err != nil {
-		log.Errorf("vm.Destroy(ctx) fail %s", err)
-		return err
-	}
-	return task.Wait(ctx)
+	return self.doDestroy(ctx)
 }
 
 func (self *SVirtualMachine) doUnregister(ctx context.Context) error {
@@ -544,7 +548,7 @@ func (self *SVirtualMachine) DeleteVM(ctx context.Context) error {
 	if err != nil {
 		return self.doUnregister(ctx)
 	}
-	return self.doDelete(ctx)
+	return self.doDestroy(ctx)
 }
 
 func (self *SVirtualMachine) doDetachAndDeleteDisk(ctx context.Context, vdisk *SVirtualDisk) error {
@@ -730,8 +734,13 @@ func (self *SVirtualMachine) fetchHardwareInfo() error {
 		return fmt.Errorf("invalid vm")
 	}
 
-	for i := 0; i < len(moVM.Config.Hardware.Device); i += 1 {
-		dev := moVM.Config.Hardware.Device[i]
+	// sort devices via their Key
+	devices := moVM.Config.Hardware.Device
+	sort.Slice(devices, func(i, j int) bool {
+		return devices[i].GetVirtualDevice().Key < devices[j].GetVirtualDevice().Key
+	})
+	for i := 0; i < len(devices); i += 1 {
+		dev := devices[i]
 		devType := reflect.Indirect(reflect.ValueOf(dev)).Type()
 
 		etherType := reflect.TypeOf((*types.VirtualEthernetCard)(nil)).Elem()
@@ -742,7 +751,7 @@ func (self *SVirtualMachine) fetchHardwareInfo() error {
 		if reflectutils.StructContains(devType, etherType) {
 			self.vnics = append(self.vnics, NewVirtualNIC(self, dev, len(self.vnics)))
 		} else if reflectutils.StructContains(devType, diskType) {
-			self.vdisks = append(self.vdisks, NewVirtualDisk(self, dev, len(self.vnics)))
+			self.vdisks = append(self.vdisks, NewVirtualDisk(self, dev, len(self.vdisks)))
 		} else if reflectutils.StructContains(devType, vgaType) {
 			self.vga = NewVirtualVGA(self, dev, 0)
 		} else if reflectutils.StructContains(devType, cdromType) {
@@ -933,13 +942,59 @@ func (self *SVirtualMachine) createDriverAndDisk(ctx context.Context, sizeMb int
 	return self.createDiskWithDeviceChange(ctx, deviceChange, sizeMb, uuid, 0, diskKey, scsiKey, "", true)
 }
 
+func (self *SVirtualMachine) copyRootDisk(ctx context.Context, imagePath string, index int) (string, error) {
+	movm := self.getVirtualMachine()
+	if movm.LayoutEx == nil || len(movm.LayoutEx.File) == 0 {
+		return "", fmt.Errorf("invalid LayoutEx")
+	}
+	file := movm.LayoutEx.File[0].Name
+	// find stroage
+	host := self.GetIHost()
+	storages, err := host.GetIStorages()
+	if err != nil {
+		return "", errors.Wrap(err, "host.GetIStorages")
+	}
+	var datastore *SDatastore
+	for i := range storages {
+		ds := storages[i].(*SDatastore)
+		if ds.HasFile(file) {
+			datastore = ds
+			break
+		}
+	}
+	if datastore == nil {
+		return "", fmt.Errorf("can't find storage associated with vm %q", self.GetName())
+	}
+	path := datastore.cleanPath(file)
+	vmDir := strings.Split(path, "/")[0]
+	newImagePath := datastore.getPathString(fmt.Sprintf("%s/%s-%d.vmdk", vmDir, vmDir, index))
+
+	fm := datastore.getDatastoreObj().NewFileManager(datastore.datacenter.getObjectDatacenter(), true)
+	err = fm.Copy(ctx, imagePath, newImagePath)
+	if err != nil {
+		return "", errors.Wrap(err, "unable to copy system disk")
+	}
+	return newImagePath, nil
+}
+
 func (self *SVirtualMachine) createDiskWithDeviceChange(ctx context.Context,
 	deviceChange []types.BaseVirtualDeviceConfigSpec, sizeMb int,
 	uuid string, index int32, diskKey int32, ctlKey int32, imagePath string, check bool) error {
 
+	var err error
+	// copy disk
+	if len(imagePath) > 0 {
+		imagePath, err = self.copyRootDisk(ctx, imagePath, int(index))
+		if err != nil {
+			return errors.Wrap(err, "unable to copyRootDisk")
+		}
+	}
+
 	devSpec := NewDiskDev(int64(sizeMb), imagePath, uuid, index, 0, ctlKey, diskKey)
 	spec := addDevSpec(devSpec)
-	spec.FileOperation = types.VirtualDeviceConfigSpecFileOperationCreate
+	if len(imagePath) == 0 {
+		spec.FileOperation = types.VirtualDeviceConfigSpecFileOperationCreate
+	}
 	configSpec := types.VirtualMachineConfigSpec{}
 	configSpec.DeviceChange = append(deviceChange, spec)
 
@@ -1175,8 +1230,19 @@ func (self *SVirtualMachine) ExportTemplate(ctx context.Context, idx int, diskPa
 	lr := newLeaseLogger("download vmdk", 5)
 	lr.Log()
 	defer lr.End()
+
+	// filter vmdk item
+	vmdkItems := make([]nfc.FileItem, 0, len(info.Items)/2)
+	for i := range info.Items {
+		if strings.HasSuffix(info.Items[i].Path, ".vmdk") {
+			vmdkItems = append(vmdkItems, info.Items[i])
+		} else {
+			log.Infof("item.Path does not end in '.vmdk': %#v", info.Items[i])
+		}
+	}
+
 	log.Debugf("download to %s start...", diskPath)
-	err = lease.DownloadFile(ctx, diskPath, info.Items[idx], soap.Download{Progress: lr})
+	err = lease.DownloadFile(ctx, diskPath, vmdkItems[idx], soap.Download{Progress: lr})
 	if err != nil {
 		return errors.Wrap(err, "lease.DownloadFile")
 	}

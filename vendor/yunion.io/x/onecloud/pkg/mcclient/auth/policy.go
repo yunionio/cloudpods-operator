@@ -12,22 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package modules
+package auth
 
-import "yunion.io/x/onecloud/pkg/mcclient/modulebase"
+import (
+	"context"
 
-type DBInstanceSkusManager struct {
-	modulebase.ResourceManager
-}
-
-var (
-	DBInstanceSkus DBInstanceSkusManager
+	"yunion.io/x/onecloud/pkg/mcclient"
 )
 
-func init() {
-	DBInstanceSkus = DBInstanceSkusManager{NewComputeManager("dbinstance_sku", "dbinstance_skus",
-		[]string{},
-		[]string{})}
+func (a *authManager) fetchMatchPolicies(ctx context.Context, token mcclient.TokenCredential) (*mcclient.SFetchMatchPoliciesOutput, error) {
+	return a.client.FetchMatchPolicies(ctx, token)
+}
 
-	registerCompute(&DBInstanceSkus)
+func FetchMatchPolicies(ctx context.Context, token mcclient.TokenCredential) (*mcclient.SFetchMatchPoliciesOutput, error) {
+	return manager.fetchMatchPolicies(ctx, token)
 }

@@ -106,6 +106,7 @@ type SHostOptions struct {
 	WindowsDefaultAdminUser bool `default:"true" help:"Default account for Windows system is Administrator"`
 
 	HostCpuPassthrough bool `default:"true" help:"if it is true, set qemu cpu type as -cpu host, otherwise, qemu64. default is true"`
+	DisableSetCgroup   bool `default:"false" help:"disable cgroup for guests"`
 
 	MaxReservedMemory int `default:"10240" help:"host reserved memory"`
 
@@ -134,7 +135,8 @@ type SHostOptions struct {
 	HostHealthTimeout   int    `help:"host health timeout" default:"30"`
 	HostLeaseTimeout    int    `help:"lease timeout" default:"10"`
 
-	SyncStorageInfoDurationSecond int `help:"sync storage size duration, unit is second" default:"60"`
+	SyncStorageInfoDurationSecond int  `help:"sync storage size duration, unit is second" default:"60"`
+	StartHostIgnoreSysError       bool `help:"start host agent ignore sys error" default:"false"`
 }
 
 var (

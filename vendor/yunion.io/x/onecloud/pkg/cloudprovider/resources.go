@@ -174,6 +174,7 @@ type ICloudImage interface {
 	GetCreatedAt() time.Time
 	UEFI() bool
 	GetPublicScope() rbacutils.TRbacScope
+	GetSubImages() []SSubImage
 }
 
 type ICloudStoragecache interface {
@@ -511,6 +512,7 @@ type ICloudLoadbalancer interface {
 	GetNetworkIds() []string
 	GetVpcId() string
 	GetZoneId() string
+	GetZone1Id() string // first slave zone
 	GetLoadbalancerSpec() string
 	GetChargeType() string
 	GetEgressMbps() int
@@ -530,6 +532,8 @@ type ICloudLoadbalancer interface {
 
 	CreateILoadBalancerListener(ctx context.Context, listener *SLoadbalancerListener) (ICloudLoadbalancerListener, error)
 	GetILoadBalancerListenerById(listenerId string) (ICloudLoadbalancerListener, error)
+
+	SetMetadata(tags map[string]string, replace bool) error
 }
 
 type ICloudLoadbalancerListener interface {
@@ -759,7 +763,7 @@ type ICloudDBInstance interface {
 	Reboot() error
 
 	GetMasterInstanceId() string
-	GetSecurityGroupId() string
+	GetSecurityGroupIds() ([]string, error)
 	GetPort() int
 	GetEngine() string
 	GetEngineVersion() string
@@ -782,7 +786,7 @@ type ICloudDBInstance interface {
 	GetZone3Id() string
 	GetIVpcId() string
 
-	GetDBNetwork() (*SDBInstanceNetwork, error)
+	GetDBNetworks() ([]SDBInstanceNetwork, error)
 	GetIDBInstanceParameters() ([]ICloudDBInstanceParameter, error)
 	GetIDBInstanceDatabases() ([]ICloudDBInstanceDatabase, error)
 	GetIDBInstanceAccounts() ([]ICloudDBInstanceAccount, error)
@@ -802,6 +806,8 @@ type ICloudDBInstance interface {
 	RecoveryFromBackup(conf *SDBInstanceRecoveryConfig) error
 
 	Delete() error
+
+	SetMetadata(tags map[string]string, replace bool) error
 }
 
 type ICloudDBInstanceParameter interface {
@@ -835,7 +841,9 @@ type ICloudDBInstanceDatabase interface {
 }
 
 type ICloudDBInstanceAccount interface {
-	ICloudResource
+	GetName() string
+	GetStatus() string
+	GetHost() string
 
 	GetIDBInstanceAccountPrivileges() ([]ICloudDBInstanceAccountPrivilege, error)
 
@@ -880,6 +888,7 @@ type ICloudElasticcache interface {
 	GetMaintainEndTime() string
 
 	GetAuthMode() string
+	GetSecurityGroupIds() ([]string, error)
 
 	GetICloudElasticcacheAccounts() ([]ICloudElasticcacheAccount, error)
 	GetICloudElasticcacheAcls() ([]ICloudElasticcacheAcl, error)
@@ -899,11 +908,14 @@ type ICloudElasticcache interface {
 
 	CreateAccount(account SCloudElasticCacheAccountInput) (ICloudElasticcacheAccount, error)
 	CreateAcl(aclName, securityIps string) (ICloudElasticcacheAcl, error)
-	CreateBackup() (ICloudElasticcacheBackup, error)
-	FlushInstance() error
-	UpdateAuthMode(noPasswordAccess bool) error
+	CreateBackup(desc string) (ICloudElasticcacheBackup, error)
+	FlushInstance(input SCloudElasticCacheFlushInstanceInput) error
+	UpdateAuthMode(noPasswordAccess bool, password string) error
 	UpdateInstanceParameters(config jsonutils.JSONObject) error
 	UpdateBackupPolicy(config SCloudElasticCacheBackupPolicyUpdateInput) error
+
+	SetMetadata(tags map[string]string, replace bool) error
+	UpdateSecurityGroups(secgroupIds []string) error
 }
 
 type ICloudElasticcacheAccount interface {
