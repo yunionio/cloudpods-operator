@@ -356,7 +356,7 @@ func (m *etcdManager) createPod(
 }
 
 func (m *etcdManager) customPodSpec(pod *corev1.Pod, mb *etcdutil.Member, state, token string, initialCluster []string) {
-	var imageRepository, version string = m.oc.Spec.ImageRepository, constants.EtcdImageVersion
+	var imageRepository, version = m.oc.Spec.ImageRepository, constants.EtcdImageVersion
 	if len(m.oc.Spec.Etcd.Repository) > 0 {
 		imageRepository = m.oc.Spec.Etcd.Repository
 	}
@@ -389,6 +389,22 @@ func (m *etcdManager) customPodSpec(pod *corev1.Pod, mb *etcdutil.Member, state,
 		pod.Spec.NodeSelector = make(map[string]string)
 	}
 	pod.Spec.NodeSelector[constants.OnecloudControllerLabelKey] = "enable"
+	if pod.Spec.Affinity == nil {
+		pod.Spec.Affinity = new(corev1.Affinity)
+	}
+	pod.Spec.Affinity.PodAntiAffinity = &corev1.PodAntiAffinity{
+		PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+			{
+				Weight: 100,
+				PodAffinityTerm: corev1.PodAffinityTerm{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{"app": "etcd"},
+					},
+					TopologyKey: "kubernetes.io/hostname",
+				},
+			},
+		},
+	}
 }
 
 func (m *etcdManager) newLivenessProbe(isSecure bool) *corev1.Probe {
