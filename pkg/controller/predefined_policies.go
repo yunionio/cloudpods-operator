@@ -36,6 +36,27 @@ var (
 			Desc:  "控制面板查看相关资源",
 			Scope: rbacutils.ScopeProject,
 			Extra: map[string]map[string][]string{
+				"compute": {
+					"capabilities": {
+						"list",
+					},
+					"usages": {
+						"list",
+						"get",
+					},
+				},
+				"image": {
+					"usages": {
+						"list",
+						"get",
+					},
+				},
+				"identity": {
+					"usages": {
+						"list",
+						"get",
+					},
+				},
 				"meter": {
 					"bill_conditions": {
 						"list",
@@ -44,6 +65,9 @@ var (
 				"monitor": {
 					"alertresources": {
 						"list",
+					},
+					"unifiedmonitors": {
+						"perform",
 					},
 				},
 				"log": {
