@@ -6,6 +6,7 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -146,7 +147,18 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 		return nil, err
 	}
 
-	// add pod label for pod affinity
+	/* set host pod TerminationGracePeriodSeconds, default 30s */
+	var terminationGracePeriodSecond int64 = 60 * 5
+	ds.Spec.Template.Spec.TerminationGracePeriodSeconds = &terminationGracePeriodSecond
+
+	/* set host pod max maxUnavailable count, default 1 */
+	if ds.Spec.UpdateStrategy.RollingUpdate == nil {
+		ds.Spec.UpdateStrategy.RollingUpdate = new(apps.RollingUpdateDaemonSet)
+	}
+	var maxUnavailableCount = intstr.FromInt(3)
+	ds.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable = &maxUnavailableCount
+
+	/* add pod label for pod affinity */
 	if ds.Spec.Template.ObjectMeta.Labels == nil {
 		ds.Spec.Template.ObjectMeta.Labels = make(map[string]string)
 	}
