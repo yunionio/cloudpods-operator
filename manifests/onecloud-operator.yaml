@@ -4,7 +4,7 @@ metadata:
   name: onecloud
 ---
 kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: onecloud-operator
 subjects:
@@ -46,11 +46,16 @@ spec:
       serviceAccount: onecloud-operator
       containers:
       - name: onecloud-operator
-        image: registry.cn-beijing.aliyuncs.com/yunionio/onecloud-operator:v3.1.5
+        image: registry.cn-beijing.aliyuncs.com/yunionio/onecloud-operator:v3.4.8
         imagePullPolicy: Always
-        command: ["/bin/onecloud-controller-manager"]
+        command: ["/bin/onecloud-controller-manager", "-sync-user"]
         env:
         - name: NAMESPACE
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+      tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/controlplane
