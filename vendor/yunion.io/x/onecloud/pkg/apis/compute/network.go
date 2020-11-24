@@ -69,6 +69,7 @@ type NetworkListInput struct {
 	WireFilterListInput
 
 	HostResourceInput
+	StorageResourceInput
 
 	UsableResourceListInput
 
@@ -117,6 +118,9 @@ type NetworkListInput struct {
 
 	// filter by Host schedtag
 	HostSchedtagId string `json:"host_schedtag_id"`
+
+	// filter by BGP types
+	BgpType []string `json:"bgp_type"`
 }
 
 type NetworkResourceInfoBase struct {
