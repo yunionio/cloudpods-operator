@@ -40,6 +40,7 @@ type ComputeOptions struct {
 	pending_delete.SPendingDeleteOptions
 
 	PrepaidExpireCheck              bool `default:"false" help:"clean expired servers or disks"`
+	PrepaidDeleteExpireCheck        bool `default:"true" help:"check prepaid expired before delete"`
 	PrepaidExpireCheckSeconds       int  `default:"600" help:"How long to wait to scan expired prepaid VM or disks, default is 10 minutes"`
 	ExpiredPrepaidMaxCleanBatchSize int  `default:"50" help:"How many expired prepaid servers can be deleted in a batch"`
 
@@ -144,7 +145,7 @@ type ComputeOptions struct {
 
 	EnableAutoRenameProject bool `help:"when it set true, auto create project will rename when cloud project name changed" default:"false"`
 
-	SyncStorageCapacityUsedIntervalMinutes int  `help:"interval sync storage capacity used" default:"10"`
+	SyncStorageCapacityUsedIntervalMinutes int  `help:"interval sync storage capacity used" default:"20"`
 	LockStorageFromCachedimage             bool `help:"must use storage in where selected cachedimage when creating vm"`
 
 	SyncExtDiskSnapshotIntervalMinutes int `help:"sync snapshot for external disk" default:"20"`
@@ -157,6 +158,8 @@ type ComputeOptions struct {
 	EnableAutoMergeSecurityGroup bool `help:"Enable auto merge secgroup when sync security group from cloud, default False" default:"false"`
 
 	DefaultNetworkGatewayAddressEsxi uint32 `help:"Default address for network gateway" default:"1"`
+
+	NoCheckOsTypeForCachedImage bool `help:"Don't check os type for cached image"`
 
 	esxi.EsxiOptions
 }
@@ -188,5 +191,15 @@ func OnOptionsChange(oldO, newO interface{}) bool {
 	if common_options.OnCommonOptionsChange(&oldOpts.CommonOptions, &newOpts.CommonOptions) {
 		changed = true
 	}
+	if common_options.OnDBOptionsChange(&oldOpts.DBOptions, &newOpts.DBOptions) {
+		changed = true
+	}
+
+	if oldOpts.PendingDeleteCheckSeconds != newOpts.PendingDeleteCheckSeconds {
+		if !oldOpts.IsSlaveNode {
+			changed = true
+		}
+	}
+
 	return changed
 }

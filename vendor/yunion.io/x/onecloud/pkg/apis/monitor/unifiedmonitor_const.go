@@ -50,4 +50,6 @@ type MetricInputQuery struct {
 	DomainId    string        `json:"domain_id"`
 	ProjectId   string        `json:"project_id"`
 	MetricQuery []*AlertQuery `json:"metric_query"`
+	Signature   string        `json:"signature"`
+	ShowMeta    bool          `json:"show_meta"`
 }
