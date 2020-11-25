@@ -32,6 +32,9 @@ type ElasticcacheDetails struct {
 
 	// 关联安全组列表
 	Secgroups []apis.StandaloneShortDesc `json:"secgroups"`
+
+	// 备可用区列表
+	SlaveZoneInfos []apis.StandaloneShortDesc `json:"slave_zone_infos"`
 }
 
 type ElasticcacheResourceInfo struct {
@@ -199,6 +202,10 @@ type ElasticcacheCreateInput struct {
 
 	// 包年包月时间周期
 	Duration string `json:"duration"`
+
+	// 是否自动续费(仅包年包月时生效)
+	// default: false
+	AutoRenew bool `json:"auto_renew"`
 
 	// swagger:ignore
 	ExpiredAt time.Time `json:"expired_at"`

@@ -24,6 +24,7 @@ import (
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/util/billing"
 	"yunion.io/x/onecloud/pkg/util/rbacutils"
+	"yunion.io/x/onecloud/pkg/util/samlutils"
 )
 
 type ICloudResource interface {
@@ -293,7 +294,7 @@ type ICloudVM interface {
 	// GetSecurityGroup() ICloudSecurityGroup
 
 	StartVM(ctx context.Context) error
-	StopVM(ctx context.Context, isForce bool) error
+	StopVM(ctx context.Context, opts *ServerStopOptions) error
 	DeleteVM(ctx context.Context) error
 
 	UpdateVM(ctx context.Context, name string) error
@@ -320,6 +321,11 @@ type ICloudVM interface {
 	GetError() error
 
 	SetMetadata(tags map[string]string, replace bool) error
+
+	CreateInstanceSnapshot(ctx context.Context, name string, desc string) (ICloudInstanceSnapshot, error)
+	GetInstanceSnapshot(idStr string) (ICloudInstanceSnapshot, error)
+	GetInstanceSnapshots() ([]ICloudInstanceSnapshot, error)
+	ResetToInstanceSnapshot(ctx context.Context, idStr string) error
 }
 
 type ICloudNic interface {
@@ -366,14 +372,20 @@ type ICloudSecurityGroup interface {
 type ICloudRouteTable interface {
 	ICloudResource
 
+	GetAssociations() []RouteTableAssociation
 	GetDescription() string
 	GetRegionId() string
 	GetVpcId() string
-	GetType() string
+	GetType() RouteTableType
 	GetIRoutes() ([]ICloudRoute, error)
+
+	CreateRoute(route RouteSet) error
+	UpdateRoute(route RouteSet) error
+	RemoveRoute(route RouteSet) error
 }
 
 type ICloudRoute interface {
+	ICloudResource
 	GetType() string
 	GetCidr() string
 	GetNextHopType() string
@@ -405,7 +417,6 @@ type ICloudDisk interface {
 	Delete(ctx context.Context) error
 
 	CreateISnapshot(ctx context.Context, name string, desc string) (ICloudSnapshot, error)
-	GetISnapshot(idStr string) (ICloudSnapshot, error)
 	GetISnapshots() ([]ICloudSnapshot, error)
 
 	GetExtSnapshotPolicyIds() ([]string, error)
@@ -422,6 +433,13 @@ type ICloudSnapshot interface {
 	GetSizeMb() int32
 	GetDiskId() string
 	GetDiskType() string
+	Delete() error
+}
+
+type ICloudInstanceSnapshot interface {
+	IVirtualResource
+
+	GetDescription() string
 	Delete() error
 }
 
@@ -445,6 +463,7 @@ type ICloudVpc interface {
 	GetIWires() ([]ICloudWire, error)
 	GetISecurityGroups() ([]ICloudSecurityGroup, error)
 	GetIRouteTables() ([]ICloudRouteTable, error)
+	GetIRouteTableById(routeTableId string) (ICloudRouteTable, error)
 
 	Delete() error
 
@@ -452,10 +471,14 @@ type ICloudVpc interface {
 	GetINatGateways() ([]ICloudNatGateway, error)
 
 	GetICloudVpcPeeringConnections() ([]ICloudVpcPeeringConnection, error)
+	GetICloudAccepterVpcPeeringConnections() ([]ICloudVpcPeeringConnection, error)
 	GetICloudVpcPeeringConnectionById(id string) (ICloudVpcPeeringConnection, error)
 	CreateICloudVpcPeeringConnection(opts *VpcPeeringConnectionCreateOptions) (ICloudVpcPeeringConnection, error)
 	AcceptICloudVpcPeeringConnection(id string) error
+
 	GetAuthorityOwnerId() string
+
+	ProposeJoinICloudInterVpcNetwork(opts *SVpcJointInterVpcNetworkOption) error
 }
 
 type ICloudWire interface {
@@ -828,6 +851,9 @@ type ICloudDBInstanceBackup interface {
 	GetBackupSizeMb() int
 	GetDBNames() string
 	GetBackupMode() string
+	GetBackupMethod() TBackupMethod
+
+	CreateICloudDBInstance(opts *SManagedDBInstanceCreateConfig) (ICloudDBInstance, error)
 
 	Delete() error
 }
@@ -913,6 +939,7 @@ type ICloudElasticcache interface {
 	UpdateAuthMode(noPasswordAccess bool, password string) error
 	UpdateInstanceParameters(config jsonutils.JSONObject) error
 	UpdateBackupPolicy(config SCloudElasticCacheBackupPolicyUpdateInput) error
+	Renew(bc billing.SBillingCycle) error
 
 	SetMetadata(tags map[string]string, replace bool) error
 	UpdateSecurityGroups(secgroupIds []string) error
@@ -1080,6 +1107,50 @@ type ICloudVpcPeeringConnection interface {
 	GetPeerVpcId() string
 	GetPeerAccountId() string
 	GetEnabled() bool
+	Delete() error
+}
+
+type ICloudSAMLProvider interface {
+	ICloudResource
+
+	GetMetadataDocument() (*samlutils.EntityDescriptor, error)
+
+	GetAuthUrl() string
+	Delete() error
+}
+
+type ICloudrole interface {
+	GetGlobalId() string
+	GetName() string
+
+	GetDocument() *jsonutils.JSONDict
+	GetSAMLProvider() string
+
+	GetICloudpolicies() ([]ICloudpolicy, error)
+	AttachPolicy(id string) error
+	DetachPolicy(id string) error
 
 	Delete() error
+}
+
+type ICloudInterVpcNetwork interface {
+	ICloudResource
+	GetAuthorityOwnerId() string
+	GetICloudVpcIds() ([]string, error)
+	AttachVpc(opts *SInterVpcNetworkAttachVpcOption) error
+	DetachVpc(opts *SInterVpcNetworkDetachVpcOption) error
+	Delete() error
+	GetIRoutes() ([]ICloudInterVpcNetworkRoute, error)
+	EnableRouteEntry(routeId string) error
+	DisableRouteEntry(routeId string) error
+}
+
+type ICloudInterVpcNetworkRoute interface {
+	ICloudResource
+	GetInstanceId() string
+	GetInstanceType() string
+	GetInstanceRegionId() string
+
+	GetEnabled() bool
+	GetCidr() string
 }

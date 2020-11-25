@@ -56,5 +56,15 @@ func OnOptionsChange(oldO, newO interface{}) bool {
 		changed = true
 	}
 
+	if common_options.OnDBOptionsChange(&oldOpts.DBOptions, &newOpts.DBOptions) {
+		changed = true
+	}
+
+	if oldOpts.PendingDeleteCheckSeconds != newOpts.PendingDeleteCheckSeconds {
+		if !oldOpts.IsSlaveNode {
+			changed = true
+		}
+	}
+
 	return changed
 }

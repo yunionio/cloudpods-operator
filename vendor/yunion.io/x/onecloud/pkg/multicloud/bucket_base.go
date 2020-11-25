@@ -73,3 +73,39 @@ func (b *SBaseBucket) GetLimit() cloudprovider.SBucketStats {
 func (b *SBaseBucket) SetLimit(limit cloudprovider.SBucketStats) error {
 	return nil
 }
+
+func (b *SBaseBucket) SetWebsite(conf cloudprovider.SBucketWebsiteConf) error {
+	return cloudprovider.ErrNotImplemented
+}
+
+func (b *SBaseBucket) GetWebsiteConf() (cloudprovider.SBucketWebsiteConf, error) {
+	return cloudprovider.SBucketWebsiteConf{}, cloudprovider.ErrNotImplemented
+}
+
+func (b *SBaseBucket) DeleteWebSiteConf() error {
+	return cloudprovider.ErrNotImplemented
+}
+
+func (b *SBaseBucket) SetCORS(rules []cloudprovider.SBucketCORSRule) error {
+	return cloudprovider.ErrNotImplemented
+}
+
+func (b *SBaseBucket) GetCORSRules() ([]cloudprovider.SBucketCORSRule, error) {
+	return nil, cloudprovider.ErrNotImplemented
+}
+
+func (b *SBaseBucket) DeleteCORS(id []string) error {
+	return cloudprovider.ErrNotImplemented
+}
+
+func (b *SBaseBucket) SetReferer(conf cloudprovider.SBucketRefererConf) error {
+	return cloudprovider.ErrNotImplemented
+}
+
+func (b *SBaseBucket) GetReferer() (cloudprovider.SBucketRefererConf, error) {
+	return cloudprovider.SBucketRefererConf{}, cloudprovider.ErrNotImplemented
+}
+
+func (b *SBaseBucket) GetCdnDomains() ([]cloudprovider.SCdnDomain, error) {
+	return nil, cloudprovider.ErrNotImplemented
+}
