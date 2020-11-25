@@ -17,7 +17,7 @@ type sPolicyDefinition struct {
 type sRoleDefiniton struct {
 	Name        string
 	Description string
-	Policy      string
+	Policies    []string
 	Project     string
 }
 
@@ -370,23 +370,28 @@ var (
 		{
 			Name:        constants.RoleAdmin,
 			Description: "系统管理员",
-			Policy:      "sysadmin",
+			Policies:    []string{"sysadmin"},
 			Project:     "system",
 		},
 		{
 			Name:        constants.RoleDomainAdmin,
 			Description: "域管理员",
-			Policy:      "domainadmin",
+			Policies:    []string{"domainadmin"},
 		},
 		{
 			Name:        constants.RoleProjectOwner,
 			Description: "项目主管",
-			Policy:      "projectadmin",
+			Policies:    []string{"projectadmin"},
 		},
 		{
 			Name:        constants.RoleFA,
 			Description: "财务管理员",
-			Policy:      "sysmeteradmin",
+			Policies:    []string{"sysmeteradmin", "sysdashboard"},
+		},
+		{
+			Name:        constants.RoleMember,
+			Description: "项目成员",
+			Policies:    []string{"projectviewer", "projectdashboard"},
 		},
 	}
 )
