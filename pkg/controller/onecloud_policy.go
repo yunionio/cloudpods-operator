@@ -348,14 +348,16 @@ func createOrUpdateRole(s *mcclient.ClientSession, role sRoleDefiniton) error {
 	}
 	roleId, _ := roleJson.GetString("id")
 	// perform add policy
-	params := jsonutils.NewDict()
-	if len(role.Project) > 0 {
-		params.Add(jsonutils.NewString(role.Project), "project_id")
-	}
-	params.Add(jsonutils.NewString(role.Policy), "policy_id")
-	_, err = modules.RolesV3.PerformAction(s, roleId, "add-policy", params)
-	if err != nil {
-		return errors.Wrap(err, "RolesV3.PerformAction add-policy")
+	for _, policy := range role.Policies {
+		params := jsonutils.NewDict()
+		if len(role.Project) > 0 {
+			params.Add(jsonutils.NewString(role.Project), "project_id")
+		}
+		params.Add(jsonutils.NewString(policy), "policy_id")
+		_, err = modules.RolesV3.PerformAction(s, roleId, "add-policy", params)
+		if err != nil {
+			return errors.Wrap(err, "RolesV3.PerformAction add-policy")
+		}
 	}
 	return nil
 }
