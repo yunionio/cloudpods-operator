@@ -628,6 +628,8 @@ type HostAgentSpec struct {
 	DaemonSetSpec
 	SdnAgent      ContainerSpec
 	OvnController ContainerSpec
+
+	OvnEncapIpDetectionMethod string `json:"OvnEncapIpDetectionMethod"`
 }
 
 type TelegrafSpec struct {
