@@ -41,9 +41,10 @@ type CommonAlertCreateInput struct {
 	AlertType string `json:"alert_type"`
 
 	//scope Resource
-	Scope     string `json:"scope"`
-	DomainId  string `json:"domain_id"`
-	ProjectId string `json:"project_id"`
+	Scope       string `json:"scope"`
+	DomainId    string `json:"domain_id"`
+	ProjectId   string `json:"project_id"`
+	GetPointStr bool   `json:"get_point_str"`
 }
 
 type CommonMetricInputQuery struct {
@@ -86,6 +87,9 @@ type CommonAlertUpdateInput struct {
 	Channel []string `json:"channel"`
 	// 通知接受者
 	Recipients []string `json:"recipients"`
+	// systemalert policy may need update through operator
+	ForceUpdate bool `json:"force_update"`
+	GetPointStr bool `json:"get_point_str"`
 }
 
 type CommonAlertDetails struct {
@@ -105,13 +109,15 @@ type CommonAlertMetricDetails struct {
 	Comparator string  `json:"comparator"`
 	Threshold  float64 `json:"threshold"`
 	// metric points'value的运算方式
-	Reduce                 string `json:"reduce"`
-	DB                     string `json:"db"`
-	Measurement            string `json:"measurement"`
-	MeasurementDisplayName string `json:"measurement_display_name"`
-	ResType                string `json:"res_type"`
-	Field                  string `json:"field"`
-	Groupby                string `json:"groupby"`
+	Reduce                 string           `json:"reduce"`
+	DB                     string           `json:"db"`
+	Measurement            string           `json:"measurement"`
+	MeasurementDisplayName string           `json:"measurement_display_name"`
+	ResType                string           `json:"res_type"`
+	Field                  string           `json:"field"`
+	Groupby                string           `json:"groupby"`
+	Filters                []MetricQueryTag `json:"filters"`
 	FieldDescription       MetricFieldDetail
 	FieldOpt               string `json:"field_opt"`
+	GetPointStr            bool   `json:"get_point_str"`
 }

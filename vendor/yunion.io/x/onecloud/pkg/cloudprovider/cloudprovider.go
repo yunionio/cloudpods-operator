@@ -56,7 +56,7 @@ type SCloudaccountCredential struct {
 	// 秘钥key (Aliyun, Aws, huawei, ucloud, ctyun, zstack, s3)
 	AccessKeySecret string `json:"access_key_secret"`
 
-	// 环境 (Azure, Aws, huawei, ctyun)
+	// 环境 (Azure, Aws, huawei, ctyun, aliyun)
 	Environment string `json:"environment"`
 
 	// 目录ID (Azure)
@@ -153,6 +153,8 @@ type ProviderConfig struct {
 	Account string
 	Secret  string
 
+	AccountId string
+
 	ProxyFunc httputils.TransportProxyFunc
 }
 
@@ -204,16 +206,13 @@ type ICloudProviderFactory interface {
 
 	IsSystemCloudpolicyUnified() bool // 国内国外权限是否一致
 
-	IsSupportCrossCloudEnvVpcPeering() bool
-	IsSupportCrossRegionVpcPeering() bool
-	IsSupportVpcPeeringVpcCidrOverlap() bool
-	ValidateCrossRegionVpcPeeringBandWidth(bandwidth int) error
-
 	GetSupportedDnsZoneTypes() []TDnsZoneType
 	GetSupportedDnsTypes() map[TDnsZoneType][]TDnsType
 	GetSupportedDnsPolicyTypes() map[TDnsZoneType][]TDnsPolicyType
 	GetSupportedDnsPolicyValues() map[TDnsPolicyType][]TDnsPolicyValue
 	GetTTLRange(zoneType TDnsZoneType, productType TDnsProductType) TTlRange
+
+	IsSupportSAMLAuth() bool
 }
 
 type ICloudProvider interface {
@@ -255,6 +254,12 @@ type ICloudProvider interface {
 	CreateICloudgroup(name, desc string) (ICloudgroup, error)
 	GetIClouduserByName(name string) (IClouduser, error)
 	CreateIClouduser(conf *SClouduserCreateConfig) (IClouduser, error)
+	CreateICloudSAMLProvider(opts *SAMLProviderCreateOptions) (ICloudSAMLProvider, error)
+	GetICloudSAMLProviders() ([]ICloudSAMLProvider, error)
+	GetICloudroles() ([]ICloudrole, error)
+	GetICloudroleById(id string) (ICloudrole, error)
+	GetICloudroleByName(name string) (ICloudrole, error)
+	CreateICloudrole(opts *SRoleCreateOptions) (ICloudrole, error)
 
 	CreateICloudpolicy(opts *SCloudpolicyCreateOptions) (ICloudpolicy, error)
 
@@ -262,7 +267,6 @@ type ICloudProvider interface {
 	CreateSubscription(SubscriptionCreateInput) error
 
 	GetSamlEntityId() string
-	GetSamlSpInitiatedLoginUrl(idpName string) string
 
 	GetICloudDnsZones() ([]ICloudDnsZone, error)
 	GetICloudDnsZoneById(id string) (ICloudDnsZone, error)
@@ -413,6 +417,30 @@ func (self *SBaseProvider) CreateIClouduser(conf *SClouduserCreateConfig) (IClou
 	return nil, ErrNotImplemented
 }
 
+func (self *SBaseProvider) GetICloudSAMLProviders() ([]ICloudSAMLProvider, error) {
+	return nil, errors.Wrapf(ErrNotImplemented, "GetICloudSAMLProviders")
+}
+
+func (self *SBaseProvider) GetICloudroles() ([]ICloudrole, error) {
+	return nil, errors.Wrapf(ErrNotImplemented, "GetICloudroles")
+}
+
+func (self *SBaseProvider) GetICloudroleById(id string) (ICloudrole, error) {
+	return nil, errors.Wrapf(ErrNotImplemented, "GetICloudroleById")
+}
+
+func (self *SBaseProvider) GetICloudroleByName(name string) (ICloudrole, error) {
+	return nil, errors.Wrapf(ErrNotImplemented, "GetICloudroleByName")
+}
+
+func (self *SBaseProvider) CreateICloudrole(opts *SRoleCreateOptions) (ICloudrole, error) {
+	return nil, errors.Wrapf(ErrNotImplemented, "CreateICloudrole")
+}
+
+func (self *SBaseProvider) CreateICloudSAMLProvider(opts *SAMLProviderCreateOptions) (ICloudSAMLProvider, error) {
+	return nil, errors.Wrapf(ErrNotImplemented, "CreateICloudSAMLProvider")
+}
+
 func (self *SBaseProvider) CreateICloudpolicy(opts *SCloudpolicyCreateOptions) (ICloudpolicy, error) {
 	return nil, ErrNotImplemented
 }
@@ -446,10 +474,6 @@ func (self *SBaseProvider) CreateIProject(name string) (ICloudProject, error) {
 }
 
 func (self *SBaseProvider) GetSamlEntityId() string {
-	return ""
-}
-
-func (self *SBaseProvider) GetSamlSpInitiatedLoginUrl(idpName string) string {
 	return ""
 }
 
@@ -542,6 +566,10 @@ func (factory *baseProviderFactory) GetSupportedBrands() []string {
 	return []string{}
 }
 
+func (factory *baseProviderFactory) IsSupportSAMLAuth() bool {
+	return false
+}
+
 func (factory *baseProviderFactory) GetProvider(providerId, providerName, url, username, password string) (ICloudProvider, error) {
 	return nil, httperrors.NewNotImplementedError("Not Implemented GetProvider")
 }
@@ -601,22 +629,6 @@ func (factory *baseProviderFactory) IsSupportCreateCloudgroup() bool {
 
 func (factory *baseProviderFactory) IsSystemCloudpolicyUnified() bool {
 	return true
-}
-
-func (factory *baseProviderFactory) IsSupportCrossCloudEnvVpcPeering() bool {
-	return false
-}
-
-func (factory *baseProviderFactory) IsSupportCrossRegionVpcPeering() bool {
-	return false
-}
-
-func (factory *baseProviderFactory) IsSupportVpcPeeringVpcCidrOverlap() bool {
-	return false
-}
-
-func (factory *baseProviderFactory) ValidateCrossRegionVpcPeeringBandWidth(bandwidth int) error {
-	return nil
 }
 
 func (factory *baseProviderFactory) GetSupportedDnsZoneTypes() []TDnsZoneType {

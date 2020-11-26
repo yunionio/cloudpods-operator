@@ -28,13 +28,13 @@
 package multicloud
 
 import (
-	"yunion.io/x/pkg/errors"
+	"fmt"
 
+	api "yunion.io/x/onecloud/pkg/apis/compute"
 	"yunion.io/x/onecloud/pkg/cloudprovider"
 )
 
 type SDBInstanceAccountBase struct {
-	SResourceBase
 }
 
 func (account *SDBInstanceAccountBase) GetIDBInstanceAccountPrivileges() ([]cloudprovider.ICloudDBInstanceAccountPrivilege, error) {
@@ -42,17 +42,25 @@ func (account *SDBInstanceAccountBase) GetIDBInstanceAccountPrivileges() ([]clou
 }
 
 func (account *SDBInstanceAccountBase) Delete() error {
-	return errors.Wrapf(cloudprovider.ErrNotImplemented, "Delete")
+	return fmt.Errorf("Not Implemented Delete")
+}
+
+func (account *SDBInstanceAccountBase) GetHost() string {
+	return "%"
+}
+
+func (account *SDBInstanceAccountBase) GetStatus() string {
+	return api.DBINSTANCE_USER_AVAILABLE
 }
 
 func (account *SDBInstanceAccountBase) ResetPassword(password string) error {
-	return errors.Wrapf(cloudprovider.ErrNotImplemented, "ResetPassword")
+	return fmt.Errorf("Not Implemented ResetPassword")
 }
 
 func (backup *SDBInstanceAccountBase) GrantPrivilege(database, privilege string) error {
-	return errors.Wrapf(cloudprovider.ErrNotImplemented, "GrantPrivilege")
+	return fmt.Errorf("Not Implement GrantPrivilege")
 }
 
 func (backup *SDBInstanceAccountBase) RevokePrivilege(database string) error {
-	return errors.Wrapf(cloudprovider.ErrNotImplemented, "RevokePrivilege")
+	return fmt.Errorf("Not Implement RevokePrivilege")
 }

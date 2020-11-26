@@ -12,13 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cloudprovider
+package modules
 
-type VpcPeeringConnectionCreateOptions struct {
-	Name          string
-	Desc          string
-	PeerVpcId     string
-	PeerAccountId string
-	PeerRegionId  string
-	Bandwidth     int //qcloud cross region,Mbps
+import (
+	"yunion.io/x/onecloud/pkg/mcclient/modulebase"
+)
+
+type SCloudroleManager struct {
+	modulebase.ResourceManager
+}
+
+var (
+	Cloudroles SCloudroleManager
+)
+
+func init() {
+	Cloudroles = SCloudroleManager{NewCloudIdManager("cloudrole", "cloudroles",
+		[]string{},
+		[]string{})}
+
+	register(&Cloudroles)
 }

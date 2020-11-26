@@ -45,6 +45,7 @@ const (
 	// aws storage type
 	STORAGE_GP2_SSD      = "gp2"      // aws general purpose ssd
 	STORAGE_IO1_SSD      = "io1"      // aws Provisioned IOPS SSD
+	STORAGE_IO2_SSD      = "io2"      // aws Provisioned IOPS 2 SSD
 	STORAGE_ST1_HDD      = "st1"      // aws Throughput Optimized HDD
 	STORAGE_SC1_HDD      = "sc1"      // aws Cold HDD
 	STORAGE_STANDARD_HDD = "standard" // aws Magnetic volumes
@@ -55,7 +56,8 @@ const (
 	STORAGE_LOCAL_SSD     = "local_ssd"
 	STORAGE_LOCAL_PRO     = "local_pro"
 	STORAGE_CLOUD_BASIC   = "cloud_basic"
-	STORAGE_CLOUD_PREMIUM = "cloud_premium"
+	STORAGE_CLOUD_PREMIUM = "cloud_premium" //高性能云硬盘
+	STORAGE_CLOUD_HSSD    = "cloud_hssd"    //增强型SSD云硬盘
 
 	// huawei storage type
 	STORAGE_HUAWEI_SSD  = "SSD"  // 超高IO云硬盘
@@ -81,6 +83,7 @@ const (
 	STORAGE_GOOGLE_LOCAL_SSD   = "local-ssd"   //本地SSD暂存盘 (最多8个)
 	STORAGE_GOOGLE_PD_STANDARD = "pd-standard" //标准永久性磁盘
 	STORAGE_GOOGLE_PD_SSD      = "pd-ssd"      //SSD永久性磁盘
+	STORAGE_GOOGLE_PD_BALANCED = "pd-balanced" //平衡永久性磁盘
 
 	// ctyun storage type
 	STORAGE_CTYUN_SSD  = "SSD"  // 超高IO云硬盘

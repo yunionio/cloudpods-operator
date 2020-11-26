@@ -26,10 +26,15 @@ import (
 
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
+	"yunion.io/x/pkg/errors"
 
+	"yunion.io/x/onecloud/pkg/apis/compute"
 	api "yunion.io/x/onecloud/pkg/apis/compute"
 	"yunion.io/x/onecloud/pkg/cloudprovider"
+	deployapi "yunion.io/x/onecloud/pkg/hostman/hostdeployer/apis"
+	"yunion.io/x/onecloud/pkg/hostman/hostdeployer/deployclient"
 	"yunion.io/x/onecloud/pkg/multicloud"
+	"yunion.io/x/onecloud/pkg/multicloud/esxi/vcenter"
 )
 
 var driverMap = map[string]string{
@@ -288,6 +293,22 @@ func (disk *SVirtualDisk) GetId() string {
 	return backing.GetUuid()
 }
 
+func (disk *SVirtualDisk) MatchId(id string) bool {
+	vmid := disk.vm.GetGlobalId()
+	if !strings.HasPrefix(id, vmid) {
+		return false
+	}
+	backingUuid := id[len(vmid)+1:]
+	backing := disk.getBackingInfo()
+	for backing != nil {
+		if backing.GetUuid() == backingUuid {
+			return true
+		}
+		backing = backing.GetParent()
+	}
+	return false
+}
+
 func (disk *SVirtualDisk) GetName() string {
 	backing := disk.getBackingInfo()
 	return path.Base(backing.GetFileName())
@@ -362,8 +383,7 @@ func (disk *SVirtualDisk) GetTemplateId() string {
 }
 
 func (disk *SVirtualDisk) GetDiskType() string {
-	backing := disk.getBackingInfo()
-	if backing.GetParent() != nil {
+	if disk.index == 0 {
 		return api.DISK_TYPE_SYS
 	}
 	return api.DISK_TYPE_DATA
@@ -454,6 +474,27 @@ func (disk *SVirtualDisk) Resize(ctx context.Context, newSizeMb int64) error {
 	}
 
 	return err
+}
+
+func (disk *SVirtualDisk) ResizePartition(ctx context.Context, accessInfo vcenter.SVCenterAccessInfo) error {
+	diskPath := disk.GetFilename()
+	vmref := disk.vm.GetMoid()
+	vddkInfo := deployapi.VDDKConInfo{
+		Host:   accessInfo.Host,
+		Port:   int32(accessInfo.Port),
+		User:   accessInfo.Account,
+		Passwd: accessInfo.Password,
+		Vmref:  vmref,
+	}
+	_, err := deployclient.GetDeployClient().ResizeFs(ctx, &deployapi.ResizeFsParams{
+		DiskPath:   diskPath,
+		Hypervisor: compute.HYPERVISOR_ESXI,
+		VddkInfo:   &vddkInfo,
+	})
+	if err != nil {
+		return errors.Wrap(err, "unable to ResizeFs")
+	}
+	return nil
 }
 
 func (disk *SVirtualDisk) Reset(ctx context.Context, snapshotId string) (string, error) {

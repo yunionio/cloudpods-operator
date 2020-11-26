@@ -24,7 +24,7 @@ func init() {
 	DBInstanceNetworks = NewJointComputeManager(
 		"dbinstancenetwork",
 		"dbinstancenetworks",
-		[]string{"Instance_Id", "Network_Id", "IP_Addr"},
+		[]string{},
 		[]string{},
 		&DBInstance,
 		&Networks,

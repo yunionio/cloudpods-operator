@@ -14,16 +14,22 @@
 
 package modules
 
-import "yunion.io/x/onecloud/pkg/mcclient/modulebase"
+import (
+	"yunion.io/x/onecloud/pkg/mcclient/modulebase"
+)
+
+type SSAMLProviderManager struct {
+	modulebase.ResourceManager
+}
 
 var (
-	VpcPeeringConnections modulebase.ResourceManager
+	SAMLProviders SSAMLProviderManager
 )
 
 func init() {
-	VpcPeeringConnections = NewComputeManager("vpc_peering_connection", "vpc_peering_connections",
-		[]string{"ID", "Name", "Enabled", "Status", "vpc_id", "peer_vpc_id", "peer_account_id", "Public_Scope", "Domain_Id", "Domain"},
-		[]string{})
+	SAMLProviders = SSAMLProviderManager{NewCloudIdManager("saml_provider", "saml_providers",
+		[]string{},
+		[]string{})}
 
-	registerCompute(&VpcPeeringConnections)
+	register(&SAMLProviders)
 }

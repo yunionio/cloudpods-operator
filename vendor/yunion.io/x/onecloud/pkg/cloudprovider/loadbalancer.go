@@ -19,6 +19,7 @@ import "yunion.io/x/onecloud/pkg/util/billing"
 type SLoadbalancer struct {
 	Name             string
 	ZoneID           string
+	SlaveZoneID      string
 	VpcID            string
 	NetworkIDs       []string
 	EipID            string // eip id
@@ -29,4 +30,5 @@ type SLoadbalancer struct {
 	EgressMbps       int
 	billingCycle     *billing.SBillingCycle
 	ProjectId        string
+	Tags             map[string]string
 }
