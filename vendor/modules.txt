@@ -608,7 +608,7 @@ yunion.io/x/jsonutils
 # yunion.io/x/log v0.0.0-20200313080802-57a4ce5966b3
 yunion.io/x/log
 yunion.io/x/log/hooks
-# yunion.io/x/onecloud v0.0.0-20201124014759-3192b9a06f53
+# yunion.io/x/onecloud v0.0.0-20201126012455-aaef2778e3c3
 yunion.io/x/onecloud/locales
 yunion.io/x/onecloud/pkg/ansibleserver/options
 yunion.io/x/onecloud/pkg/apis
