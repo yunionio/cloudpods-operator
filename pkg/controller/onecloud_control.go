@@ -1081,27 +1081,19 @@ func (c monitorComponent) matchFromRtnAlerts(metric string, rtnAlert []jsonutils
 	id := ""
 	deleteAlerts := make([]jsonutils.JSONObject, 0)
 	for i, alert := range rtnAlert {
-		metricDs, err := alert.(*jsonutils.JSONDict).GetArray("common_alert_metric_details")
+		name, _ := alert.GetString("name")
+		metadataObj, err := alert.Get("metadata")
 		if err != nil {
-			return match, id, deleteAlerts, errors.Wrap(err, "matchFromRtnAlerts get common_alert_metric_details error")
+			return match, id, nil, errors.Wrap(err, "cannot get metadata")
 		}
-		for _, metricD := range metricDs {
-			measurement, err := metricD.GetString("measurement")
-			if err != nil {
-				return match, id, deleteAlerts, errors.Wrap(err, "matchFromRtnAlerts get measurement error")
+		metaName, _ := metadataObj.GetString("meta_name")
+		if metric == name || metric == metaName {
+			match = true
+			id, _ = alert.GetString("id")
+			for start := i + 1; start < len(rtnAlert); start++ {
+				deleteAlerts = append(deleteAlerts, rtnAlert[start])
 			}
-			field, err := metricD.GetString("field")
-			if err != nil {
-				return match, id, deleteAlerts, errors.Wrap(err, "matchFromRtnAlerts get field error")
-			}
-			if metric == fmt.Sprintf("%s.%s", measurement, field) {
-				match = true
-				id, _ = alert.GetString("id")
-				for start := i + 1; start < len(rtnAlert); start++ {
-					deleteAlerts = append(deleteAlerts, rtnAlert[start])
-				}
-				return match, id, deleteAlerts, nil
-			}
+			return match, id, deleteAlerts, nil
 		}
 		deleteAlerts = append(deleteAlerts, alert)
 	}
@@ -1229,6 +1221,19 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		Name:        "cloudaccount_balance.balance",
 		Reduce:      "last",
 	}
+	noDataTem := onecloud.CommonAlertTem{
+		Database:      "telegraf",
+		Measurement:   "system",
+		Field:         []string{"uptime"},
+		FieldFunc:     "last",
+		Comparator:    "==",
+		Threshold:     0,
+		Name:          "system.uptime",
+		Reduce:        "last",
+		ConditionType: "nodata_query",
+		From:          "3m",
+		Interval:      "1m",
+	}
 	speAlert := map[string]onecloud.CommonAlertTem{
 		cpuTem.Name:          cpuTem,
 		memTem.Name:          memTem,
@@ -1237,6 +1242,7 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		cloudaccountTem.Name: cloudaccountTem,
 		smartDevTem.Name:     smartDevTem,
 		hostRaidTem.Name:     hostRaidTem,
+		noDataTem.Name:       noDataTem,
 	}
 	return speAlert
 }
