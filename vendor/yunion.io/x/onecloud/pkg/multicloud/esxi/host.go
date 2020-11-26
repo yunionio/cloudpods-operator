@@ -693,16 +693,22 @@ func (self *SHost) CreateVM(desc *cloudprovider.SManagedVMCreateConfig) (cloudpr
 }
 
 type SCreateVMParam struct {
-	Name         string
-	Uuid         string
-	OsName       string
-	Cpu          int
-	Mem          int
-	Bios         string
-	Cdrom        jsonutils.JSONObject
-	Disks        []SDiskInfo
-	Nics         []jsonutils.JSONObject
-	ResourcePool string
+	Name                 string
+	Uuid                 string
+	OsName               string
+	Cpu                  int
+	Mem                  int
+	Bios                 string
+	Cdrom                jsonutils.JSONObject
+	Disks                []SDiskInfo
+	Nics                 []jsonutils.JSONObject
+	ResourcePool         string
+	InstanceSnapshotInfo SEsxiInstanceSnapshotInfo
+}
+
+type SEsxiInstanceSnapshotInfo struct {
+	InstanceSnapshotId string
+	InstanceId         string
 }
 
 type SDiskInfo struct {
@@ -720,6 +726,18 @@ type SEsxiImageInfo struct {
 }
 
 func (self *SHost) CreateVM2(ctx context.Context, ds *SDatastore, params SCreateVMParam) (*SVirtualMachine, error) {
+	if len(params.InstanceSnapshotInfo.InstanceSnapshotId) > 0 {
+		temvm, err := self.manager.SearchVM(params.InstanceSnapshotInfo.InstanceId)
+		if err != nil {
+			return nil, errors.Wrapf(err, "can't find vm %q, please sync status for vm or sync cloudaccount", params.InstanceSnapshotInfo.InstanceId)
+		}
+		isp, err := temvm.GetInstanceSnapshot(params.InstanceSnapshotInfo.InstanceSnapshotId)
+		if err != nil {
+			return nil, errors.Wrap(err, "unable to GetInstanceSnapshot")
+		}
+		sp := isp.(*SVirtualMachineSnapshot)
+		return self.CloneVM(ctx, temvm, &sp.snapshotTree.Snapshot, ds, params)
+	}
 	if len(params.Disks) == 0 {
 		return self.DoCreateVM(ctx, ds, params)
 	}
@@ -731,7 +749,7 @@ func (self *SHost) CreateVM2(ctx context.Context, ds *SDatastore, params SCreate
 	if err != nil {
 		return nil, errors.Wrapf(err, "SEsxiClient.SearchTemplateVM for image %q", imageInfo.ImageExternalId)
 	}
-	return self.CloneVM(ctx, temvm, ds, params)
+	return self.CloneVM(ctx, temvm, nil, ds, params)
 }
 
 func (self *SHost) DoCreateVM(ctx context.Context, ds *SDatastore, params SCreateVMParam) (*SVirtualMachine, error) {
@@ -955,10 +973,13 @@ func (self *SHost) DoCreateVM(ctx context.Context, ds *SDatastore, params SCreat
 	return evm, nil
 }
 
-func (host *SHost) CloneVM(ctx context.Context, from *SVirtualMachine, ds *SDatastore, params SCreateVMParam) (*SVirtualMachine, error) {
+// If snapshot is not nil, params.Disks will be ignored
+func (host *SHost) CloneVM(ctx context.Context, from *SVirtualMachine, snapshot *types.ManagedObjectReference, ds *SDatastore, params SCreateVMParam) (*SVirtualMachine, error) {
 	ovm := from.getVmObj()
 
-	deviceChange := make([]types.BaseVirtualDeviceConfigSpec, 0, 5)
+	deviceChange := make([]types.BaseVirtualDeviceConfigSpec, 0, 3)
+
+	addDeviceChange := make([]types.BaseVirtualDeviceConfigSpec, 0, 3)
 
 	// change nic if set
 	if params.Nics != nil && len(params.Nics) > 0 {
@@ -994,15 +1015,20 @@ func (host *SHost) CloneVM(ctx context.Context, from *SVirtualMachine, ds *SData
 				op = types.VirtualDeviceConfigSpecOperationEdit
 				host.changeNic(originNics[nicIndex], dev)
 				dev = originNics[nicIndex]
+				deviceChange = append(deviceChange, &types.VirtualDeviceConfigSpec{
+					Operation: op,
+					Device:    dev,
+				})
+			} else {
+				addDeviceChange = append(addDeviceChange, &types.VirtualDeviceConfigSpec{
+					Operation: op,
+					Device:    dev,
+				})
 			}
-			deviceChange = append(deviceChange, &types.VirtualDeviceConfigSpec{
-				Operation: op,
-				Device:    dev,
-			})
 		}
 	}
 
-	if len(params.Disks) > 0 {
+	if len(params.Disks) > 0 && snapshot == nil {
 		driver := params.Disks[0].Driver
 		if driver == "scsi" || driver == "pvscsi" {
 			scsiDevs, err := from.FindController(ctx, "scsi")
@@ -1015,7 +1041,7 @@ func (host *SHost) CloneVM(ctx context.Context, from *SVirtualMachine, ds *SData
 				if host.isVersion50() {
 					driver = "scsi"
 				}
-				deviceChange = append(deviceChange, addDevSpec(NewSCSIDev(key, 100, driver)))
+				addDeviceChange = append(deviceChange, addDevSpec(NewSCSIDev(key, 100, driver)))
 			}
 		} else {
 			ideDevs, err := from.FindController(ctx, "ide")
@@ -1024,8 +1050,8 @@ func (host *SHost) CloneVM(ctx context.Context, from *SVirtualMachine, ds *SData
 			}
 			if len(ideDevs) == 0 {
 				// add ide driver
-				deviceChange = append(deviceChange, addDevSpec(NewIDEDev(200, 0)))
-				deviceChange = append(deviceChange, addDevSpec(NewIDEDev(200, 1)))
+				addDeviceChange = append(deviceChange, addDevSpec(NewIDEDev(200, 0)))
+				addDeviceChange = append(deviceChange, addDevSpec(NewIDEDev(200, 1)))
 			}
 		}
 	}
@@ -1059,6 +1085,7 @@ func (host *SHost) CloneVM(ctx context.Context, from *SVirtualMachine, ds *SData
 		PowerOn:  false,
 		Template: false,
 		Location: relocateSpec,
+		Snapshot: snapshot,
 	}
 
 	// uuid first
@@ -1093,7 +1120,11 @@ func (host *SHost) CloneVM(ctx context.Context, from *SVirtualMachine, ds *SData
 		return nil, errors.Error("clone successfully but unable to NewVirtualMachine")
 	}
 
-	deviceChange = make([]types.BaseVirtualDeviceConfigSpec, 0, 5)
+	if snapshot != nil {
+		return vm, nil
+	}
+
+	deviceChange = addDeviceChange
 	// adjust disk
 	var i int
 	if len(params.Disks) > 0 {
@@ -1234,7 +1265,7 @@ func (host *SHost) newLocalStorageCache() (*SDatastoreImageCache, error) {
 		}
 		_, err := ds.CheckFile(ctx, IMAGE_CACHE_DIR_NAME)
 		if err != nil {
-			if err != cloudprovider.ErrNotFound {
+			if errors.Cause(err) != cloudprovider.ErrNotFound {
 				// return nil, err
 				if len(errmsg) > 0 {
 					errmsg += ","
