@@ -922,7 +922,8 @@ func (self *SHost) DoCreateVM(ctx context.Context, ds *SDatastore, params SCreat
 func (host *SHost) CloneVM(ctx context.Context, from *SVirtualMachine, ds *SDatastore, params SCreateVMParam) (*SVirtualMachine, error) {
 	ovm := from.getVmObj()
 
-	deviceChange := make([]types.BaseVirtualDeviceConfigSpec, 0, 5)
+	deviceChange := make([]types.BaseVirtualDeviceConfigSpec, 0, 3)
+	addDeviceChange := make([]types.BaseVirtualDeviceConfigSpec, 0, 3)
 
 	// change nic if set
 	if params.Nics != nil && len(params.Nics) > 0 {
@@ -958,14 +959,20 @@ func (host *SHost) CloneVM(ctx context.Context, from *SVirtualMachine, ds *SData
 				op = types.VirtualDeviceConfigSpecOperationEdit
 				host.changeNic(originNics[nicIndex], dev)
 				dev = originNics[nicIndex]
+				deviceChange = append(deviceChange, &types.VirtualDeviceConfigSpec{
+					Operation: op,
+					Device:    dev,
+				})
+			} else {
+				addDeviceChange = append(addDeviceChange, &types.VirtualDeviceConfigSpec{
+					Operation: op,
+					Device:    dev,
+				})
 			}
-			deviceChange = append(deviceChange, &types.VirtualDeviceConfigSpec{
-				Operation: op,
-				Device:    dev,
-			})
 		}
 	}
 
+	var rootDiskSizeMb int64
 	if len(params.Disks) > 0 {
 		driver := params.Disks[0].Driver
 		if driver == "scsi" || driver == "pvscsi" {
@@ -979,7 +986,7 @@ func (host *SHost) CloneVM(ctx context.Context, from *SVirtualMachine, ds *SData
 				if host.isVersion50() {
 					driver = "scsi"
 				}
-				deviceChange = append(deviceChange, addDevSpec(NewSCSIDev(key, 100, driver)))
+				addDeviceChange = append(deviceChange, addDevSpec(NewSCSIDev(key, 100, driver)))
 			}
 		} else {
 			ideDevs, err := from.FindController(ctx, "ide")
@@ -988,35 +995,15 @@ func (host *SHost) CloneVM(ctx context.Context, from *SVirtualMachine, ds *SData
 			}
 			if len(ideDevs) == 0 {
 				// add ide driver
-				deviceChange = append(deviceChange, addDevSpec(NewIDEDev(200, 0)))
-				deviceChange = append(deviceChange, addDevSpec(NewIDEDev(200, 1)))
+				addDeviceChange = append(deviceChange, addDevSpec(NewIDEDev(200, 0)))
+				addDeviceChange = append(deviceChange, addDevSpec(NewIDEDev(200, 1)))
 			}
 		}
 
-		// resize system disk
-		sysDiskSize := params.Disks[0].Size
-		if sysDiskSize == 0 {
-			sysDiskSize = 30 * 1024
+		rootDiskSizeMb = params.Disks[0].Size
+		if rootDiskSizeMb == 0 {
+			rootDiskSizeMb = 30 * 1024
 		}
-		if int64(from.vdisks[0].GetDiskSizeMB()) != sysDiskSize {
-			vdisk := from.vdisks[0].getVirtualDisk()
-			vdisk.CapacityInKB = sysDiskSize * 1024
-			spec := &types.VirtualDeviceConfigSpec{}
-			spec.Operation = types.VirtualDeviceConfigSpecOperationEdit
-			spec.Device = vdisk
-			deviceChange = append(deviceChange, spec)
-			log.Infof("resize system disk: %dGB => %dGB", from.vdisks[0].GetDiskSizeMB()/1024, vdisk.CapacityInKB/1024/1024)
-		}
-		// remove extra disk
-		// for i := 1; i < len(from.vdisks); i++ {
-		// 	 dev := from.vdisks[i].dev
-		// 	 spec := &types.VirtualDeviceConfigSpec{}
-		// 	 spec.Operation = types.VirtualDeviceConfigSpecOperationRemove
-		// 	 spec.Device = dev
-		//	 spec.FileOperation = types.VirtualDeviceConfigSpecFileOperationDestroy
-		//	 deviceChange = append(deviceChange, spec)
-		//	 log.Debugf("remove disk, index: %d", i)
-		// }
 	}
 
 	dc, err := host.GetDatacenter()
@@ -1080,6 +1067,31 @@ func (host *SHost) CloneVM(ctx context.Context, from *SVirtualMachine, ds *SData
 	vm := NewVirtualMachine(host.manager, &moVM, host.datacenter)
 	if vm == nil {
 		return nil, errors.Error("clone successfully but unable to NewVirtualMachine")
+	}
+
+	deviceChange = addDeviceChange
+	// resize system disk
+	if rootDiskSizeMb > 0 && int64(vm.vdisks[0].GetDiskSizeMB()) != rootDiskSizeMb {
+		vdisk := vm.vdisks[0].getVirtualDisk()
+		originSize := vdisk.CapacityInKB
+		vdisk.CapacityInKB = rootDiskSizeMb * 1024
+		spec := &types.VirtualDeviceConfigSpec{}
+		spec.Operation = types.VirtualDeviceConfigSpecOperationEdit
+		spec.Device = vdisk
+		deviceChange = append(deviceChange, spec)
+		log.Infof("resize system disk: %dGB => %dGB", originSize/1024/1024, rootDiskSizeMb/1024)
+	}
+	if len(deviceChange) > 0 {
+		spec = types.VirtualMachineConfigSpec{}
+		spec.DeviceChange = deviceChange
+		task, err = vm.getVmObj().Reconfigure(ctx, spec)
+		if err != nil {
+			return vm, errors.Wrap(err, "Reconfigure to resize disks")
+		}
+		err = task.Wait(ctx)
+		if err != nil {
+			return vm, errors.Wrap(err, "Wait task to resize disks")
+		}
 	}
 	// add data disk
 	for i := 1; i < len(params.Disks); i++ {
@@ -1161,7 +1173,7 @@ func (host *SHost) newLocalStorageCache() (*SDatastoreImageCache, error) {
 		}
 		_, err := ds.CheckFile(ctx, IMAGE_CACHE_DIR_NAME)
 		if err != nil {
-			if err != cloudprovider.ErrNotFound {
+			if errors.Cause(err) != cloudprovider.ErrNotFound {
 				// return nil, err
 				if len(errmsg) > 0 {
 					errmsg += ","

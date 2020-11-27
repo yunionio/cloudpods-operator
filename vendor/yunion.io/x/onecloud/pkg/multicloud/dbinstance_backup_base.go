@@ -15,6 +15,8 @@
 package multicloud
 
 import (
+	"fmt"
+
 	"yunion.io/x/pkg/errors"
 
 	api "yunion.io/x/onecloud/pkg/apis/compute"
@@ -30,9 +32,17 @@ func (backup *SDBInstanceBackupBase) GetBackMode() string {
 }
 
 func (backup *SDBInstanceBackupBase) Delete() error {
-	return errors.Wrapf(cloudprovider.ErrNotImplemented, "Delete")
+	return fmt.Errorf("Not Implement Delete")
 }
 
 func (backup *SDBInstanceBackupBase) GetProjectId() string {
 	return ""
+}
+
+func (backup *SDBInstanceBackupBase) CreateICloudDBInstance(opts *cloudprovider.SManagedDBInstanceCreateConfig) (cloudprovider.ICloudDBInstance, error) {
+	return nil, errors.Wrap(cloudprovider.ErrNotImplemented, "CreateICloudDBInstance")
+}
+
+func (backup *SDBInstanceBackupBase) GetBackupMethod() cloudprovider.TBackupMethod {
+	return cloudprovider.BackupMethodUnknown
 }
