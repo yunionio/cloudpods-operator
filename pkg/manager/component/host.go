@@ -75,6 +75,10 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 					ImagePullPolicy: dsSpec.ImagePullPolicy,
 					Env: []corev1.EnvVar{
 						{
+							Name:  "HOST_OVN_ENCAP_IP_DETECTION_METHOD",
+							Value: oc.Spec.HostAgent.OvnEncapIpDetectionMethod,
+						},
+						{
 							Name: "HOST_OVN_SOUTH_DATABASE",
 							Value: fmt.Sprintf("tcp:%s:%d",
 								controller.NewClusterComponentName(

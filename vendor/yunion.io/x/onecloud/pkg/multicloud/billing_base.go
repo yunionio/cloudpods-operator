@@ -15,11 +15,8 @@
 package multicloud
 
 import (
+	"fmt"
 	"time"
-
-	"yunion.io/x/pkg/errors"
-
-	"yunion.io/x/onecloud/pkg/cloudprovider"
 )
 
 type SBillingBase struct{}
@@ -37,7 +34,7 @@ func (self *SBillingBase) GetExpiredAt() time.Time {
 }
 
 func (self *SBillingBase) SetAutoRenew(autoRenew bool) error {
-	return errors.Wrapf(cloudprovider.ErrNotImplemented, "SetAutoRenew")
+	return fmt.Errorf("Not Implement SetAutoRenew")
 }
 
 func (self *SBillingBase) IsAutoRenew() bool {

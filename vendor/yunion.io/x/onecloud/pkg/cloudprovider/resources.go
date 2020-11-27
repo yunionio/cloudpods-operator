@@ -24,6 +24,7 @@ import (
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/util/billing"
 	"yunion.io/x/onecloud/pkg/util/rbacutils"
+	"yunion.io/x/onecloud/pkg/util/samlutils"
 )
 
 type ICloudResource interface {
@@ -174,6 +175,7 @@ type ICloudImage interface {
 	GetCreatedAt() time.Time
 	UEFI() bool
 	GetPublicScope() rbacutils.TRbacScope
+	GetSubImages() []SSubImage
 }
 
 type ICloudStoragecache interface {
@@ -319,6 +321,11 @@ type ICloudVM interface {
 	GetError() error
 
 	SetMetadata(tags map[string]string, replace bool) error
+
+	CreateInstanceSnapshot(ctx context.Context, name string, desc string) (ICloudInstanceSnapshot, error)
+	GetInstanceSnapshot(idStr string) (ICloudInstanceSnapshot, error)
+	GetInstanceSnapshots() ([]ICloudInstanceSnapshot, error)
+	ResetToInstanceSnapshot(ctx context.Context, idStr string) error
 }
 
 type ICloudNic interface {
@@ -404,7 +411,6 @@ type ICloudDisk interface {
 	Delete(ctx context.Context) error
 
 	CreateISnapshot(ctx context.Context, name string, desc string) (ICloudSnapshot, error)
-	GetISnapshot(idStr string) (ICloudSnapshot, error)
 	GetISnapshots() ([]ICloudSnapshot, error)
 
 	GetExtSnapshotPolicyIds() ([]string, error)
@@ -421,6 +427,13 @@ type ICloudSnapshot interface {
 	GetSizeMb() int32
 	GetDiskId() string
 	GetDiskType() string
+	Delete() error
+}
+
+type ICloudInstanceSnapshot interface {
+	IVirtualResource
+
+	GetDescription() string
 	Delete() error
 }
 
@@ -449,12 +462,6 @@ type ICloudVpc interface {
 
 	GetIWireById(wireId string) (ICloudWire, error)
 	GetINatGateways() ([]ICloudNatGateway, error)
-
-	GetICloudVpcPeeringConnections() ([]ICloudVpcPeeringConnection, error)
-	GetICloudVpcPeeringConnectionById(id string) (ICloudVpcPeeringConnection, error)
-	CreateICloudVpcPeeringConnection(opts *VpcPeeringConnectionCreateOptions) (ICloudVpcPeeringConnection, error)
-	AcceptICloudVpcPeeringConnection(id string) error
-	GetAuthorityOwnerId() string
 }
 
 type ICloudWire interface {
@@ -511,6 +518,7 @@ type ICloudLoadbalancer interface {
 	GetNetworkIds() []string
 	GetVpcId() string
 	GetZoneId() string
+	GetZone1Id() string // first slave zone
 	GetLoadbalancerSpec() string
 	GetChargeType() string
 	GetEgressMbps() int
@@ -530,6 +538,8 @@ type ICloudLoadbalancer interface {
 
 	CreateILoadBalancerListener(ctx context.Context, listener *SLoadbalancerListener) (ICloudLoadbalancerListener, error)
 	GetILoadBalancerListenerById(listenerId string) (ICloudLoadbalancerListener, error)
+
+	SetMetadata(tags map[string]string, replace bool) error
 }
 
 type ICloudLoadbalancerListener interface {
@@ -759,7 +769,7 @@ type ICloudDBInstance interface {
 	Reboot() error
 
 	GetMasterInstanceId() string
-	GetSecurityGroupId() string
+	GetSecurityGroupIds() ([]string, error)
 	GetPort() int
 	GetEngine() string
 	GetEngineVersion() string
@@ -782,7 +792,7 @@ type ICloudDBInstance interface {
 	GetZone3Id() string
 	GetIVpcId() string
 
-	GetDBNetwork() (*SDBInstanceNetwork, error)
+	GetDBNetworks() ([]SDBInstanceNetwork, error)
 	GetIDBInstanceParameters() ([]ICloudDBInstanceParameter, error)
 	GetIDBInstanceDatabases() ([]ICloudDBInstanceDatabase, error)
 	GetIDBInstanceAccounts() ([]ICloudDBInstanceAccount, error)
@@ -802,6 +812,8 @@ type ICloudDBInstance interface {
 	RecoveryFromBackup(conf *SDBInstanceRecoveryConfig) error
 
 	Delete() error
+
+	SetMetadata(tags map[string]string, replace bool) error
 }
 
 type ICloudDBInstanceParameter interface {
@@ -822,6 +834,9 @@ type ICloudDBInstanceBackup interface {
 	GetBackupSizeMb() int
 	GetDBNames() string
 	GetBackupMode() string
+	GetBackupMethod() TBackupMethod
+
+	CreateICloudDBInstance(opts *SManagedDBInstanceCreateConfig) (ICloudDBInstance, error)
 
 	Delete() error
 }
@@ -835,7 +850,9 @@ type ICloudDBInstanceDatabase interface {
 }
 
 type ICloudDBInstanceAccount interface {
-	ICloudResource
+	GetName() string
+	GetStatus() string
+	GetHost() string
 
 	GetIDBInstanceAccountPrivileges() ([]ICloudDBInstanceAccountPrivilege, error)
 
@@ -880,6 +897,7 @@ type ICloudElasticcache interface {
 	GetMaintainEndTime() string
 
 	GetAuthMode() string
+	GetSecurityGroupIds() ([]string, error)
 
 	GetICloudElasticcacheAccounts() ([]ICloudElasticcacheAccount, error)
 	GetICloudElasticcacheAcls() ([]ICloudElasticcacheAcl, error)
@@ -899,11 +917,15 @@ type ICloudElasticcache interface {
 
 	CreateAccount(account SCloudElasticCacheAccountInput) (ICloudElasticcacheAccount, error)
 	CreateAcl(aclName, securityIps string) (ICloudElasticcacheAcl, error)
-	CreateBackup() (ICloudElasticcacheBackup, error)
-	FlushInstance() error
-	UpdateAuthMode(noPasswordAccess bool) error
+	CreateBackup(desc string) (ICloudElasticcacheBackup, error)
+	FlushInstance(input SCloudElasticCacheFlushInstanceInput) error
+	UpdateAuthMode(noPasswordAccess bool, password string) error
 	UpdateInstanceParameters(config jsonutils.JSONObject) error
 	UpdateBackupPolicy(config SCloudElasticCacheBackupPolicyUpdateInput) error
+	Renew(bc billing.SBillingCycle) error
+
+	SetMetadata(tags map[string]string, replace bool) error
+	UpdateSecurityGroups(secgroupIds []string) error
 }
 
 type ICloudElasticcacheAccount interface {
@@ -1062,12 +1084,26 @@ type ICloudDnsRecordSet interface {
 	GetPolicyOptions() *jsonutils.JSONDict
 }
 
-type ICloudVpcPeeringConnection interface {
+type ICloudSAMLProvider interface {
 	ICloudResource
 
-	GetPeerVpcId() string
-	GetPeerAccountId() string
-	GetEnabled() bool
+	GetMetadataDocument() (*samlutils.EntityDescriptor, error)
+	UpdateMetadata(samlutils.EntityDescriptor) error
+
+	GetAuthUrl() string
+	Delete() error
+}
+
+type ICloudrole interface {
+	GetGlobalId() string
+	GetName() string
+
+	GetDocument() *jsonutils.JSONDict
+	GetSAMLProvider() string
+
+	GetICloudpolicies() ([]ICloudpolicy, error)
+	AttachPolicy(id string) error
+	DetachPolicy(id string) error
 
 	Delete() error
 }

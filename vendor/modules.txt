@@ -1,3 +1,5 @@
+# github.com/beevik/etree v1.1.0
+github.com/beevik/etree
 # github.com/coreos/go-systemd v0.0.0-20190620071333-e64a0ec8b42a
 github.com/coreos/go-systemd/journal
 # github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f
@@ -59,7 +61,7 @@ github.com/google/go-cmp/cmp/internal/function
 github.com/google/go-cmp/cmp/internal/value
 # github.com/google/gofuzz v1.0.0
 github.com/google/gofuzz
-# github.com/google/uuid v1.0.0
+# github.com/google/uuid v1.1.1
 github.com/google/uuid
 # github.com/googleapis/gnostic v0.3.0
 github.com/googleapis/gnostic/OpenAPIv2
@@ -76,6 +78,8 @@ github.com/json-iterator/go
 github.com/konsorten/go-windows-terminal-sequences
 # github.com/leodido/go-urn v1.1.0
 github.com/leodido/go-urn
+# github.com/ma314smith/signedxml v0.0.0-20200410192636-c342a2d0ae60
+github.com/ma314smith/signedxml
 # github.com/mattn/go-colorable v0.1.2
 github.com/mattn/go-colorable
 # github.com/mattn/go-isatty v0.0.9
@@ -599,12 +603,12 @@ sigs.k8s.io/yaml
 # yunion.io/x/executor v0.0.0-20200227030256-a18417815e74
 yunion.io/x/executor/apis
 yunion.io/x/executor/client
-# yunion.io/x/jsonutils v0.0.0-20201014025429-7ce189228db6
+# yunion.io/x/jsonutils v0.0.0-20201110084044-3e4e1cb49769
 yunion.io/x/jsonutils
 # yunion.io/x/log v0.0.0-20200313080802-57a4ce5966b3
 yunion.io/x/log
 yunion.io/x/log/hooks
-# yunion.io/x/onecloud v0.0.0-20201019035712-93d682503e2d
+# yunion.io/x/onecloud v0.0.0-20201126133949-9796462169f2
 yunion.io/x/onecloud/locales
 yunion.io/x/onecloud/pkg/ansibleserver/options
 yunion.io/x/onecloud/pkg/apis
@@ -632,6 +636,8 @@ yunion.io/x/onecloud/pkg/cloudnet/options
 yunion.io/x/onecloud/pkg/cloudprovider
 yunion.io/x/onecloud/pkg/compute/options
 yunion.io/x/onecloud/pkg/esxi/options
+yunion.io/x/onecloud/pkg/hostman/hostdeployer/apis
+yunion.io/x/onecloud/pkg/hostman/hostdeployer/deployclient
 yunion.io/x/onecloud/pkg/hostman/hostinfo/hostconsts
 yunion.io/x/onecloud/pkg/hostman/options
 yunion.io/x/onecloud/pkg/hostman/system_service
@@ -668,6 +674,7 @@ yunion.io/x/onecloud/pkg/util/procutils
 yunion.io/x/onecloud/pkg/util/rbacutils
 yunion.io/x/onecloud/pkg/util/regutils2
 yunion.io/x/onecloud/pkg/util/s3auth
+yunion.io/x/onecloud/pkg/util/samlutils
 yunion.io/x/onecloud/pkg/util/seclib2
 yunion.io/x/onecloud/pkg/util/streamutils
 yunion.io/x/onecloud/pkg/util/stringutils2
@@ -676,7 +683,7 @@ yunion.io/x/onecloud/pkg/util/vmdkutils
 yunion.io/x/onecloud/pkg/vpcagent/options
 yunion.io/x/onecloud/pkg/webconsole/options
 yunion.io/x/onecloud/pkg/yunionconf/options
-# yunion.io/x/pkg v0.0.0-20200814072949-4f1b541857d6
+# yunion.io/x/pkg v0.0.0-20201028134817-3ed15ee169bc
 yunion.io/x/pkg/errors
 yunion.io/x/pkg/gotypes
 yunion.io/x/pkg/sortedmap
@@ -698,7 +705,7 @@ yunion.io/x/pkg/util/version
 yunion.io/x/pkg/utils
 # yunion.io/x/s3cli v0.0.0-20190917004522-13ac36d8687e
 yunion.io/x/s3cli
-# yunion.io/x/sqlchemy v0.0.0-20201009235752-2ef1a29656b0
+# yunion.io/x/sqlchemy v0.0.0-20201029091740-cd5e77b56d4b
 yunion.io/x/sqlchemy
 # yunion.io/x/structarg v0.0.0-20200720093445-9f850fa222ce
 yunion.io/x/structarg

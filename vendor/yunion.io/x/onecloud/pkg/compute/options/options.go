@@ -40,6 +40,7 @@ type ComputeOptions struct {
 	pending_delete.SPendingDeleteOptions
 
 	PrepaidExpireCheck              bool `default:"false" help:"clean expired servers or disks"`
+	PrepaidDeleteExpireCheck        bool `default:"true" help:"check prepaid expired before delete"`
 	PrepaidExpireCheckSeconds       int  `default:"600" help:"How long to wait to scan expired prepaid VM or disks, default is 10 minutes"`
 	ExpiredPrepaidMaxCleanBatchSize int  `default:"50" help:"How many expired prepaid servers can be deleted in a batch"`
 
@@ -54,20 +55,21 @@ type ComputeOptions struct {
 	DefaultBandwidth int `default:"1000" help:"Default bandwidth"`
 	DefaultMtu       int `default:"1500" help:"Default network mtu"`
 
-	DefaultServerQuota         int `default:"50" help:"Common Server quota per tenant, default 50"`
-	DefaultCpuQuota            int `default:"200" help:"Common CPU quota per tenant, default 200"`
-	DefaultMemoryQuota         int `default:"204800" help:"Common memory quota per tenant in MB, default 200G"`
-	DefaultStorageQuota        int `default:"12288000" help:"Common storage quota per tenant in MB, default 12T"`
-	DefaultPortQuota           int `default:"200" help:"Common network port quota per tenant, default 200"`
-	DefaultEipQuota            int `default:"10" help:"Common floating IP quota per tenant, default 10"`
-	DefaultEportQuota          int `default:"200" help:"Common exit network port quota per tenant, default 200"`
-	DefaultBwQuota             int `default:"2000000" help:"Common network port bandwidth in mbps quota per tenant, default 200*10Gbps"`
-	DefaultEbwQuota            int `default:"4000" help:"Common exit network port bandwidth quota per tenant, default 4Gbps"`
-	DefaultKeypairQuota        int `default:"50" help:"Common keypair quota per tenant, default 50"`
-	DefaultGroupQuota          int `default:"50" help:"Common group quota per tenant, default 50"`
-	DefaultSecgroupQuota       int `default:"50" help:"Common security group quota per tenant, default 50"`
-	DefaultIsolatedDeviceQuota int `default:"200" help:"Common isolated device quota per tenant, default 200"`
-	DefaultSnapshotQuota       int `default:"10" help:"Common snapshot quota per tenant, default 10"`
+	DefaultServerQuota           int `default:"50" help:"Common Server quota per tenant, default 50"`
+	DefaultCpuQuota              int `default:"200" help:"Common CPU quota per tenant, default 200"`
+	DefaultMemoryQuota           int `default:"204800" help:"Common memory quota per tenant in MB, default 200G"`
+	DefaultStorageQuota          int `default:"12288000" help:"Common storage quota per tenant in MB, default 12T"`
+	DefaultPortQuota             int `default:"200" help:"Common network port quota per tenant, default 200"`
+	DefaultEipQuota              int `default:"10" help:"Common floating IP quota per tenant, default 10"`
+	DefaultEportQuota            int `default:"200" help:"Common exit network port quota per tenant, default 200"`
+	DefaultBwQuota               int `default:"2000000" help:"Common network port bandwidth in mbps quota per tenant, default 200*10Gbps"`
+	DefaultEbwQuota              int `default:"4000" help:"Common exit network port bandwidth quota per tenant, default 4Gbps"`
+	DefaultKeypairQuota          int `default:"50" help:"Common keypair quota per tenant, default 50"`
+	DefaultGroupQuota            int `default:"50" help:"Common group quota per tenant, default 50"`
+	DefaultSecgroupQuota         int `default:"50" help:"Common security group quota per tenant, default 50"`
+	DefaultIsolatedDeviceQuota   int `default:"200" help:"Common isolated device quota per tenant, default 200"`
+	DefaultSnapshotQuota         int `default:"10" help:"Common snapshot quota per tenant, default 10"`
+	DefaultInstanceSnapshotQuota int `default:"10" help:"Common instance snapshot quota per tenant, default 10"`
 
 	DefaultBucketQuota    int `default:"100" help:"Common bucket quota per tenant, default 100"`
 	DefaultObjectGBQuota  int `default:"500" help:"Common object size quota per tenant in GB, default 500GB"`
@@ -144,9 +146,10 @@ type ComputeOptions struct {
 
 	EnableAutoRenameProject bool `help:"when it set true, auto create project will rename when cloud project name changed" default:"false"`
 
-	SyncStorageCapacityUsedIntervalMinutes int `help:"interval sync storage capacity used" default:"10"`
+	SyncStorageCapacityUsedIntervalMinutes int  `help:"interval sync storage capacity used" default:"20"`
+	LockStorageFromCachedimage             bool `help:"must use storage in where selected cachedimage when creating vm"`
 
-	LockStorageFromCachedimage bool `help:"must use storage in where selected cachedimage when creating vm"`
+	SyncExtDiskSnapshotIntervalMinutes int `help:"sync snapshot for external disk" default:"20"`
 
 	SCapabilityOptions
 	SASControllerOptions
@@ -156,6 +159,8 @@ type ComputeOptions struct {
 	EnableAutoMergeSecurityGroup bool `help:"Enable auto merge secgroup when sync security group from cloud, default False" default:"false"`
 
 	DefaultNetworkGatewayAddressEsxi uint32 `help:"Default address for network gateway" default:"1"`
+
+	NoCheckOsTypeForCachedImage bool `help:"Don't check os type for cached image"`
 
 	esxi.EsxiOptions
 }
@@ -187,5 +192,15 @@ func OnOptionsChange(oldO, newO interface{}) bool {
 	if common_options.OnCommonOptionsChange(&oldOpts.CommonOptions, &newOpts.CommonOptions) {
 		changed = true
 	}
+	if common_options.OnDBOptionsChange(&oldOpts.DBOptions, &newOpts.DBOptions) {
+		changed = true
+	}
+
+	if oldOpts.PendingDeleteCheckSeconds != newOpts.PendingDeleteCheckSeconds {
+		if !oldOpts.IsSlaveNode {
+			changed = true
+		}
+	}
+
 	return changed
 }
