@@ -132,6 +132,7 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 		components.Telegraf(),
 		components.CloudId(),
 		components.Cloudmon(),
+		components.Suggestion(),
 	}
 	var grp errgroup.Group
 	for _, component := range dependComponents {
