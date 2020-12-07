@@ -327,6 +327,10 @@ const (
 	ItsmDBUser      = "itsm"
 	ServiceNameItsm = "itsm"
 	ServiceTypeItsm = "itsm"
+
+	ServiceNameSuggestion = "suggestion"
+	ServiceTypeSuggestion = "suggestion"
+	SuggestionPort        = 30987
 )
 
 const (

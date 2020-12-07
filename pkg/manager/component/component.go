@@ -1213,3 +1213,7 @@ func (m *ComponentManager) CloudId() manager.Manager {
 func (m *ComponentManager) Cloudmon() manager.Manager {
 	return newCloudMonManager(m)
 }
+
+func (m *ComponentManager) Suggestion() manager.Manager {
+	return newSuggestionManager(m)
+}

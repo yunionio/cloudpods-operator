@@ -124,6 +124,8 @@ const (
 	// Telegraf is monitor agent component type
 	TelegrafComponentType ComponentType = "telegraf"
 	CloudIdComponentType  ComponentType = "cloudid"
+
+	SuggestionComponentType ComponentType = "suggestion"
 )
 
 // ComponentPhase is the current state of component
@@ -251,6 +253,8 @@ type OnecloudClusterSpec struct {
 
 	// Cloudid holds configuration for cloudid service
 	CloudId DeploymentSpec `json:"cloudid"`
+
+	Suggestion DeploymentSpec `json:"suggestion"`
 }
 
 // OnecloudClusterStatus describes cluster status
@@ -761,4 +765,5 @@ type OnecloudClusterConfig struct {
 	ServiceOperator ServiceCommonOptions   `json:"onecloudServiceOperator"`
 	Itsm            ItsmConfig             `json:"itsm"`
 	CloudId         ServiceDBCommonOptions `json:"cloudid"`
+	Suggestion      ServiceDBCommonOptions `json:"suggestion"`
 }

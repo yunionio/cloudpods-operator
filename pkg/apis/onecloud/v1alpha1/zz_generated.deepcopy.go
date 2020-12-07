@@ -675,6 +675,7 @@ func (in *OnecloudClusterConfig) DeepCopyInto(out *OnecloudClusterConfig) {
 	out.ServiceOperator = in.ServiceOperator
 	out.Itsm = in.Itsm
 	out.CloudId = in.CloudId
+	out.Suggestion = in.Suggestion
 	return
 }
 
@@ -779,6 +780,7 @@ func (in *OnecloudClusterSpec) DeepCopyInto(out *OnecloudClusterSpec) {
 	in.OvnNorth.DeepCopyInto(&out.OvnNorth)
 	in.VpcAgent.DeepCopyInto(&out.VpcAgent)
 	in.CloudId.DeepCopyInto(&out.CloudId)
+	in.Suggestion.DeepCopyInto(&out.Suggestion)
 	return
 }
 
