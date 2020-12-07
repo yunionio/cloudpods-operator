@@ -1,6 +1,8 @@
 package component
 
 import (
+	"path"
+
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
@@ -8,6 +10,8 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/manager"
 )
+
+const hostRoot = "/hostfs"
 
 type telegrafManager struct {
 	*ComponentManager
@@ -41,6 +45,24 @@ func (m *telegrafManager) newTelegrafDaemonSet(
 				Name:            cType.String(),
 				Image:           dsSpec.Image, // TODO: set default_image
 				ImagePullPolicy: dsSpec.ImagePullPolicy,
+				Env: []corev1.EnvVar{
+					{
+						Name:  "HOST_ETC",
+						Value: path.Join(hostRoot, "/etc"),
+					},
+					{
+						Name:  "HOST_PROC",
+						Value: path.Join(hostRoot, "/proc"),
+					},
+					{
+						Name:  "HOST_SYS",
+						Value: path.Join(hostRoot, "/sys"),
+					},
+					{
+						Name:  "HOST_MOUNT_PREFIX",
+						Value: hostRoot,
+					},
+				},
 				Command: []string{
 					"/usr/bin/telegraf",
 					"-config", "/etc/telegraf/telegraf.conf",
@@ -108,6 +130,7 @@ func (m *telegrafManager) newTelegrafDaemonSet(
 		cType, oc, cfg, NewTelegrafVolume(cType, oc), dsSpec.DaemonSetSpec,
 		"", initContainers, containersF,
 	)
+	ds.Spec.Template.Spec.HostPID = false
 	ds.Spec.Template.Spec.ServiceAccountName = constants.ServiceAccountOnecloudOperator
 	if err != nil {
 		return nil, err
@@ -133,18 +156,18 @@ func NewTelegrafVolume(
 		},
 		{
 			Name:      "proc",
-			ReadOnly:  false,
-			MountPath: "/proc",
+			ReadOnly:  true,
+			MountPath: path.Join(hostRoot, "/proc"),
 		},
 		{
 			Name:      "sys",
-			ReadOnly:  false,
-			MountPath: "/sys",
+			ReadOnly:  true,
+			MountPath: path.Join(hostRoot, "/sys"),
 		},
 		{
-			Name:      "log",
-			ReadOnly:  false,
-			MountPath: "/var/log/telegraf",
+			Name:      "root",
+			ReadOnly:  true,
+			MountPath: hostRoot,
 		},
 		{
 			Name:      "run",
@@ -180,15 +203,6 @@ func NewTelegrafVolume(
 			},
 		},
 		{
-			Name: "log",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/log/telegraf",
-					Type: &volSrcType,
-				},
-			},
-		},
-		{
 			Name: "run",
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
@@ -202,6 +216,15 @@ func NewTelegrafVolume(
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: "/sys",
+					Type: &hostPathDirectory,
+				},
+			},
+		},
+		{
+			Name: "root",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/",
 					Type: &hostPathDirectory,
 				},
 			},
