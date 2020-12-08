@@ -35,7 +35,7 @@ func newEsxiManager(m *ComponentManager) manager.Manager {
 }
 
 func (m *esxiManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.EsxiAgent.Disable)
+	return m.multiZoneSync(oc, oc.Spec.EsxiAgent.Zones, m, oc.Spec.EsxiAgent.Disable)
 }
 
 func (m *esxiManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
@@ -43,36 +43,50 @@ func (m *esxiManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha
 }
 
 func (m *esxiManager) getConfigMap(
-	oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig,
+	oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string,
 ) (*corev1.ConfigMap, error) {
+	zoneId := oc.GetZone(zone)
+
 	opt := &options.Options
 	if err := SetOptionsDefault(opt, ""); err != nil {
 		return nil, err
 	}
-	// fill options
-	opt.Zone = oc.GetZone()
+	opt.Zone = zoneId
 	opt.ListenInterface = "eth0"
-
 	config := cfg.EsxiAgent
 	SetOptionsServiceTLS(&opt.BaseOptions)
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 	opt.Port = constants.EsxiAgentPort
-	return m.newServiceConfigMap(v1alpha1.EsxiAgentComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.EsxiAgentComponentType, zone, oc, opt), nil
 }
 
-func (m *esxiManager) getPVC(oc *v1alpha1.OnecloudCluster) (*corev1.PersistentVolumeClaim, error) {
-	cfg := oc.Spec.EsxiAgent
+func (m *esxiManager) getPVC(oc *v1alpha1.OnecloudCluster, zone string) (*corev1.PersistentVolumeClaim, error) {
+	cfg := oc.Spec.EsxiAgent.StatefulDeploymentSpec
 	return m.ComponentManager.newPVC(v1alpha1.EsxiAgentComponentType, oc, cfg)
 }
 
-func (m *esxiManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
-	return &oc.Status.EsxiAgent
+func (m *esxiManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
+	if len(zone) == 0 {
+		return &oc.Status.EsxiAgent.DeploymentStatus
+	} else {
+		if oc.Status.EsxiAgent.ZoneEsxiAgent == nil {
+			oc.Status.EsxiAgent.ZoneEsxiAgent = make(map[string]*v1alpha1.DeploymentStatus)
+		}
+		_, ok := oc.Status.EsxiAgent.ZoneEsxiAgent[zone]
+		if !ok {
+			oc.Status.EsxiAgent.ZoneEsxiAgent[zone] = new(v1alpha1.DeploymentStatus)
+		}
+		return oc.Status.EsxiAgent.ZoneEsxiAgent[zone]
+	}
 }
 
-func (m *esxiManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.
-	Deployment, error) {
-	dm, err := m.newCloudServiceSinglePortDeployment(v1alpha1.EsxiAgentComponentType, oc,
-		oc.Spec.EsxiAgent.DeploymentSpec, constants.EsxiAgentPort, false, false)
+func (m *esxiManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
+	dm, err := m.newCloudServiceSinglePortDeployment(
+		v1alpha1.EsxiAgentComponentType,
+		m.getZoneComponent(v1alpha1.EsxiAgentComponentType, zone),
+		oc, oc.Spec.EsxiAgent.DeploymentSpec, constants.EsxiAgentPort,
+		false, false,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -135,5 +149,5 @@ func (m *esxiManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 		dm.Spec.Selector.MatchLabels = make(map[string]string)
 	}
 	dm.Spec.Selector.MatchLabels[constants.OnecloudHostDeployerLabelKey] = ""
-	return dm, nil
+	return setSelfAntiAffnity(dm, v1alpha1.EsxiAgentComponentType), nil
 }

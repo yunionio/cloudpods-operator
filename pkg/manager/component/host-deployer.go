@@ -26,13 +26,10 @@ func newHostDeployerManger(man *ComponentManager) manager.Manager {
 }
 
 func (m *hostDeployerManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.HostDeployer.Disable)
+	return syncComponent(m, oc, oc.Spec.HostDeployer.Disable, "")
 }
 
-func (m *hostDeployerManager) getDaemonSet(
-	oc *v1alpha1.OnecloudCluster,
-	cfg *v1alpha1.OnecloudClusterConfig,
-) (*apps.DaemonSet, error) {
+func (m *hostDeployerManager) getDaemonSet(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.DaemonSet, error) {
 	return m.newHostPrivilegedDaemonSet(v1alpha1.HostDeployerComponentType, oc, cfg)
 }
 

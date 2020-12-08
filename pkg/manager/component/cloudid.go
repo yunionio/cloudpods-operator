@@ -36,7 +36,7 @@ func newCloudIdManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *cloudidManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.CloudId.Disable)
+	return syncComponent(m, oc, oc.Spec.CloudId.Disable, "")
 }
 
 func (m *cloudidManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
@@ -47,13 +47,13 @@ func (m *cloudidManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1al
 	return &cfg.CloudId.CloudUser
 }
 
-func (m *cloudidManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
+func (m *cloudidManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return controller.NewRegisterEndpointComponent(man, v1alpha1.CloudIdComponentType,
 		constants.ServiceNameCloudId, constants.ServiceTypeCloudId,
 		constants.CloudIdPort, "")
 }
 
-func (m *cloudidManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *cloudidManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, error) {
 	opt := &options.Options
 	if err := SetOptionsDefault(opt, constants.ServiceTypeCloudId); err != nil {
 		return nil, err
@@ -66,14 +66,14 @@ func (m *cloudidManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 	opt.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
 	opt.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
 	opt.Port = constants.CloudIdPort
-	return m.newServiceConfigMap(v1alpha1.CloudIdComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.CloudIdComponentType, "", oc, opt), nil
 }
 
-func (m *cloudidManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+func (m *cloudidManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
 	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.CloudIdComponentType, oc, constants.CloudIdPort)}
 }
 
-func (m *cloudidManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
+func (m *cloudidManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
 	cf := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		return []corev1.Container{
 			{
@@ -85,12 +85,9 @@ func (m *cloudidManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 			},
 		}
 	}
-	return m.newDefaultDeploymentNoInit(
-		v1alpha1.CloudIdComponentType, oc,
-		NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.CloudIdComponentType), v1alpha1.CloudIdComponentType),
-		oc.Spec.CloudId, cf)
+	return m.newDefaultDeploymentNoInit(v1alpha1.CloudIdComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.CloudIdComponentType), v1alpha1.CloudIdComponentType), oc.Spec.CloudId, cf)
 }
 
-func (m *cloudidManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
+func (m *cloudidManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.CloudId
 }

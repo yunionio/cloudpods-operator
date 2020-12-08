@@ -36,7 +36,7 @@ func newCloudeventManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *cloudeventManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.Cloudevent.Disable)
+	return syncComponent(m, oc, oc.Spec.Cloudevent.Disable, "")
 }
 
 func (m *cloudeventManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
@@ -47,13 +47,13 @@ func (m *cloudeventManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v
 	return &cfg.Cloudevent.CloudUser
 }
 
-func (m *cloudeventManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
+func (m *cloudeventManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return controller.NewRegisterEndpointComponent(man, v1alpha1.CloudeventComponentType,
 		constants.ServiceNameCloudevent, constants.ServiceTypeCloudevent,
 		constants.CloudeventPort, "")
 }
 
-func (m *cloudeventManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *cloudeventManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, error) {
 	opt := &options.Options
 	if err := SetOptionsDefault(opt, constants.ServiceTypeCloudevent); err != nil {
 		return nil, err
@@ -66,14 +66,14 @@ func (m *cloudeventManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	opt.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
 	opt.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
 	opt.Port = constants.CloudeventPort
-	return m.newServiceConfigMap(v1alpha1.CloudeventComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.CloudeventComponentType, "", oc, opt), nil
 }
 
-func (m *cloudeventManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+func (m *cloudeventManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
 	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.CloudeventComponentType, oc, constants.CloudeventPort)}
 }
 
-func (m *cloudeventManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
+func (m *cloudeventManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
 	cf := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		return []corev1.Container{
 			{
@@ -85,12 +85,9 @@ func (m *cloudeventManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1a
 			},
 		}
 	}
-	return m.newDefaultDeploymentNoInit(
-		v1alpha1.CloudeventComponentType, oc,
-		NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.CloudeventComponentType), v1alpha1.CloudeventComponentType),
-		oc.Spec.Cloudevent, cf)
+	return m.newDefaultDeploymentNoInit(v1alpha1.CloudeventComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.CloudeventComponentType), v1alpha1.CloudeventComponentType), oc.Spec.Cloudevent, cf)
 }
 
-func (m *cloudeventManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
+func (m *cloudeventManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Cloudevent
 }

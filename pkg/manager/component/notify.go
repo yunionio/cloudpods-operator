@@ -55,7 +55,7 @@ func newNotifyManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *notifyManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.Notify.Disable)
+	return syncComponent(m, oc, oc.Spec.Notify.Disable, "")
 }
 
 func (m *notifyManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
@@ -66,7 +66,7 @@ func (m *notifyManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alp
 	return &cfg.Notify.CloudUser
 }
 
-func (m *notifyManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
+func (m *notifyManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return controller.NewRegisterEndpointComponent(
 		man, v1alpha1.NotifyComponentType,
 		constants.ServiceNameNotify, constants.ServiceTypeNotify,
@@ -89,7 +89,7 @@ type NotifyPluginWebsocketConfig struct {
 	Region string
 }
 
-func (m *notifyManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *notifyManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, error) {
 	opt := &options.Options
 	if err := SetOptionsDefault(opt, constants.ServiceTypeNotify); err != nil {
 		return nil, errors.Wrap(err, "set notify option")
@@ -104,7 +104,7 @@ func (m *notifyManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	opt.ReSendScope = 30
 	opt.Port = constants.NotifyPort
 
-	cfgMap := m.newServiceConfigMap(v1alpha1.NotifyComponentType, oc, opt)
+	cfgMap := m.newServiceConfigMap(v1alpha1.NotifyComponentType, "", oc, opt)
 	pluginBaseOpt := &NotifyPluginBaseConfig{
 		SockFileDir: NotifySocketFileDir,
 		SenderNum:   5,
@@ -137,14 +137,14 @@ func (m *notifyManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	return cfgMap, nil
 }
 
-func (m *notifyManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+func (m *notifyManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
 	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.NotifyComponentType, oc, constants.NotifyPort)}
 }
 
-func (m *notifyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
+func (m *notifyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
 	img := oc.Spec.Notify.Image
 	pluginImg := strings.ReplaceAll(img, "notify", "notify-plugins")
-	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.NotifyComponentType, oc, oc.Spec.Notify.DeploymentSpec, constants.NotifyPort, true, false)
+	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.NotifyComponentType, "", oc, oc.Spec.Notify.DeploymentSpec, constants.NotifyPort, true, false)
 	if err != nil {
 		return nil, err
 	}
@@ -228,6 +228,6 @@ func (m *notifyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 	return deploy, nil
 }
 
-func (m *notifyManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
+func (m *notifyManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Notify
 }

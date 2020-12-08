@@ -18,6 +18,7 @@ require (
 	k8s.io/apiextensions-apiserver v0.0.0
 	k8s.io/apimachinery v0.17.3
 	k8s.io/client-go v9.0.0+incompatible
+	k8s.io/code-generator v0.15.13-beta.0 // indirect
 	k8s.io/klog v0.3.3
 	k8s.io/kube-openapi v0.0.0-20190603182131-db7b694dc208 // indirect
 	k8s.io/kubernetes v1.16.0

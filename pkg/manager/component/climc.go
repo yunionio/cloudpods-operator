@@ -34,7 +34,7 @@ func newClimcComponentManager(base *ComponentManager) manager.Manager {
 }
 
 func (m *climcManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.Climc.Disable)
+	return syncComponent(m, oc, oc.Spec.Climc.Disable, "")
 }
 
 func GetRCAdminEnv(oc *v1alpha1.OnecloudCluster) []corev1.EnvVar {
@@ -70,7 +70,7 @@ func GetRCAdminEnv(oc *v1alpha1.OnecloudCluster) []corev1.EnvVar {
 	}
 }
 
-func (m *climcManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
+func (m *climcManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
 	containersF := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		return []corev1.Container{
 			{
@@ -83,10 +83,5 @@ func (m *climcManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 			},
 		}
 	}
-	return m.newDefaultDeploymentNoInit(
-		v1alpha1.ClimcComponentType, oc,
-		NewVolumeHelper(oc, "", v1alpha1.ClimcComponentType),
-		oc.Spec.Climc,
-		containersF,
-	)
+	return m.newDefaultDeploymentNoInit(v1alpha1.ClimcComponentType, "", oc, NewVolumeHelper(oc, "", v1alpha1.ClimcComponentType), oc.Spec.Climc, containersF)
 }

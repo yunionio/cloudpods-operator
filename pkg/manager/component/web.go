@@ -261,10 +261,10 @@ func (m *webManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	} else {
 		oc.Spec.Web.ImageName = constants.WebCEImageName
 	}
-	return syncComponent(m, oc, oc.Spec.Web.Disable)
+	return syncComponent(m, oc, oc.Spec.Web.Disable, "")
 }
 
-func (m *webManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+func (m *webManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
 	ports := []corev1.ServicePort{
 		{
 			Name:       "https",
@@ -282,7 +282,7 @@ func (m *webManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service 
 	return []*corev1.Service{m.newService(v1alpha1.WebComponentType, oc, corev1.ServiceTypeClusterIP, ports)}
 }
 
-func (m *webManager) getIngress(oc *v1alpha1.OnecloudCluster) *extensions.Ingress {
+func (m *webManager) getIngress(oc *v1alpha1.OnecloudCluster, zone string) *extensions.Ingress {
 	ocName := oc.GetName()
 	svcName := controller.NewClusterComponentName(ocName, v1alpha1.WebComponentType)
 	appLabel := m.getComponentLabel(oc, v1alpha1.WebComponentType)
@@ -348,13 +348,13 @@ func (m *webManager) updateIngress(oc *v1alpha1.OnecloudCluster, oldIng *extensi
 		}
 	}
 	if !overviewFound {
-		svcName := m.getService(oc)[0].GetName()
+		svcName := m.getService(oc, "")[0].GetName()
 		newIng = m.addIngressPaths(IsEnterpriseEdition(oc), svcName, newIng)
 	}
 	return newIng
 }
 
-func (m *webManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *webManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, error) {
 	urlF := func(ct v1alpha1.ComponentType, port int) string {
 		return fmt.Sprintf("https://%s:%d", controller.NewClusterComponentName(oc.GetName(), ct), port)
 	}
@@ -373,10 +373,10 @@ func (m *webManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.On
 	if err != nil {
 		return nil, err
 	}
-	return m.newConfigMap(v1alpha1.WebComponentType, oc, content), nil
+	return m.newConfigMap(v1alpha1.WebComponentType, "", oc, content), nil
 }
 
-func (m *webManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
+func (m *webManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
 	repo, _, tag := getRepoImageName(oc.Spec.Web.Image)
 	cf := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		confVol := volMounts[len(volMounts)-1]
@@ -420,10 +420,7 @@ func (m *webManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 		}
 		return containers
 	}
-	deploy, err := m.newDefaultDeploymentNoInit(
-		v1alpha1.WebComponentType, oc,
-		NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.WebComponentType), v1alpha1.WebComponentType),
-		oc.Spec.Web, cf)
+	deploy, err := m.newDefaultDeploymentNoInit(v1alpha1.WebComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.WebComponentType), v1alpha1.WebComponentType), oc.Spec.Web, cf)
 	if err != nil {
 		return nil, err
 	}
@@ -434,6 +431,6 @@ func (m *webManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 	return deploy, nil
 }
 
-func (m *webManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
+func (m *webManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Web
 }

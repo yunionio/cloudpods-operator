@@ -35,14 +35,14 @@ func newAutoUpdateManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *autoUpdateManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.AutoUpdate.Disable)
+	return syncComponent(m, oc, oc.Spec.AutoUpdate.Disable, "")
 }
 
 func (m *autoUpdateManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
 	return &cfg.AutoUpdate.CloudUser
 }
 
-func (m *autoUpdateManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
+func (m *autoUpdateManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return controller.NewRegisterEndpointComponent(
 		man, v1alpha1.AutoUpdateComponentType,
 		constants.ServiceNameAutoUpdate, constants.ServiceTypeAutoUpdate,
@@ -61,7 +61,7 @@ type autoUpdateOptions struct {
 	Channel                  string
 }
 
-func (m *autoUpdateManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *autoUpdateManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, error) {
 	opt := &autoUpdateOptions{}
 	if err := SetOptionsDefault(opt, constants.ServiceTypeAutoUpdate); err != nil {
 		return nil, err
@@ -77,15 +77,15 @@ func (m *autoUpdateManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	opt.HostUpdateTimeZone = "Asia/Shanghai"
 	opt.KubernetesMode = true
 	opt.Channel = "stable"
-	return m.newServiceConfigMap(v1alpha1.AutoUpdateComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.AutoUpdateComponentType, "", oc, opt), nil
 }
 
-func (m *autoUpdateManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+func (m *autoUpdateManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
 	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.AutoUpdateComponentType, oc, constants.AutoUpdatePort)}
 }
 
-func (m *autoUpdateManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
-	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.AutoUpdateComponentType, oc, oc.Spec.AutoUpdate, constants.AutoUpdatePort, false, false)
+func (m *autoUpdateManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
+	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.AutoUpdateComponentType, "", oc, oc.Spec.AutoUpdate, constants.AutoUpdatePort, false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -95,6 +95,6 @@ func (m *autoUpdateManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1a
 	return deploy, nil
 }
 
-func (m *autoUpdateManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
+func (m *autoUpdateManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.AutoUpdate
 }

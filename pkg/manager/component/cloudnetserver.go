@@ -37,7 +37,7 @@ func newCloudnetManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *cloudnetManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.Cloudnet.Disable)
+	return syncComponent(m, oc, oc.Spec.Cloudnet.Disable, "")
 }
 
 func (m *cloudnetManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
@@ -48,13 +48,13 @@ func (m *cloudnetManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1a
 	return &cfg.Cloudnet.CloudUser
 }
 
-func (m *cloudnetManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
+func (m *cloudnetManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return controller.NewRegisterEndpointComponent(man, v1alpha1.CloudnetComponentType,
 		constants.ServiceNameCloudnet, constants.ServiceTypeCloudnet,
 		constants.CloudnetPort, "")
 }
 
-func (m *cloudnetManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *cloudnetManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, error) {
 	opt := &options.Options
 	if err := SetOptionsDefault(opt, constants.ServiceTypeCloudnet); err != nil {
 		return nil, err
@@ -67,14 +67,14 @@ func (m *cloudnetManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 	opt.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
 	opt.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
 	opt.Port = constants.CloudnetPort
-	return m.newServiceConfigMap(v1alpha1.CloudnetComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.CloudnetComponentType, "", oc, opt), nil
 }
 
-func (m *cloudnetManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+func (m *cloudnetManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
 	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.CloudnetComponentType, oc, constants.CloudnetPort)}
 }
 
-func (m *cloudnetManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
+func (m *cloudnetManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
 	cf := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		return []corev1.Container{
 			{
@@ -86,12 +86,9 @@ func (m *cloudnetManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 			},
 		}
 	}
-	return m.newDefaultDeploymentNoInit(
-		v1alpha1.CloudnetComponentType, oc,
-		NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.CloudnetComponentType), v1alpha1.CloudnetComponentType),
-		oc.Spec.Cloudnet, cf)
+	return m.newDefaultDeploymentNoInit(v1alpha1.CloudnetComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.CloudnetComponentType), v1alpha1.CloudnetComponentType), oc.Spec.Cloudnet, cf)
 }
 
-func (m *cloudnetManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
+func (m *cloudnetManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Cloudnet
 }
