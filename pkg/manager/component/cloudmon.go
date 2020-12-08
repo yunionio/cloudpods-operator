@@ -55,10 +55,10 @@ func (m *cloudmonManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 		}
 		return nil
 	}
-	return syncComponent(m, oc, oc.Spec.Cloudmon.Disable)
+	return syncComponent(m, oc, oc.Spec.Cloudmon.Disable, "")
 }
 
-func (m *cloudmonManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
+func (m *cloudmonManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
 	spec := oc.Spec.Cloudmon.DeploymentSpec
 	configMap := controller.ComponentConfigMapName(oc, v1alpha1.APIGatewayComponentType)
 	h := NewVolumeHelper(oc, configMap, v1alpha1.APIGatewayComponentType)
@@ -132,8 +132,5 @@ func (m *cloudmonManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 			},
 		}
 	}
-	return m.newDefaultDeployment(
-		v1alpha1.CloudmonComponentType, oc, h,
-		spec, nil, containersF,
-	)
+	return m.newDefaultDeployment(v1alpha1.CloudmonComponentType, v1alpha1.CloudmonComponentType, oc, h, spec, nil, containersF)
 }

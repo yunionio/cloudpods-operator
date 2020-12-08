@@ -140,7 +140,7 @@ func (m *etcdManager) fixEtcdSize(oc *v1alpha1.OnecloudCluster) (bool, error) {
 }
 
 func (m *etcdManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	err := syncComponent(m, oc, oc.Spec.Etcd.Disable)
+	err := syncComponent(m, oc, oc.Spec.Etcd.Disable, "")
 	if err != nil {
 		return err
 	}
