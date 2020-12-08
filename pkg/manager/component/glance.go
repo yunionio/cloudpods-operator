@@ -37,7 +37,7 @@ func newGlanceManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *glanceManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.Glance.Disable)
+	return syncComponent(m, oc, oc.Spec.Glance.Disable, "")
 }
 
 func (m *glanceManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
@@ -48,15 +48,15 @@ func (m *glanceManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alp
 	return &cfg.Glance.CloudUser
 }
 
-func (m *glanceManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
+func (m *glanceManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return man.Glance()
 }
 
-func (m *glanceManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+func (m *glanceManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
 	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.GlanceComponentType, oc, constants.GlanceAPIPort)}
 }
 
-func (m *glanceManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
+func (m *glanceManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
 	opt := &options.Options
 	if err := SetOptionsDefault(opt, constants.ServiceTypeGlance); err != nil {
 		return nil, false, err
@@ -72,7 +72,7 @@ func (m *glanceManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	// TODO: fix this
 	opt.AutoSyncTable = true
 	opt.Port = constants.GlanceAPIPort
-	newCfg := m.newServiceConfigMap(v1alpha1.GlanceComponentType, oc, opt)
+	newCfg := m.newServiceConfigMap(v1alpha1.GlanceComponentType, "", oc, opt)
 	return m.customConfig(oc, newCfg)
 }
 
@@ -101,13 +101,13 @@ func (m *glanceManager) customConfig(oc *v1alpha1.OnecloudCluster, newCfg *corev
 		}
 
 		if updateOldConf {
-			return m.newConfigMap(v1alpha1.GlanceComponentType, oc, jConfig.YAMLString()), true, nil
+			return m.newConfigMap(v1alpha1.GlanceComponentType, "", oc, jConfig.YAMLString()), true, nil
 		}
 	}
 	return newCfg, false, nil
 }
 
-func (m *glanceManager) getPVC(oc *v1alpha1.OnecloudCluster) (*corev1.PersistentVolumeClaim, error) {
+func (m *glanceManager) getPVC(oc *v1alpha1.OnecloudCluster, zone string) (*corev1.PersistentVolumeClaim, error) {
 	cfg := oc.Spec.Glance
 	pvc, err := m.ComponentManager.newPVC(v1alpha1.GlanceComponentType, oc, cfg)
 	if err != nil {
@@ -120,8 +120,8 @@ func (m *glanceManager) getPVC(oc *v1alpha1.OnecloudCluster) (*corev1.Persistent
 	return pvc, nil
 }
 
-func (m *glanceManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
-	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.GlanceComponentType, oc, oc.Spec.Glance.DeploymentSpec, constants.GlanceAPIPort, true, false)
+func (m *glanceManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
+	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.GlanceComponentType, "", oc, oc.Spec.Glance.DeploymentSpec, constants.GlanceAPIPort, true, false)
 	if err != nil {
 		return nil, err
 	}
@@ -217,6 +217,6 @@ func (m *glanceManager) getPodLabels() map[string]string {
 	}
 }
 
-func (m *glanceManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
+func (m *glanceManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Glance.DeploymentStatus
 }

@@ -23,13 +23,10 @@ func newHostImageManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *hostImageManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.HostImage.Disable)
+	return syncComponent(m, oc, oc.Spec.HostImage.Disable, "")
 }
 
-func (m *hostImageManager) getDaemonSet(
-	oc *v1alpha1.OnecloudCluster,
-	cfg *v1alpha1.OnecloudClusterConfig,
-) (*apps.DaemonSet, error) {
+func (m *hostImageManager) getDaemonSet(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.DaemonSet, error) {
 	return m.newHostPrivilegedDaemonSet(v1alpha1.HostImageComponentType, oc, cfg)
 }
 
