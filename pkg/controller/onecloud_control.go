@@ -699,6 +699,21 @@ func (c *regionComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 			} else {
 				oc.Status.RegionServer.ZoneId = zoneId
 			}
+			for _, cZone := range oc.Spec.CustomZones {
+				var cZoneId = cZone
+				// if zone created, use zoneId
+				if zoneId, ok := oc.Status.RegionServer.CustomZones[cZone]; ok {
+					cZoneId = zoneId
+				}
+				if zoneId, err := ensureZone(s, cZoneId); err != nil {
+					return errors.Wrapf(err, "create zone %s", cZone)
+				} else {
+					if oc.Status.RegionServer.CustomZones == nil {
+						oc.Status.RegionServer.CustomZones = make(map[string]string)
+					}
+					oc.Status.RegionServer.CustomZones[cZone] = zoneId
+				}
+			}
 		}
 		{ // ensure wire created
 			if len(oc.Status.RegionServer.WireId) > 0 {

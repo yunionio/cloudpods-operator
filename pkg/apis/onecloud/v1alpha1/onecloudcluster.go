@@ -26,10 +26,26 @@ func (oc *OnecloudCluster) GetRegion() string {
 	}
 }
 
-func (oc *OnecloudCluster) GetZone() string {
-	if len(oc.Status.RegionServer.ZoneId) == 0 {
-		return oc.Spec.Zone
+func (oc *OnecloudCluster) GetZone(zoneName string) string {
+	if len(zoneName) == 0 { // default zone
+		if len(oc.Status.RegionServer.ZoneId) == 0 {
+			return oc.Spec.Zone
+		} else {
+			return oc.Status.RegionServer.ZoneId
+		}
 	} else {
-		return oc.Status.RegionServer.ZoneId
+		if zoneId, ok := oc.Status.RegionServer.CustomZones[zoneName]; ok {
+			return zoneId
+		} else {
+			return zoneName
+		}
 	}
+}
+
+func (oc *OnecloudCluster) GetZones() []string {
+	var zones = oc.Spec.CustomZones
+	if zones == nil {
+		zones = []string{}
+	}
+	return append(zones, oc.Spec.Zone)
 }

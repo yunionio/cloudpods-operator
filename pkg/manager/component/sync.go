@@ -31,39 +31,37 @@ type syncManager interface {
 	getComponentManager() *ComponentManager
 	getDBConfig(*v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig
 	getCloudUser(*v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser
-	getPhaseControl(controller.ComponentManager) controller.PhaseControl
-	getDeploymentStatus(*v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus
+	getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl
+	getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus
 }
 
 type serviceFactory interface {
-	getService(*v1alpha1.OnecloudCluster) []*corev1.Service
+	getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service
 }
 
 type ingressFactory interface {
-	getIngress(*v1alpha1.OnecloudCluster) *extensions.Ingress
+	getIngress(oc *v1alpha1.OnecloudCluster, zone string) *extensions.Ingress
 	updateIngress(oc *v1alpha1.OnecloudCluster, oldIng *extensions.Ingress) *extensions.Ingress
 }
 
 type configMapFactory interface {
-	getConfigMap(
-		*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig,
-	) (cfgMap *corev1.ConfigMap, forceUpdate bool, err error)
+	getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error)
 }
 
 type pvcFactory interface {
-	getPVC(*v1alpha1.OnecloudCluster) (*corev1.PersistentVolumeClaim, error)
+	getPVC(oc *v1alpha1.OnecloudCluster, zone string) (*corev1.PersistentVolumeClaim, error)
 }
 
 type deploymentFactory interface {
-	getDeployment(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error)
+	getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error)
 }
 
 type daemonSetFactory interface {
-	getDaemonSet(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig) (*apps.DaemonSet, error)
+	getDaemonSet(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.DaemonSet, error)
 }
 
 type cronJobFactory interface {
-	getCronJob(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig) (*batchv1.CronJob, error)
+	getCronJob(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*batchv1.CronJob, error)
 }
 
 type cloudComponentFactory interface {
@@ -77,34 +75,34 @@ type cloudComponentFactory interface {
 	cronJobFactory
 }
 
-func syncComponent(factory cloudComponentFactory, oc *v1alpha1.OnecloudCluster, isDisable bool) error {
+func syncComponent(factory cloudComponentFactory, oc *v1alpha1.OnecloudCluster, isDisable bool, zone string) error {
 	if isDisable {
 		klog.Infof("component %#v is disable, skip sync", factory)
 		return nil
 	}
 	m := factory.getComponentManager()
-	if err := m.syncService(oc, factory.getService); err != nil {
+	if err := m.syncService(oc, factory.getService, zone); err != nil {
 		return errors.Wrap(err, "sync service")
 	}
-	if err := m.syncIngress(oc, factory.(ingressFactory)); err != nil {
+	if err := m.syncIngress(oc, factory.(ingressFactory), zone); err != nil {
 		return errors.Wrap(err, "sync ingress")
 	}
-	if err := m.syncConfigMap(oc, factory.getDBConfig, factory.getCloudUser, factory.getConfigMap); err != nil {
+	if err := m.syncConfigMap(oc, factory.getDBConfig, factory.getCloudUser, factory.getConfigMap, zone); err != nil {
 		return errors.Wrap(err, "sync configmap")
 	}
-	if err := m.syncPVC(oc, factory.getPVC); err != nil {
+	if err := m.syncPVC(oc, factory.getPVC, zone); err != nil {
 		return errors.Wrapf(err, "sync pvc")
 	}
-	if err := m.syncDeployment(oc, factory.getDeployment, newPostSyncComponent(factory)); err != nil {
+	if err := m.syncDeployment(oc, factory.getDeployment, newPostSyncComponent(factory), zone); err != nil {
 		return errors.Wrapf(err, "sync deployment")
 	}
-	if err := m.syncDaemonSet(oc, factory.getDaemonSet); err != nil {
+	if err := m.syncDaemonSet(oc, factory.getDaemonSet, zone); err != nil {
 		return errors.Wrapf(err, "sync daemonset")
 	}
-	if err := m.syncCronJob(oc, factory.getCronJob); err != nil {
+	if err := m.syncCronJob(oc, factory.getCronJob, zone); err != nil {
 		return errors.Wrapf(err, "sync cronjob")
 	}
-	if err := m.syncPhase(oc, factory.getPhaseControl); err != nil {
+	if err := m.syncPhase(oc, factory.getPhaseControl, zone); err != nil {
 		return errors.Wrapf(err, "sync phase control")
 	}
 	return nil
@@ -146,11 +144,11 @@ func getImageStatus(deploy *apps.Deployment) *v1alpha1.ImageStatus {
 	return getImageStatusByContainer(&container)
 }
 
-func newPostSyncComponent(f cloudComponentFactory) func(*v1alpha1.OnecloudCluster, *apps.Deployment) error {
-	return func(oc *v1alpha1.OnecloudCluster, deploy *apps.Deployment) error {
+func newPostSyncComponent(f cloudComponentFactory) func(*v1alpha1.OnecloudCluster, *apps.Deployment, string) error {
+	return func(oc *v1alpha1.OnecloudCluster, deploy *apps.Deployment, zone string) error {
 		m := f.getComponentManager()
 
-		deployStatus := f.getDeploymentStatus(oc)
+		deployStatus := f.getDeploymentStatus(oc, zone)
 		if deployStatus != nil {
 			deployStatus.Deployment = &deploy.Status
 			upgrading, err := m.deploymentIsUpgrading(deploy, oc)

@@ -26,18 +26,20 @@ func newBaremetalManager(m *ComponentManager) manager.Manager {
 }
 
 func (m *baremetalManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.BaremetalAgent.Disable)
+	return m.multiZoneSync(oc, oc.Spec.BaremetalAgent.Zones, m, oc.Spec.BaremetalAgent.Disable)
 }
 
 func (m *baremetalManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
 	return &cfg.BaremetalAgent.CloudUser
 }
 
-func (m *baremetalManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
+func (m *baremetalManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return controller.NewRegisterServiceComponent(man, constants.ServiceNameBaremetal, constants.ServiceTypeBaremetal)
 }
 
-func (m *baremetalManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
+func (m *baremetalManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
+	zoneId := oc.GetZone(zone)
+
 	opt := &options.Options
 	if err := SetOptionsDefault(opt, ""); err != nil {
 		return nil, false, err
@@ -49,17 +51,28 @@ func (m *baremetalManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 	opt.AutoRegisterBaremetal = false
 	opt.LinuxDefaultRootUser = true
 	opt.DefaultIpmiPassword = "YunionDev@123"
-	opt.Zone = oc.GetZone()
-	return m.newServiceConfigMap(v1alpha1.BaremetalAgentComponentType, oc, opt), false, nil
+	opt.Zone = zoneId
+	return m.newServiceConfigMap(v1alpha1.BaremetalAgentComponentType, zone, oc, opt), false, nil
 }
 
-func (m *baremetalManager) getPVC(oc *v1alpha1.OnecloudCluster) (*corev1.PersistentVolumeClaim, error) {
-	cfg := oc.Spec.BaremetalAgent
-	return m.ComponentManager.newPVC(v1alpha1.BaremetalAgentComponentType, oc, cfg)
+func (m *baremetalManager) getPVC(oc *v1alpha1.OnecloudCluster, zone string) (*corev1.PersistentVolumeClaim, error) {
+	cfg := oc.Spec.BaremetalAgent.StatefulDeploymentSpec
+	return m.ComponentManager.newPVC(m.getZoneComponent(v1alpha1.BaremetalAgentComponentType, zone), oc, cfg)
 }
 
-func (m *baremetalManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
-	return &oc.Status.BaremetalAgent
+func (m *baremetalManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
+	if len(zone) == 0 {
+		return &oc.Status.BaremetalAgent.DeploymentStatus
+	} else {
+		if oc.Status.BaremetalAgent.ZoneBaremetalAgent == nil {
+			oc.Status.BaremetalAgent.ZoneBaremetalAgent = make(map[string]*v1alpha1.DeploymentStatus)
+		}
+		_, ok := oc.Status.BaremetalAgent.ZoneBaremetalAgent[zone]
+		if !ok {
+			oc.Status.BaremetalAgent.ZoneBaremetalAgent[zone] = new(v1alpha1.DeploymentStatus)
+		}
+		return oc.Status.BaremetalAgent.ZoneBaremetalAgent[zone]
+	}
 }
 
 func (m *baremetalManager) updateBaremetalSpecByNodeInfo(spec *v1alpha1.StatefulDeploymentSpec) error {
@@ -82,13 +95,13 @@ func (m *baremetalManager) updateBaremetalSpecByNodeInfo(spec *v1alpha1.Stateful
 	return nil
 }
 
-func (m *baremetalManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig,
-) (*apps.Deployment, error) {
-	if err := m.updateBaremetalSpecByNodeInfo(&oc.Spec.BaremetalAgent); err != nil {
+func (m *baremetalManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
+	if err := m.updateBaremetalSpecByNodeInfo(&oc.Spec.BaremetalAgent.StatefulDeploymentSpec); err != nil {
 		return nil, err
 	}
 
 	cType := v1alpha1.BaremetalAgentComponentType
+	zoneComponentType := m.getZoneComponent(cType, zone)
 	dmSpec := oc.Spec.BaremetalAgent.DeploymentSpec
 	privileged := true
 	containersF := func(volMounts []corev1.VolumeMount) []corev1.Container {
@@ -110,10 +123,10 @@ func (m *baremetalManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1al
 		}
 	}
 	hostNetwork := true
-	dm, err := m.newDefaultDeploymentNoInitWithoutCloudAffinity(cType, oc,
+	dm, err := m.newDefaultDeploymentNoInitWithoutCloudAffinity(cType, zoneComponentType, oc,
 		newBaremetalVolHelper(
-			oc, controller.ComponentConfigMapName(oc, v1alpha1.BaremetalAgentComponentType),
-			v1alpha1.BaremetalAgentComponentType,
+			oc, controller.ComponentConfigMapName(oc, zoneComponentType),
+			zoneComponentType,
 		),
 		dmSpec, hostNetwork, containersF,
 	)
@@ -128,11 +141,11 @@ func (m *baremetalManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1al
 		dm.Spec.Template.Spec.NodeSelector = make(map[string]string)
 	}
 	dm.Spec.Template.Spec.NodeSelector[constants.OnecloudEanbleBaremetalLabelKey] = "enable"
-	return dm, nil
+	return setSelfAntiAffnity(dm, cType), nil
 }
 
 func newBaremetalVolHelper(oc *v1alpha1.OnecloudCluster, optCfgMap string, component v1alpha1.ComponentType) *VolumeHelper {
-	volHelper := NewVolumeHelper(oc, optCfgMap, component)
+	volHelper := NewVolumeHelper(oc, optCfgMap, v1alpha1.BaremetalAgentComponentType)
 	volHelper.volumeMounts = append(volHelper.volumeMounts,
 		corev1.VolumeMount{
 			Name:      "opt",
@@ -144,7 +157,7 @@ func newBaremetalVolHelper(oc *v1alpha1.OnecloudCluster, optCfgMap string, compo
 		Name: "opt",
 		VolumeSource: corev1.VolumeSource{
 			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-				ClaimName: m.newPvcName(oc.GetName(), oc.Spec.BaremetalAgent.StorageClassName, v1alpha1.BaremetalAgentComponentType),
+				ClaimName: m.newPvcName(oc.GetName(), oc.Spec.BaremetalAgent.StorageClassName, component),
 				ReadOnly:  false,
 			},
 		},

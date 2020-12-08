@@ -37,14 +37,14 @@ func newVpcAgentManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *vpcAgentManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.VpcAgent.Disable)
+	return syncComponent(m, oc, oc.Spec.VpcAgent.Disable, "")
 }
 
 func (m *vpcAgentManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
 	return &cfg.VpcAgent.CloudUser
 }
 
-func (m *vpcAgentManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
+func (m *vpcAgentManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
 	var (
 		opts = &options.Options{}
 		prog = "vpcagent"
@@ -61,13 +61,13 @@ func (m *vpcAgentManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 	)
 	config := cfg.VpcAgent
 	SetServiceCommonOptions(&opts.CommonOptions, oc, config.ServiceCommonOptions)
-	return m.newServiceConfigMap(v1alpha1.VpcAgentComponentType, oc, opts), false, nil
+	return m.newServiceConfigMap(v1alpha1.VpcAgentComponentType, "", oc, opts), false, nil
 }
 
-func (m *vpcAgentManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
-	return m.newCloudServiceDeployment(v1alpha1.VpcAgentComponentType, oc, oc.Spec.VpcAgent, nil, nil, false, true)
+func (m *vpcAgentManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
+	return m.newCloudServiceDeployment(v1alpha1.VpcAgentComponentType, v1alpha1.VpcAgentComponentType, oc, oc.Spec.VpcAgent, nil, nil, false, true)
 }
 
-func (m *vpcAgentManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
+func (m *vpcAgentManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.VpcAgent
 }

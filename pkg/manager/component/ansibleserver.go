@@ -37,7 +37,7 @@ func newAnsibleManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *ansibleManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.AnsibleServer.Disable)
+	return syncComponent(m, oc, oc.Spec.AnsibleServer.Disable, "")
 }
 
 func (m *ansibleManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
@@ -48,13 +48,13 @@ func (m *ansibleManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1al
 	return &cfg.AnsibleServer.CloudUser
 }
 
-func (m *ansibleManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
+func (m *ansibleManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return controller.NewRegisterEndpointComponent(man, v1alpha1.AnsibleServerComponentType,
 		constants.ServiceNameAnsibleServer, constants.ServiceTypeAnsibleServer,
 		constants.AnsibleServerPort, "")
 }
 
-func (m *ansibleManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
+func (m *ansibleManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
 	opt := &options.Options
 	if err := SetOptionsDefault(opt, constants.ServiceTypeAnsibleServer); err != nil {
 		return nil, false, err
@@ -67,14 +67,14 @@ func (m *ansibleManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 	opt.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
 	opt.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
 	opt.Port = constants.AnsibleServerPort
-	return m.newServiceConfigMap(v1alpha1.AnsibleServerComponentType, oc, opt), false, nil
+	return m.newServiceConfigMap(v1alpha1.AnsibleServerComponentType, "", oc, opt), false, nil
 }
 
-func (m *ansibleManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+func (m *ansibleManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
 	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.AnsibleServerComponentType, oc, constants.AnsibleServerPort)}
 }
 
-func (m *ansibleManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
+func (m *ansibleManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
 	cf := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		return []corev1.Container{
 			{
@@ -86,12 +86,9 @@ func (m *ansibleManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 			},
 		}
 	}
-	return m.newDefaultDeploymentNoInit(
-		v1alpha1.AnsibleServerComponentType, oc,
-		NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.AnsibleServerComponentType), v1alpha1.AnsibleServerComponentType),
-		oc.Spec.AnsibleServer, cf)
+	return m.newDefaultDeploymentNoInit(v1alpha1.AnsibleServerComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.AnsibleServerComponentType), v1alpha1.AnsibleServerComponentType), oc.Spec.AnsibleServer, cf)
 }
 
-func (m *ansibleManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
+func (m *ansibleManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.AnsibleServer
 }
