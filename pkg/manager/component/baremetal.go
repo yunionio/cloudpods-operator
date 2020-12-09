@@ -37,12 +37,10 @@ func (m *baremetalManager) getPhaseControl(man controller.ComponentManager) cont
 	return controller.NewRegisterServiceComponent(man, constants.ServiceNameBaremetal, constants.ServiceTypeBaremetal)
 }
 
-func (m *baremetalManager) getConfigMap(
-	oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig,
-) (*corev1.ConfigMap, error) {
+func (m *baremetalManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
 	opt := &options.Options
 	if err := SetOptionsDefault(opt, ""); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	config := cfg.BaremetalAgent
 	SetOptionsServiceTLS(&opt.BaseOptions)
@@ -52,7 +50,7 @@ func (m *baremetalManager) getConfigMap(
 	opt.LinuxDefaultRootUser = true
 	opt.DefaultIpmiPassword = "YunionDev@123"
 	opt.Zone = oc.GetZone()
-	return m.newServiceConfigMap(v1alpha1.BaremetalAgentComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.BaremetalAgentComponentType, oc, opt), false, nil
 }
 
 func (m *baremetalManager) getPVC(oc *v1alpha1.OnecloudCluster) (*corev1.PersistentVolumeClaim, error) {

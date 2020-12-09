@@ -196,7 +196,7 @@ func (m *ComponentManager) syncConfigMap(
 	oc *v1alpha1.OnecloudCluster,
 	dbConfigFactory func(*v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig,
 	svcAccountFactory func(*v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser,
-	cfgMapFactory func(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error),
+	cfgMapFactory func(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error),
 ) error {
 	clustercfg, err := m.configer.GetClusterConfig(oc)
 	if err != nil {
@@ -221,7 +221,7 @@ func (m *ComponentManager) syncConfigMap(
 			})
 		}
 	}
-	cfgMap, err := cfgMapFactory(oc, clustercfg)
+	cfgMap, forceUpdate, err := cfgMapFactory(oc, clustercfg)
 	if err != nil {
 		return err
 	}
@@ -230,6 +230,9 @@ func (m *ComponentManager) syncConfigMap(
 	}
 	if err := SetConfigMapLastAppliedConfigAnnotation(cfgMap); err != nil {
 		return err
+	}
+	if forceUpdate {
+		return m.configer.CreateOrUpdateConfigMap(oc, cfgMap)
 	}
 	oldCfgMap, err := m.configer.Lister().ConfigMaps(oc.GetNamespace()).Get(cfgMap.GetName())
 	if err != nil && !errors.IsNotFound(err) {
@@ -1047,8 +1050,8 @@ func (m *ComponentManager) updateIngress(_ *v1alpha1.OnecloudCluster, _ *extensi
 	return nil
 }
 
-func (m *ComponentManager) getConfigMap(_ *v1alpha1.OnecloudCluster, _ *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
-	return nil, nil
+func (m *ComponentManager) getConfigMap(_ *v1alpha1.OnecloudCluster, _ *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
+	return nil, false, nil
 }
 
 func (m *ComponentManager) getComponentManager() *ComponentManager {

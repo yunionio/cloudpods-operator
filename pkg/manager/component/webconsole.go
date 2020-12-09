@@ -51,10 +51,10 @@ func (m *webconsoleManager) getPhaseControl(man controller.ComponentManager) con
 		constants.WebconsolePort, "")
 }
 
-func (m *webconsoleManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *webconsoleManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
 	opt := &options.Options
 	if err := SetOptionsDefault(opt, constants.ServiceTypeWebconsole); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	config := cfg.Webconsole
 	SetOptionsServiceTLS(&opt.BaseOptions)
@@ -67,7 +67,7 @@ func (m *webconsoleManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	// opt.ApiServer = fmt.Sprintf("https://%s:%d", address, constants.WebconsolePort)
 	opt.ApiServer = fmt.Sprintf("https://%s", address)
 
-	return m.newServiceConfigMap(v1alpha1.WebconsoleComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.WebconsoleComponentType, oc, opt), false, nil
 }
 
 func (m *webconsoleManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {

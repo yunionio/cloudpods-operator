@@ -43,10 +43,10 @@ func (m *schedulerManager) getPhaseControl(man controller.ComponentManager) cont
 		constants.ServiceNameScheduler, constants.ServiceTypeScheduler, constants.SchedulerPort, "")
 }
 
-func (m *schedulerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *schedulerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
 	opt := options.GetOptions()
 	if err := SetOptionsDefault(opt, constants.ServiceTypeScheduler); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	// scheduler use region config directly
 	config := cfg.RegionServer
@@ -55,7 +55,7 @@ func (m *schedulerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceDBCommonOptions.ServiceCommonOptions)
 
 	opt.SchedulerPort = constants.SchedulerPort
-	return m.newServiceConfigMap(v1alpha1.SchedulerComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.SchedulerComponentType, oc, opt), false, nil
 }
 
 func (m *schedulerManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {

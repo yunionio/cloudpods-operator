@@ -54,10 +54,10 @@ func (m *cloudnetManager) getPhaseControl(man controller.ComponentManager) contr
 		constants.CloudnetPort, "")
 }
 
-func (m *cloudnetManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *cloudnetManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
 	opt := &options.Options
 	if err := SetOptionsDefault(opt, constants.ServiceTypeCloudnet); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	config := cfg.Cloudnet
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
@@ -67,7 +67,7 @@ func (m *cloudnetManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 	opt.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
 	opt.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
 	opt.Port = constants.CloudnetPort
-	return m.newServiceConfigMap(v1alpha1.CloudnetComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.CloudnetComponentType, oc, opt), false, nil
 }
 
 func (m *cloudnetManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {

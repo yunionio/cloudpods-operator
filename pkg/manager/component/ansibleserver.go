@@ -54,10 +54,10 @@ func (m *ansibleManager) getPhaseControl(man controller.ComponentManager) contro
 		constants.AnsibleServerPort, "")
 }
 
-func (m *ansibleManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *ansibleManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
 	opt := &options.Options
 	if err := SetOptionsDefault(opt, constants.ServiceTypeAnsibleServer); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	config := cfg.AnsibleServer
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
@@ -67,7 +67,7 @@ func (m *ansibleManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 	opt.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
 	opt.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
 	opt.Port = constants.AnsibleServerPort
-	return m.newServiceConfigMap(v1alpha1.AnsibleServerComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.AnsibleServerComponentType, oc, opt), false, nil
 }
 
 func (m *ansibleManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {

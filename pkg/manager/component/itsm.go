@@ -170,7 +170,7 @@ func (m *itsmManager) getPhaseControl(man controller.ComponentManager) controlle
 		constants.ItsmPort, "")
 }
 
-func (m *itsmManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *itsmManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
 	cfg_ := cfg.Itsm
 	itsmConfigOption := ItsmConfigOption{
 		JavaDBConfig:  *NewJavaDBConfig(oc, cfg_.ServiceDBCommonOptions),
@@ -180,12 +180,12 @@ func (m *itsmManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 	return NewConfigMapByTemplate(v1alpha1.ItsmComponentType, oc, ItsmTemplate, itsmConfigOption)
 }
 
-func NewConfigMapByTemplate(cType v1alpha1.ComponentType, oc *v1alpha1.OnecloudCluster, template string, config interface{}) (*corev1.ConfigMap, error) {
+func NewConfigMapByTemplate(cType v1alpha1.ComponentType, oc *v1alpha1.OnecloudCluster, template string, config interface{}) (*corev1.ConfigMap, bool, error) {
 	data, err := CompileTemplateFromMap(template, config)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return m.newConfigMap(cType, oc, data), nil
+	return m.newConfigMap(cType, oc, data), false, nil
 }
 
 func NewJavaDBConfig(oc *v1alpha1.OnecloudCluster, cfg v1alpha1.ServiceDBCommonOptions) *JavaDBConfig {

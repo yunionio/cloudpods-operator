@@ -35,21 +35,18 @@ func (m *hostManager) getPhaseControl(man controller.ComponentManager) controlle
 	return controller.NewRegisterServiceComponent(man, constants.ServiceNameHost, constants.ServiceTypeHost)
 }
 
-func (m *hostManager) getConfigMap(
-	oc *v1alpha1.OnecloudCluster,
-	cfg *v1alpha1.OnecloudClusterConfig,
-) (*corev1.ConfigMap, error) {
-	commonOpt := new(options.CommonOptions)
+func (m *hostManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
+	commonOpt := new(options.HostCommonOptions)
 	// opt := &options.HostOptions
 	if err := SetOptionsDefault(commonOpt, ""); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	config := cfg.HostAgent
 	SetOptionsServiceTLS(&commonOpt.BaseOptions)
-	SetServiceCommonOptions(commonOpt, oc, config.ServiceCommonOptions)
+	SetServiceCommonOptions(&commonOpt.CommonOptions, oc, config.ServiceCommonOptions)
 	commonOpt.Port = constants.HostPort
 
-	return m.newServiceConfigMap(v1alpha1.HostComponentType, oc, commonOpt), nil
+	return m.newServiceConfigMap(v1alpha1.HostComponentType, oc, commonOpt), false, nil
 }
 
 func (m *hostManager) getDaemonSet(

@@ -17,7 +17,9 @@ package component
 import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"yunion.io/x/jsonutils"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -54,10 +56,10 @@ func (m *glanceManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Servi
 	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.GlanceComponentType, oc, constants.GlanceAPIPort)}
 }
 
-func (m *glanceManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *glanceManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
 	opt := &options.Options
 	if err := SetOptionsDefault(opt, constants.ServiceTypeGlance); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	config := cfg.Glance
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
@@ -70,8 +72,39 @@ func (m *glanceManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	// TODO: fix this
 	opt.AutoSyncTable = true
 	opt.Port = constants.GlanceAPIPort
+	newCfg := m.newServiceConfigMap(v1alpha1.GlanceComponentType, oc, opt)
+	return m.customConfig(oc, newCfg)
+}
 
-	return m.newServiceConfigMap(v1alpha1.GlanceComponentType, oc, opt), nil
+func (m *glanceManager) customConfig(oc *v1alpha1.OnecloudCluster, newCfg *corev1.ConfigMap) (*corev1.ConfigMap, bool, error) {
+	oldCfgMap, err := m.configer.Lister().ConfigMaps(oc.GetNamespace()).
+		Get(controller.ComponentConfigMapName(oc, v1alpha1.GlanceComponentType))
+	if err != nil && !errors.IsNotFound(err) {
+		return nil, false, err
+	}
+	if errors.IsNotFound(err) {
+		return newCfg, false, nil
+	}
+	if oldConfigStr, ok := oldCfgMap.Data["config"]; ok {
+		config, err := jsonutils.ParseYAML(oldConfigStr)
+		if err != nil {
+			return nil, false, err
+		}
+		jConfig := config.(*jsonutils.JSONDict)
+
+		var updateOldConf bool
+		// force update deploy server socket path with new config
+		deployPath, err := jConfig.GetString("deploy_server_socket_path")
+		if err == nil && deployPath != options.Options.DeployServerSocketPath {
+			jConfig.Set("deploy_server_socket_path", jsonutils.NewString(options.Options.DeployServerSocketPath))
+			updateOldConf = true
+		}
+
+		if updateOldConf {
+			return m.newConfigMap(v1alpha1.GlanceComponentType, oc, jConfig.YAMLString()), true, nil
+		}
+	}
+	return newCfg, false, nil
 }
 
 func (m *glanceManager) getPVC(oc *v1alpha1.OnecloudCluster) (*corev1.PersistentVolumeClaim, error) {

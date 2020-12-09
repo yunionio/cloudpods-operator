@@ -17,7 +17,10 @@ package component
 import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"yunion.io/x/jsonutils"
+	"yunion.io/x/onecloud-operator/pkg/controller"
 
 	"yunion.io/x/onecloud/pkg/esxi/options"
 
@@ -42,12 +45,10 @@ func (m *esxiManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha
 	return &cfg.EsxiAgent.CloudUser
 }
 
-func (m *esxiManager) getConfigMap(
-	oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig,
-) (*corev1.ConfigMap, error) {
+func (m *esxiManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
 	opt := &options.Options
 	if err := SetOptionsDefault(opt, ""); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	// fill options
 	opt.Zone = oc.GetZone()
@@ -57,7 +58,39 @@ func (m *esxiManager) getConfigMap(
 	SetOptionsServiceTLS(&opt.BaseOptions)
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 	opt.Port = constants.EsxiAgentPort
-	return m.newServiceConfigMap(v1alpha1.EsxiAgentComponentType, oc, opt), nil
+	newCfg := m.newServiceConfigMap(v1alpha1.EsxiAgentComponentType, oc, opt)
+	return m.customConfig(oc, newCfg)
+}
+
+func (m *esxiManager) customConfig(oc *v1alpha1.OnecloudCluster, newCfg *corev1.ConfigMap) (*corev1.ConfigMap, bool, error) {
+	oldCfgMap, err := m.configer.Lister().ConfigMaps(oc.GetNamespace()).
+		Get(controller.ComponentConfigMapName(oc, v1alpha1.EsxiAgentComponentType))
+	if err != nil && !errors.IsNotFound(err) {
+		return nil, false, err
+	}
+	if errors.IsNotFound(err) {
+		return newCfg, false, nil
+	}
+	if oldConfigStr, ok := oldCfgMap.Data["config"]; ok {
+		config, err := jsonutils.ParseYAML(oldConfigStr)
+		if err != nil {
+			return nil, false, err
+		}
+		jConfig := config.(*jsonutils.JSONDict)
+
+		var updateOldConf bool
+		// force update deploy server socket path with new config
+		deployPath, err := jConfig.GetString("deploy_server_socket_path")
+		if err == nil && deployPath != options.Options.DeployServerSocketPath {
+			jConfig.Set("deploy_server_socket_path", jsonutils.NewString(options.Options.DeployServerSocketPath))
+			updateOldConf = true
+		}
+
+		if updateOldConf {
+			return m.newConfigMap(v1alpha1.EsxiAgentComponentType, oc, jConfig.YAMLString()), true, nil
+		}
+	}
+	return newCfg, false, nil
 }
 
 func (m *esxiManager) getPVC(oc *v1alpha1.OnecloudCluster) (*corev1.PersistentVolumeClaim, error) {
