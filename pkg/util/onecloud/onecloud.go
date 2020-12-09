@@ -584,9 +584,10 @@ type CommonAlertTem struct {
 	Database    string `json:"database"`
 	Measurement string `json:"measurement"`
 	//rule operator rule [and|or]
-	Operator  string   `json:"operator"`
-	Field     []string `json:"field"`
-	FieldFunc string   `json:"field_func"`
+	Operator    string   `json:"operator"`
+	Field       []string `json:"field"`
+	FieldFunc   string   `json:"field_func"`
+	Description string   `json:"description"`
 
 	Reduce        string
 	Comparator    string  `json:"comparator"`
@@ -637,11 +638,15 @@ func CreateCommonAlert(s *mcclient.ClientSession, tem CommonAlertTem) (jsonutils
 	if tem.GetPointStr {
 		param.(*jsonutils.JSONDict).Set("get_point_str", jsonutils.JSONTrue)
 	}
+	if len(tem.Description) != 0 {
+		param.(*jsonutils.JSONDict).Set("description", jsonutils.NewString(tem.Description))
+	}
 	param.(*jsonutils.JSONDict).Set("meta_name", jsonutils.NewString(tem.Name))
 	return modules.CommonAlertManager.Create(s, param)
 }
 
-func UpdateCommonAlert(s *mcclient.ClientSession, tem CommonAlertTem, id string) (jsonutils.JSONObject, error) {
+func UpdateCommonAlert(s *mcclient.ClientSession, tem CommonAlertTem, id string,
+	alert jsonutils.JSONObject) (jsonutils.JSONObject, error) {
 	commonAlert := newCommonalertQuery(tem)
 	input := monitorapi.CommonAlertUpdateInput{
 		CommonMetricInputQuery: monitorapi.CommonMetricInputQuery{
@@ -654,13 +659,71 @@ func UpdateCommonAlert(s *mcclient.ClientSession, tem CommonAlertTem, id string)
 	if len(tem.Interval) != 0 {
 		input.Interval = tem.Interval
 	}
+	if len(tem.Description) != 0 {
+		input.Description = tem.Description
+	}
+	diff, err := containDiffsWithRtnAlert(input, alert)
+	if err != nil {
+		return nil, errors.Wrap(err, "containDiffsWithRtnAlert error")
+	}
+	if !diff {
+		return nil, nil
+	}
 	param := jsonutils.Marshal(&input)
 	param.(*jsonutils.JSONDict).Set("force_update", jsonutils.JSONTrue)
 	if tem.GetPointStr {
 		param.(*jsonutils.JSONDict).Set("get_point_str", jsonutils.JSONTrue)
 	}
+
 	param.(*jsonutils.JSONDict).Set("meta_name", jsonutils.NewString(tem.Name))
 	return modules.CommonAlertManager.Update(s, id, param)
+}
+
+func containDiffsWithRtnAlert(input monitorapi.CommonAlertUpdateInput, rtnAlert jsonutils.JSONObject) (bool, error) {
+	conDiff := true
+	alertSetting, err := rtnAlert.Get("settings")
+	if err != nil {
+		return conDiff, errors.Wrap(err, "get rtnAlert settings error")
+	}
+	description, _ := rtnAlert.GetString("description")
+	setting := new(monitorapi.AlertSetting)
+	err = alertSetting.Unmarshal(setting)
+	if err != nil {
+		return conDiff, errors.Wrap(err, "rtnAlert Unmarshal setting error")
+	}
+	alertDetails, err := rtnAlert.Get("common_alert_metric_details")
+	if err != nil {
+		return conDiff, errors.Wrap(err, "get common_alert_metric_details error")
+	}
+	details := make([]monitorapi.CommonAlertMetricDetails, 0)
+	err = alertDetails.Unmarshal(&details)
+	if err != nil {
+		return conDiff, errors.Wrap(err, "rtnAlert Unmarshal common_alert_metric_details error")
+	}
+	if len(setting.Conditions) != len(input.CommonMetricInputQuery.MetricQuery) && len(setting.Conditions) != len(details) {
+		return conDiff, nil
+	}
+	inputQuery := input.CommonMetricInputQuery.MetricQuery
+	if description != input.Description {
+		return conDiff, nil
+	}
+	for i, _ := range setting.Conditions {
+		condi := setting.Conditions[i]
+		if details[i].Comparator != inputQuery[i].Comparator {
+			return conDiff, nil
+		}
+		oldSel := jsonutils.Marshal(&condi.Query.Model.Selects)
+		newSel := jsonutils.Marshal(&inputQuery[i].Model.Selects)
+		if !oldSel.Equals(newSel) {
+			return conDiff, nil
+		}
+		oldTags := jsonutils.Marshal(&details[i].Filters)
+		newTags := jsonutils.Marshal(&inputQuery[i].Model.Tags)
+		if !oldTags.Equals(newTags) {
+			return conDiff, nil
+		}
+	}
+	return false, nil
 }
 
 func DeleteCommonAlert(s *mcclient.ClientSession, ids []string) {
@@ -698,6 +761,11 @@ func newCommonalertQuery(tem CommonAlertTem) monitorapi.CommonAlertQuery {
 					Params: []string{field},
 				})
 			}
+		} else {
+			selectPart = append(selectPart, monitorapi.MetricQueryPart{
+				Type:   "mean",
+				Params: []string{},
+			})
 		}
 		metricQ.Selects = append(metricQ.Selects, selectPart)
 	}
