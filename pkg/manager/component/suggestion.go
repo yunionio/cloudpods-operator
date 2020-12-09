@@ -46,10 +46,10 @@ func (m *suggestionManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.S
 	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.SuggestionComponentType, oc, constants.SuggestionPort)}
 }
 
-func (m *suggestionManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *suggestionManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
 	opt := &options.Options
 	if err := SetOptionsDefault(opt, constants.ServiceTypeSuggestion); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	config := cfg.Monitor
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
@@ -59,7 +59,7 @@ func (m *suggestionManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	opt.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
 	opt.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
 	opt.Port = constants.SuggestionPort
-	return m.newServiceConfigMap(v1alpha1.SuggestionComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.SuggestionComponentType, oc, opt), false, nil
 }
 
 func (m *suggestionManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {

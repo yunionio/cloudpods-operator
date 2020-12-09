@@ -60,10 +60,10 @@ func (m *yunionagentManager) getPhaseControl(man controller.ComponentManager) co
 	return man.YunionAgent()
 }
 
-func (m *yunionagentManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *yunionagentManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
 	opt := &yunionagentOptions{}
 	if err := SetOptionsDefault(opt, constants.ServiceTypeYunionAgent); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	config := cfg.Yunionagent
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
@@ -72,7 +72,7 @@ func (m *yunionagentManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1a
 	opt.AutoSyncTable = true
 	opt.Port = constants.YunionAgentPort
 
-	return m.newServiceConfigMap(v1alpha1.YunionagentComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.YunionagentComponentType, oc, opt), false, nil
 }
 
 func (m *yunionagentManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {

@@ -52,10 +52,10 @@ func (m *loggerManager) getPhaseControl(man controller.ComponentManager) control
 		constants.LoggerPort, "")
 }
 
-func (m *loggerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *loggerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
 	opt := &options.Options
 	if err := SetOptionsDefault(opt, constants.ServiceTypeLogger); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	config := cfg.Logger
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
@@ -63,7 +63,7 @@ func (m *loggerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 	opt.Port = constants.LoggerPort
 
-	return m.newServiceConfigMap(v1alpha1.LoggerComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.LoggerComponentType, oc, opt), false, nil
 }
 
 func (m *loggerManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {

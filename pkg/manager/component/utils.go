@@ -514,6 +514,32 @@ func (h *VolumeHelper) addVmwareVolumes() *VolumeHelper {
 	return h
 }
 
+func (h *VolumeHelper) addOnecloudVolumes() *VolumeHelper {
+	var (
+		bidirectional = corev1.MountPropagationBidirectional
+		volSrcType    = corev1.HostPathDirectoryOrCreate
+	)
+	h.volumeMounts = append(h.volumeMounts,
+		corev1.VolumeMount{
+			Name:             "var-run-onecloud",
+			MountPath:        "/var/run/onecloud",
+			MountPropagation: &bidirectional,
+		},
+	)
+	h.volumes = append(h.volumes,
+		corev1.Volume{
+			Name: "var-run-onecloud",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/var/run/onecloud",
+					Type: &volSrcType,
+				},
+			},
+		},
+	)
+	return h
+}
+
 func (h *VolumeHelper) addEtcdClientTLSVolumes(oc *v1alpha1.OnecloudCluster) *VolumeHelper {
 	if !oc.Spec.Etcd.Disable && oc.Spec.Etcd.EnableTls {
 		h.volumes = append(h.volumes, corev1.Volume{
@@ -705,11 +731,6 @@ func NewHostVolume(
 			MountPath: "/dev",
 		},
 		{
-			Name:      "run",
-			ReadOnly:  false,
-			MountPath: "/var/run",
-		},
-		{
 			Name:      "sys",
 			ReadOnly:  false,
 			MountPath: "/sys",
@@ -797,15 +818,6 @@ func NewHostVolume(
 			},
 		},
 		{
-			Name: "run",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/run",
-					Type: &hostPathDirectory,
-				},
-			},
-		},
-		{
 			Name: "sys",
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
@@ -824,6 +836,7 @@ func NewHostVolume(
 			},
 		},
 	}
+	h.addOnecloudVolumes()
 	h.addVmwareVolumes()
 	h.addOvsVolumes()
 	h.addEtcdClientTLSVolumes(oc)
@@ -910,5 +923,118 @@ func NewHostImageVolumeHelper(
 		},
 	}
 
+	return h
+}
+
+func NewHostDeployerVolume(
+	cType v1alpha1.ComponentType,
+	oc *v1alpha1.OnecloudCluster,
+	configMap string,
+) *VolumeHelper {
+	h := &VolumeHelper{
+		cluster:      oc,
+		optionCfgMap: configMap,
+		component:    cType,
+	}
+	// volumes mounts
+	var bidirectional = corev1.MountPropagationBidirectional
+	h.volumeMounts = []corev1.VolumeMount{
+		{
+			Name:      "etc-yunion",
+			ReadOnly:  false,
+			MountPath: "/etc/yunion",
+		},
+		{
+			Name:      constants.VolumeConfigName,
+			ReadOnly:  true,
+			MountPath: path.Join(constants.ConfigDir, "common"),
+		},
+		{
+			Name:             "cloud",
+			ReadOnly:         false,
+			MountPath:        "/opt/cloud",
+			MountPropagation: &bidirectional,
+		},
+		{
+			Name:      "usr",
+			ReadOnly:  false,
+			MountPath: "/usr/local",
+		},
+		{
+			Name:      "dev",
+			ReadOnly:  false,
+			MountPath: "/dev",
+		},
+		{
+			Name:      "sys",
+			ReadOnly:  false,
+			MountPath: "/sys",
+		},
+	}
+	// volumes
+	var hostPathDirectory = corev1.HostPathDirectory
+	var hostPathDirectoryOrCreate = corev1.HostPathDirectoryOrCreate
+	h.volumes = []corev1.Volume{
+		{
+			Name: "etc-yunion",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/etc/yunion",
+					Type: &hostPathDirectoryOrCreate,
+				},
+			},
+		},
+		{
+			Name: constants.VolumeConfigName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: h.optionCfgMap,
+					},
+					Items: []corev1.KeyToPath{
+						{Key: constants.VolumeConfigName, Path: "common.conf"},
+					},
+				},
+			},
+		},
+		{
+			Name: "cloud",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/opt/cloud",
+					Type: &hostPathDirectoryOrCreate,
+				},
+			},
+		},
+		{
+			Name: "dev",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/dev",
+					Type: &hostPathDirectory,
+				},
+			},
+		},
+		{
+			Name: "usr",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/usr/local",
+					Type: &hostPathDirectory,
+				},
+			},
+		},
+		{
+			Name: "sys",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/sys",
+					Type: &hostPathDirectory,
+				},
+			},
+		},
+	}
+	h.addOnecloudVolumes()
+	h.addVmwareVolumes()
 	return h
 }

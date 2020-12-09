@@ -61,10 +61,10 @@ type autoUpdateOptions struct {
 	Channel                  string
 }
 
-func (m *autoUpdateManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *autoUpdateManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
 	opt := &autoUpdateOptions{}
 	if err := SetOptionsDefault(opt, constants.ServiceTypeAutoUpdate); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	config := cfg.AutoUpdate
 	SetOptionsServiceTLS(&opt.BaseOptions)
@@ -77,7 +77,7 @@ func (m *autoUpdateManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	opt.HostUpdateTimeZone = "Asia/Shanghai"
 	opt.KubernetesMode = true
 	opt.Channel = "stable"
-	return m.newServiceConfigMap(v1alpha1.AutoUpdateComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.AutoUpdateComponentType, oc, opt), false, nil
 }
 
 func (m *autoUpdateManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {

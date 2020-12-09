@@ -53,10 +53,10 @@ func (m *cloudidManager) getPhaseControl(man controller.ComponentManager) contro
 		constants.CloudIdPort, "")
 }
 
-func (m *cloudidManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *cloudidManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
 	opt := &options.Options
 	if err := SetOptionsDefault(opt, constants.ServiceTypeCloudId); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	config := cfg.CloudId
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
@@ -66,7 +66,7 @@ func (m *cloudidManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 	opt.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
 	opt.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
 	opt.Port = constants.CloudIdPort
-	return m.newServiceConfigMap(v1alpha1.CloudIdComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.CloudIdComponentType, oc, opt), false, nil
 }
 
 func (m *cloudidManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {

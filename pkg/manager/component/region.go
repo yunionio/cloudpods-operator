@@ -59,10 +59,10 @@ func (m *regionManager) getPhaseControl(man controller.ComponentManager) control
 	return man.Region()
 }
 
-func (m *regionManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *regionManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*v1.ConfigMap, bool, error) {
 	opt := &options.Options
 	if err := SetOptionsDefault(opt, constants.ServiceTypeComputeV2); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	config := cfg.RegionServer
 	spec := oc.Spec.RegionServer
@@ -82,9 +82,9 @@ func (m *regionManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	opt.PortV2 = constants.RegionPort
 	err := m.setBaremetalPrepareConfigure(oc, cfg, opt)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return m.newServiceConfigMap(v1alpha1.RegionComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.RegionComponentType, oc, opt), false, nil
 }
 
 func (m *regionManager) setBaremetalPrepareConfigure(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, opt *options.ComputeOptions) error {

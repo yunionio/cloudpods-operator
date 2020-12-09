@@ -52,10 +52,10 @@ func (m *yunoinconfManager) getPhaseControl(man controller.ComponentManager) con
 		constants.YunionConfPort, "")
 }
 
-func (m *yunoinconfManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *yunoinconfManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
 	opt := &options.Options
 	if err := SetOptionsDefault(opt, constants.ServiceTypeYunionConf); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	config := cfg.Yunionconf
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
@@ -64,7 +64,7 @@ func (m *yunoinconfManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	opt.AutoSyncTable = true
 	opt.Port = constants.YunionConfPort
 
-	return m.newServiceConfigMap(v1alpha1.YunionconfComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.YunionconfComponentType, oc, opt), false, nil
 }
 
 func (m *yunoinconfManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
