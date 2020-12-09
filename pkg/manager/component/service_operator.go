@@ -60,7 +60,7 @@ type OnecloudResourceOperatorOption struct {
 	VMIntervalPending    *int `json:"vm_interval_pending"`
 }
 
-func (m *serviceOperatorManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *serviceOperatorManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
 	opt := &OnecloudResourceOperatorOption{}
 
 	config := cfg.ServiceOperator
@@ -73,7 +73,7 @@ func (m *serviceOperatorManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg 
 	opt.AdminPassword = config.Password
 	opt.AdminProject = constants.SysAdminProject
 	opt.AdminDomain = constants.DefaultDomain
-	return m.newServiceConfigMap(v1alpha1.ServiceOperatorComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.ServiceOperatorComponentType, oc, opt), false, nil
 }
 
 func (m *serviceOperatorManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {

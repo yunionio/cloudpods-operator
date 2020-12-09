@@ -84,7 +84,7 @@ func (m *regionDNSManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.RegionDNS.Disable)
 }
 
-func (m *regionDNSManager) getConfigMap(oc *v1alpha1.OnecloudCluster, clusterCfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *regionDNSManager) getConfigMap(oc *v1alpha1.OnecloudCluster, clusterCfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
 	db := oc.Spec.Mysql
 	regionDB := clusterCfg.RegionServer.DB
 	spec := oc.Spec.RegionDNS
@@ -123,10 +123,10 @@ func (m *regionDNSManager) getConfigMap(oc *v1alpha1.OnecloudCluster, clusterCfg
 	}
 	content, err := config.GetContent()
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	oc.Spec.RegionDNS = spec
-	return m.newConfigMap(cType, oc, content), nil
+	return m.newConfigMap(cType, oc, content), false, nil
 }
 
 func (m *regionDNSManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {

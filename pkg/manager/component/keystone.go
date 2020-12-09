@@ -61,10 +61,10 @@ func (m *keystoneManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Ser
 	return []*corev1.Service{m.newNodePortService(v1alpha1.KeystoneComponentType, oc, ports)}
 }
 
-func (m *keystoneManager) getConfigMap(oc *v1alpha1.OnecloudCluster, clusterCfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *keystoneManager) getConfigMap(oc *v1alpha1.OnecloudCluster, clusterCfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
 	opt := &options.Options
 	if err := SetOptionsDefault(opt, constants.ServiceTypeIdentity); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	config := clusterCfg.Keystone
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
@@ -77,7 +77,7 @@ func (m *keystoneManager) getConfigMap(oc *v1alpha1.OnecloudCluster, clusterCfg 
 	opt.AdminPort = constants.KeystoneAdminPort
 	opt.Port = constants.KeystonePublicPort
 
-	return m.newServiceConfigMap(v1alpha1.KeystoneComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.KeystoneComponentType, oc, opt), false, nil
 }
 
 func (m *keystoneManager) getDeployment(oc *v1alpha1.OnecloudCluster, _ *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {

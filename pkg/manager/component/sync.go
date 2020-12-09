@@ -45,7 +45,9 @@ type ingressFactory interface {
 }
 
 type configMapFactory interface {
-	getConfigMap(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error)
+	getConfigMap(
+		*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig,
+	) (cfgMap *corev1.ConfigMap, forceUpdate bool, err error)
 }
 
 type pvcFactory interface {

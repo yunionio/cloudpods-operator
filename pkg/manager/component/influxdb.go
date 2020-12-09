@@ -97,7 +97,7 @@ func (m *influxdbManager) getPVC(oc *v1alpha1.OnecloudCluster) (*corev1.Persiste
 	return m.ComponentManager.newPVC(v1alpha1.InfluxdbComponentType, oc, cfg)
 }
 
-func (m *influxdbManager) getConfigMap(oc *v1alpha1.OnecloudCluster, clusterCfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *influxdbManager) getConfigMap(oc *v1alpha1.OnecloudCluster, clusterCfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
 	config := InfluxdbConfig{
 		Port:     constants.InfluxdbPort,
 		CertPath: path.Join(constants.CertDir, constants.ServiceCertName),
@@ -105,9 +105,9 @@ func (m *influxdbManager) getConfigMap(oc *v1alpha1.OnecloudCluster, clusterCfg 
 	}
 	content, err := config.GetContent()
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return m.newConfigMap(v1alpha1.InfluxdbComponentType, oc, content), nil
+	return m.newConfigMap(v1alpha1.InfluxdbComponentType, oc, content), false, nil
 }
 
 func (m *influxdbManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
