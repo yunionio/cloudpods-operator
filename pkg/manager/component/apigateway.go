@@ -88,10 +88,10 @@ func (c *apiGatewayPhaseControl) SystemInit(oc *v1alpha1.OnecloudCluster) error 
 	return nil
 }
 
-func (m *apiGatewayManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *apiGatewayManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
 	opt := &apiOptions{}
 	if err := SetOptionsDefault(opt, "apigateway"); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	SetOptionsServiceTLS(&opt.BaseOptions)
 	SetServiceCommonOptions(&opt.CommonOptions, oc, cfg.APIGateway)
@@ -99,7 +99,7 @@ func (m *apiGatewayManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	opt.WsPort = constants.APIWebsocketPort
 	opt.CorsHosts = []string{"*"}
 
-	return m.newServiceConfigMap(v1alpha1.APIGatewayComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.APIGatewayComponentType, oc, opt), false, nil
 }
 
 func (m *apiGatewayManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {

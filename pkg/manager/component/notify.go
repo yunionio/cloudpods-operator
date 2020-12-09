@@ -89,10 +89,10 @@ type NotifyPluginWebsocketConfig struct {
 	Region string
 }
 
-func (m *notifyManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *notifyManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
 	opt := &options.Options
 	if err := SetOptionsDefault(opt, constants.ServiceTypeNotify); err != nil {
-		return nil, errors.Wrap(err, "set notify option")
+		return nil, false, errors.Wrap(err, "set notify option")
 	}
 	config := cfg.Notify
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
@@ -134,7 +134,7 @@ func (m *notifyManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 
 	cfgMap.Data = data
 
-	return cfgMap, nil
+	return cfgMap, false, nil
 }
 
 func (m *notifyManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {

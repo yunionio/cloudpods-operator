@@ -381,7 +381,7 @@ func (m *webManager) updateIngress(oc *v1alpha1.OnecloudCluster, oldIng *extensi
 	return newIng
 }
 
-func (m *webManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *webManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
 	urlF := func(ct v1alpha1.ComponentType, port int) string {
 		return fmt.Sprintf("https://%s:%d", controller.NewClusterComponentName(oc.GetName(), ct), port)
 	}
@@ -398,9 +398,9 @@ func (m *webManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.On
 	}
 	content, err := config.GetContent()
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return m.newConfigMap(v1alpha1.WebComponentType, oc, content), nil
+	return m.newConfigMap(v1alpha1.WebComponentType, oc, content), false, nil
 }
 
 func (m *webManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {

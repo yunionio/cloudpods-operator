@@ -49,16 +49,16 @@ func (m *s3gatewayManager) getPhaseControl(man controller.ComponentManager) cont
 		constants.S3gatewayPort, "")
 }
 
-func (m *s3gatewayManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *s3gatewayManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
 	opt := &options.Options
 	if err := SetOptionsDefault(opt, constants.ServiceTypeS3gateway); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	config := cfg.S3gateway
 	SetOptionsServiceTLS(&opt.BaseOptions)
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config)
 
-	return m.newServiceConfigMap(v1alpha1.S3gatewayComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.S3gatewayComponentType, oc, opt), false, nil
 }
 
 func (m *s3gatewayManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {

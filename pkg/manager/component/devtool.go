@@ -50,10 +50,10 @@ func (m *devtoolManager) getPhaseControl(man controller.ComponentManager) contro
 	return man.Devtool()
 }
 
-func (m *devtoolManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *devtoolManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
 	opt := &options.Options
 	if err := SetOptionsDefault(opt, constants.ServiceTypeDevtool); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	config := cfg.Devtool
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
@@ -62,7 +62,7 @@ func (m *devtoolManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 	opt.AutoSyncTable = true
 	opt.Port = constants.DevtoolPort
 
-	return m.newServiceConfigMap(v1alpha1.DevtoolComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.DevtoolComponentType, oc, opt), false, nil
 }
 
 func (m *devtoolManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {

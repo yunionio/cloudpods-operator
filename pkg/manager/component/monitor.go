@@ -52,10 +52,10 @@ func (m *monitorManager) getPhaseControl(man controller.ComponentManager) contro
 	return man.Monitor()
 }
 
-func (m *monitorManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *monitorManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
 	opt := &options.Options
 	if err := SetOptionsDefault(opt, constants.ServiceTypeMonitor); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	config := cfg.Monitor
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
@@ -65,7 +65,7 @@ func (m *monitorManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 	opt.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
 	opt.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
 	opt.Port = constants.MonitorPort
-	return m.newServiceConfigMap(v1alpha1.MonitorComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.MonitorComponentType, oc, opt), false, nil
 }
 
 func (m *monitorManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {

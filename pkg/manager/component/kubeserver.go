@@ -66,10 +66,10 @@ func (m *kubeManager) getPhaseControl(man controller.ComponentManager) controlle
 		constants.KubeServerPort, "api")
 }
 
-func (m *kubeManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *kubeManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
 	opt := &kubeOptions{}
 	if err := SetOptionsDefault(opt, constants.ServiceTypeKubeServer); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	config := cfg.KubeServer
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
@@ -79,7 +79,7 @@ func (m *kubeManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 	opt.TlsCertFile = path.Join(constants.CertDir, constants.ServiceCertName)
 	opt.TlsPrivateKeyFile = path.Join(constants.CertDir, constants.ServiceKeyName)
 	opt.HttpsPort = constants.KubeServerPort
-	return m.newServiceConfigMap(v1alpha1.KubeServerComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.KubeServerComponentType, oc, opt), false, nil
 }
 
 func (m *kubeManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {

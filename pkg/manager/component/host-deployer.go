@@ -51,9 +51,11 @@ func (m *hostDeployerManager) newHostPrivilegedDaemonSet(
 					Name:  cType.String(),
 					Image: dsSpec.Image,
 					Command: []string{
-						fmt.Sprintf("/opt/yunion/bin/%s", cType.String()),
-						"--config",
-						fmt.Sprintf("/etc/yunion/%s.conf", v1alpha1.HostComponentType.String()),
+						"sh", "-c", fmt.Sprintf(`
+							virtlogd -d && libvirtd -d &&
+							/opt/yunion/bin/%s --common-config-file /etc/yunion/common/common.conf --config /etc/yunion/host.conf`,
+							cType.String(),
+						),
 					},
 					ImagePullPolicy: dsSpec.ImagePullPolicy,
 					VolumeMounts:    volMounts,
@@ -65,7 +67,7 @@ func (m *hostDeployerManager) newHostPrivilegedDaemonSet(
 		}
 	)
 	ds, err := m.newDaemonSet(cType, oc, cfg,
-		NewHostVolume(cType, oc, configMap), dsSpec, "", nil, containersF)
+		NewHostDeployerVolume(cType, oc, configMap), dsSpec, "", nil, containersF)
 	if err != nil {
 		return nil, err
 	}
@@ -84,12 +86,14 @@ func (m *hostDeployerManager) newHostPrivilegedDaemonSet(
 			TopologyKey: "kubernetes.io/hostname",
 		},
 	}
-	if ds.Spec.UpdateStrategy.RollingUpdate != nil {
-		ds.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable, err = m.getMaxUnavailablePodCount()
-		if err != nil {
-			return nil, err
-		}
+	if ds.Spec.UpdateStrategy.RollingUpdate == nil {
+		ds.Spec.UpdateStrategy.RollingUpdate = &apps.RollingUpdateDaemonSet{}
 	}
+	ds.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable, err = m.getMaxUnavailablePodCount()
+	if err != nil {
+		return nil, err
+	}
+	ds.Spec.Template.Spec.HostNetwork = false
 	return ds, nil
 }
 
@@ -110,6 +114,6 @@ func (m *hostDeployerManager) getMaxUnavailablePodCount() (*intstr.IntOrString, 
 	if len(nodes) == 0 {
 		return nil, nil
 	}
-	count := intstr.FromInt(len(nodes))
+	count := intstr.FromInt(len(nodes) + 1)
 	return &count, nil
 }

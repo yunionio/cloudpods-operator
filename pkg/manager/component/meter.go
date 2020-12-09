@@ -75,10 +75,10 @@ type meterOptions struct {
 	MonthlyBill             bool
 }
 
-func (m *meterManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *meterManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
 	opt := &meterOptions{}
 	if err := SetOptionsDefault(opt, constants.ServiceTypeMeter); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	config := cfg.Meter
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
@@ -95,7 +95,7 @@ func (m *meterManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 	opt.AutoSyncTable = true
 	opt.Port = constants.MeterPort
 
-	return m.newServiceConfigMap(v1alpha1.MeterComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.MeterComponentType, oc, opt), false, nil
 }
 
 func (m *meterManager) getPVC(oc *v1alpha1.OnecloudCluster) (*corev1.PersistentVolumeClaim, error) {

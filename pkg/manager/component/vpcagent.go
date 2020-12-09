@@ -44,13 +44,13 @@ func (m *vpcAgentManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1a
 	return &cfg.VpcAgent.CloudUser
 }
 
-func (m *vpcAgentManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *vpcAgentManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
 	var (
 		opts = &options.Options{}
 		prog = "vpcagent"
 	)
 	if err := SetOptionsDefault(opts, prog); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	opts.OvnNorthDatabase = fmt.Sprintf("tcp:%s:%d",
 		controller.NewClusterComponentName(
@@ -61,7 +61,7 @@ func (m *vpcAgentManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 	)
 	config := cfg.VpcAgent
 	SetServiceCommonOptions(&opts.CommonOptions, oc, config.ServiceCommonOptions)
-	return m.newServiceConfigMap(v1alpha1.VpcAgentComponentType, oc, opts), nil
+	return m.newServiceConfigMap(v1alpha1.VpcAgentComponentType, oc, opts), false, nil
 }
 
 func (m *vpcAgentManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
