@@ -1046,12 +1046,12 @@ func (c monitorComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 	}
 	tmpAlert := rtnAlert
 	for metric, tem := range alertInfo {
-		match, id, deleteAlerts, err := c.matchFromRtnAlerts(metric, tmpAlert)
+		match, id, alert, deleteAlerts, err := c.matchFromRtnAlerts(metric, tmpAlert)
 		if err != nil {
 			return err
 		}
-		if match {
-			_, err := onecloud.UpdateCommonAlert(session, tem, id)
+		if match && alert != nil {
+			_, err := onecloud.UpdateCommonAlert(session, tem, id, alert)
 			if err != nil {
 				log.Errorf("UpdateCommonAlert err:%v", err)
 			}
@@ -1076,6 +1076,7 @@ func (c monitorComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 }
 
 func (c monitorComponent) matchFromRtnAlerts(metric string, rtnAlert []jsonutils.JSONObject) (bool, string,
+	jsonutils.JSONObject,
 	[]jsonutils.JSONObject, error) {
 	match := false
 	id := ""
@@ -1084,7 +1085,7 @@ func (c monitorComponent) matchFromRtnAlerts(metric string, rtnAlert []jsonutils
 		name, _ := alert.GetString("name")
 		metadataObj, err := alert.Get("metadata")
 		if err != nil {
-			return match, id, nil, errors.Wrap(err, "cannot get metadata")
+			return match, id, nil, nil, errors.Wrap(err, "cannot get metadata")
 		}
 		metaName, _ := metadataObj.GetString("meta_name")
 		if metric == name || metric == metaName {
@@ -1093,11 +1094,11 @@ func (c monitorComponent) matchFromRtnAlerts(metric string, rtnAlert []jsonutils
 			for start := i + 1; start < len(rtnAlert); start++ {
 				deleteAlerts = append(deleteAlerts, rtnAlert[start])
 			}
-			return match, id, deleteAlerts, nil
+			return match, id, alert, deleteAlerts, nil
 		}
 		deleteAlerts = append(deleteAlerts, alert)
 	}
-	return match, id, deleteAlerts, nil
+	return match, id, nil, deleteAlerts, nil
 }
 
 func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
@@ -1109,6 +1110,7 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		Threshold:   90,
 		Name:        "cpu.usage_active",
 		Reduce:      "avg",
+		Description: "检测宿主机CPU使用率",
 	}
 	memTem := onecloud.CommonAlertTem{
 		Database:    "telegraf",
@@ -1118,6 +1120,7 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		Threshold:   524288000,
 		Name:        "mem.available",
 		Reduce:      "avg",
+		Description: "检测宿主机可用内存",
 	}
 	diskAvaTem := onecloud.CommonAlertTem{
 		Database:    "telegraf",
@@ -1141,8 +1144,9 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 				Condition: "OR",
 			},
 		},
-		Name:   "disk.free/total",
-		Reduce: "avg",
+		Name:        "disk.free/total",
+		Reduce:      "avg",
+		Description: "检测宿主机磁盘容量空闲率",
 	}
 	diskNodeAvaTem := onecloud.CommonAlertTem{
 		Database:    "telegraf",
@@ -1160,8 +1164,9 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 				Condition: "AND",
 			},
 		},
-		Name:   "disk.inodes_free/inodes_total",
-		Reduce: "avg",
+		Name:        "disk.inodes_free/inodes_total",
+		Reduce:      "avg",
+		Description: "检测宿主机磁盘inode空闲率",
 	}
 	smartDevTem := onecloud.CommonAlertTem{
 		Database:    "telegraf",
@@ -1178,8 +1183,9 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 				Condition: "AND",
 			},
 		},
-		Name:   "smart_device.exit_status",
-		Reduce: "last",
+		Name:        "smart_device.exit_status",
+		Reduce:      "last",
+		Description: "检测磁盘健康状态",
 	}
 	genHostRaidStatusFilter := func(status ...string) []monitor.MetricQueryTag {
 		ret := make([]monitor.MetricQueryTag, 0)
@@ -1211,6 +1217,7 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		Name:        "host_raid.adapter",
 		GetPointStr: true,
 		Reduce:      "last",
+		Description: "检查宿主机raid控制器状态",
 	}
 	cloudaccountTem := onecloud.CommonAlertTem{
 		Database:    "meter_db",
@@ -1220,6 +1227,7 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		Threshold:   100,
 		Name:        "cloudaccount_balance.balance",
 		Reduce:      "last",
+		Description: "检测云账号余额",
 	}
 	noDataTem := onecloud.CommonAlertTem{
 		Database:      "telegraf",
@@ -1233,6 +1241,7 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		ConditionType: "nodata_query",
 		From:          "3m",
 		Interval:      "1m",
+		Description:   "检测部署节点是否下线",
 	}
 	speAlert := map[string]onecloud.CommonAlertTem{
 		cpuTem.Name:          cpuTem,
