@@ -27,14 +27,6 @@ func (m *suggestionManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.Suggestion.Disable)
 }
 
-func (m *suggestionManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
-	return &cfg.Monitor.DB
-}
-
-func (m *suggestionManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
-	return &cfg.Monitor.CloudUser
-}
-
 func (m *suggestionManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
 	return controller.NewRegisterEndpointComponent(
 		man, v1alpha1.SuggestionComponentType,
