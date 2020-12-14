@@ -63,10 +63,10 @@ type registerOptions struct {
 	ShowCaptcha bool `help:"show captcha or not. " default:"true"`
 }
 
-func (m *registerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *registerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
 	opt := &registerOptions{}
 	if err := SetOptionsDefault(opt, constants.ServiceTypeRegister); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	config := cfg.Register
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
@@ -74,7 +74,7 @@ func (m *registerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 	opt.Port = constants.RegisterPort
 
-	return m.newServiceConfigMap(v1alpha1.RegisterComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.RegisterComponentType, oc, opt), false, nil
 }
 
 func (m *registerManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {

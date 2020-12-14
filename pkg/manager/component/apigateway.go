@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	WEBAPIGW = "webapigw"
+	YUNIONAPI_SAAS = "yunionapi-sa"
 )
 
 type apiGatewayManager struct {
@@ -116,10 +116,10 @@ func (m *apiGatewayManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.S
 func (m *apiGatewayManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
 	isEE := IsEnterpriseEdition(oc)
 	cf := func(volMounts []corev1.VolumeMount) []corev1.Container {
-		cmd := "/opt/yunion/bin/webapigw"
+		cmd := fmt.Sprintf("/opt/yunion/bin/%s", YUNIONAPI_SAAS)
 		img := oc.Spec.APIGateway.Image
 		parts, _ := image.ParseImageReference(img)
-		webapigwImage := fmt.Sprintf("%s/%s:%s", parts.Repository, WEBAPIGW, parts.Tag)
+		webapigwImage := fmt.Sprintf("%s/%s:%s", parts.Repository, YUNIONAPI_SAAS, parts.Tag)
 		cs := []corev1.Container{
 			{
 				Name:            "api",
