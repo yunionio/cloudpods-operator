@@ -17,7 +17,6 @@ package v1alpha1
 import (
 	"errors"
 
-	etcdapi "github.com/coreos/etcd-operator/pkg/apis/etcd/v1beta2"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -257,9 +256,6 @@ type OnecloudClusterSpec struct {
 	EsxiAgent StatefulDeploymentSpec `json:"esxiagent"`
 	// Itsm holds configuration for itsm service
 	Itsm DeploymentSpec `json:"itsm"`
-
-	// ServiceOperator hols configuration for service-operator
-	ServiceOperator DeploymentSpec `json:"onecloudServiceOperator"`
 
 	// ServiceOperator hols configuration for service-operator
 	ServiceOperator DeploymentSpec `json:"onecloudServiceOperator"`

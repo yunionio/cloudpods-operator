@@ -11,7 +11,6 @@ import (
 	"math/big"
 	"net"
 	"time"
-	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/validation"

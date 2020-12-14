@@ -60,10 +60,10 @@ type billingOptions struct {
 	DefaultGracePeriod           string `help:"default graceful period for paying dued bill, default is 30minutes" default:"30i"`
 }
 
-func (m *billingManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *billingManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
 	opt := &billingOptions{}
 	if err := SetOptionsDefault(opt, constants.ServiceTypeBilling); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	config := cfg.Billing
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
@@ -71,7 +71,7 @@ func (m *billingManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 	opt.Port = constants.BillingPort
 
-	return m.newServiceConfigMap(v1alpha1.BillingComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.BillingComponentType, oc, opt), false, nil
 }
 
 func (m *billingManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {

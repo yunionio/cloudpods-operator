@@ -54,10 +54,10 @@ type billingTaskOptions struct {
 	BillingPaymentStatusSyncIntervals int `help:"billing payment status sync intervals(seconds)" default:"60"`
 }
 
-func (m *billingTaskManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *billingTaskManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
 	opt := &billingTaskOptions{}
 	if err := SetOptionsDefault(opt, constants.ServiceTypeBillingTask); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	config := cfg.BillingTask
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
@@ -65,7 +65,7 @@ func (m *billingTaskManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1a
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 	opt.Port = constants.BillingTaskPort
 
-	return m.newServiceConfigMap(v1alpha1.BillingTaskComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.BillingTaskComponentType, oc, opt), false, nil
 }
 
 func (m *billingTaskManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
