@@ -180,6 +180,8 @@ type OnecloudClusterSpec struct {
 	Region string `json:"region"`
 	// Zone is cluster first zone
 	Zone string `json:"zone"`
+	// Custom zones is cluster another zones
+	CustomZones []string `json:"customZones"`
 	// Keystone holds configuration for keystone
 	Keystone KeystoneSpec `json:"keystone"`
 	// RegionServer holds configuration for region
@@ -229,7 +231,7 @@ type OnecloudClusterSpec struct {
 	// HostImage holds configration for host-image
 	HostImage DaemonSetSpec `json:"hostimage"`
 	// BaremetalAgent holds configuration for baremetal agent
-	BaremetalAgent StatefulDeploymentSpec `json:"baremetalagent"`
+	BaremetalAgent ZoneStatefulDeploymentSpec `json:"baremetalagent"`
 	// S3gateway holds configuration for s3gateway service
 	S3gateway DeploymentSpec `json:"s3gateway"`
 	// Devtool holds configuration for devtool service
@@ -241,7 +243,7 @@ type OnecloudClusterSpec struct {
 	// Cloudmon holds configuration for report monitor data
 	Cloudmon CloudmonSpec `json:"cloudmon"`
 	// EsxiAgent hols configuration for esxi agent
-	EsxiAgent StatefulDeploymentSpec `json:"esxiagent"`
+	EsxiAgent ZoneStatefulDeploymentSpec `json:"esxiagent"`
 	// Itsm holds configuration for itsm service
 	Itsm DeploymentSpec `json:"itsm"`
 
@@ -259,34 +261,34 @@ type OnecloudClusterSpec struct {
 
 // OnecloudClusterStatus describes cluster status
 type OnecloudClusterStatus struct {
-	ClusterID      string           `json:"clusterID,omitempty"`
-	Keystone       KeystoneStatus   `json:"keystone,omitempty"`
-	RegionServer   RegionStatus     `json:"region,omitempty"`
-	Glance         GlanceStatus     `json:"glance,omitempty"`
-	Scheduler      DeploymentStatus `json:"scheduler,omitempty"`
-	Webconsole     DeploymentStatus `json:"webconsole,omitempty"`
-	Influxdb       DeploymentStatus `json:"influxdb,omitempty"`
-	Monitor        DeploymentStatus `json:"monitor,omitempty"`
-	Logger         DeploymentStatus `json:"logger,omitempty"`
-	APIGateway     DeploymentStatus `json:"apiGateway,omitempty"`
-	Web            DeploymentStatus `json:"web,omitempty"`
-	Yunionconf     DeploymentStatus `json:"yunionconf,omitempty"`
-	KubeServer     DeploymentStatus `json:"kubeserver,omitempty"`
-	AnsibleServer  DeploymentStatus `json:"ansibleserver,omitempty"`
-	Cloudnet       DeploymentStatus `json:"cloudnet,omitempty"`
-	Cloudevent     DeploymentStatus `json:"cloudevent,omitempty"`
-	Notify         DeploymentStatus `json:"notify,omitempty"`
-	BaremetalAgent DeploymentStatus `json:"baremetalagent,omitempty"`
-	S3gateway      DeploymentStatus `json:"s3gateway,omitempty"`
-	Devtool        DeploymentStatus `json:"devtool,omitempty"`
-	Meter          MeterStatus      `json:"meter,omitempty"`
-	AutoUpdate     DeploymentStatus `json:"autoupdate,omitempty"`
-	EsxiAgent      DeploymentStatus `json:"esxiagent,omitempty"`
-	OvnNorth       DeploymentStatus `json:"ovnNorth,omitempty"`
-	VpcAgent       DeploymentStatus `json:"vpcAgent,omitempty"`
-	Etcd           EctdStatus       `json:"etcd,omitempty"`
-	Itsm           DeploymentStatus `json:"itsm,omitempty"`
-	CloudId        DeploymentStatus `json:"cloudid,omitempty"`
+	ClusterID      string               `json:"clusterID,omitempty"`
+	Keystone       KeystoneStatus       `json:"keystone,omitempty"`
+	RegionServer   RegionStatus         `json:"region,omitempty"`
+	Glance         GlanceStatus         `json:"glance,omitempty"`
+	Scheduler      DeploymentStatus     `json:"scheduler,omitempty"`
+	Webconsole     DeploymentStatus     `json:"webconsole,omitempty"`
+	Influxdb       DeploymentStatus     `json:"influxdb,omitempty"`
+	Monitor        DeploymentStatus     `json:"monitor,omitempty"`
+	Logger         DeploymentStatus     `json:"logger,omitempty"`
+	APIGateway     DeploymentStatus     `json:"apiGateway,omitempty"`
+	Web            DeploymentStatus     `json:"web,omitempty"`
+	Yunionconf     DeploymentStatus     `json:"yunionconf,omitempty"`
+	KubeServer     DeploymentStatus     `json:"kubeserver,omitempty"`
+	AnsibleServer  DeploymentStatus     `json:"ansibleserver,omitempty"`
+	Cloudnet       DeploymentStatus     `json:"cloudnet,omitempty"`
+	Cloudevent     DeploymentStatus     `json:"cloudevent,omitempty"`
+	Notify         DeploymentStatus     `json:"notify,omitempty"`
+	BaremetalAgent BaremetalAgentStatus `json:"baremetalagent,omitempty"`
+	S3gateway      DeploymentStatus     `json:"s3gateway,omitempty"`
+	Devtool        DeploymentStatus     `json:"devtool,omitempty"`
+	Meter          MeterStatus          `json:"meter,omitempty"`
+	AutoUpdate     DeploymentStatus     `json:"autoupdate,omitempty"`
+	EsxiAgent      EsxiAgentStatus      `json:"esxiagent,omitempty"`
+	OvnNorth       DeploymentStatus     `json:"ovnNorth,omitempty"`
+	VpcAgent       DeploymentStatus     `json:"vpcAgent,omitempty"`
+	Etcd           EctdStatus           `json:"etcd,omitempty"`
+	Itsm           DeploymentStatus     `json:"itsm,omitempty"`
+	CloudId        DeploymentStatus     `json:"cloudid,omitempty"`
 }
 
 type EtcdClusterSpec struct {
@@ -494,6 +496,13 @@ type StatefulDeploymentSpec struct {
 	StorageClassName string `json:"storageClassName,omitempty"`
 }
 
+type ZoneStatefulDeploymentSpec struct {
+	StatefulDeploymentSpec
+	// Zones specified which zones want deploy,
+	// if it is empty, will deploy at all of zones
+	Zones []string `json:"zones,omitempty"`
+}
+
 // KeystoneSpec contains details of keystone service
 type KeystoneSpec struct {
 	DeploymentSpec
@@ -526,6 +535,7 @@ type RegionStatus struct {
 	RegionZoneId string
 	ZoneId       string
 	WireId       string
+	CustomZones  map[string]string
 }
 
 type GlanceStatus struct {
@@ -538,6 +548,16 @@ type WebconsoleStatus struct {
 
 type MeterStatus struct {
 	DeploymentStatus
+}
+
+type EsxiAgentStatus struct {
+	DeploymentStatus
+	ZoneEsxiAgent map[string]*DeploymentStatus `json:"zoneEsxiAgent,omitempty"`
+}
+
+type BaremetalAgentStatus struct {
+	DeploymentStatus
+	ZoneBaremetalAgent map[string]*DeploymentStatus `json:"zoneBaremetalAgent,omitempty"`
 }
 
 type EctdStatus struct {

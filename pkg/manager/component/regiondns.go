@@ -81,12 +81,12 @@ func newRegionDNSManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *regionDNSManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.RegionDNS.Disable)
+	return syncComponent(m, oc, oc.Spec.RegionDNS.Disable, "")
 }
 
-func (m *regionDNSManager) getConfigMap(oc *v1alpha1.OnecloudCluster, clusterCfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
+func (m *regionDNSManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
 	db := oc.Spec.Mysql
-	regionDB := clusterCfg.RegionServer.DB
+	regionDB := cfg.RegionServer.DB
 	spec := oc.Spec.RegionDNS
 	cType := v1alpha1.RegionDNSComponentType
 	defaultDNSTo := []string{"114.114.114.114", "8.8.8.8"}
@@ -126,10 +126,10 @@ func (m *regionDNSManager) getConfigMap(oc *v1alpha1.OnecloudCluster, clusterCfg
 		return nil, false, err
 	}
 	oc.Spec.RegionDNS = spec
-	return m.newConfigMap(cType, oc, content), false, nil
+	return m.newConfigMap(cType, "", oc, content), false, nil
 }
 
-func (m *regionDNSManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+func (m *regionDNSManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
 	// use headless service
 	cType := v1alpha1.RegionDNSComponentType
 	svcName := controller.NewClusterComponentName(oc.GetName(), cType)
@@ -144,7 +144,7 @@ func (m *regionDNSManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Se
 	return []*corev1.Service{svc}
 }
 
-func (m *regionDNSManager) getDaemonSet(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.DaemonSet, error) {
+func (m *regionDNSManager) getDaemonSet(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.DaemonSet, error) {
 	spec := oc.Spec.RegionDNS
 	cType := v1alpha1.RegionDNSComponentType
 	configMap := controller.ComponentConfigMapName(oc, cType)

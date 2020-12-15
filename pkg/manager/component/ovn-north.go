@@ -33,10 +33,10 @@ func newOvnNorthManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *ovnNorthManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.OvnNorth.Disable)
+	return syncComponent(m, oc, oc.Spec.OvnNorth.Disable, "")
 }
 
-func (m *ovnNorthManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+func (m *ovnNorthManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
 	np0 := NewServiceNodePort("north-db", constants.OvnNorthDbPort)
 	np0.TargetPort = intstr.FromInt(6641)
 	np1 := NewServiceNodePort("south-db", constants.OvnSouthDbPort)
@@ -48,7 +48,7 @@ func (m *ovnNorthManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Ser
 	return []*corev1.Service{m.newNodePortService(v1alpha1.OvnNorthComponentType, oc, ports)}
 }
 
-func (m *ovnNorthManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
+func (m *ovnNorthManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
 	containersF := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		return []corev1.Container{
 			{
@@ -66,17 +66,13 @@ func (m *ovnNorthManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 			},
 		}
 	}
-	deploy, err := m.newDefaultDeploymentNoInit(
-		v1alpha1.OvnNorthComponentType, oc,
-		NewVolumeHelper(oc, "", v1alpha1.OvnNorthComponentType),
-		oc.Spec.OvnNorth, containersF,
-	)
+	deploy, err := m.newDefaultDeploymentNoInit(v1alpha1.OvnNorthComponentType, "", oc, NewVolumeHelper(oc, "", v1alpha1.OvnNorthComponentType), oc.Spec.OvnNorth, containersF)
 	if err != nil {
 		return nil, err
 	}
 	return deploy, nil
 }
 
-func (m *ovnNorthManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
+func (m *ovnNorthManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.OvnNorth
 }
