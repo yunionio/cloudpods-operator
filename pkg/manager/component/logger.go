@@ -35,7 +35,7 @@ func newLoggerManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *loggerManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.Logger.Disable)
+	return syncComponent(m, oc, oc.Spec.Logger.Disable, "")
 }
 
 func (m *loggerManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
@@ -46,13 +46,13 @@ func (m *loggerManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alp
 	return &cfg.Logger.CloudUser
 }
 
-func (m *loggerManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
+func (m *loggerManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return controller.NewRegisterEndpointComponent(man, v1alpha1.LoggerComponentType,
 		constants.ServiceNameLogger, constants.ServiceTypeLogger,
 		constants.LoggerPort, "")
 }
 
-func (m *loggerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
+func (m *loggerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
 	opt := &options.Options
 	if err := SetOptionsDefault(opt, constants.ServiceTypeLogger); err != nil {
 		return nil, false, err
@@ -63,17 +63,17 @@ func (m *loggerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 	opt.Port = constants.LoggerPort
 
-	return m.newServiceConfigMap(v1alpha1.LoggerComponentType, oc, opt), false, nil
+	return m.newServiceConfigMap(v1alpha1.LoggerComponentType, zone, oc, opt), false, nil
 }
 
-func (m *loggerManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+func (m *loggerManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
 	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.LoggerComponentType, oc, constants.LoggerPort)}
 }
 
-func (m *loggerManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
-	return m.newCloudServiceSinglePortDeployment(v1alpha1.LoggerComponentType, oc, oc.Spec.Logger, constants.LoggerPort, true, false)
+func (m *loggerManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
+	return m.newCloudServiceSinglePortDeployment(v1alpha1.LoggerComponentType, "", oc, oc.Spec.Logger, constants.LoggerPort, true, false)
 }
 
-func (m *loggerManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
+func (m *loggerManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Logger
 }
