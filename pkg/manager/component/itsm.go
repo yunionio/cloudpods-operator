@@ -151,7 +151,7 @@ func (m *itsmManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if !IsEnterpriseEdition(oc) {
 		return nil
 	}
-	return syncComponent(m, oc, oc.Spec.Itsm.Disable)
+	return syncComponent(m, oc, oc.Spec.Itsm.Disable, "")
 }
 
 func (m *itsmManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
@@ -164,13 +164,13 @@ func (m *itsmManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha
 	return &cfg.Itsm.CloudUser
 }
 
-func (m *itsmManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
+func (m *itsmManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return controller.NewItsmEndpointComponent(man, v1alpha1.ItsmComponentType,
 		constants.ServiceNameItsm, constants.ServiceTypeItsm,
 		constants.ItsmPort, "")
 }
 
-func (m *itsmManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *itsmManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, error) {
 	cfg_ := cfg.Itsm
 	itsmConfigOption := ItsmConfigOption{
 		JavaDBConfig:  *NewJavaDBConfig(oc, cfg_.ServiceDBCommonOptions),
@@ -185,7 +185,7 @@ func NewConfigMapByTemplate(cType v1alpha1.ComponentType, oc *v1alpha1.OnecloudC
 	if err != nil {
 		return nil, err
 	}
-	return m.newConfigMap(cType, oc, data), nil
+	return m.newConfigMap(cType, "", oc, data), nil
 }
 
 func NewJavaDBConfig(oc *v1alpha1.OnecloudCluster, cfg v1alpha1.ServiceDBCommonOptions) *JavaDBConfig {
@@ -213,11 +213,11 @@ func NewJavaBaseConfig(oc *v1alpha1.OnecloudCluster, port int, user, passwd stri
 	}
 }
 
-func (m *itsmManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+func (m *itsmManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
 	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.ItsmComponentType, oc, constants.ItsmPort)}
 }
 
-func (m *itsmManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
+func (m *itsmManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
 	cf := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		volMounts = SetJavaConfigVolumeMounts(volMounts)
 		return []corev1.Container{
@@ -240,10 +240,7 @@ func (m *itsmManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 			},
 		}
 	}
-	deploy, err := m.newDefaultDeploymentNoInit(
-		v1alpha1.ItsmComponentType, oc,
-		NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.ItsmComponentType), v1alpha1.ItsmComponentType),
-		oc.Spec.Itsm, cf)
+	deploy, err := m.newDefaultDeploymentNoInit(v1alpha1.ItsmComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.ItsmComponentType), v1alpha1.ItsmComponentType), oc.Spec.Itsm, cf)
 	if err != nil {
 		return nil, err
 	}
@@ -252,7 +249,7 @@ func (m *itsmManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 	return deploy, nil
 }
 
-func (m *itsmManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
+func (m *itsmManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Itsm
 }
 

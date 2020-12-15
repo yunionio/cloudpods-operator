@@ -18,13 +18,10 @@ func newTelegrafManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *telegrafManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.Influxdb.Disable)
+	return syncComponent(m, oc, oc.Spec.Influxdb.Disable, "")
 }
 
-func (m *telegrafManager) getDaemonSet(
-	oc *v1alpha1.OnecloudCluster,
-	cfg *v1alpha1.OnecloudClusterConfig,
-) (*apps.DaemonSet, error) {
+func (m *telegrafManager) getDaemonSet(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.DaemonSet, error) {
 	return m.newTelegrafDaemonSet(v1alpha1.TelegrafComponentType, oc, cfg)
 }
 

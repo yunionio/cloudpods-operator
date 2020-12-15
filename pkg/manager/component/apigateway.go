@@ -40,7 +40,7 @@ func (m *apiGatewayManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	} else {
 		oc.Spec.APIGateway.ImageName = constants.APIGatewayCEImageName
 	}
-	return syncComponent(m, oc, oc.Spec.APIGateway.Disable)
+	return syncComponent(m, oc, oc.Spec.APIGateway.Disable, "")
 }
 
 type apiOptions struct {
@@ -54,7 +54,7 @@ func (m *apiGatewayManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v
 	return &cfg.APIGateway.CloudUser
 }
 
-func (m *apiGatewayManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
+func (m *apiGatewayManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return newAPIGatewaPhaseControl(man)
 }
 
@@ -88,7 +88,7 @@ func (c *apiGatewayPhaseControl) SystemInit(oc *v1alpha1.OnecloudCluster) error 
 	return nil
 }
 
-func (m *apiGatewayManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *apiGatewayManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, error) {
 	opt := &apiOptions{}
 	if err := SetOptionsDefault(opt, "apigateway"); err != nil {
 		return nil, err
@@ -98,11 +98,10 @@ func (m *apiGatewayManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	opt.Port = constants.APIGatewayPort
 	opt.WsPort = constants.APIWebsocketPort
 	opt.CorsHosts = []string{"*"}
-
-	return m.newServiceConfigMap(v1alpha1.APIGatewayComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.APIGatewayComponentType, "", oc, opt), nil
 }
 
-func (m *apiGatewayManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+func (m *apiGatewayManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
 	ports := []corev1.ServicePort{
 		NewServiceNodePort("api", constants.APIGatewayPort),
 		NewServiceNodePort("ws", constants.APIWebsocketPort),
@@ -110,7 +109,7 @@ func (m *apiGatewayManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.S
 	return []*corev1.Service{m.newNodePortService(v1alpha1.APIGatewayComponentType, oc, ports)}
 }
 
-func (m *apiGatewayManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
+func (m *apiGatewayManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
 	isEE := IsEnterpriseEdition(oc)
 	cf := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		cmd := "/opt/yunion/bin/apigateway"
@@ -137,9 +136,7 @@ func (m *apiGatewayManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1a
 		}
 		return cs
 	}
-	deploy, err := m.newDefaultDeploymentNoInit(v1alpha1.APIGatewayComponentType, oc,
-		NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.APIGatewayComponentType), v1alpha1.APIGatewayComponentType),
-		oc.Spec.APIGateway, cf)
+	deploy, err := m.newDefaultDeploymentNoInit(v1alpha1.APIGatewayComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.APIGatewayComponentType), v1alpha1.APIGatewayComponentType), oc.Spec.APIGateway, cf)
 	if err != nil {
 		return nil, err
 	}
@@ -167,6 +164,6 @@ func (m *apiGatewayManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1a
 	return deploy, nil
 }
 
-func (m *apiGatewayManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
+func (m *apiGatewayManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.APIGateway
 }

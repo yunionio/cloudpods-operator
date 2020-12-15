@@ -35,7 +35,7 @@ func newYunionconfManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *yunoinconfManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.Yunionconf.Disable)
+	return syncComponent(m, oc, oc.Spec.Yunionconf.Disable, "")
 }
 
 func (m *yunoinconfManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
@@ -46,13 +46,13 @@ func (m *yunoinconfManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v
 	return &cfg.Yunionconf.CloudUser
 }
 
-func (m *yunoinconfManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
+func (m *yunoinconfManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return controller.NewRegisterEndpointComponent(man, v1alpha1.YunionconfComponentType,
 		constants.ServiceNameYunionConf, constants.ServiceTypeYunionConf,
 		constants.YunionConfPort, "")
 }
 
-func (m *yunoinconfManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *yunoinconfManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, error) {
 	opt := &options.Options
 	if err := SetOptionsDefault(opt, constants.ServiceTypeYunionConf); err != nil {
 		return nil, err
@@ -64,17 +64,17 @@ func (m *yunoinconfManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	opt.AutoSyncTable = true
 	opt.Port = constants.YunionConfPort
 
-	return m.newServiceConfigMap(v1alpha1.YunionconfComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.YunionconfComponentType, "", oc, opt), nil
 }
 
-func (m *yunoinconfManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+func (m *yunoinconfManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
 	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.YunionconfComponentType, oc, constants.YunionConfPort)}
 }
 
-func (m *yunoinconfManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
-	return m.newCloudServiceSinglePortDeployment(v1alpha1.YunionconfComponentType, oc, oc.Spec.Yunionconf, constants.YunionConfPort, false, false)
+func (m *yunoinconfManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
+	return m.newCloudServiceSinglePortDeployment(v1alpha1.YunionconfComponentType, "", oc, oc.Spec.Yunionconf, constants.YunionConfPort, false, false)
 }
 
-func (m *yunoinconfManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
+func (m *yunoinconfManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Yunionconf
 }

@@ -36,6 +36,7 @@ import (
 
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/onecloud/pkg/mcclient"
+	"yunion.io/x/pkg/utils"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -109,10 +110,11 @@ func NewComponentManager(
 
 func (m *ComponentManager) syncService(
 	oc *v1alpha1.OnecloudCluster,
-	svcFactory func(*v1alpha1.OnecloudCluster) []*corev1.Service,
+	svcFactory func(*v1alpha1.OnecloudCluster, string) []*corev1.Service,
+	zone string,
 ) error {
 	ns := oc.GetNamespace()
-	newSvcs := svcFactory(oc)
+	newSvcs := svcFactory(oc, zone)
 	if len(newSvcs) == 0 {
 		return nil
 	}
@@ -153,11 +155,12 @@ func (m *ComponentManager) syncService(
 func (m *ComponentManager) syncIngress(
 	oc *v1alpha1.OnecloudCluster,
 	ingFactory ingressFactory,
+	zone string,
 ) error {
 	ns := oc.GetNamespace()
 	newF := ingFactory.getIngress
 	updateF := ingFactory.updateIngress
-	newIng := newF(oc)
+	newIng := newF(oc, zone)
 	if newIng == nil {
 		return nil
 	}
@@ -196,7 +199,8 @@ func (m *ComponentManager) syncConfigMap(
 	oc *v1alpha1.OnecloudCluster,
 	dbConfigFactory func(*v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig,
 	svcAccountFactory func(*v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser,
-	cfgMapFactory func(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error),
+	cfgMapFactory func(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig, string) (*corev1.ConfigMap, error),
+	zone string,
 ) error {
 	clustercfg, err := m.configer.GetClusterConfig(oc)
 	if err != nil {
@@ -221,7 +225,7 @@ func (m *ComponentManager) syncConfigMap(
 			})
 		}
 	}
-	cfgMap, err := cfgMapFactory(oc, clustercfg)
+	cfgMap, err := cfgMapFactory(oc, clustercfg, zone)
 	if err != nil {
 		return err
 	}
@@ -249,14 +253,15 @@ func (m *ComponentManager) syncConfigMap(
 
 func (m *ComponentManager) syncDaemonSet(
 	oc *v1alpha1.OnecloudCluster,
-	dsFactory func(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig) (*apps.DaemonSet, error),
+	dsFactory func(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig, string) (*apps.DaemonSet, error),
+	zone string,
 ) error {
 	ns := oc.GetNamespace()
 	cfg, err := m.configer.GetClusterConfig(oc)
 	if err != nil {
 		return err
 	}
-	newDs, err := dsFactory(oc, cfg)
+	newDs, err := dsFactory(oc, cfg, zone)
 	if err != nil {
 		return err
 	}
@@ -294,13 +299,14 @@ func (m *ComponentManager) updateDaemonSet(oc *v1alpha1.OnecloudCluster, newDs, 
 
 func (m *ComponentManager) syncCronJob(
 	oc *v1alpha1.OnecloudCluster,
-	cronFactory func(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig) (*batchv1.CronJob, error),
+	cronFactory func(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig, string) (*batchv1.CronJob, error),
+	zone string,
 ) error {
 	cfg, err := m.configer.GetClusterConfig(oc)
 	if err != nil {
 		return err
 	}
-	newCronJob, err := cronFactory(oc, cfg)
+	newCronJob, err := cronFactory(oc, cfg, zone)
 	if err != nil {
 		return err
 	}
@@ -341,15 +347,16 @@ func (m *ComponentManager) updateCronJob(oc *v1alpha1.OnecloudCluster, newCronJo
 
 func (m *ComponentManager) syncDeployment(
 	oc *v1alpha1.OnecloudCluster,
-	deploymentFactory func(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error),
-	postSyncFunc func(*v1alpha1.OnecloudCluster, *apps.Deployment) error,
+	deploymentFactory func(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig, string) (*apps.Deployment, error),
+	postSyncFunc func(*v1alpha1.OnecloudCluster, *apps.Deployment, string) error,
+	zone string,
 ) error {
 	ns := oc.GetNamespace()
 	cfg, err := m.configer.GetClusterConfig(oc)
 	if err != nil {
 		return err
 	}
-	newDeploy, err := deploymentFactory(oc, cfg)
+	newDeploy, err := deploymentFactory(oc, cfg, zone)
 	if err != nil {
 		return err
 	}
@@ -368,7 +375,7 @@ func (m *ComponentManager) syncDeployment(
 			if err != nil {
 				return errorswrap.Wrapf(err, "get deployment %s", deploy.GetName())
 			}
-			return postSyncFunc(oc, deploy)
+			return postSyncFunc(oc, deploy, zone)
 		}
 		return nil
 	}
@@ -412,24 +419,13 @@ func (m *ComponentManager) updateDeployment(oc *v1alpha1.OnecloudCluster, newDep
 
 func (m *ComponentManager) newDefaultDeployment(
 	componentType v1alpha1.ComponentType,
+	zoneComponentType v1alpha1.ComponentType,
 	oc *v1alpha1.OnecloudCluster,
 	volHelper *VolumeHelper,
 	spec v1alpha1.DeploymentSpec,
-	initContainersFactory func([]corev1.VolumeMount) []corev1.Container,
-	containersFactory func([]corev1.VolumeMount) []corev1.Container,
+	initContainersFactory func([]corev1.VolumeMount) []corev1.Container, containersFactory func([]corev1.VolumeMount) []corev1.Container,
 ) (*apps.Deployment, error) {
-	return m.newDefaultDeploymentWithCloudAffinity(componentType, oc, volHelper, spec, initContainersFactory, containersFactory)
-}
-
-func (m *ComponentManager) newDefaultDeploymentWithoutCloudAffinity(
-	componentType v1alpha1.ComponentType,
-	oc *v1alpha1.OnecloudCluster,
-	volHelper *VolumeHelper,
-	spec v1alpha1.DeploymentSpec,
-	initContainersFactory func([]corev1.VolumeMount) []corev1.Container,
-	containersFactory func([]corev1.VolumeMount) []corev1.Container,
-) (*apps.Deployment, error) {
-	return m.newDeployment(componentType, oc, volHelper, spec, initContainersFactory, containersFactory, false, corev1.DNSClusterFirst)
+	return m.newDefaultDeploymentWithCloudAffinity(componentType, zoneComponentType, oc, volHelper, spec, initContainersFactory, containersFactory)
 }
 
 func (m *ComponentManager) removeDeploymentAffinity(deploy *apps.Deployment) *apps.Deployment {
@@ -461,6 +457,7 @@ func (m *ComponentManager) SetComponentAffinity(spec *v1alpha1.DeploymentSpec) {
 
 func (m *ComponentManager) newDefaultDeploymentWithCloudAffinity(
 	componentType v1alpha1.ComponentType,
+	zoneComponentType v1alpha1.ComponentType,
 	oc *v1alpha1.OnecloudCluster,
 	volHelper *VolumeHelper,
 	spec v1alpha1.DeploymentSpec,
@@ -475,7 +472,7 @@ func (m *ComponentManager) newDefaultDeploymentWithCloudAffinity(
 	}
 	spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &corev1.NodeSelector{
 		NodeSelectorTerms: []corev1.NodeSelectorTerm{
-			corev1.NodeSelectorTerm{
+			{
 				MatchExpressions: []corev1.NodeSelectorRequirement{
 					{
 						Key:      constants.OnecloudControllerLabelKey,
@@ -486,21 +483,20 @@ func (m *ComponentManager) newDefaultDeploymentWithCloudAffinity(
 			},
 		},
 	}
-	return m.newDeployment(componentType, oc, volHelper, spec, initContainersFactory, containersFactory, false, corev1.DNSClusterFirst)
+	return m.newDeployment(componentType, zoneComponentType, oc, volHelper, spec, initContainersFactory, containersFactory, false, corev1.DNSClusterFirst)
 }
 
 func (m *ComponentManager) newDefaultDeploymentNoInit(
-	componentType v1alpha1.ComponentType,
-	oc *v1alpha1.OnecloudCluster,
-	volHelper *VolumeHelper,
-	spec v1alpha1.DeploymentSpec,
+	componentType v1alpha1.ComponentType, zoneComponentType v1alpha1.ComponentType,
+	oc *v1alpha1.OnecloudCluster, volHelper *VolumeHelper, spec v1alpha1.DeploymentSpec,
 	containersFactory func([]corev1.VolumeMount) []corev1.Container,
 ) (*apps.Deployment, error) {
-	return m.newDefaultDeploymentWithCloudAffinity(componentType, oc, volHelper, spec, nil, containersFactory)
+	return m.newDefaultDeploymentWithCloudAffinity(componentType, zoneComponentType, oc, volHelper, spec, nil, containersFactory)
 }
 
 func (m *ComponentManager) newDefaultDeploymentNoInitWithoutCloudAffinity(
 	componentType v1alpha1.ComponentType,
+	zoneComponentType v1alpha1.ComponentType,
 	oc *v1alpha1.OnecloudCluster,
 	volHelper *VolumeHelper,
 	spec v1alpha1.DeploymentSpec,
@@ -511,7 +507,7 @@ func (m *ComponentManager) newDefaultDeploymentNoInitWithoutCloudAffinity(
 	if hostNetwork {
 		dnsPolicy = corev1.DNSClusterFirstWithHostNet
 	}
-	return m.newDeployment(componentType, oc, volHelper, spec, nil, containersFactory, hostNetwork, dnsPolicy)
+	return m.newDeployment(componentType, zoneComponentType, oc, volHelper, spec, nil, containersFactory, hostNetwork, dnsPolicy)
 }
 
 func (m *ComponentManager) getObjectMeta(oc *v1alpha1.OnecloudCluster, name string, labels map[string]string) metav1.ObjectMeta {
@@ -528,19 +524,21 @@ func (m *ComponentManager) getComponentLabel(oc *v1alpha1.OnecloudCluster, compo
 	return label.New().Instance(instanceName).Component(componentType.String())
 }
 
-func (m *ComponentManager) newConfigMap(componentType v1alpha1.ComponentType, oc *v1alpha1.OnecloudCluster, config string) *corev1.ConfigMap {
-	name := controller.ComponentConfigMapName(oc, componentType)
+func (m *ComponentManager) newConfigMap(componentType v1alpha1.ComponentType, zone string, oc *v1alpha1.OnecloudCluster, config string) *corev1.ConfigMap {
+	name := controller.ComponentConfigMapName(oc, m.getZoneComponent(componentType, zone))
+	labels := m.getComponentLabel(oc, componentType)
+	labels = labels.Zone(zone)
 	return &corev1.ConfigMap{
-		ObjectMeta: m.getObjectMeta(oc, name, m.getComponentLabel(oc, componentType).Labels()),
+		ObjectMeta: m.getObjectMeta(oc, name, labels.Labels()),
 		Data: map[string]string{
 			"config": config,
 		},
 	}
 }
 
-func (m *ComponentManager) newServiceConfigMap(cType v1alpha1.ComponentType, oc *v1alpha1.OnecloudCluster, opt interface{}) *corev1.ConfigMap {
+func (m *ComponentManager) newServiceConfigMap(cType v1alpha1.ComponentType, zone string, oc *v1alpha1.OnecloudCluster, opt interface{}) *corev1.ConfigMap {
 	configYaml := jsonutils.Marshal(opt).YAMLString()
-	return m.newConfigMap(cType, oc, configYaml)
+	return m.newConfigMap(cType, zone, oc, configYaml)
 }
 
 func (m *ComponentManager) newService(
@@ -629,15 +627,14 @@ func (m *ComponentManager) newEtcdService(
 }
 
 func (m *ComponentManager) newDeployment(
-	componentType v1alpha1.ComponentType,
-	oc *v1alpha1.OnecloudCluster,
-	volHelper *VolumeHelper,
-	spec v1alpha1.DeploymentSpec,
-	initContainersFactory func([]corev1.VolumeMount) []corev1.Container,
-	containersFactory func([]corev1.VolumeMount) []corev1.Container,
-	hostNetwork bool,
-	dnsPolicy corev1.DNSPolicy,
+	componentType v1alpha1.ComponentType, zoneComponentType v1alpha1.ComponentType,
+	oc *v1alpha1.OnecloudCluster, volHelper *VolumeHelper, spec v1alpha1.DeploymentSpec,
+	initContainersFactory func([]corev1.VolumeMount) []corev1.Container, containersFactory func([]corev1.VolumeMount) []corev1.Container,
+	hostNetwork bool, dnsPolicy corev1.DNSPolicy,
 ) (*apps.Deployment, error) {
+	if len(zoneComponentType) == 0 {
+		zoneComponentType = componentType
+	}
 	ns := oc.GetNamespace()
 	ocName := oc.GetName()
 
@@ -648,7 +645,7 @@ func (m *ComponentManager) newDeployment(
 
 	podAnnotations := spec.Annotations
 
-	deployName := controller.NewClusterComponentName(ocName, componentType)
+	deployName := controller.NewClusterComponentName(ocName, zoneComponentType)
 
 	appDeploy := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -693,15 +690,11 @@ func (m *ComponentManager) newDeployment(
 }
 
 func (m *ComponentManager) newCloudServiceDeployment(
-	cType v1alpha1.ComponentType,
-	oc *v1alpha1.OnecloudCluster,
-	deployCfg v1alpha1.DeploymentSpec,
-	initContainersF func([]corev1.VolumeMount) []corev1.Container,
-	ports []corev1.ContainerPort,
-	mountEtcdTLS bool,
-	keepAffinity bool,
+	cType v1alpha1.ComponentType, zoneComponentType v1alpha1.ComponentType,
+	oc *v1alpha1.OnecloudCluster, deployCfg v1alpha1.DeploymentSpec,
+	initContainersF func([]corev1.VolumeMount) []corev1.Container, ports []corev1.ContainerPort, mountEtcdTLS bool, keepAffinity bool,
 ) (*apps.Deployment, error) {
-	configMap := controller.ComponentConfigMapName(oc, cType)
+	configMap := controller.ComponentConfigMapName(oc, zoneComponentType)
 	containersF := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		return []corev1.Container{
 			{
@@ -726,8 +719,7 @@ func (m *ComponentManager) newCloudServiceDeployment(
 		h = NewVolumeHelper(oc, configMap, cType)
 	}
 
-	deploy, err := m.newDefaultDeployment(cType, oc, h,
-		deployCfg, initContainersF, containersF)
+	deploy, err := m.newDefaultDeployment(cType, zoneComponentType, oc, h, deployCfg, initContainersF, containersF)
 	if err != nil {
 		return nil, err
 	}
@@ -738,7 +730,7 @@ func (m *ComponentManager) newCloudServiceDeployment(
 }
 
 func (m *ComponentManager) newCloudServiceDeploymentWithInit(
-	cType v1alpha1.ComponentType,
+	cType, zoneComponentType v1alpha1.ComponentType,
 	oc *v1alpha1.OnecloudCluster,
 	deployCfg v1alpha1.DeploymentSpec,
 	ports []corev1.ContainerPort,
@@ -761,26 +753,30 @@ func (m *ComponentManager) newCloudServiceDeploymentWithInit(
 			},
 		}
 	}
-	return m.newCloudServiceDeployment(cType, oc, deployCfg, initContainersF, ports, mountEtcdTLS, true)
+	if len(zoneComponentType) == 0 {
+		zoneComponentType = cType
+	}
+	return m.newCloudServiceDeployment(cType, zoneComponentType, oc, deployCfg, initContainersF, ports, mountEtcdTLS, true)
 }
 
 func (m *ComponentManager) newCloudServiceDeploymentNoInit(
-	cType v1alpha1.ComponentType,
+	cType, zoneComponentType v1alpha1.ComponentType,
 	oc *v1alpha1.OnecloudCluster,
 	deployCfg v1alpha1.DeploymentSpec,
 	ports []corev1.ContainerPort,
 	mountEtcdTLS bool,
 ) (*apps.Deployment, error) {
-	return m.newCloudServiceDeployment(cType, oc, deployCfg, nil, ports, mountEtcdTLS, true)
+	if len(zoneComponentType) == 0 {
+		zoneComponentType = cType
+	}
+	return m.newCloudServiceDeployment(cType, zoneComponentType, oc, deployCfg, nil, ports, mountEtcdTLS, true)
 }
 
 func (m *ComponentManager) newCloudServiceSinglePortDeployment(
-	cType v1alpha1.ComponentType,
+	cType, zoneComponentType v1alpha1.ComponentType,
 	oc *v1alpha1.OnecloudCluster,
 	deployCfg v1alpha1.DeploymentSpec,
-	port int32,
-	doInit bool,
-	mountEtcdTLS bool,
+	port int32, doInit bool, mountEtcdTLS bool,
 ) (*apps.Deployment, error) {
 	ports := []corev1.ContainerPort{
 		{
@@ -793,7 +789,7 @@ func (m *ComponentManager) newCloudServiceSinglePortDeployment(
 	if doInit {
 		f = m.newCloudServiceDeploymentWithInit
 	}
-	return f(cType, oc, deployCfg, ports, mountEtcdTLS)
+	return f(cType, zoneComponentType, oc, deployCfg, ports, mountEtcdTLS)
 }
 
 func (m *ComponentManager) deploymentIsUpgrading(deploy *apps.Deployment, oc *v1alpha1.OnecloudCluster) (bool, error) {
@@ -984,9 +980,11 @@ func (m *ComponentManager) newPVC(cType v1alpha1.ComponentType, oc *v1alpha1.One
 }
 
 func (m *ComponentManager) syncPVC(oc *v1alpha1.OnecloudCluster,
-	pvcFactory func(*v1alpha1.OnecloudCluster) (*corev1.PersistentVolumeClaim, error)) error {
+	pvcFactory func(*v1alpha1.OnecloudCluster, string) (*corev1.PersistentVolumeClaim, error),
+	zone string,
+) error {
 	ns := oc.GetNamespace()
-	newPvc, err := pvcFactory(oc)
+	newPvc, err := pvcFactory(oc, zone)
 	if err != nil {
 		return err
 	}
@@ -1004,9 +1002,12 @@ func (m *ComponentManager) syncPVC(oc *v1alpha1.OnecloudCluster,
 	return nil
 }
 
-func (m *ComponentManager) syncPhase(oc *v1alpha1.OnecloudCluster,
-	phaseFactory func(controller.ComponentManager) controller.PhaseControl) error {
-	phase := phaseFactory(m.onecloudControl.Components(oc))
+func (m *ComponentManager) syncPhase(
+	oc *v1alpha1.OnecloudCluster,
+	phaseFactory func(controller.ComponentManager, string) controller.PhaseControl,
+	zone string,
+) error {
+	phase := phaseFactory(m.onecloudControl.Components(oc), zone)
 	if phase == nil {
 		return nil
 	}
@@ -1019,6 +1020,28 @@ func (m *ComponentManager) syncPhase(oc *v1alpha1.OnecloudCluster,
 	return nil
 }
 
+func (m *ComponentManager) multiZoneSync(oc *v1alpha1.OnecloudCluster, wantedZones []string, factory cloudComponentFactory, disabled bool) error {
+	var zones = oc.GetZones()
+	if len(wantedZones) > 0 {
+		zones = []string{}
+		for i := 0; i < len(wantedZones); i++ {
+			if utils.IsInStringArray(wantedZones[i], oc.Spec.CustomZones) {
+				zones = append(zones, wantedZones[i])
+			}
+		}
+	}
+	for _, zone := range zones {
+		if zone == oc.Spec.Zone {
+			// use empty string replace default zone
+			zone = ""
+		}
+		if err := syncComponent(factory, oc, disabled, zone); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (m *ComponentManager) getDBConfig(_ *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
 	return nil
 }
@@ -1027,19 +1050,19 @@ func (m *ComponentManager) getCloudUser(_ *v1alpha1.OnecloudClusterConfig) *v1al
 	return nil
 }
 
-func (m *ComponentManager) getPhaseControl(_ controller.ComponentManager) controller.PhaseControl {
+func (m *ComponentManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return nil
 }
 
-func (m *ComponentManager) getDeploymentStatus(_ *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
+func (m *ComponentManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return nil
 }
 
-func (m *ComponentManager) getService(_ *v1alpha1.OnecloudCluster) []*corev1.Service {
+func (m *ComponentManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
 	return nil
 }
 
-func (m *ComponentManager) getIngress(_ *v1alpha1.OnecloudCluster) *extensions.Ingress {
+func (m *ComponentManager) getIngress(oc *v1alpha1.OnecloudCluster, zone string) *extensions.Ingress {
 	return nil
 }
 
@@ -1047,7 +1070,7 @@ func (m *ComponentManager) updateIngress(_ *v1alpha1.OnecloudCluster, _ *extensi
 	return nil
 }
 
-func (m *ComponentManager) getConfigMap(_ *v1alpha1.OnecloudCluster, _ *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *ComponentManager) getConfigMap(_ *v1alpha1.OnecloudCluster, _ *v1alpha1.OnecloudClusterConfig, _ string) (*corev1.ConfigMap, error) {
 	return nil, nil
 }
 
@@ -1055,19 +1078,26 @@ func (m *ComponentManager) getComponentManager() *ComponentManager {
 	return m
 }
 
-func (m *ComponentManager) getPVC(_ *v1alpha1.OnecloudCluster) (*corev1.PersistentVolumeClaim, error) {
+func (m *ComponentManager) getPVC(oc *v1alpha1.OnecloudCluster, zone string) (*corev1.PersistentVolumeClaim, error) {
 	return nil, nil
 }
-func (m *ComponentManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
-	return nil, nil
-}
-
-func (m *ComponentManager) getDaemonSet(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig) (*apps.DaemonSet, error) {
+func (m *ComponentManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
 	return nil, nil
 }
 
-func (m *ComponentManager) getCronJob(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig) (*batchv1.CronJob, error) {
+func (m *ComponentManager) getDaemonSet(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig, string) (*apps.DaemonSet, error) {
 	return nil, nil
+}
+
+func (m *ComponentManager) getCronJob(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig, string) (*batchv1.CronJob, error) {
+	return nil, nil
+}
+
+func (m *ComponentManager) getZoneComponent(component v1alpha1.ComponentType, zone string) v1alpha1.ComponentType {
+	if len(zone) == 0 {
+		return component
+	}
+	return v1alpha1.ComponentType(fmt.Sprintf("%s-%s", component, zone))
 }
 
 func (m *ComponentManager) Etcd() manager.Manager {
@@ -1212,4 +1242,24 @@ func (m *ComponentManager) CloudId() manager.Manager {
 
 func (m *ComponentManager) Cloudmon() manager.Manager {
 	return newCloudMonManager(m)
+}
+
+func setSelfAntiAffnity(deploy *apps.Deployment, component v1alpha1.ComponentType) *apps.Deployment {
+	if deploy.Spec.Template.Spec.Affinity == nil {
+		deploy.Spec.Template.Spec.Affinity = new(corev1.Affinity)
+	}
+	deploy.Spec.Template.Spec.Affinity.PodAntiAffinity = &corev1.PodAntiAffinity{
+		PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+			{
+				Weight: 100,
+				PodAffinityTerm: corev1.PodAffinityTerm{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{label.AppLabelKey: component.String()},
+					},
+					TopologyKey: "kubernetes.io/hostname",
+				},
+			},
+		},
+	}
+	return deploy
 }

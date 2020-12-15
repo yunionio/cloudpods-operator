@@ -45,7 +45,7 @@ func (m *yunionagentManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if !IsEnterpriseEdition(oc) {
 		return nil
 	}
-	return syncComponent(m, oc, oc.Spec.Yunionagent.Disable)
+	return syncComponent(m, oc, oc.Spec.Yunionagent.Disable, "")
 }
 
 func (m *yunionagentManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
@@ -56,11 +56,11 @@ func (m *yunionagentManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *
 	return &cfg.Yunionagent.CloudUser
 }
 
-func (m *yunionagentManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
+func (m *yunionagentManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return man.YunionAgent()
 }
 
-func (m *yunionagentManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *yunionagentManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, error) {
 	opt := &yunionagentOptions{}
 	if err := SetOptionsDefault(opt, constants.ServiceTypeYunionAgent); err != nil {
 		return nil, err
@@ -72,10 +72,10 @@ func (m *yunionagentManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1a
 	opt.AutoSyncTable = true
 	opt.Port = constants.YunionAgentPort
 
-	return m.newServiceConfigMap(v1alpha1.YunionagentComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.YunionagentComponentType, "", oc, opt), nil
 }
 
-func (m *yunionagentManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+func (m *yunionagentManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
 	// use headless service
 	svcName := controller.NewClusterComponentName(oc.GetName(), v1alpha1.YunionagentComponentType)
 	appLabel := m.getComponentLabel(oc, v1alpha1.YunionagentComponentType)
@@ -89,7 +89,7 @@ func (m *yunionagentManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.
 	return []*corev1.Service{svc}
 }
 
-func (m *yunionagentManager) getDaemonSet(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.DaemonSet, error) {
+func (m *yunionagentManager) getDaemonSet(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.DaemonSet, error) {
 	cType := v1alpha1.YunionagentComponentType
 	dsSpec := oc.Spec.Yunionagent
 	cf := func(volMounts []corev1.VolumeMount) []corev1.Container {

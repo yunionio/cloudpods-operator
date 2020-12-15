@@ -34,6 +34,7 @@ const (
 	// It's set by helm when installing a release
 	InstanceLabelKey string = "app.kubernetes.io/instance"
 	AppLabelKey      string = "app"
+	ZoneLabelKey     string = "zone"
 
 	// LabelNodeRoleMaster specifies that a node is a control-plane
 	// This is a duplicate definition of the constant in pkg/controller/service/service_controller.go

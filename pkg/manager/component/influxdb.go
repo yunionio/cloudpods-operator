@@ -78,26 +78,26 @@ func newInfluxdbManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *influxdbManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.Influxdb.Disable)
+	return syncComponent(m, oc, oc.Spec.Influxdb.Disable, "")
 }
 
-func (m *influxdbManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
+func (m *influxdbManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return controller.NewRegisterEndpointComponent(
 		man, v1alpha1.InfluxdbComponentType,
 		constants.ServiceNameInfluxdb, constants.ServiceTypeInfluxdb,
 		constants.InfluxdbPort, "")
 }
 
-func (m *influxdbManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+func (m *influxdbManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
 	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.InfluxdbComponentType, oc, constants.InfluxdbPort)}
 }
 
-func (m *influxdbManager) getPVC(oc *v1alpha1.OnecloudCluster) (*corev1.PersistentVolumeClaim, error) {
+func (m *influxdbManager) getPVC(oc *v1alpha1.OnecloudCluster, zone string) (*corev1.PersistentVolumeClaim, error) {
 	cfg := oc.Spec.Influxdb
 	return m.ComponentManager.newPVC(v1alpha1.InfluxdbComponentType, oc, cfg)
 }
 
-func (m *influxdbManager) getConfigMap(oc *v1alpha1.OnecloudCluster, clusterCfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *influxdbManager) getConfigMap(oc *v1alpha1.OnecloudCluster, clusterCfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, error) {
 	config := InfluxdbConfig{
 		Port:     constants.InfluxdbPort,
 		CertPath: path.Join(constants.CertDir, constants.ServiceCertName),
@@ -107,10 +107,10 @@ func (m *influxdbManager) getConfigMap(oc *v1alpha1.OnecloudCluster, clusterCfg 
 	if err != nil {
 		return nil, err
 	}
-	return m.newConfigMap(v1alpha1.InfluxdbComponentType, oc, content), nil
+	return m.newConfigMap(v1alpha1.InfluxdbComponentType, "", oc, content), nil
 }
 
-func (m *influxdbManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
+func (m *influxdbManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
 	configMap := controller.ComponentConfigMapName(oc, v1alpha1.InfluxdbComponentType)
 	containersF := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		volMounts = append(volMounts, corev1.VolumeMount{
@@ -127,9 +127,7 @@ func (m *influxdbManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 			},
 		}
 	}
-	deploy, err := m.newDefaultDeploymentNoInit(v1alpha1.InfluxdbComponentType, oc,
-		NewVolumeHelper(oc, configMap, v1alpha1.InfluxdbComponentType),
-		oc.Spec.Influxdb.DeploymentSpec, containersF)
+	deploy, err := m.newDefaultDeploymentNoInit(v1alpha1.InfluxdbComponentType, "", oc, NewVolumeHelper(oc, configMap, v1alpha1.InfluxdbComponentType), oc.Spec.Influxdb.DeploymentSpec, containersF)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +151,7 @@ func (m *influxdbManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 	return deploy, nil
 }
 
-func (m *influxdbManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
+func (m *influxdbManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Influxdb
 }
 
