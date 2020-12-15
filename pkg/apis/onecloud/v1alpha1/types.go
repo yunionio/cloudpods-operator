@@ -66,6 +66,12 @@ const (
 	SchedulerComponentType ComponentType = "scheduler"
 	// LogComponentType is logger service component type
 	LoggerComponentType ComponentType = "logger"
+	// RegisterComponentType is register service component type
+	RegisterComponentType ComponentType = "register"
+	// BillingComponentType is billing service component type
+	BillingComponentType ComponentType = "billing"
+	// BillingTaskComponentType is billingTask service component type
+	BillingTaskComponentType ComponentType = "billingtask"
 	// InfluxdbComponentType is influxdb component type
 	InfluxdbComponentType ComponentType = "influxdb"
 	// MonitorComponentType is alert monitor component type
@@ -196,6 +202,12 @@ type OnecloudClusterSpec struct {
 	Webconsole DeploymentSpec `json:"webconsole"`
 	// Logger holds configuration for log service
 	Logger DeploymentSpec `json:"logger"`
+	// Register holds configuration for register service
+	Register DeploymentSpec `json:"register"`
+	// Billing holds configuration for billing service
+	Billing DeploymentSpec `json:"billing"`
+	// BillingTask holds configuration for billingtask service
+	BillingTask DeploymentSpec `json:"billingtask"`
 	// Yunionconf holds configuration for yunionconf service
 	Yunionconf DeploymentSpec `json:"yunionconf"`
 	// Yunionagent holds configuration for yunionagent service
@@ -268,6 +280,9 @@ type OnecloudClusterStatus struct {
 	Influxdb       DeploymentStatus `json:"influxdb,omitempty"`
 	Monitor        DeploymentStatus `json:"monitor,omitempty"`
 	Logger         DeploymentStatus `json:"logger,omitempty"`
+	Register       DeploymentStatus `json:"register,omitempty"`
+	Billing        DeploymentStatus `json:"billing,omitempty"`
+	BillingTask    DeploymentStatus `json:"billingtask,omitempty"`
 	APIGateway     DeploymentStatus `json:"apiGateway,omitempty"`
 	Web            DeploymentStatus `json:"web,omitempty"`
 	Yunionconf     DeploymentStatus `json:"yunionconf,omitempty"`
@@ -745,6 +760,9 @@ type OnecloudClusterConfig struct {
 	Glance          GlanceConfig           `json:"glance"`
 	Webconsole      ServiceCommonOptions   `json:"webconsole"`
 	Logger          ServiceDBCommonOptions `json:"logger"`
+	Register        ServiceDBCommonOptions `json:"register"`
+	Billing         ServiceDBCommonOptions `json:"billing"`
+	BillingTask     ServiceDBCommonOptions `json:"billingtask"`
 	Yunionconf      ServiceDBCommonOptions `json:"yunionconf"`
 	Yunionagent     ServiceDBCommonOptions `json:"yunionagent"`
 	KubeServer      ServiceDBCommonOptions `json:"kubeserver"`

@@ -124,6 +124,21 @@ const (
 	LoggerDB        = "yunionlogger"
 	LoggerDBUser    = "yunionlogger"
 
+	RegisterAdminUser = "registeradmin"
+	RegisterPort      = 30401
+	RegisterDB        = "yunionregister"
+	RegisterDBUser    = "yunionregister"
+
+	BillingAdminUser = "billingadmin"
+	BillingPort      = 30404
+	BillingDB        = "yunionbilling"
+	BillingDBUser    = "yunionbilling"
+
+	BillingTaskAdminUser = "billingtaskadmin"
+	BillingTaskPort      = 30405
+	BillingTaskDB        = "yunionbillingtask"
+	BillingTaskDBUser    = "yunionbillingtask"
+
 	ServiceNameAPIGateway = "yunionapi"
 	ServiceTypeAPIGateway = "yunionapi"
 	ServiceNameWebsocket  = "websocket"
@@ -205,6 +220,15 @@ const (
 
 	ServiceNameLogger = "log"
 	ServiceTypeLogger = "log"
+
+	ServiceNameRegister = "register"
+	ServiceTypeRegister = "register"
+
+	ServiceNameBilling = "billing"
+	ServiceTypeBilling = "billing"
+
+	ServiceNameBillingTask = "billingtask"
+	ServiceTypeBillingTask = "billingtask"
 
 	ServiceNameYunionConf = "yunionconf"
 	ServiceTypeYunionConf = "yunionconf"
@@ -424,4 +448,18 @@ const (
 
 	EnvOperatorPodName      = "MY_POD_NAME"
 	EnvOperatorPodNamespace = "MY_POD_NAMESPACE"
+)
+
+var (
+	// billingtask Secret
+	BillingTaskSecret = "billingtask-alipay"
+	// 支付宝证书文件所在路径
+	AlipayCertDir = "/etc/yunion/alipay"
+	// 支付宝证书文件
+	AlipayCertPublicKeyRSA2 = "alipayrsa2.crt"
+	AlipayRootCert          = "alipayroot.crt"
+	AlipayAppCertPublicKey  = "app.crt"
+	YunionCsr               = "yunion.csr"
+	YunionPublic            = "yunionpublic.txt"
+	YunionPrivate           = "yunionprivate.txt"
 )

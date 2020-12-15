@@ -51,6 +51,7 @@ func (c *CertsManager) CreateOrUpdate(oc *v1alpha1.OnecloudCluster) error {
 		}
 		return nil
 	} else {
+		// TODO
 		// already exists, update it
 		// TODO
 		//return nil
