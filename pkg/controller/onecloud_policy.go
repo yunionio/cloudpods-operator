@@ -257,8 +257,9 @@ func createOrUpdatePolicy(s *mcclient.ClientSession, policy sPolicyData) error {
 	} else {
 		// find policy, do update
 		remotePolicy, _ := policyJson.Get("policy")
+		isSystem := jsonutils.QueryBoolean(policyJson, "is_system", false)
 		desc, _ := policyJson.GetString("description")
-		if remotePolicy == nil || !policy.policy.Equals(remotePolicy) || desc != policy.description {
+		if remotePolicy == nil || !policy.policy.Equals(remotePolicy) || desc != policy.description || !isSystem {
 			// need to update policy data
 			pid, _ := policyJson.GetString("id")
 			params := jsonutils.NewDict()
@@ -348,7 +349,8 @@ func createOrUpdateRole(s *mcclient.ClientSession, role sRoleDefiniton) error {
 	}
 	roleId, _ := roleJson.GetString("id")
 	// perform add policy
-	for _, policy := range role.Policies {
+	for i := range role.Policies {
+		policy := role.Policies[i]
 		params := jsonutils.NewDict()
 		if len(role.Project) > 0 {
 			params.Add(jsonutils.NewString(role.Project), "project_id")

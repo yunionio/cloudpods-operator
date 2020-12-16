@@ -370,28 +370,40 @@ var (
 		{
 			Name:        constants.RoleAdmin,
 			Description: "系统管理员",
-			Policies:    []string{"sysadmin"},
-			Project:     "system",
+			Policies: []string{
+				"sysadmin",
+			},
+			Project: "system",
 		},
 		{
 			Name:        constants.RoleDomainAdmin,
 			Description: "域管理员",
-			Policies:    []string{"domainadmin"},
+			Policies: []string{
+				"domainadmin",
+			},
 		},
 		{
 			Name:        constants.RoleProjectOwner,
 			Description: "项目主管",
-			Policies:    []string{"projectadmin"},
+			Policies: []string{
+				"projectadmin",
+			},
 		},
 		{
 			Name:        constants.RoleFA,
 			Description: "财务管理员",
-			Policies:    []string{"sysmeteradmin", "sysdashboard"},
+			Policies: []string{
+				"sysmeteradmin",
+				"sysdashboard",
+			},
 		},
 		{
 			Name:        constants.RoleMember,
 			Description: "项目成员",
-			Policies:    []string{"projectviewer", "projectdashboard"},
+			Policies: []string{
+				"projectviewer",
+				"projectdashboard",
+			},
 		},
 	}
 )
