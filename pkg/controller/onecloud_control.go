@@ -580,17 +580,34 @@ func doPolicyRoleInit(s *mcclient.ClientSession) error {
 	if err := ensureKeystoneVersion36(s); err != nil {
 		return errors.Wrap(err, "ensureKeystoneVersion36")
 	}
+	// create system policies
 	policies := generateAllPolicies()
 	for i := range policies {
 		err := createOrUpdatePolicy(s, policies[i])
 		if err != nil {
-			return errors.Wrap(err, "createOrUpdatePolicy")
+			log.Errorf("createOrUpdatePolicy %s fail %s", policies[i], err)
 		}
 	}
+	// create system roles
 	for i := range roleDefinitions {
 		err := createOrUpdateRole(s, roleDefinitions[i])
 		if err != nil {
-			return errors.Wrap(err, "createOrUpdateRole")
+			log.Errorf("createOrUpdateRole %s fail %s", roleDefinitions[i], err)
+		}
+	}
+	// update policy quota
+	params := jsonutils.NewDict()
+	params.Add(jsonutils.NewString("default"), "domain")
+	result, err := modules.IdentityQuotas.GetQuota(s, params)
+	if err != nil {
+		return errors.Wrap(err, "IdentityQuotas.GetQuota")
+	}
+	policyCnt, _ := result.Int("policy")
+	if policyCnt < 500 {
+		params.Add(jsonutils.NewInt(500), "policy")
+		_, err := modules.IdentityQuotas.DoQuotaSet(s, params)
+		if err != nil {
+			return errors.Wrap(err, "IdentityQuotas.DoQuotaSet")
 		}
 	}
 	return nil
