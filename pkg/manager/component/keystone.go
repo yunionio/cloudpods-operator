@@ -37,22 +37,22 @@ func newKeystoneComponentManager(baseMan *ComponentManager) manager.Manager {
 }
 
 func (m *keystoneManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.Keystone.Disable)
+	return syncComponent(m, oc, oc.Spec.Keystone.Disable, "")
 }
 
 func (m *keystoneManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
 	return &cfg.Keystone.DB
 }
 
-func (m *keystoneManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
+func (m *keystoneManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return man.Keystone()
 }
 
-func (m *keystoneManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
+func (m *keystoneManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Keystone.DeploymentStatus
 }
 
-func (m *keystoneManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+func (m *keystoneManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
 	ports := []corev1.ServicePort{
 		NewServiceNodePort("public", constants.KeystonePublicPort),
 		NewServiceNodePort("admin", constants.KeystoneAdminPort),
@@ -61,12 +61,12 @@ func (m *keystoneManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Ser
 	return []*corev1.Service{m.newNodePortService(v1alpha1.KeystoneComponentType, oc, ports)}
 }
 
-func (m *keystoneManager) getConfigMap(oc *v1alpha1.OnecloudCluster, clusterCfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
+func (m *keystoneManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
 	opt := &options.Options
 	if err := SetOptionsDefault(opt, constants.ServiceTypeIdentity); err != nil {
 		return nil, false, err
 	}
-	config := clusterCfg.Keystone
+	config := cfg.Keystone
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
 	SetOptionsServiceTLS(&opt.BaseOptions)
 	SetServiceBaseOptions(&opt.BaseOptions, oc.GetRegion(), config.ServiceBaseConfig)
@@ -77,10 +77,10 @@ func (m *keystoneManager) getConfigMap(oc *v1alpha1.OnecloudCluster, clusterCfg 
 	opt.AdminPort = constants.KeystoneAdminPort
 	opt.Port = constants.KeystonePublicPort
 
-	return m.newServiceConfigMap(v1alpha1.KeystoneComponentType, oc, opt), false, nil
+	return m.newServiceConfigMap(v1alpha1.KeystoneComponentType, "", oc, opt), false, nil
 }
 
-func (m *keystoneManager) getDeployment(oc *v1alpha1.OnecloudCluster, _ *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
+func (m *keystoneManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
 	ksConfigMap := controller.ComponentConfigMapName(oc, v1alpha1.KeystoneComponentType)
 
 	initContainersF := func(volMounts []corev1.VolumeMount) []corev1.Container {
@@ -130,11 +130,5 @@ func (m *keystoneManager) getDeployment(oc *v1alpha1.OnecloudCluster, _ *v1alpha
 		}
 	}
 
-	return m.newDefaultDeployment(
-		v1alpha1.KeystoneComponentType, oc,
-		NewVolumeHelper(oc, ksConfigMap, v1alpha1.KeystoneComponentType),
-		oc.Spec.Keystone.DeploymentSpec,
-		initContainersF,
-		containersF,
-	)
+	return m.newDefaultDeployment(v1alpha1.KeystoneComponentType, v1alpha1.KeystoneComponentType, oc, NewVolumeHelper(oc, ksConfigMap, v1alpha1.KeystoneComponentType), oc.Spec.Keystone.DeploymentSpec, initContainersF, containersF)
 }

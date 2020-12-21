@@ -24,18 +24,18 @@ func newHostManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *hostManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.HostAgent.Disable)
+	return syncComponent(m, oc, oc.Spec.HostAgent.Disable, "")
 }
 
 func (m *hostManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
 	return &cfg.HostAgent.CloudUser
 }
 
-func (m *hostManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
+func (m *hostManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return controller.NewRegisterServiceComponent(man, constants.ServiceNameHost, constants.ServiceTypeHost)
 }
 
-func (m *hostManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
+func (m *hostManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
 	commonOpt := new(options.HostCommonOptions)
 	// opt := &options.HostOptions
 	if err := SetOptionsDefault(commonOpt, ""); err != nil {
@@ -46,13 +46,10 @@ func (m *hostManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 	SetServiceCommonOptions(&commonOpt.CommonOptions, oc, config.ServiceCommonOptions)
 	commonOpt.Port = constants.HostPort
 
-	return m.newServiceConfigMap(v1alpha1.HostComponentType, oc, commonOpt), false, nil
+	return m.newServiceConfigMap(v1alpha1.HostComponentType, "", oc, commonOpt), false, nil
 }
 
-func (m *hostManager) getDaemonSet(
-	oc *v1alpha1.OnecloudCluster,
-	cfg *v1alpha1.OnecloudClusterConfig,
-) (*apps.DaemonSet, error) {
+func (m *hostManager) getDaemonSet(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.DaemonSet, error) {
 	return m.newHostPrivilegedDaemonSet(v1alpha1.HostComponentType, oc, cfg)
 }
 

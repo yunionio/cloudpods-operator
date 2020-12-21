@@ -41,7 +41,7 @@ func (m *meterManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if !IsEnterpriseEdition(oc) {
 		return nil
 	}
-	return syncComponent(m, oc, oc.Spec.Meter.Disable)
+	return syncComponent(m, oc, oc.Spec.Meter.Disable, "")
 }
 
 func (m *meterManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
@@ -52,7 +52,7 @@ func (m *meterManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alph
 	return &cfg.Meter.CloudUser
 }
 
-func (m *meterManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
+func (m *meterManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return controller.NewRegisterEndpointComponent(man,
 		v1alpha1.MeterComponentType,
 		constants.ServiceNameMeter,
@@ -60,7 +60,7 @@ func (m *meterManager) getPhaseControl(man controller.ComponentManager) controll
 		constants.MeterPort, "")
 }
 
-func (m *meterManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+func (m *meterManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
 	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.MeterComponentType, oc, constants.MeterPort)}
 }
 
@@ -75,7 +75,7 @@ type meterOptions struct {
 	MonthlyBill             bool
 }
 
-func (m *meterManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
+func (m *meterManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
 	opt := &meterOptions{}
 	if err := SetOptionsDefault(opt, constants.ServiceTypeMeter); err != nil {
 		return nil, false, err
@@ -95,16 +95,16 @@ func (m *meterManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 	opt.AutoSyncTable = true
 	opt.Port = constants.MeterPort
 
-	return m.newServiceConfigMap(v1alpha1.MeterComponentType, oc, opt), false, nil
+	return m.newServiceConfigMap(v1alpha1.MeterComponentType, "", oc, opt), false, nil
 }
 
-func (m *meterManager) getPVC(oc *v1alpha1.OnecloudCluster) (*corev1.PersistentVolumeClaim, error) {
+func (m *meterManager) getPVC(oc *v1alpha1.OnecloudCluster, zone string) (*corev1.PersistentVolumeClaim, error) {
 	cfg := oc.Spec.Meter
 	return m.ComponentManager.newPVC(v1alpha1.MeterComponentType, oc, cfg)
 }
 
-func (m *meterManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
-	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.MeterComponentType, oc, oc.Spec.Meter.DeploymentSpec, constants.MeterPort, true, false)
+func (m *meterManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
+	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.MeterComponentType, "", oc, oc.Spec.Meter.DeploymentSpec, constants.MeterPort, true, false)
 	if err != nil {
 		return nil, err
 	}
@@ -174,6 +174,6 @@ func (m *meterManager) getPodLabels() map[string]string {
 	}
 }
 
-func (m *meterManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
+func (m *meterManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Meter.DeploymentStatus
 }

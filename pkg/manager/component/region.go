@@ -44,7 +44,7 @@ func newRegionManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *regionManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.RegionServer.Disable)
+	return syncComponent(m, oc, oc.Spec.RegionServer.Disable, "")
 }
 
 func (m *regionManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
@@ -55,11 +55,11 @@ func (m *regionManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alp
 	return &cfg.RegionServer.CloudUser
 }
 
-func (m *regionManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
+func (m *regionManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return man.Region()
 }
 
-func (m *regionManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*v1.ConfigMap, bool, error) {
+func (m *regionManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*v1.ConfigMap, bool, error) {
 	opt := &options.Options
 	if err := SetOptionsDefault(opt, constants.ServiceTypeComputeV2); err != nil {
 		return nil, false, err
@@ -84,7 +84,7 @@ func (m *regionManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	if err != nil {
 		return nil, false, err
 	}
-	return m.newServiceConfigMap(v1alpha1.RegionComponentType, oc, opt), false, nil
+	return m.newServiceConfigMap(v1alpha1.RegionComponentType, "", oc, opt), false, nil
 }
 
 func (m *regionManager) setBaremetalPrepareConfigure(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, opt *options.ComputeOptions) error {
@@ -124,15 +124,15 @@ func (m *regionManager) setBaremetalPrepareConfigure(oc *v1alpha1.OnecloudCluste
 	return nil
 }
 
-func (m *regionManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+func (m *regionManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*v1.Service {
 	ports := []corev1.ServicePort{
 		NewServiceNodePort("api", constants.RegionPort),
 	}
 	return []*corev1.Service{m.newNodePortService(v1alpha1.RegionComponentType, oc, ports)}
 }
 
-func (m *regionManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
-	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.RegionComponentType, oc, oc.Spec.RegionServer.DeploymentSpec, constants.RegionPort, true, true)
+func (m *regionManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
+	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.RegionComponentType, "", oc, oc.Spec.RegionServer.DeploymentSpec, constants.RegionPort, true, true)
 	if err != nil {
 		return nil, err
 	}
@@ -140,6 +140,6 @@ func (m *regionManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 	return deploy, nil
 }
 
-func (m *regionManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
+func (m *regionManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.RegionServer.DeploymentStatus
 }

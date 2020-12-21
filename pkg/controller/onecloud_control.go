@@ -33,14 +33,16 @@ import (
 	"yunion.io/x/log"
 	"yunion.io/x/pkg/errors"
 
+	"yunion.io/x/onecloud/pkg/apis/monitor"
+	"yunion.io/x/onecloud/pkg/httperrors"
+	"yunion.io/x/onecloud/pkg/mcclient"
+	"yunion.io/x/onecloud/pkg/mcclient/auth"
+	"yunion.io/x/onecloud/pkg/mcclient/modules"
+
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/util/k8sutil"
 	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
-	"yunion.io/x/onecloud/pkg/apis/monitor"
-	"yunion.io/x/onecloud/pkg/mcclient"
-	"yunion.io/x/onecloud/pkg/mcclient/auth"
-	"yunion.io/x/onecloud/pkg/mcclient/modules"
 )
 
 var (
@@ -557,7 +559,27 @@ func shouldDoPolicyRoleInit(s *mcclient.ClientSession) (bool, error) {
 	return ret.Total == 0, nil
 }
 
+func ensureKeystoneVersion36(s *mcclient.ClientSession) error {
+	ret, err := modules.Policies.List(s, nil)
+	if err != nil {
+		return errors.Wrap(err, "list policy")
+	}
+	if ret.Total == 0 {
+		// no policy, a new installation
+		return nil
+	}
+	if ret.Data[0].Contains("scope") {
+		return nil
+	}
+	return errors.Wrap(httperrors.ErrInvalidStatus, "not keystone >= 3.6")
+}
+
 func doPolicyRoleInit(s *mcclient.ClientSession) error {
+	// check keystone version
+	// make sure policy has scope field
+	if err := ensureKeystoneVersion36(s); err != nil {
+		return errors.Wrap(err, "ensureKeystoneVersion36")
+	}
 	policies := generateAllPolicies()
 	for i := range policies {
 		err := createOrUpdatePolicy(s, policies[i])
@@ -698,6 +720,21 @@ func (c *regionComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 				return errors.Wrapf(err, "create zone %s", zone)
 			} else {
 				oc.Status.RegionServer.ZoneId = zoneId
+			}
+			for _, cZone := range oc.Spec.CustomZones {
+				var cZoneId = cZone
+				// if zone created, use zoneId
+				if zoneId, ok := oc.Status.RegionServer.CustomZones[cZone]; ok {
+					cZoneId = zoneId
+				}
+				if zoneId, err := ensureZone(s, cZoneId); err != nil {
+					return errors.Wrapf(err, "create zone %s", cZone)
+				} else {
+					if oc.Status.RegionServer.CustomZones == nil {
+						oc.Status.RegionServer.CustomZones = make(map[string]string)
+					}
+					oc.Status.RegionServer.CustomZones[cZone] = zoneId
+				}
 			}
 		}
 		{ // ensure wire created

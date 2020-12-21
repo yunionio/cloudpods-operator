@@ -39,6 +39,7 @@ const (
 	// It's set by helm when installing a release
 	InstanceLabelKey string = constants.InstanceLabelKey
 	AppLabelKey      string = constants.AppLabelKey
+	ZoneLabelKey     string = constants.ZoneLabelKey
 )
 
 // Label is the label field in metadata
@@ -55,6 +56,12 @@ func New() Label {
 // Instance adds instance kv pair to label
 func (l Label) Instance(name string) Label {
 	l[InstanceLabelKey] = name
+	return l
+}
+
+// Zone adds zone kvm pair to lable
+func (l Label) Zone(zone string) Label {
+	l[ZoneLabelKey] = zone
 	return l
 }
 
