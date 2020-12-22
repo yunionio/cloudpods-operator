@@ -54,8 +54,10 @@ type ServerListInput struct {
 	Hypervisor []string `json:"hypervisor"`
 	// 列出绑定了弹性IP（EIP）的主机
 	WithEip *bool `json:"with_eip"`
-	// 列出未绑定弹性IP（EIO）的主机
+	// 列出未绑定弹性IP（EIP）的主机
 	WithoutEip *bool `json:"without_eip"`
+	// 列出可绑定弹性IP的主机
+	EipAssociable *bool `json:"eip_associable"`
 	// 列出操作系统为指定值的主机
 	// enum: linux,windows,vmware
 	OsType []string `json:"os_type"`
@@ -217,6 +219,8 @@ type ServerDetails struct {
 	Vpc string `json:"vpc"`
 	// 归属VPC ID
 	VpcId string `json:"vpc_id"`
+	// Vpc外网访问模式
+	VpcExternalAccessMode string `json:"vpc_external_access_mode"`
 
 	// 关联安全组列表
 	Secgroups []apis.StandaloneShortDesc `json:"secgroups"`
@@ -452,4 +456,29 @@ type ServerStopInput struct {
 	// 是否关机停止计费, 若平台不支持停止计费，此参数无作用
 	// 目前仅阿里云，腾讯云此参数生效
 	StopCharging bool `json:"stop_charging"`
+}
+
+type ServerSaveImageInput struct {
+	// 镜像名称
+	Name         string
+	GenerateName string
+	Notes        string
+	IsPublic     bool
+	// 镜像格式
+	Format string
+
+	// 保存镜像后是否自动启动,若实例状态为运行中,则会先关闭实例
+	// default: false
+	AutoStart bool
+	// swagger: ignore
+	Restart bool
+
+	// swagger: ignore
+	OsType string
+
+	// swagger: ignore
+	OsArch string
+
+	// swagger: ignore
+	ImageId string
 }
