@@ -20,9 +20,13 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
+	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
+
+	"golang.org/x/net/http/httpproxy"
 
 	"yunion.io/x/log"
 	"yunion.io/x/log/hooks"
@@ -34,6 +38,7 @@ import (
 
 	"yunion.io/x/onecloud/pkg/cloudcommon/consts"
 	"yunion.io/x/onecloud/pkg/util/atexit"
+	"yunion.io/x/onecloud/pkg/util/httputils"
 )
 
 const (
@@ -68,9 +73,9 @@ type BaseOptions struct {
 	NotifyAdminUsers  []string `default:"sysadmin" help:"System administrator user ID or name to notify system events, if domain is not default, specify domain as prefix ending with double backslash, e.g. domain\\\\user"`
 	NotifyAdminGroups []string `help:"System administrator group ID or name to notify system events, if domain is not default, specify domain as prefix ending with double backslash, e.g. domain\\\\group"`
 
-	EnableRbac                  bool `help:"Switch on Role-based Access Control" default:"true"`
-	RbacDebug                   bool `help:"turn on rbac debug log" default:"false"`
-	RbacPolicySyncPeriodSeconds int  `help:"policy sync interval in seconds, default half a minute" default:"30"`
+	EnableRbac                       bool `help:"Switch on Role-based Access Control" default:"true"`
+	RbacDebug                        bool `help:"turn on rbac debug log" default:"false"`
+	RbacPolicyRefreshIntervalSeconds int  `help:"policy refresh interval in seconds, default half a minute" default:"30"`
 	// RbacPolicySyncFailedRetrySeconds int  `help:"seconds to wait after a failed sync, default 30 seconds" default:"30"`
 
 	ConfigSyncPeriodSeconds int `help:"service config sync interval in seconds, default 30 minutes" default:"1800"`
@@ -78,6 +83,7 @@ type BaseOptions struct {
 	IsSlaveNode        bool `help:"Slave mode"`
 	CronJobWorkerCount int  `help:"Cron job worker count" default:"4"`
 
+	EnableQuotaCheck  bool   `help:"enable quota check" default:"false"`
 	DefaultQuotaValue string `help:"default quota value" choices:"unlimit|zero|default" default:"default"`
 
 	CalculateQuotaUsageIntervalSeconds int `help:"interval to calculate quota usages, default 30 minutes" default:"900"`
@@ -93,6 +99,9 @@ type BaseOptions struct {
 	CustomizedPrivatePrefixes []string `help:"customized private prefixes"`
 
 	structarg.BaseOptions
+
+	GlobalHTTPProxy  string `help:"Global http proxy"`
+	GlobalHTTPSProxy string `help:"Global https proxy"`
 }
 
 const (
@@ -137,6 +146,9 @@ type DBOptions struct {
 	HistoricalUniqueName bool `help:"use historically unique name" default:"false"`
 
 	LockmanMethod string `help:"method for lock synchronization" choices:"inmemory|etcd" default:"inmemory"`
+
+	// SplitableMaxKeepSegments  int `help:"maximal segements of splitable to keep, default 6 segments" default:"6"`
+	// SplitableMaxDurationHours int `help:"maximal number of hours that a splitable segement lasts, default 30 days" default:"720"`
 
 	EtcdOptions
 
@@ -309,4 +321,15 @@ func ParseOptions(optStruct interface{}, args []string, configFileName string, s
 	}
 
 	consts.SetDomainizedNamespace(optionsRef.DomainizedNamespace)
+}
+
+func (self *BaseOptions) HttpTransportProxyFunc() httputils.TransportProxyFunc {
+	cfg := &httpproxy.Config{
+		HTTPProxy:  self.GlobalHTTPProxy,
+		HTTPSProxy: self.GlobalHTTPSProxy,
+	}
+	proxyFunc := cfg.ProxyFunc()
+	return func(req *http.Request) (*url.URL, error) {
+		return proxyFunc(req.URL)
+	}
 }
