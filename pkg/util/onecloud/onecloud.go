@@ -685,7 +685,6 @@ func containDiffsWithRtnAlert(input monitorapi.CommonAlertUpdateInput, rtnAlert 
 	if err != nil {
 		return conDiff, errors.Wrap(err, "get rtnAlert settings error")
 	}
-	description, _ := rtnAlert.GetString("description")
 	setting := new(monitorapi.AlertSetting)
 	err = alertSetting.Unmarshal(setting)
 	if err != nil {
@@ -704,9 +703,6 @@ func containDiffsWithRtnAlert(input monitorapi.CommonAlertUpdateInput, rtnAlert 
 		return conDiff, nil
 	}
 	inputQuery := input.CommonMetricInputQuery.MetricQuery
-	if description != input.Description {
-		return conDiff, nil
-	}
 	for i, _ := range setting.Conditions {
 		condi := setting.Conditions[i]
 		if details[i].Comparator != inputQuery[i].Comparator {
