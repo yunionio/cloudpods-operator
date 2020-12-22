@@ -12,18 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package compute
-
-import "yunion.io/x/onecloud/pkg/apis"
-
-type ElasticcacheSkuDetails struct {
-	apis.StatusStandaloneResourceDetails
-	CloudregionResourceInfo
-	ZoneResourceInfoBase
-	SlaveZoneResourceInfoBase
-
-	SElasticcacheSku
-
-	// 云环境
-	CloudEnv string `json:"cloud_env"`
-}
+package locale // import "yunion.io/x/onecloud/pkg/keystone/locale"

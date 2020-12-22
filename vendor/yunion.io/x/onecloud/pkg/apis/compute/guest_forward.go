@@ -14,16 +14,16 @@
 
 package compute
 
-import "yunion.io/x/onecloud/pkg/apis"
+import (
+	"yunion.io/x/onecloud/pkg/util/choices"
+)
 
-type ElasticcacheSkuDetails struct {
-	apis.StatusStandaloneResourceDetails
-	CloudregionResourceInfo
-	ZoneResourceInfoBase
-	SlaveZoneResourceInfoBase
+const (
+	GuestForwardProtoTCP = "tcp"
+	GuestForwardProtoUDP = "udp"
+)
 
-	SElasticcacheSku
-
-	// 云环境
-	CloudEnv string `json:"cloud_env"`
-}
+var GuestForwardProtoChoices = choices.NewChoices(
+	GuestForwardProtoTCP,
+	GuestForwardProtoUDP,
+)

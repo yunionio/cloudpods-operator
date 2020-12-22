@@ -12,18 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package compute
+package locale
 
-import "yunion.io/x/onecloud/pkg/apis"
+import (
+	"yunion.io/x/onecloud/pkg/i18n"
+)
 
-type ElasticcacheSkuDetails struct {
-	apis.StatusStandaloneResourceDetails
-	CloudregionResourceInfo
-	ZoneResourceInfoBase
-	SlaveZoneResourceInfoBase
+var PredefinedPolicyI18nTable = i18n.Table{}
+var PredefinedRoleI18nTable = i18n.Table{}
 
-	SElasticcacheSku
+func init() {
+	policies := GenerateAllPolicies()
+	for _, p := range policies {
+		PredefinedPolicyI18nTable.Set(p.Name, i18n.NewTableEntry().
+			EN(p.Description).
+			CN(p.DescriptionCN),
+		)
+	}
 
-	// 云环境
-	CloudEnv string `json:"cloud_env"`
+	for _, r := range RoleDefinitions {
+		PredefinedRoleI18nTable.Set(r.Name, i18n.NewTableEntry().
+			EN(r.Description).
+			CN(r.DescriptionCN),
+		)
+	}
 }
