@@ -117,6 +117,7 @@ type AlertCreateInput struct {
 	NoDataState string `json:"no_data_state"`
 	// 报警执行错误将当前报警状态设置为对应的状态
 	ExecutionErrorState string `json:"execution_error_state"`
+	UsedBy              string `json:"used_by"`
 }
 
 type AlertUpdateInput struct {
@@ -165,14 +166,12 @@ type ResultLogEntry struct {
 
 // EvalMatch represents the series violating the threshold.
 type EvalMatch struct {
-	Condition       string            `json:"condition"`
-	Value           *float64          `json:"value"`
-	ValueStr        string            `json:"value_str"`
-	Metric          string            `json:"metric"`
-	MeasurementDesc string            `json:"measurement_desc"`
-	FieldDesc       string            `json:"field_desc"`
-	Tags            map[string]string `json:"tags"`
-	Unit            string            `json:"unit"`
+	Condition string            `json:"condition"`
+	Value     *float64          `json:"value"`
+	ValueStr  string            `json:"value_str"`
+	Metric    string            `json:"metric"`
+	Tags      map[string]string `json:"tags"`
+	Unit      string            `json:"unit"`
 }
 
 type AlertTestRunOutput struct {

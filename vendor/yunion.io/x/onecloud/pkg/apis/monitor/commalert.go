@@ -36,6 +36,8 @@ type CommonAlertCreateInput struct {
 
 	// 查询指标周期
 	Period string `json:"period"`
+	// 报警连续持续周期数
+	AlertDuration int64 `json:"alert_duration"`
 	// 通知方式, 比如: email, mobile
 	Channel []string `json:"channel"`
 	// 通知接受者
@@ -49,6 +51,7 @@ type CommonAlertCreateInput struct {
 	ProjectId   string `json:"project_id"`
 	GetPointStr bool   `json:"get_point_str"`
 	MetaName    string `json:"meta_name"`
+	Description string `json:"description"`
 }
 
 type CommonMetricInputQuery struct {
@@ -79,7 +82,8 @@ type CommonAlertListInput struct {
 	// 监控指标名称
 	Metric string `json:"metric"`
 
-	Level string `json:"level"`
+	Level   string   `json:"level"`
+	ResType []string `json:"res_type"`
 }
 
 type CommonAlertUpdateInput struct {
@@ -88,6 +92,8 @@ type CommonAlertUpdateInput struct {
 
 	// 查询指标周期
 	Period string `json:"period"`
+	// 报警连续持续周期数
+	AlertDuration int64 `json:"alert_duration"`
 	// 通知方式, 比如: email, mobile
 	Channel []string `json:"channel"`
 	// 通知接受者
@@ -100,12 +106,14 @@ type CommonAlertUpdateInput struct {
 
 type CommonAlertDetails struct {
 	AlertDetails
-	Period     string   `json:"period"`
-	Level      string   `json:"level"`
-	NotifierId string   `json:"notifier_id"`
-	Channel    []string `json:"channel"`
-	Recipients []string `json:"recipients"`
-	Status     string   `json:"status"`
+	Period string `json:"period"`
+	// 报警连续持续周期数
+	AlertDuration int64    `json:"alert_duration"`
+	Level         string   `json:"level"`
+	NotifierId    string   `json:"notifier_id"`
+	Channel       []string `json:"channel"`
+	Recipients    []string `json:"recipients"`
+	Status        string   `json:"status"`
 	// 报警类型
 	AlertType                string                      `json:"alert_type"`
 	CommonAlertMetricDetails []*CommonAlertMetricDetails `json:"common_alert_metric_details"`
