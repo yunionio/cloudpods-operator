@@ -720,6 +720,8 @@ func (in *OnecloudClusterConfig) DeepCopyInto(out *OnecloudClusterConfig) {
 	out.Webconsole = in.Webconsole
 	out.Logger = in.Logger
 	out.Register = in.Register
+	out.Billing = in.Billing
+	out.BillingTask = in.BillingTask
 	out.Yunionconf = in.Yunionconf
 	out.Yunionagent = in.Yunionagent
 	out.KubeServer = in.KubeServer
@@ -824,6 +826,8 @@ func (in *OnecloudClusterSpec) DeepCopyInto(out *OnecloudClusterSpec) {
 	in.Webconsole.DeepCopyInto(&out.Webconsole)
 	in.Logger.DeepCopyInto(&out.Logger)
 	in.Register.DeepCopyInto(&out.Register)
+	in.Billing.DeepCopyInto(&out.Billing)
+	in.BillingTask.DeepCopyInto(&out.BillingTask)
 	in.Yunionconf.DeepCopyInto(&out.Yunionconf)
 	in.Yunionagent.DeepCopyInto(&out.Yunionagent)
 	in.Influxdb.DeepCopyInto(&out.Influxdb)
@@ -876,7 +880,6 @@ func (in *OnecloudClusterStatus) DeepCopyInto(out *OnecloudClusterStatus) {
 	in.Influxdb.DeepCopyInto(&out.Influxdb)
 	in.Monitor.DeepCopyInto(&out.Monitor)
 	in.Logger.DeepCopyInto(&out.Logger)
-	in.Register.DeepCopyInto(&out.Register)
 	in.APIGateway.DeepCopyInto(&out.APIGateway)
 	in.Web.DeepCopyInto(&out.Web)
 	in.Yunionconf.DeepCopyInto(&out.Yunionconf)

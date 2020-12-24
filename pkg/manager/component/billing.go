@@ -35,7 +35,7 @@ func newBillingManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *billingManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.Billing.Disable)
+	return syncComponent(m, oc, oc.Spec.Billing.Disable, "")
 }
 
 func (m *billingManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
@@ -46,7 +46,7 @@ func (m *billingManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1al
 	return &cfg.Billing.CloudUser
 }
 
-func (m *billingManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
+func (m *billingManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return controller.NewRegisterEndpointComponent(man, v1alpha1.BillingComponentType,
 		constants.ServiceNameBilling, constants.ServiceTypeBilling,
 		constants.BillingPort, "")
@@ -60,7 +60,7 @@ type billingOptions struct {
 	DefaultGracePeriod           string `help:"default graceful period for paying dued bill, default is 30minutes" default:"30i"`
 }
 
-func (m *billingManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
+func (m *billingManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
 	opt := &billingOptions{}
 	if err := SetOptionsDefault(opt, constants.ServiceTypeBilling); err != nil {
 		return nil, false, err
@@ -71,17 +71,17 @@ func (m *billingManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 	opt.Port = constants.BillingPort
 
-	return m.newServiceConfigMap(v1alpha1.BillingComponentType, oc, opt), false, nil
+	return m.newServiceConfigMap(v1alpha1.BillingComponentType, "", oc, opt), false, nil
 }
 
-func (m *billingManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+func (m *billingManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
 	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.BillingComponentType, oc, constants.BillingPort)}
 }
 
-func (m *billingManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
-	return m.newCloudServiceSinglePortDeployment(v1alpha1.BillingComponentType, oc, oc.Spec.Billing, constants.BillingPort, true, false)
+func (m *billingManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
+	return m.newCloudServiceSinglePortDeployment(v1alpha1.BillingComponentType, "", oc, oc.Spec.Billing, constants.BillingPort, true, false)
 }
 
-func (m *billingManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
+func (m *billingManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Billing
 }

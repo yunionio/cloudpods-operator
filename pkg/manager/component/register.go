@@ -35,7 +35,7 @@ func newRegisterManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *registerManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.Register.Disable)
+	return syncComponent(m, oc, oc.Spec.Register.Disable, "")
 }
 
 func (m *registerManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
@@ -46,7 +46,7 @@ func (m *registerManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1a
 	return &cfg.Register.CloudUser
 }
 
-func (m *registerManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
+func (m *registerManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return controller.NewRegisterEndpointComponent(man, v1alpha1.RegisterComponentType,
 		constants.ServiceNameRegister, constants.ServiceTypeRegister,
 		constants.RegisterPort, "")
@@ -63,7 +63,7 @@ type registerOptions struct {
 	ShowCaptcha bool `help:"show captcha or not. " default:"true"`
 }
 
-func (m *registerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
+func (m *registerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
 	opt := &registerOptions{}
 	if err := SetOptionsDefault(opt, constants.ServiceTypeRegister); err != nil {
 		return nil, false, err
@@ -74,17 +74,17 @@ func (m *registerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 	opt.Port = constants.RegisterPort
 
-	return m.newServiceConfigMap(v1alpha1.RegisterComponentType, oc, opt), false, nil
+	return m.newServiceConfigMap(v1alpha1.RegisterComponentType, "", oc, opt), false, nil
 }
 
-func (m *registerManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+func (m *registerManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
 	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.RegisterComponentType, oc, constants.RegisterPort)}
 }
 
-func (m *registerManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
-	return m.newCloudServiceSinglePortDeployment(v1alpha1.RegisterComponentType, oc, oc.Spec.Register, constants.RegisterPort, true, false)
+func (m *registerManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
+	return m.newCloudServiceSinglePortDeployment(v1alpha1.RegisterComponentType, "", oc, oc.Spec.Register, constants.RegisterPort, true, false)
 }
 
-func (m *registerManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
+func (m *registerManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Register
 }

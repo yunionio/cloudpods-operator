@@ -301,6 +301,9 @@ type OnecloudClusterStatus struct {
 	Etcd           EctdStatus           `json:"etcd,omitempty"`
 	Itsm           DeploymentStatus     `json:"itsm,omitempty"`
 	CloudId        DeploymentStatus     `json:"cloudid,omitempty"`
+	Billing        DeploymentStatus     `json:"billing,omitempty"`
+	BillingTask    DeploymentStatus     `json:"billing_task,omitempty"`
+	Register       DeploymentStatus     `json:"register,omitempty"`
 }
 
 type EtcdClusterSpec struct {
