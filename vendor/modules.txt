@@ -1,7 +1,5 @@
 # github.com/beevik/etree v1.1.0
 github.com/beevik/etree
-# github.com/coreos/etcd-operator v0.9.4
-github.com/coreos/etcd-operator/pkg/apis/etcd/v1beta2
 # github.com/coreos/go-semver v0.2.0
 github.com/coreos/go-semver/semver
 # github.com/coreos/go-systemd v0.0.0-20190620071333-e64a0ec8b42a
@@ -651,7 +649,7 @@ yunion.io/x/jsonutils
 # yunion.io/x/log v0.0.0-20201210064738-43181789dc74
 yunion.io/x/log
 yunion.io/x/log/hooks
-# yunion.io/x/onecloud v0.0.0-20201223181355-ccf89de75c4c
+# yunion.io/x/onecloud v0.0.0-20201224094751-35056c89a234
 yunion.io/x/onecloud/locales
 yunion.io/x/onecloud/pkg/ansibleserver/options
 yunion.io/x/onecloud/pkg/apis

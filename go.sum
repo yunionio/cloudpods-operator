@@ -143,8 +143,6 @@ github.com/coreos/bbolt v1.3.1-coreos.6 h1:uTXKg9gY70s9jMAKdfljFQcuh4e/BXOM+V+d0
 github.com/coreos/bbolt v1.3.1-coreos.6/go.mod h1:iRUV2dpdMOn7Bo10OQBFzIJO9kkE559Wcmn+qkEiiKk=
 github.com/coreos/etcd v3.3.13+incompatible h1:8F3hqu9fGYLBifCmRCJsicFqDx/D68Rt3q1JMazcgBQ=
 github.com/coreos/etcd v3.3.13+incompatible/go.mod h1:uF7uidLiAD3TWHmW31ZFd/JWoc32PjwdhPthX9715RE=
-github.com/coreos/etcd-operator v0.9.4 h1:NkN7HxlYHl4vOY8+etHRA+zDedwYYLhKfIsxdEPM+Lc=
-github.com/coreos/etcd-operator v0.9.4/go.mod h1:h6zWPsRcUpzmi9C3kEE5HZqy1oo+jK4VtjdemOxySbE=
 github.com/coreos/go-oidc v0.0.0-20180117170138-065b426bd416/go.mod h1:CgnwVTmzoESiwO9qyAFEMiHoZ1nMCKZlZ9V6mm3/LKc=
 github.com/coreos/go-semver v0.0.0-20180108230905-e214231b295a/go.mod h1:nnelYz7RCh+5ahJtPPxZlU+153eP4D4r3EedlOD2RNk=
 github.com/coreos/go-semver v0.2.0 h1:3Jm3tLmsgAYcjC+4Up7hJrFBPr+n7rAqYeSw/SZazuY=
@@ -1048,8 +1046,8 @@ yunion.io/x/log v0.0.0-20190629062853-9f6483a7103d h1:59zrDL7Ft+hDukguJRmLr/Gdu/
 yunion.io/x/log v0.0.0-20190629062853-9f6483a7103d/go.mod h1:LC6f/4FozL0iaAbnFt2eDX9jlsyo3WiOUPm03d7+U4U=
 yunion.io/x/log v0.0.0-20201210064738-43181789dc74 h1:7D+sQ/XaUTUEm+NCrKXOhXBKlzEd0RyS2qZ4vBGjx2o=
 yunion.io/x/log v0.0.0-20201210064738-43181789dc74/go.mod h1:LC6f/4FozL0iaAbnFt2eDX9jlsyo3WiOUPm03d7+U4U=
-yunion.io/x/onecloud v0.0.0-20201223181355-ccf89de75c4c h1:C2MKdjmY9vVtyRNGjYOBbEdY65NWJtMq7PqjJK0yCIg=
-yunion.io/x/onecloud v0.0.0-20201223181355-ccf89de75c4c/go.mod h1:u7QLS/SZtZn0WPQC4Eo5AswJ6vGlaEYlQMnJMeYaRTo=
+yunion.io/x/onecloud v0.0.0-20201224094751-35056c89a234 h1:9digqIkSYpcHuWwgJFlcw+FxeCWyuhgzC/xRqgF89EI=
+yunion.io/x/onecloud v0.0.0-20201224094751-35056c89a234/go.mod h1:u7QLS/SZtZn0WPQC4Eo5AswJ6vGlaEYlQMnJMeYaRTo=
 yunion.io/x/ovsdb v0.0.0-20200526071744-27bf0940cbc7/go.mod h1:0vLkNEhlmA64HViPBAnSTUMrx5QP1CLsxXmxDKQ80tc=
 yunion.io/x/pkg v0.0.0-20190620104149-945c25821dbf/go.mod h1:t6rEGG2sQ4J7DhFxSZVOTjNd0YO/KlfWQyK1W4tog+E=
 yunion.io/x/pkg v0.0.0-20190628082551-f4033ba2ea30/go.mod h1:t6rEGG2sQ4J7DhFxSZVOTjNd0YO/KlfWQyK1W4tog+E=
