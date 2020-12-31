@@ -97,6 +97,8 @@ func (m *cloudmonManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 					echo '*/%d * * * *  timeout  %d /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-oss --interval %d --provider Huawei 2>&1' >> /etc/crontabs/root
 					# = = = = = = = report cloudaccount = = = = = = =
 					echo '*/%d * * * *  timeout  %d /opt/yunion/bin/cloudmon --config /etc/yunion/%s.conf report-cloudaccount 2>&1' >> /etc/crontabs/root
+					# = = = = = = = report alertrecordhistory = = = = = = =
+					echo '0 0 */%d * *  timeout  %d /opt/yunion/bin/cloudmon --config /etc/yunion/%s. conf report-alertrecord --interval %d 2>&1' >> /etc/crontabs/root
 					crond -f -d 8
 					`, oc.Spec.Cloudmon.CloudmonPingDuration, oc.Spec.Cloudmon.CloudmonPingDuration*60, v1alpha1.APIGatewayComponentType,
 
@@ -126,6 +128,7 @@ func (m *cloudmonManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
 
 					oc.Spec.Cloudmon.CloudmonReportCloudAccountDuration, oc.Spec.Cloudmon.CloudmonReportCloudAccountDuration*60, v1alpha1.APIGatewayComponentType,
+					oc.Spec.Cloudmon.CloudmonReportAlertRecordHistoryDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportAlertRecordHistoryDuration,
 				)},
 				ImagePullPolicy: spec.ImagePullPolicy,
 				VolumeMounts:    volMounts,
