@@ -334,38 +334,7 @@ const (
 	SuggestionPort        = 30987
 )
 
-const (
-	RoleAdmin        = "admin"
-	RoleFA           = "fa"
-	RoleSA           = "sa"
-	RoleProjectOwner = "project_owner"
-	RoleMember       = "member"
-	RoleDomainAdmin  = "domainadmin"
-
-	PolicyTypeDomainAdmin  = "domainadmin"
-	PolicyTypeMember       = "member"
-	PolicyTypeProjectFA    = "projectfa"
-	PolicyTypeProjectOwner = "projectowner"
-	PolicyTypeProjectSA    = "projectsa"
-	PolicyTypeSysAdmin     = "sysadmin"
-	PolicyTypeSysFA        = "sysfa"
-	PolicyTypeSysSA        = "syssa"
-)
-
 var (
-	PublicRoles = []string{
-		RoleFA,
-		RoleSA,
-		RoleProjectOwner,
-		RoleMember,
-		RoleDomainAdmin,
-	}
-	PublicPolicies = []string{
-		PolicyTypeDomainAdmin, PolicyTypeProjectOwner,
-		PolicyTypeProjectSA, PolicyTypeProjectFA,
-		PolicyTypeMember,
-	}
-
 	GlanceFileStoreDir            = path.Join(GlanceDataStore, "images")
 	GlanceTorrentStoreDir         = path.Join(GlanceDataStore, "torrents")
 	SpecifiedPresistentVolumePath = "pvc.onecloud.yunion.io/pv-path"
@@ -425,4 +394,14 @@ const (
 
 	EnvOperatorPodName      = "MY_POD_NAME"
 	EnvOperatorPodNamespace = "MY_POD_NAMESPACE"
+)
+
+const (
+	RoleAdmin         = "admin"
+	RoleFA            = "fa"
+	RoleSA            = "sa"
+	RoleProjectOwner  = "project_owner"
+	RoleMember        = "member"
+	RoleDomainAdmin   = "domainadmin"
+	RoleProjectEditor = "project_editor"
 )

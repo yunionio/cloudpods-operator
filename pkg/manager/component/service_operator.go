@@ -112,22 +112,6 @@ func (m *serviceOperatorManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg
 
 	containers := []corev1.Container{
 		{
-			Args: []string{
-				fmt.Sprintf("--secure-listen-address=0.0.0.0:%d", cfg.ServiceOperator.Port),
-				"--upstream=http://127.0.0.1:8080/",
-				"--logtostderr=true",
-				"--v=10",
-			},
-			Image: "registry.cn-beijing.aliyuncs.com/yunionio/kube-rbac-proxy:v0.5.0",
-			Name:  "kube-rbac-proxy",
-			Ports: []corev1.ContainerPort{
-				{
-					ContainerPort: int32(cfg.ServiceOperator.Port),
-					Name:          "api",
-				},
-			},
-		},
-		{
 			Command: []string{
 				"/manager",
 				"--config",
@@ -184,7 +168,7 @@ func (m *serviceOperatorManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg
 		NodeAffinity: &corev1.NodeAffinity{
 			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
 				NodeSelectorTerms: []corev1.NodeSelectorTerm{
-					corev1.NodeSelectorTerm{
+					{
 						MatchExpressions: []corev1.NodeSelectorRequirement{
 							{
 								Key:      constants.OnecloudControllerLabelKey,

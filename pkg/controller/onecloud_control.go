@@ -35,6 +35,7 @@ import (
 
 	"yunion.io/x/onecloud/pkg/apis/monitor"
 	"yunion.io/x/onecloud/pkg/httperrors"
+	"yunion.io/x/onecloud/pkg/keystone/locale"
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/mcclient/auth"
 	"yunion.io/x/onecloud/pkg/mcclient/modules"
@@ -440,9 +441,6 @@ func (c keystoneComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 		if err := doRegisterTracker(s, region); err != nil {
 			return errors.Wrap(err, "register tracker endpoint")
 		}
-		if err := makeDomainAdminPublic(s); err != nil {
-			return errors.Wrap(err, "always share domainadmin")
-		}
 		if err := doCreateExternalService(s); err != nil {
 			return errors.Wrap(err, "create external service")
 		}
@@ -580,17 +578,34 @@ func doPolicyRoleInit(s *mcclient.ClientSession) error {
 	if err := ensureKeystoneVersion36(s); err != nil {
 		return errors.Wrap(err, "ensureKeystoneVersion36")
 	}
-	policies := generateAllPolicies()
+	// create system policies
+	policies := locale.GenerateAllPolicies()
 	for i := range policies {
 		err := createOrUpdatePolicy(s, policies[i])
 		if err != nil {
-			return errors.Wrap(err, "createOrUpdatePolicy")
+			log.Errorf("createOrUpdatePolicy %s fail %s", policies[i], err)
 		}
 	}
-	for i := range roleDefinitions {
-		err := createOrUpdateRole(s, roleDefinitions[i])
+	// create system roles
+	for i := range locale.RoleDefinitions {
+		err := createOrUpdateRole(s, locale.RoleDefinitions[i])
 		if err != nil {
-			return errors.Wrap(err, "createOrUpdateRole")
+			log.Errorf("createOrUpdateRole %s fail %s", locale.RoleDefinitions[i], err)
+		}
+	}
+	// update policy quota
+	params := jsonutils.NewDict()
+	params.Add(jsonutils.NewString("default"), "domain")
+	result, err := modules.IdentityQuotas.GetQuota(s, params)
+	if err != nil {
+		return errors.Wrap(err, "IdentityQuotas.GetQuota")
+	}
+	policyCnt, _ := result.Int("policy")
+	if policyCnt < 500 {
+		params.Add(jsonutils.NewInt(500), "policy")
+		_, err := modules.IdentityQuotas.DoQuotaSet(s, params)
+		if err != nil {
+			return errors.Wrap(err, "IdentityQuotas.DoQuotaSet")
 		}
 	}
 	return nil
@@ -638,16 +653,6 @@ func (c *keystoneComponent) doRegisterIdentity(
 	)
 
 	return c.registerServiceEndpointsBySession(s, constants.ServiceNameKeystone, constants.ServiceTypeIdentity, eps, true)
-}
-
-func makeDomainAdminPublic(s *mcclient.ClientSession) error {
-	if err := RolesPublic(s, []string{constants.RoleDomainAdmin}); err != nil {
-		return err
-	}
-	if err := PoliciesPublic(s, []string{constants.PolicyTypeDomainAdmin}); err != nil {
-		return err
-	}
-	return nil
 }
 
 func doCreateExternalService(s *mcclient.ClientSession) error {
