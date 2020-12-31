@@ -37,21 +37,21 @@ func newWebconsoleManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *webconsoleManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.Webconsole.Disable)
+	return syncComponent(m, oc, oc.Spec.Webconsole.Disable, "")
 }
 
 func (m *webconsoleManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
 	return &cfg.Webconsole.CloudUser
 }
 
-func (m *webconsoleManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
+func (m *webconsoleManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return controller.NewRegisterEndpointComponent(
 		man, v1alpha1.WebconsoleComponentType,
 		constants.ServiceNameWebconsole, constants.ServiceTypeWebconsole,
 		constants.WebconsolePort, "")
 }
 
-func (m *webconsoleManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, bool, error) {
+func (m *webconsoleManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
 	opt := &options.Options
 	if err := SetOptionsDefault(opt, constants.ServiceTypeWebconsole); err != nil {
 		return nil, false, err
@@ -67,17 +67,17 @@ func (m *webconsoleManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	// opt.ApiServer = fmt.Sprintf("https://%s:%d", address, constants.WebconsolePort)
 	opt.ApiServer = fmt.Sprintf("https://%s", address)
 
-	return m.newServiceConfigMap(v1alpha1.WebconsoleComponentType, oc, opt), false, nil
+	return m.newServiceConfigMap(v1alpha1.WebconsoleComponentType, "", oc, opt), false, nil
 }
 
-func (m *webconsoleManager) getService(oc *v1alpha1.OnecloudCluster) []*corev1.Service {
+func (m *webconsoleManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
 	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.WebconsoleComponentType, oc, constants.WebconsolePort)}
 }
 
-func (m *webconsoleManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
-	return m.newCloudServiceSinglePortDeployment(v1alpha1.WebconsoleComponentType, oc, oc.Spec.Webconsole, constants.WebconsolePort, false, false)
+func (m *webconsoleManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
+	return m.newCloudServiceSinglePortDeployment(v1alpha1.WebconsoleComponentType, "", oc, oc.Spec.Webconsole, constants.WebconsolePort, false, false)
 }
 
-func (m *webconsoleManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
+func (m *webconsoleManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Webconsole
 }

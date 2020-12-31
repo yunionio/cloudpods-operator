@@ -33,14 +33,17 @@ import (
 	"yunion.io/x/log"
 	"yunion.io/x/pkg/errors"
 
+	"yunion.io/x/onecloud/pkg/apis/monitor"
+	"yunion.io/x/onecloud/pkg/httperrors"
+	"yunion.io/x/onecloud/pkg/keystone/locale"
+	"yunion.io/x/onecloud/pkg/mcclient"
+	"yunion.io/x/onecloud/pkg/mcclient/auth"
+	"yunion.io/x/onecloud/pkg/mcclient/modules"
+
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/util/k8sutil"
 	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
-	"yunion.io/x/onecloud/pkg/apis/monitor"
-	"yunion.io/x/onecloud/pkg/mcclient"
-	"yunion.io/x/onecloud/pkg/mcclient/auth"
-	"yunion.io/x/onecloud/pkg/mcclient/modules"
 )
 
 var (
@@ -438,9 +441,6 @@ func (c keystoneComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 		if err := doRegisterTracker(s, region); err != nil {
 			return errors.Wrap(err, "register tracker endpoint")
 		}
-		if err := makeDomainAdminPublic(s); err != nil {
-			return errors.Wrap(err, "always share domainadmin")
-		}
 		if err := doCreateExternalService(s); err != nil {
 			return errors.Wrap(err, "create external service")
 		}
@@ -557,18 +557,55 @@ func shouldDoPolicyRoleInit(s *mcclient.ClientSession) (bool, error) {
 	return ret.Total == 0, nil
 }
 
+func ensureKeystoneVersion36(s *mcclient.ClientSession) error {
+	ret, err := modules.Policies.List(s, nil)
+	if err != nil {
+		return errors.Wrap(err, "list policy")
+	}
+	if ret.Total == 0 {
+		// no policy, a new installation
+		return nil
+	}
+	if ret.Data[0].Contains("scope") {
+		return nil
+	}
+	return errors.Wrap(httperrors.ErrInvalidStatus, "not keystone >= 3.6")
+}
+
 func doPolicyRoleInit(s *mcclient.ClientSession) error {
-	policies := generateAllPolicies()
+	// check keystone version
+	// make sure policy has scope field
+	if err := ensureKeystoneVersion36(s); err != nil {
+		return errors.Wrap(err, "ensureKeystoneVersion36")
+	}
+	// create system policies
+	policies := locale.GenerateAllPolicies()
 	for i := range policies {
 		err := createOrUpdatePolicy(s, policies[i])
 		if err != nil {
-			return errors.Wrap(err, "createOrUpdatePolicy")
+			log.Errorf("createOrUpdatePolicy %s fail %s", policies[i], err)
 		}
 	}
-	for i := range roleDefinitions {
-		err := createOrUpdateRole(s, roleDefinitions[i])
+	// create system roles
+	for i := range locale.RoleDefinitions {
+		err := createOrUpdateRole(s, locale.RoleDefinitions[i])
 		if err != nil {
-			return errors.Wrap(err, "createOrUpdateRole")
+			log.Errorf("createOrUpdateRole %s fail %s", locale.RoleDefinitions[i], err)
+		}
+	}
+	// update policy quota
+	params := jsonutils.NewDict()
+	params.Add(jsonutils.NewString("default"), "domain")
+	result, err := modules.IdentityQuotas.GetQuota(s, params)
+	if err != nil {
+		return errors.Wrap(err, "IdentityQuotas.GetQuota")
+	}
+	policyCnt, _ := result.Int("policy")
+	if policyCnt < 500 {
+		params.Add(jsonutils.NewInt(500), "policy")
+		_, err := modules.IdentityQuotas.DoQuotaSet(s, params)
+		if err != nil {
+			return errors.Wrap(err, "IdentityQuotas.DoQuotaSet")
 		}
 	}
 	return nil
@@ -616,16 +653,6 @@ func (c *keystoneComponent) doRegisterIdentity(
 	)
 
 	return c.registerServiceEndpointsBySession(s, constants.ServiceNameKeystone, constants.ServiceTypeIdentity, eps, true)
-}
-
-func makeDomainAdminPublic(s *mcclient.ClientSession) error {
-	if err := RolesPublic(s, []string{constants.RoleDomainAdmin}); err != nil {
-		return err
-	}
-	if err := PoliciesPublic(s, []string{constants.PolicyTypeDomainAdmin}); err != nil {
-		return err
-	}
-	return nil
 }
 
 func doCreateExternalService(s *mcclient.ClientSession) error {
@@ -698,6 +725,21 @@ func (c *regionComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 				return errors.Wrapf(err, "create zone %s", zone)
 			} else {
 				oc.Status.RegionServer.ZoneId = zoneId
+			}
+			for _, cZone := range oc.Spec.CustomZones {
+				var cZoneId = cZone
+				// if zone created, use zoneId
+				if zoneId, ok := oc.Status.RegionServer.CustomZones[cZone]; ok {
+					cZoneId = zoneId
+				}
+				if zoneId, err := ensureZone(s, cZoneId); err != nil {
+					return errors.Wrapf(err, "create zone %s", cZone)
+				} else {
+					if oc.Status.RegionServer.CustomZones == nil {
+						oc.Status.RegionServer.CustomZones = make(map[string]string)
+					}
+					oc.Status.RegionServer.CustomZones[cZone] = zoneId
+				}
 			}
 		}
 		{ // ensure wire created

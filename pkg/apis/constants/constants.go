@@ -34,6 +34,7 @@ const (
 	// It's set by helm when installing a release
 	InstanceLabelKey string = "app.kubernetes.io/instance"
 	AppLabelKey      string = "app"
+	ZoneLabelKey     string = "zone"
 
 	// LabelNodeRoleMaster specifies that a node is a control-plane
 	// This is a duplicate definition of the constant in pkg/controller/service/service_controller.go
@@ -357,38 +358,7 @@ const (
 	SuggestionPort        = 30987
 )
 
-const (
-	RoleAdmin        = "admin"
-	RoleFA           = "fa"
-	RoleSA           = "sa"
-	RoleProjectOwner = "project_owner"
-	RoleMember       = "member"
-	RoleDomainAdmin  = "domainadmin"
-
-	PolicyTypeDomainAdmin  = "domainadmin"
-	PolicyTypeMember       = "member"
-	PolicyTypeProjectFA    = "projectfa"
-	PolicyTypeProjectOwner = "projectowner"
-	PolicyTypeProjectSA    = "projectsa"
-	PolicyTypeSysAdmin     = "sysadmin"
-	PolicyTypeSysFA        = "sysfa"
-	PolicyTypeSysSA        = "syssa"
-)
-
 var (
-	PublicRoles = []string{
-		RoleFA,
-		RoleSA,
-		RoleProjectOwner,
-		RoleMember,
-		RoleDomainAdmin,
-	}
-	PublicPolicies = []string{
-		PolicyTypeDomainAdmin, PolicyTypeProjectOwner,
-		PolicyTypeProjectSA, PolicyTypeProjectFA,
-		PolicyTypeMember,
-	}
-
 	GlanceFileStoreDir            = path.Join(GlanceDataStore, "images")
 	GlanceTorrentStoreDir         = path.Join(GlanceDataStore, "torrents")
 	SpecifiedPresistentVolumePath = "pvc.onecloud.yunion.io/pv-path"
@@ -462,4 +432,14 @@ var (
 	YunionCsr               = "yunion.csr"
 	YunionPublic            = "yunionpublic.txt"
 	YunionPrivate           = "yunionprivate.txt"
+)
+
+const (
+	RoleAdmin         = "admin"
+	RoleFA            = "fa"
+	RoleSA            = "sa"
+	RoleProjectOwner  = "project_owner"
+	RoleMember        = "member"
+	RoleDomainAdmin   = "domainadmin"
+	RoleProjectEditor = "project_editor"
 )
