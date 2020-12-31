@@ -224,6 +224,9 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	if obj.Cloudmon.CloudmonReportCloudAccountDuration == 0 {
 		obj.Cloudmon.CloudmonReportCloudAccountDuration = 30
 	}
+	if obj.Cloudmon.CloudmonReportAlertRecordHistoryDuration == 0 {
+		obj.Cloudmon.CloudmonReportAlertRecordHistoryDuration = 1
+	}
 }
 
 func SetDefaults_Mysql(obj *Mysql) {
