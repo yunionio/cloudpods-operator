@@ -38,7 +38,11 @@ type ICloudResource interface {
 	Refresh() error
 
 	IsEmulated() bool
-	GetMetadata() *jsonutils.JSONDict
+	//	GetMetadata() *jsonutils.JSONDict
+
+	GetSysTags() map[string]string
+	GetTags() (map[string]string, error)
+	SetTags(tags map[string]string, replace bool) error
 }
 
 type IVirtualResource interface {
@@ -55,8 +59,13 @@ type IBillingResource interface {
 	IsAutoRenew() bool
 }
 
+type ICloudI18nResource interface {
+	GetI18n() SModelI18nTable
+}
+
 type ICloudRegion interface {
 	ICloudResource
+	ICloudI18nResource
 
 	// GetLatitude() float32
 	// GetLongitude() float32
@@ -148,6 +157,7 @@ type ICloudRegion interface {
 
 type ICloudZone interface {
 	ICloudResource
+	ICloudI18nResource
 
 	GetIRegion() ICloudRegion
 
@@ -324,8 +334,6 @@ type ICloudVM interface {
 	LiveMigrateVM(hostid string) error
 
 	GetError() error
-
-	SetMetadata(tags map[string]string, replace bool) error
 
 	CreateInstanceSnapshot(ctx context.Context, name string, desc string) (ICloudInstanceSnapshot, error)
 	GetInstanceSnapshot(idStr string) (ICloudInstanceSnapshot, error)
@@ -604,8 +612,6 @@ type ICloudLoadbalancer interface {
 
 	CreateILoadBalancerListener(ctx context.Context, listener *SLoadbalancerListener) (ICloudLoadbalancerListener, error)
 	GetILoadBalancerListenerById(listenerId string) (ICloudLoadbalancerListener, error)
-
-	SetMetadata(tags map[string]string, replace bool) error
 }
 
 type ICloudLoadbalancerListener interface {
@@ -836,6 +842,7 @@ type ICloudDBInstance interface {
 
 	GetMasterInstanceId() string
 	GetSecurityGroupIds() ([]string, error)
+	SetSecurityGroups(ids []string) error
 	GetPort() int
 	GetEngine() string
 	GetEngineVersion() string
@@ -878,8 +885,6 @@ type ICloudDBInstance interface {
 	RecoveryFromBackup(conf *SDBInstanceRecoveryConfig) error
 
 	Delete() error
-
-	SetMetadata(tags map[string]string, replace bool) error
 }
 
 type ICloudDBInstanceParameter interface {
@@ -990,7 +995,6 @@ type ICloudElasticcache interface {
 	UpdateBackupPolicy(config SCloudElasticCacheBackupPolicyUpdateInput) error
 	Renew(bc billing.SBillingCycle) error
 
-	SetMetadata(tags map[string]string, replace bool) error
 	UpdateSecurityGroups(secgroupIds []string) error
 }
 

@@ -123,10 +123,6 @@ func (self *SHost) GetName() string {
 	return formatName(self.SManagedObject.GetName())
 }
 
-func (self *SHost) GetMetadata() *jsonutils.JSONDict {
-	return nil
-}
-
 func (self *SHost) GetSchedtags() ([]string, error) {
 	clusters, err := self.datacenter.listClusters()
 	if err != nil {
@@ -1025,6 +1021,7 @@ func (host *SHost) CloneVM(ctx context.Context, from *SVirtualMachine, snapshot 
 					Device:    dev,
 				})
 			}
+			nicIndex += 1
 		}
 	}
 

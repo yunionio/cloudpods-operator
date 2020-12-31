@@ -250,11 +250,7 @@ func newWebManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *webManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	// if IsEnterpriseEdition(oc) {
-	oc.Spec.Web.ImageName = "web-op"
-	// } else {
-	//	oc.Spec.Web.ImageName = constants.WebCEImageName
-	// }
+	oc.Spec.Web.ImageName = "web-saas"
 	return syncComponent(m, oc, oc.Spec.Web.Disable, "")
 }
 
