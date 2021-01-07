@@ -625,11 +625,12 @@ type RegionSpec struct {
 
 type CloudmonSpec struct {
 	DeploymentSpec
-	CloudmonPingDuration               uint
-	CloudmonReportHostDuration         uint
-	CloudmonReportServerDuration       uint
-	CloudmonReportUsageDuration        uint
-	CloudmonReportCloudAccountDuration uint
+	CloudmonPingDuration                     uint
+	CloudmonReportHostDuration               uint
+	CloudmonReportServerDuration             uint
+	CloudmonReportUsageDuration              uint
+	CloudmonReportCloudAccountDuration       uint
+	CloudmonReportAlertRecordHistoryDuration uint
 }
 
 type RegionDNSProxy struct {
