@@ -102,30 +102,30 @@ func (m *cloudmonManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 					crond -f -d 8
 					`, oc.Spec.Cloudmon.CloudmonPingDuration, oc.Spec.Cloudmon.CloudmonPingDuration*60, v1alpha1.APIGatewayComponentType,
 
-					oc.Spec.Cloudmon.CloudmonReportHostDuration, oc.Spec.Cloudmon.CloudmonReportHostDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
-					oc.Spec.Cloudmon.CloudmonReportHostDuration, oc.Spec.Cloudmon.CloudmonReportHostDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
+					oc.Spec.Cloudmon.CloudmonReportHostDuration, oc.Spec.Cloudmon.CloudmonReportHostDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration*3,
+					oc.Spec.Cloudmon.CloudmonReportHostDuration, oc.Spec.Cloudmon.CloudmonReportHostDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration*3,
 
-					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
-					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
-					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
-					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
-					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
-					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
 					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration*3,
-					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
+					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration*3,
+					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration*3,
+					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration*3,
+					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration*3,
+					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration*3,
+					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration*3,
+					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration*3,
 
 					oc.Spec.Cloudmon.CloudmonReportUsageDuration, oc.Spec.Cloudmon.CloudmonReportUsageDuration*60, v1alpha1.APIGatewayComponentType,
 
-					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
-					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
-					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
+					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration*3,
+					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration*3,
+					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration*3,
 
-					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
-					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
-					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
+					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration*3,
+					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration*3,
+					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration*3,
 
-					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
-					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration,
+					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration*3,
+					oc.Spec.Cloudmon.CloudmonReportServerDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportServerDuration*3,
 
 					oc.Spec.Cloudmon.CloudmonReportCloudAccountDuration, oc.Spec.Cloudmon.CloudmonReportCloudAccountDuration*60, v1alpha1.APIGatewayComponentType,
 					oc.Spec.Cloudmon.CloudmonReportAlertRecordHistoryDuration, oc.Spec.Cloudmon.CloudmonReportServerDuration*60, v1alpha1.APIGatewayComponentType, oc.Spec.Cloudmon.CloudmonReportAlertRecordHistoryDuration,
