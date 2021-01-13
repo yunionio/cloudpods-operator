@@ -12,9 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package multicloud
+package modules
 
-type SEipBase struct {
-	SResourceBase
-	SBillingBase
+import "yunion.io/x/onecloud/pkg/mcclient/modulebase"
+
+var (
+	Reservations modulebase.ResourceManager
+)
+
+func init() {
+	Reservations = NewMeterManager("reservation", "reservations",
+		[]string{"cloudaccount_id", "resource_type", "reservation_years", "lookback_days", "payment_option",
+			"offering_class", "category", "spec", "instance_amount", "monthly_savings_amount", "upfront_cost",
+			"average_utilization", "monthly_cost", "total_savings_amount", "total_savings_percentage",
+			"currency", "details"},
+		[]string{},
+	)
+	register(&Reservations)
 }

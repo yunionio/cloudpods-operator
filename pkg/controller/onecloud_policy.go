@@ -130,7 +130,13 @@ func createOrUpdateRole(s *mcclient.ClientSession, role locale.SRoleDefiniton) e
 			params := jsonutils.NewDict()
 			params.Add(jsonutils.NewString(role.Name), "name")
 			params.Add(jsonutils.NewString(role.Name), "description")
-			params.Add(jsonutils.JSONTrue, "is_public")
+			if role.IsPublic {
+				params.Add(jsonutils.JSONTrue, "is_public")
+				params.Add(jsonutils.NewString("system"), "public_scope")
+			} else {
+				params.Add(jsonutils.JSONFalse, "is_public")
+				params.Add(jsonutils.NewString("none"), "public_scope")
+			}
 			roleJson, err = modules.RolesV3.Create(s, params)
 			if err != nil {
 				return errors.Wrap(err, "RolesV3.Create")
@@ -142,6 +148,7 @@ func createOrUpdateRole(s *mcclient.ClientSession, role locale.SRoleDefiniton) e
 		// role exists, update description
 		idstr, _ := roleJson.GetString("id")
 		desc, _ := roleJson.GetString("description")
+		isPublic := jsonutils.QueryBoolean(roleJson, "is_public", false)
 		if desc != role.Name {
 			params := jsonutils.NewDict()
 			params.Add(jsonutils.NewString(role.Name), "description")
@@ -149,6 +156,21 @@ func createOrUpdateRole(s *mcclient.ClientSession, role locale.SRoleDefiniton) e
 			roleJson, err = modules.RolesV3.Update(s, idstr, params)
 			if err != nil {
 				return errors.Wrap(err, "RolesV3.Update")
+			}
+		}
+		if isPublic != role.IsPublic {
+			if role.IsPublic {
+				// perform public
+				_, err := modules.RolesV3.PerformAction(s, idstr, "public", nil)
+				if err != nil {
+					return errors.Wrap(err, "RolesV3.PerformAction public")
+				}
+			} else {
+				// perform private
+				_, err := modules.RolesV3.PerformAction(s, idstr, "private", nil)
+				if err != nil {
+					return errors.Wrap(err, "RolesV3.PerformAction private")
+				}
 			}
 		}
 	}

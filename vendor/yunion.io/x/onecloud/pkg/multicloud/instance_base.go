@@ -47,10 +47,6 @@ func (instance *SInstanceBase) LiveMigrateVM(hostId string) error {
 	return cloudprovider.ErrNotImplemented
 }
 
-func (instance *SInstanceBase) SetMetadata(tags map[string]string, replace bool) error {
-	return cloudprovider.ErrNotImplemented
-}
-
 func (instance *SInstanceBase) GetInstanceSnapshot(idStr string) (cloudprovider.ICloudInstanceSnapshot, error) {
 	return nil, cloudprovider.ErrNotImplemented
 }
@@ -69,4 +65,8 @@ func (instance *SInstanceBase) ResetToInstanceSnapshot(ctx context.Context, idSt
 
 func (self *SInstanceBase) SaveImage(opts *cloudprovider.SaveImageOptions) (cloudprovider.ICloudImage, error) {
 	return nil, errors.Wrapf(cloudprovider.ErrNotImplemented, "SaveImage")
+}
+
+func (self *SInstanceBase) AllocatePublicIpAddress() (string, error) {
+	return "", errors.Wrapf(cloudprovider.ErrNotImplemented, "AllocatePublicIpAddress")
 }
