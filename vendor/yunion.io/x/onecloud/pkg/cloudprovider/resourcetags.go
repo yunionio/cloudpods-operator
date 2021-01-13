@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package multicloud
+package cloudprovider
 
-type SEipBase struct {
-	SResourceBase
-	SBillingBase
+type TagsUpdateInfo struct {
+	OldTags map[string]string
+	NewTags map[string]string
 }
