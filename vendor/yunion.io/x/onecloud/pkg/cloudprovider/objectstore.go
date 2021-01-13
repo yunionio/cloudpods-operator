@@ -132,6 +132,8 @@ type SBucketPolicyStatement struct {
 
 	// 解析字段，主账号id:子账号id
 	PrincipalId []string
+	// map[主账号id:子账号id]子账号名称
+	PrincipalNames map[string]string
 	// Read|ReadWrite|FullControl
 	CannedAction string
 	// 资源路径
@@ -271,8 +273,6 @@ type ICloudBucket interface {
 	SetPolicy(policy SBucketPolicyStatementInput) error
 	DeletePolicy(id []string) ([]SBucketPolicyStatement, error)
 
-	GetTags() (map[string]string, error)
-	SetTags(tags map[string]string) error
 	DeleteTags() error
 
 	ListMultipartUploads() ([]SBucketMultipartUploads, error)
@@ -861,7 +861,7 @@ func SetBucketMetadata(ibucket ICloudBucket, tags map[string]string, replace boo
 			return errors.Wrap(err, "b.DeleteTags()")
 		}
 	} else {
-		err := ibucket.SetTags(newTags)
+		err := ibucket.SetTags(newTags, true)
 		if err != nil {
 			return errors.Wrapf(err, "b.setTags(%s)", jsonutils.Marshal(newTags).String())
 		}
