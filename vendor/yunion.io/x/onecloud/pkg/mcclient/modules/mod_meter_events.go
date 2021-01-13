@@ -12,9 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package multicloud
+package modules
 
-type SEipBase struct {
-	SResourceBase
-	SBillingBase
+import "yunion.io/x/onecloud/pkg/mcclient/modulebase"
+
+var (
+	MeterLogs modulebase.ResourceManager
+)
+
+func init() {
+	MeterLogs = NewMeterManager("meter_event", "meter_events",
+		[]string{"id", "ops_time", "obj_id", "obj_type", "obj_name", "user", "user_id", "tenant", "tenant_id", "owner_tenant_id", "action", "notes"},
+		[]string{})
+	register(&MeterLogs)
 }

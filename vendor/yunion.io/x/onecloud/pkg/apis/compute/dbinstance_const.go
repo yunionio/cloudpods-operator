@@ -36,6 +36,7 @@ const (
 	DBINSTANCE_SET_AUTO_RENEW        = "set_auto_renew"        //设置自动续费中
 	DBINSTANCE_SET_AUTO_RENEW_FAILED = "set_auto_renew_failed" //设置自动续费失败
 	DBINSTANCE_UNKNOWN               = "unknown"
+	DBINSTANCE_SYNC_SECGROUP_FAILED  = "sync_secgroup_failed" // 同步安全组失败
 
 	DBINSTANCE_CHANGE_CONFIG        = "change_config"        //调整配置
 	DBINSTANCE_CHANGE_CONFIG_FAILED = "change_config_failed" //调整配置失败
@@ -49,6 +50,9 @@ const (
 	DBINSTANCE_CREATE_FAILED = "create_failed" //创建失败
 
 	DBINSTANCE_FAILE = "failed" //操作失败
+
+	DBINSTANCE_UPDATE_TAGS        = "update_tags"
+	DBINSTANCE_UPDATE_TAGS_FAILED = "update_tags_fail"
 
 	//备份状态
 	DBINSTANCE_BACKUP_READY         = "ready"         //正常
