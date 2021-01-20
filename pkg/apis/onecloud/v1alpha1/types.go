@@ -191,7 +191,7 @@ type OnecloudClusterSpec struct {
 	// Scheduler holds configuration for scheduler
 	Scheduler DeploymentSpec `json:"scheduler"`
 	// Glance holds configuration for glance
-	Glance StatefulDeploymentSpec `json:"glance"`
+	Glance GlanceSpec `json:"glance"`
 	// Climc holds configuration for climc
 	Climc DeploymentSpec `json:"climc"`
 	// Webconsole holds configuration for webconsole
@@ -507,6 +507,11 @@ type ZoneStatefulDeploymentSpec struct {
 type KeystoneSpec struct {
 	DeploymentSpec
 	BootstrapPassword string `json:"bootstrapPassword"`
+}
+
+type GlanceSpec struct {
+	StatefulDeploymentSpec
+	SwitchToS3 bool `json:"switchToS3"`
 }
 
 // ImageStatus is the image status of a pod
