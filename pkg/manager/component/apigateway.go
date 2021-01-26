@@ -97,7 +97,7 @@ func (m *apiGatewayManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	SetServiceCommonOptions(&opt.CommonOptions, oc, cfg.APIGateway)
 	opt.Port = constants.APIGatewayPort
 	opt.WsPort = constants.APIWebsocketPort
-	opt.CorsHosts = []string{"*"}
+	opt.CorsHosts = oc.Spec.APIGateway.CorsHosts
 	return m.newServiceConfigMap(v1alpha1.APIGatewayComponentType, "", oc, opt), false, nil
 }
 
@@ -136,7 +136,7 @@ func (m *apiGatewayManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1a
 		}
 		return cs
 	}
-	deploy, err := m.newDefaultDeploymentNoInit(v1alpha1.APIGatewayComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.APIGatewayComponentType), v1alpha1.APIGatewayComponentType), oc.Spec.APIGateway, cf)
+	deploy, err := m.newDefaultDeploymentNoInit(v1alpha1.APIGatewayComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.APIGatewayComponentType), v1alpha1.APIGatewayComponentType), oc.Spec.APIGateway.DeploymentSpec, cf)
 	if err != nil {
 		return nil, err
 	}
