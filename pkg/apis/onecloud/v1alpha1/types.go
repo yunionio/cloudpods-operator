@@ -211,7 +211,7 @@ type OnecloudClusterSpec struct {
 	// LoadBalancerEndpoint is upstream loadbalancer virtual ip address or DNS domain
 	LoadBalancerEndpoint string `json:"loadBalancerEndpoint"`
 	// APIGateway holds configuration for yunoinapi
-	APIGateway DeploymentSpec `json:"apiGateway"`
+	APIGateway APIGatewaySpec `json:"apiGateway"`
 	// Web holds configuration for web
 	Web DeploymentSpec `json:"web"`
 	// KubeServer holds configuration for kube-server service
@@ -613,6 +613,13 @@ type EtcdMembersStatus struct {
 	Ready []string `json:"ready,omitempty"`
 	// Unready are the etcd members not ready to serve requests
 	Unready []string `json:"unready,omitempty"`
+}
+
+type APIGatewaySpec struct {
+	DeploymentSpec
+
+	// Allowed hostname in Origin header.  Default to allow all
+	CorsHosts []string `json:"cors_hosts"`
 }
 
 type RegionSpec struct {
