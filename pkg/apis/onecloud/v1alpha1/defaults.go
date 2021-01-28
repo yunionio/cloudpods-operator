@@ -133,7 +133,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 
 	// CE or EE parts
 	for cType, spec := range map[ComponentType]*DeploymentSpec{
-		APIGatewayComponentType: &obj.APIGateway,
+		APIGatewayComponentType: &obj.APIGateway.DeploymentSpec,
 		WebComponentType:        &obj.Web,
 	} {
 		SetDefaults_DeploymentSpec(spec,
