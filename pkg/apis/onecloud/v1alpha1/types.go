@@ -619,7 +619,7 @@ type APIGatewaySpec struct {
 	DeploymentSpec
 
 	// Allowed hostname in Origin header.  Default to allow all
-	CorsHosts []string `json:"cors_hosts"`
+	CorsHosts []string `json:"corsHosts"`
 }
 
 type RegionSpec struct {
