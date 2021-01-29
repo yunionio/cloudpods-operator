@@ -18,6 +18,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"yunion.io/x/jsonutils"
+	"yunion.io/x/log"
 	"yunion.io/x/pkg/errors"
 
 	"yunion.io/x/onecloud/pkg/keystone/locale"
@@ -163,13 +164,13 @@ func createOrUpdateRole(s *mcclient.ClientSession, role locale.SRoleDefiniton) e
 				// perform public
 				_, err := modules.RolesV3.PerformAction(s, idstr, "public", nil)
 				if err != nil {
-					return errors.Wrap(err, "RolesV3.PerformAction public")
+					log.Warningf("public role %s fail %s", idstr, err)
 				}
 			} else {
 				// perform private
 				_, err := modules.RolesV3.PerformAction(s, idstr, "private", nil)
 				if err != nil {
-					return errors.Wrap(err, "RolesV3.PerformAction private")
+					log.Warningf("private role %s fail %s", idstr, err)
 				}
 			}
 		}
