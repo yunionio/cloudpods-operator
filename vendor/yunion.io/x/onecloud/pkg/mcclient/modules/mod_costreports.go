@@ -12,31 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package identity
+package modules
 
-import "time"
+import "yunion.io/x/onecloud/pkg/mcclient/modulebase"
 
-type SUserExtended struct {
-	Id               string
-	Name             string
-	Enabled          bool
-	DefaultProjectId string
-	CreatedAt        time.Time
-	LastActiveAt     time.Time
-	DomainId         string
+var (
+	CostReports modulebase.ResourceManager
+)
 
-	IsSystemAccount bool
-
-	Displayname string
-	Email       string
-	Mobile      string
-
-	LocalId              int
-	LocalName            string
-	LocalFailedAuthCount int
-	DomainName           string
-	DomainEnabled        bool
-	IsLocal              bool
-	// IdpId         string
-	// IdpName       string
+func init() {
+	CostReports = NewMeterManager("costreport", "costreports",
+		[]string{"period_type", "day", "colon_timer", "disable", "emails", "scope", "start_run"},
+		[]string{},
+	)
+	register(&CostReports)
 }
