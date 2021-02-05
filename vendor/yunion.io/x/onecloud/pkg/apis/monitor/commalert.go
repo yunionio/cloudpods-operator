@@ -42,6 +42,8 @@ type CommonAlertCreateInput struct {
 	Channel []string `json:"channel"`
 	// 通知接受者
 	Recipients []string `json:"recipients"`
+	// 静默期
+	SilentPeriod string `json:"silent_period"`
 	// 报警类型
 	AlertType string `json:"alert_type"`
 
@@ -98,6 +100,8 @@ type CommonAlertUpdateInput struct {
 	Channel []string `json:"channel"`
 	// 通知接受者
 	Recipients []string `json:"recipients"`
+	// 静默期
+	SilentPeriod string `json:"silent_period"`
 	// systemalert policy may need update through operator
 	ForceUpdate bool   `json:"force_update"`
 	GetPointStr bool   `json:"get_point_str"`
@@ -113,7 +117,9 @@ type CommonAlertDetails struct {
 	NotifierId    string   `json:"notifier_id"`
 	Channel       []string `json:"channel"`
 	Recipients    []string `json:"recipients"`
-	Status        string   `json:"status"`
+	// 静默期
+	SilentPeriod string `json:"silent_period"`
+	Status       string `json:"status"`
 	// 报警类型
 	AlertType                string                      `json:"alert_type"`
 	CommonAlertMetricDetails []*CommonAlertMetricDetails `json:"common_alert_metric_details"`
