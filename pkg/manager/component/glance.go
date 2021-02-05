@@ -81,12 +81,16 @@ func (m *glanceManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	// TODO: fix this
 	opt.AutoSyncTable = true
 	opt.Port = constants.GlanceAPIPort
-	if err := m.setS3Config(oc); err != nil {
-		return nil, false, err
-	}
-	if oc.Spec.Glance.SwitchToS3 {
-		opt.StorageDriver = "s3"
-	}
+
+	// TODO: uncomment setS3Config when minio deployable
+	/*
+	 * if err := m.setS3Config(oc); err != nil {
+	 *     return nil, false, err
+	 * }
+	 * if oc.Spec.Glance.SwitchToS3 {
+	 *     opt.StorageDriver = "s3"
+	 * }
+	 */
 
 	newCfg := m.newServiceConfigMap(v1alpha1.GlanceComponentType, "", oc, opt)
 	return m.customConfig(oc, newCfg)
