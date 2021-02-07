@@ -197,7 +197,7 @@ type OnecloudClusterSpec struct {
 	// Scheduler holds configuration for scheduler
 	Scheduler DeploymentSpec `json:"scheduler"`
 	// Glance holds configuration for glance
-	Glance StatefulDeploymentSpec `json:"glance"`
+	Glance GlanceSpec `json:"glance"`
 	// Climc holds configuration for climc
 	Climc DeploymentSpec `json:"climc"`
 	// Webconsole holds configuration for webconsole
@@ -223,7 +223,7 @@ type OnecloudClusterSpec struct {
 	// LoadBalancerEndpoint is upstream loadbalancer virtual ip address or DNS domain
 	LoadBalancerEndpoint string `json:"loadBalancerEndpoint"`
 	// APIGateway holds configuration for yunoinapi
-	APIGateway DeploymentSpec `json:"apiGateway"`
+	APIGateway APIGatewaySpec `json:"apiGateway"`
 	// Web holds configuration for web
 	Web DeploymentSpec `json:"web"`
 	// KubeServer holds configuration for kube-server service
@@ -524,6 +524,11 @@ type KeystoneSpec struct {
 	BootstrapPassword string `json:"bootstrapPassword"`
 }
 
+type GlanceSpec struct {
+	StatefulDeploymentSpec
+	SwitchToS3 bool `json:"switchToS3"`
+}
+
 // ImageStatus is the image status of a pod
 type ImageStatus struct {
 	Image           string            `json:"image"`
@@ -630,6 +635,13 @@ type EtcdMembersStatus struct {
 	Unready []string `json:"unready,omitempty"`
 }
 
+type APIGatewaySpec struct {
+	DeploymentSpec
+
+	// Allowed hostname in Origin header.  Default to allow all
+	CorsHosts []string `json:"corsHosts"`
+}
+
 type RegionSpec struct {
 	DeploymentSpec
 	// DNSServer is the address of DNS server
@@ -640,11 +652,12 @@ type RegionSpec struct {
 
 type CloudmonSpec struct {
 	DeploymentSpec
-	CloudmonPingDuration               uint
-	CloudmonReportHostDuration         uint
-	CloudmonReportServerDuration       uint
-	CloudmonReportUsageDuration        uint
-	CloudmonReportCloudAccountDuration uint
+	CloudmonPingDuration                     uint
+	CloudmonReportHostDuration               uint
+	CloudmonReportServerDuration             uint
+	CloudmonReportUsageDuration              uint
+	CloudmonReportCloudAccountDuration       uint
+	CloudmonReportAlertRecordHistoryDuration uint
 }
 
 type RegionDNSProxy struct {

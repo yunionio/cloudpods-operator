@@ -65,6 +65,12 @@ const (
 )
 
 const (
+	OnecloudMinioNamespace = "onecloud-minio"
+	OnecloudMinioSecret    = "minio"
+	OnecloudMinioSvc       = "minio"
+)
+
+const (
 	SysAdminUsername = "sysadmin"
 	SysAdminProject  = "system"
 	DefaultDomain    = "Default"
