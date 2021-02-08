@@ -42,8 +42,7 @@ type yunionagentOptions struct {
 }
 
 func (m *yunionagentManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	// no need to sync yunionagent
-	return nil
+	return syncComponent(m, oc, oc.Spec.Yunionagent.Disable, "")
 }
 
 func (m *yunionagentManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
