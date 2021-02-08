@@ -583,14 +583,14 @@ func doPolicyRoleInit(s *mcclient.ClientSession) error {
 	for i := range policies {
 		err := createOrUpdatePolicy(s, policies[i])
 		if err != nil {
-			log.Errorf("createOrUpdatePolicy %s fail %s", policies[i], err)
+			log.Warningf("createOrUpdatePolicy %s fail %s", policies[i], err)
 		}
 	}
 	// create system roles
 	for i := range locale.RoleDefinitions {
 		err := createOrUpdateRole(s, locale.RoleDefinitions[i])
 		if err != nil {
-			log.Errorf("createOrUpdateRole %s fail %s", locale.RoleDefinitions[i], err)
+			log.Warningf("createOrUpdateRole %s fail %s", locale.RoleDefinitions[i], err)
 		}
 	}
 	// update policy quota
@@ -598,14 +598,16 @@ func doPolicyRoleInit(s *mcclient.ClientSession) error {
 	params.Add(jsonutils.NewString("default"), "domain")
 	result, err := modules.IdentityQuotas.GetQuota(s, params)
 	if err != nil {
-		return errors.Wrap(err, "IdentityQuotas.GetQuota")
-	}
-	policyCnt, _ := result.Int("policy")
-	if policyCnt < 500 {
-		params.Add(jsonutils.NewInt(500), "policy")
-		_, err := modules.IdentityQuotas.DoQuotaSet(s, params)
-		if err != nil {
-			return errors.Wrap(err, "IdentityQuotas.DoQuotaSet")
+		log.Warningf("get IdentityQuotas fail %s", err)
+	} else {
+		policyCnt, _ := result.Int("policy")
+		if policyCnt < 500 {
+			params.Add(jsonutils.NewInt(500), "policy")
+			_, err := modules.IdentityQuotas.DoQuotaSet(s, params)
+			if err != nil {
+				// ignore the error
+				log.Warningf("update IdentityQuotas fail %s", err)
+			}
 		}
 	}
 	return nil

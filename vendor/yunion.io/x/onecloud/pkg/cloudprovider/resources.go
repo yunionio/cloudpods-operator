@@ -341,6 +341,8 @@ type ICloudVM interface {
 	ResetToInstanceSnapshot(ctx context.Context, idStr string) error
 
 	SaveImage(opts *SaveImageOptions) (ICloudImage, error)
+
+	AllocatePublicIpAddress() (string, error)
 }
 
 type ICloudNic interface {
@@ -1069,6 +1071,9 @@ type ICloudQuota interface {
 type IClouduser interface {
 	GetGlobalId() string
 	GetName() string
+
+	GetEmailAddr() string
+	GetInviteUrl() string
 
 	GetICloudgroups() ([]ICloudgroup, error)
 

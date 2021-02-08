@@ -15,11 +15,18 @@
 package component
 
 import (
+	"context"
+	"fmt"
+	"strings"
+
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"yunion.io/x/jsonutils"
+	"yunion.io/x/log"
+	"yunion.io/x/onecloud/pkg/mcclient/auth"
+	"yunion.io/x/onecloud/pkg/mcclient/modules"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -27,6 +34,8 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/manager"
 	"yunion.io/x/onecloud/pkg/image/options"
 )
+
+var s3ConfigSynced bool
 
 type glanceManager struct {
 	*ComponentManager
@@ -72,8 +81,99 @@ func (m *glanceManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	// TODO: fix this
 	opt.AutoSyncTable = true
 	opt.Port = constants.GlanceAPIPort
+
+	// TODO: uncomment setS3Config when minio deployable
+	/*
+	 * if err := m.setS3Config(oc); err != nil {
+	 *     return nil, false, err
+	 * }
+	 * if oc.Spec.Glance.SwitchToS3 {
+	 *     opt.StorageDriver = "s3"
+	 * }
+	 */
+
 	newCfg := m.newServiceConfigMap(v1alpha1.GlanceComponentType, "", oc, opt)
 	return m.customConfig(oc, newCfg)
+}
+
+func (m *glanceManager) setS3Config(oc *v1alpha1.OnecloudCluster) error {
+	if s3ConfigSynced {
+		return nil
+	}
+	// fetch s3 config
+	s := auth.GetAdminSession(context.Background(), oc.Spec.Region, "")
+	conf, err := modules.ServicesV3.GetSpecific(s, "glance", "config", nil)
+	if err != nil && !strings.Contains(err.Error(), "not found") {
+		return err
+	}
+	confJson, err := conf.Get("config", "default")
+	if err != nil {
+		return fmt.Errorf("failed get conf %s", err)
+	}
+	if confJson.Contains("s3_endpoint") {
+		s3ConfigSynced = true
+		return nil
+	}
+
+	sec, err := m.kubeCli.CoreV1().Secrets(constants.OnecloudMinioNamespace).Get(constants.OnecloudMinioSecret, metav1.GetOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	} else if errors.IsNotFound(err) {
+		log.Infof("namespace %s not found", constants.OnecloudMinioNamespace)
+		if oc.Spec.Glance.SwitchToS3 {
+			return fmt.Errorf("namespace %s not found", constants.OnecloudMinioNamespace)
+		}
+		return nil
+	}
+	svc, err := m.kubeCli.CoreV1().Services(constants.OnecloudMinioNamespace).Get(constants.OnecloudMinioSvc, metav1.GetOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	} else if errors.IsNotFound(err) {
+		log.Infof("service %s not found", constants.OnecloudMinioNamespace)
+		if oc.Spec.Glance.SwitchToS3 {
+			return fmt.Errorf("service %s not found", constants.OnecloudMinioSvc)
+		}
+		return nil
+	}
+	//svc.Spec.ClusterIP
+	port := svc.Spec.Ports[0].Port
+	endpoint := fmt.Sprintf("%s:%d", svc.Spec.ClusterIP, port)
+
+	var ak, sk string
+	// base64 decode
+	if accessKey, ok := sec.Data["accesskey"]; ok {
+		ak = string(accessKey)
+	} else {
+		if oc.Spec.Glance.SwitchToS3 {
+			return fmt.Errorf("s3 access key not found")
+		}
+		return nil
+	}
+	if secretKey, ok := sec.Data["secretkey"]; ok {
+		sk = string(secretKey)
+	} else {
+		if oc.Spec.Glance.SwitchToS3 {
+			return fmt.Errorf("s3 secret key not found")
+		}
+		return nil
+	}
+
+	log.Infof("glance s3 config %s %s %s", endpoint, ak, sk)
+	confDict := confJson.(*jsonutils.JSONDict)
+	confDict.Set("storage_driver", jsonutils.NewString("s3"))
+	confDict.Set("s3_endpoint", jsonutils.NewString(endpoint))
+	confDict.Set("s3_use_ssl", jsonutils.NewBool(false))
+	confDict.Set("s3_access_key", jsonutils.NewString(ak))
+	confDict.Set("s3_secret_key", jsonutils.NewString(sk))
+	config := jsonutils.NewDict()
+	config.Add(confDict, "config", "default")
+	out, err := modules.ServicesV3.PerformAction(s, "glance", "config", config)
+	if err != nil {
+		return err
+	}
+	log.Errorf("sync configmap output %s", out)
+	s3ConfigSynced = true
+	return nil
 }
 
 func (m *glanceManager) customConfig(oc *v1alpha1.OnecloudCluster, newCfg *corev1.ConfigMap) (*corev1.ConfigMap, bool, error) {
@@ -108,7 +208,7 @@ func (m *glanceManager) customConfig(oc *v1alpha1.OnecloudCluster, newCfg *corev
 }
 
 func (m *glanceManager) getPVC(oc *v1alpha1.OnecloudCluster, zone string) (*corev1.PersistentVolumeClaim, error) {
-	cfg := oc.Spec.Glance
+	cfg := oc.Spec.Glance.StatefulDeploymentSpec
 	pvc, err := m.ComponentManager.newPVC(v1alpha1.GlanceComponentType, oc, cfg)
 	if err != nil {
 		return nil, err
@@ -125,13 +225,14 @@ func (m *glanceManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 	if err != nil {
 		return nil, err
 	}
-	if oc.Spec.Glance.StorageClassName == v1alpha1.DefaultStorageClass {
-		// if use local path storage, remove cloud affinity
-		deploy = m.removeDeploymentAffinity(deploy)
-	}
+
 	podTemplate := &deploy.Spec.Template.Spec
 	podVols := podTemplate.Volumes
 	volMounts := podTemplate.Containers[0].VolumeMounts
+	var privileged = true
+	podTemplate.Containers[0].SecurityContext = &corev1.SecurityContext{
+		Privileged: &privileged,
+	}
 
 	// if we are not use local path, propagation mount '/opt/cloud' to glance
 	// and persistent volume will propagate to host, then host deployer can find it
@@ -139,7 +240,6 @@ func (m *glanceManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 		var (
 			hostPathDirOrCreate = corev1.HostPathDirectoryOrCreate
 			mountMode           = corev1.MountPropagationBidirectional
-			privileged          = true
 		)
 		podVols = append(podVols, corev1.Volume{
 			Name: "opt-cloud",
@@ -155,26 +255,30 @@ func (m *glanceManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 			MountPath:        "/opt/cloud",
 			MountPropagation: &mountMode,
 		})
-		podTemplate.Containers[0].SecurityContext = &corev1.SecurityContext{
-			Privileged: &privileged,
-		}
 		deploy.Spec.Strategy.Type = apps.RecreateDeploymentStrategyType
 	}
 
-	// data store pvc, mount path: /opt/cloud/workspace/data/glance
-	podVols = append(podVols, corev1.Volume{
-		Name: "data",
-		VolumeSource: corev1.VolumeSource{
-			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-				ClaimName: m.newPvcName(oc.GetName(), oc.Spec.Glance.StorageClassName, v1alpha1.GlanceComponentType),
-				ReadOnly:  false,
+	if !oc.Spec.Glance.SwitchToS3 { // use pvc as data store
+		if oc.Spec.Glance.StorageClassName == v1alpha1.DefaultStorageClass {
+			// if use local path storage, remove cloud affinity
+			deploy = m.removeDeploymentAffinity(deploy)
+		}
+
+		// data store pvc, mount path: /opt/cloud/workspace/data/glance
+		podVols = append(podVols, corev1.Volume{
+			Name: "data",
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: m.newPvcName(oc.GetName(), oc.Spec.Glance.StorageClassName, v1alpha1.GlanceComponentType),
+					ReadOnly:  false,
+				},
 			},
-		},
-	})
-	volMounts = append(volMounts, corev1.VolumeMount{
-		Name:      "data",
-		MountPath: constants.GlanceDataStore,
-	})
+		})
+		volMounts = append(volMounts, corev1.VolumeMount{
+			Name:      "data",
+			MountPath: constants.GlanceDataStore,
+		})
+	}
 
 	// var run
 	var hostPathDirectory = corev1.HostPathDirectory
@@ -191,6 +295,21 @@ func (m *glanceManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 		Name:      "run",
 		ReadOnly:  false,
 		MountPath: "/var/run",
+	})
+
+	podVols = append(podVols, corev1.Volume{
+		Name: "dev",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: "/dev",
+				Type: &hostPathDirectory,
+			},
+		},
+	})
+	volMounts = append(volMounts, corev1.VolumeMount{
+		Name:      "dev",
+		ReadOnly:  false,
+		MountPath: "/dev",
 	})
 
 	podTemplate.Containers[0].VolumeMounts = volMounts

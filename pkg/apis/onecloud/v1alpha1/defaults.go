@@ -136,7 +136,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 
 	// CE or EE parts
 	for cType, spec := range map[ComponentType]*DeploymentSpec{
-		APIGatewayComponentType: &obj.APIGateway,
+		APIGatewayComponentType: &obj.APIGateway.DeploymentSpec,
 		WebComponentType:        &obj.Web,
 	} {
 		SetDefaults_DeploymentSpec(spec,
@@ -198,7 +198,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		version string
 	}
 	for cType, spec := range map[ComponentType]*stateDeploy{
-		GlanceComponentType:         {&obj.Glance, DefaultGlanceStorageSize, obj.Version},
+		GlanceComponentType:         {&obj.Glance.StatefulDeploymentSpec, DefaultGlanceStorageSize, obj.Version},
 		InfluxdbComponentType:       {&obj.Influxdb, DefaultInfluxdbStorageSize, DefaultInfluxdbImageVersion},
 		NotifyComponentType:         {&obj.Notify, DefaultNotifyStorageSize, obj.Version},
 		BaremetalAgentComponentType: {&obj.BaremetalAgent.StatefulDeploymentSpec, DefaultBaremetalStorageSize, obj.Version},
@@ -226,6 +226,9 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	}
 	if obj.Cloudmon.CloudmonReportCloudAccountDuration == 0 {
 		obj.Cloudmon.CloudmonReportCloudAccountDuration = 30
+	}
+	if obj.Cloudmon.CloudmonReportAlertRecordHistoryDuration == 0 {
+		obj.Cloudmon.CloudmonReportAlertRecordHistoryDuration = 1
 	}
 }
 
