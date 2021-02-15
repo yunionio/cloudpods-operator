@@ -290,8 +290,24 @@ func newEtcdPod(m *etcdutil.Member, initialCluster []string, clusterName, state,
 				// In some cases the DNS is not created correctly so we need to time out after a given period.
 				Command: []string{"/bin/sh", "-c", fmt.Sprintf(`
 					TIMEOUT_READY=%d
-					while ( ! nslookup %s )
+					while true
 					do
+						for suffix in $(cat /etc/resolv.conf | grep search)
+						do
+							if [[ "$suffix" == "search" ]]
+							then
+								suffix=""
+							else
+								suffix=".${suffix}"
+							fi
+							if nslookup %s$suffix
+							then
+								echo "success!"
+								exit 0
+							else
+								sleep 1
+							fi
+						done
 						# If TIMEOUT_READY is 0 we should never time out and exit
 						TIMEOUT_READY=$(( TIMEOUT_READY-1 ))
                         if [ $TIMEOUT_READY -eq 0 ];
@@ -299,7 +315,6 @@ func newEtcdPod(m *etcdutil.Member, initialCluster []string, clusterName, state,
 				            echo "Timed out waiting for DNS entry"
 				            exit 1
 				        fi
-						sleep 1
 					done`, DNSTimeout, m.Addr())},
 			}},
 			Containers:    []v1.Container{container},
