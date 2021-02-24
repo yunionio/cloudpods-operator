@@ -178,6 +178,12 @@ const (
 	CloudnetDB           = "yunioncloudnet"
 	CloudnetDBUser       = "yunioncloudnet"
 
+	CloudproxyAdminUser    = "cloudproxyadmin"
+	CloudproxyAdminProject = SysAdminProject
+	CloudproxyPort         = 30882
+	CloudproxyDB           = "yunioncloudproxy"
+	CloudproxyDBUser       = "yunioncloudproxy"
+
 	CloudeventAdminUser    = "cloudeventadmin"
 	CloudeventAdminProject = SysAdminProject
 	CloudeventPort         = 30892
@@ -238,6 +244,9 @@ const (
 
 	ServiceNameCloudnet = "cloudnet"
 	ServiceTypeCloudnet = "cloudnet"
+
+	ServiceNameCloudproxy = "cloudproxy"
+	ServiceTypeCloudproxy = "cloudproxy"
 
 	ServiceNameCloudevent = "cloudevent"
 	ServiceTypeCloudevent = "cloudevent"
