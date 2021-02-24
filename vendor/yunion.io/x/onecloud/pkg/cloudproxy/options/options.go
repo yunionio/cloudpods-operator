@@ -12,16 +12,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package compute
+package options
 
-import "yunion.io/x/onecloud/pkg/apis"
+import (
+	"os"
+	"sync"
 
-type SecgroupRuleDetails struct {
-	apis.ResourceBaseDetails
-	apis.ProjectizedResourceInfo
-	SSecurityGroupRule
-	SecurityGroupResourceInfo
+	common_options "yunion.io/x/onecloud/pkg/cloudcommon/options"
+	agent_options "yunion.io/x/onecloud/pkg/cloudproxy/agent/options"
+)
 
-	ProjectId    string `json:"tenant_id"`
-	PeerSecgroup string `json:"peer_secgroup"`
+type Options struct {
+	EnableAPIServer  bool
+	EnableProxyAgent bool
+
+	common_options.CommonOptions
+	common_options.DBOptions
+
+	agent_options.Options
+}
+
+var (
+	opts     Options
+	optsOnce sync.Once
+)
+
+func Get() *Options {
+	optsOnce.Do(func() {
+		common_options.ParseOptions(
+			&opts,
+			os.Args,
+			"cloudproxy.conf",
+			"cloudproxy",
+		)
+	})
+	return &opts
 }
