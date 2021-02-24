@@ -12,16 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package compute
+package models
 
-import "yunion.io/x/onecloud/pkg/apis"
+import (
+	"time"
 
-type SecgroupRuleDetails struct {
-	apis.ResourceBaseDetails
-	apis.ProjectizedResourceInfo
-	SSecurityGroupRule
-	SecurityGroupResourceInfo
+	"yunion.io/x/onecloud/pkg/util/ansible"
+)
 
-	ProjectId    string `json:"tenant_id"`
-	PeerSecgroup string `json:"peer_secgroup"`
+type AnsiblePlaybook struct {
+	VirtualResource
+
+	Playbook  *ansible.Playbook
+	Output    string
+	StartTime time.Time
+	EndTime   time.Time
 }

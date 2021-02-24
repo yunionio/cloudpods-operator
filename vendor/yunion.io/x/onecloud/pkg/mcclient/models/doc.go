@@ -12,16 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package compute
-
-import "yunion.io/x/onecloud/pkg/apis"
-
-type SecgroupRuleDetails struct {
-	apis.ResourceBaseDetails
-	apis.ProjectizedResourceInfo
-	SSecurityGroupRule
-	SecurityGroupResourceInfo
-
-	ProjectId    string `json:"tenant_id"`
-	PeerSecgroup string `json:"peer_secgroup"`
-}
+package models // import "yunion.io/x/onecloud/pkg/mcclient/models"
