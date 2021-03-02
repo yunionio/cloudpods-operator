@@ -22,12 +22,12 @@ require (
 	k8s.io/client-go v9.0.0+incompatible
 	k8s.io/klog v0.3.3
 	k8s.io/kube-openapi v0.0.0-20190603182131-db7b694dc208 // indirect
-	k8s.io/kubernetes v1.16.0
+	k8s.io/kubernetes v0.0.0-00010101000000-000000000000
 	k8s.io/utils v0.0.0-20190607212802-c55fbcfc754a // indirect
 	yunion.io/x/jsonutils v0.0.0-20201110084044-3e4e1cb49769
 	yunion.io/x/log v0.0.0-20201210064738-43181789dc74
-	yunion.io/x/onecloud v0.0.0-20210205014207-c98df7d8ffcf
-	yunion.io/x/pkg v0.0.0-20210109071527-7e72daf56747
+	yunion.io/x/onecloud v0.0.0-20210224115241-49dc4dc2922d
+	yunion.io/x/pkg v0.0.0-20210218105412-13a69f60034c
 	yunion.io/x/structarg v0.0.0-20200720093445-9f850fa222ce
 )
 

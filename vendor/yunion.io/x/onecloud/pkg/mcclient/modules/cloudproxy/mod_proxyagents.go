@@ -12,16 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package compute
+package cloudproxy
 
-import "yunion.io/x/onecloud/pkg/apis"
+import (
+	"yunion.io/x/onecloud/pkg/mcclient/modulebase"
+)
 
-type SecgroupRuleDetails struct {
-	apis.ResourceBaseDetails
-	apis.ProjectizedResourceInfo
-	SSecurityGroupRule
-	SecurityGroupResourceInfo
+type ProxyAgentManager struct {
+	modulebase.ResourceManager
+}
 
-	ProjectId    string `json:"tenant_id"`
-	PeerSecgroup string `json:"peer_secgroup"`
+var (
+	ProxyAgents ProxyAgentManager
+)
+
+func init() {
+	ProxyAgents = ProxyAgentManager{
+		NewCloudProxyManager(
+			"proxy_agent",
+			"proxy_agents",
+			[]string{
+				"id",
+				"name",
+				"bind_addr",
+				"advertise_addr",
+			},
+			[]string{},
+		),
+	}
+	registerV2(&ProxyAgents)
 }
