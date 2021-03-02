@@ -115,6 +115,7 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 		components.AutoUpdate(),
 		components.KubeServer(),
 		components.Cloudnet(),
+		components.Cloudproxy(),
 		components.Cloudevent(),
 		components.Devtool(),
 		components.Webconsole(),

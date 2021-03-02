@@ -12,16 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package compute
+package cloudproxy
 
-import "yunion.io/x/onecloud/pkg/apis"
+import (
+	"yunion.io/x/onecloud/pkg/mcclient/modulebase"
+)
 
-type SecgroupRuleDetails struct {
-	apis.ResourceBaseDetails
-	apis.ProjectizedResourceInfo
-	SSecurityGroupRule
-	SecurityGroupResourceInfo
-
-	ProjectId    string `json:"tenant_id"`
-	PeerSecgroup string `json:"peer_secgroup"`
+func NewCloudProxyManager(keyword, keywordPlural string, columns, adminColumns []string) modulebase.ResourceManager {
+	return modulebase.ResourceManager{
+		BaseManager: *modulebase.NewBaseManager("cloudproxy", "", "", columns, adminColumns),
+		Keyword:     keyword, KeywordPlural: keywordPlural}
 }
+
+var (
+	registerV2 = func(mod modulebase.IBaseManager) {
+		modulebase.Register("v2", mod)
+	}
+)

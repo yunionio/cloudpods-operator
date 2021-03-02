@@ -1163,6 +1163,10 @@ func (m *ComponentManager) Cloudnet() manager.Manager {
 	return newCloudnetManager(m)
 }
 
+func (m *ComponentManager) Cloudproxy() manager.Manager {
+	return newCloudproxyManager(m)
+}
+
 func (m *ComponentManager) APIGateway() manager.Manager {
 	return newAPIGatewayManager(m)
 }

@@ -12,16 +12,41 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package compute
+package cloudproxy
 
-import "yunion.io/x/onecloud/pkg/apis"
+import (
+	"yunion.io/x/onecloud/pkg/mcclient/modulebase"
+)
 
-type SecgroupRuleDetails struct {
-	apis.ResourceBaseDetails
-	apis.ProjectizedResourceInfo
-	SSecurityGroupRule
-	SecurityGroupResourceInfo
+type ForwardManager struct {
+	modulebase.ResourceManager
+}
 
-	ProjectId    string `json:"tenant_id"`
-	PeerSecgroup string `json:"peer_secgroup"`
+var (
+	Forwards ForwardManager
+)
+
+func init() {
+	Forwards = ForwardManager{
+		NewCloudProxyManager(
+			"forward",
+			"forwards",
+			[]string{
+				"id",
+				"name",
+				"type",
+				"remote_addr",
+				"remote_port",
+				"bind_port",
+				"last_seen",
+			},
+			[]string{
+				"proxy_endpoint_id",
+				"proxy_agent_id",
+				"bind_port_req",
+				"tenant",
+			},
+		),
+	}
+	registerV2(&Forwards)
 }

@@ -619,7 +619,7 @@ k8s.io/component-base/featuregate
 k8s.io/klog
 # k8s.io/kube-openapi v0.0.0-20190603182131-db7b694dc208
 k8s.io/kube-openapi/pkg/util/proto
-# k8s.io/kubernetes v1.16.0 => k8s.io/kubernetes v1.15.1
+# k8s.io/kubernetes v0.0.0-00010101000000-000000000000 => k8s.io/kubernetes v1.15.1
 k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm
 k8s.io/kubernetes/cmd/kubeadm/app/constants
 k8s.io/kubernetes/cmd/kubeadm/app/util
@@ -651,7 +651,7 @@ yunion.io/x/jsonutils
 # yunion.io/x/log v0.0.0-20201210064738-43181789dc74
 yunion.io/x/log
 yunion.io/x/log/hooks
-# yunion.io/x/onecloud v0.0.0-20210205014207-c98df7d8ffcf
+# yunion.io/x/onecloud v0.0.0-20210224115241-49dc4dc2922d
 yunion.io/x/onecloud/locales
 yunion.io/x/onecloud/pkg/ansibleserver/options
 yunion.io/x/onecloud/pkg/apis
@@ -677,6 +677,8 @@ yunion.io/x/onecloud/pkg/cloudcommon/syncman/watcher
 yunion.io/x/onecloud/pkg/cloudcommon/types
 yunion.io/x/onecloud/pkg/cloudnet/options
 yunion.io/x/onecloud/pkg/cloudprovider
+yunion.io/x/onecloud/pkg/cloudproxy/agent/options
+yunion.io/x/onecloud/pkg/cloudproxy/options
 yunion.io/x/onecloud/pkg/compute/options
 yunion.io/x/onecloud/pkg/esxi/options
 yunion.io/x/onecloud/pkg/hostman/hostdeployer/apis
@@ -693,8 +695,10 @@ yunion.io/x/onecloud/pkg/logger/options
 yunion.io/x/onecloud/pkg/mcclient
 yunion.io/x/onecloud/pkg/mcclient/auth
 yunion.io/x/onecloud/pkg/mcclient/informer
+yunion.io/x/onecloud/pkg/mcclient/models
 yunion.io/x/onecloud/pkg/mcclient/modulebase
 yunion.io/x/onecloud/pkg/mcclient/modules
+yunion.io/x/onecloud/pkg/mcclient/modules/cloudproxy
 yunion.io/x/onecloud/pkg/monitor/options
 yunion.io/x/onecloud/pkg/multicloud
 yunion.io/x/onecloud/pkg/multicloud/esxi
@@ -727,7 +731,7 @@ yunion.io/x/onecloud/pkg/util/vmdkutils
 yunion.io/x/onecloud/pkg/vpcagent/options
 yunion.io/x/onecloud/pkg/webconsole/options
 yunion.io/x/onecloud/pkg/yunionconf/options
-# yunion.io/x/pkg v0.0.0-20210109071527-7e72daf56747
+# yunion.io/x/pkg v0.0.0-20210218105412-13a69f60034c
 yunion.io/x/pkg/errors
 yunion.io/x/pkg/gotypes
 yunion.io/x/pkg/sortedmap
@@ -749,7 +753,7 @@ yunion.io/x/pkg/util/version
 yunion.io/x/pkg/utils
 # yunion.io/x/s3cli v0.0.0-20190917004522-13ac36d8687e
 yunion.io/x/s3cli
-# yunion.io/x/sqlchemy v0.0.0-20210204013753-dbac29c9cedb
+# yunion.io/x/sqlchemy v0.0.0-20210204030051-4fb14f92a88f
 yunion.io/x/sqlchemy
 # yunion.io/x/structarg v0.0.0-20200720093445-9f850fa222ce
 yunion.io/x/structarg
