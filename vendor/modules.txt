@@ -649,7 +649,11 @@ yunion.io/x/jsonutils
 # yunion.io/x/log v0.0.0-20201210064738-43181789dc74
 yunion.io/x/log
 yunion.io/x/log/hooks
+<<<<<<< HEAD
 # yunion.io/x/onecloud v0.0.0-20201223181411-65781bfe0673
+=======
+# yunion.io/x/onecloud v0.0.0-20210302062934-0eeb75d94564
+>>>>>>> fix: default policy name should be separated by dash
 yunion.io/x/onecloud/locales
 yunion.io/x/onecloud/pkg/ansibleserver/options
 yunion.io/x/onecloud/pkg/apis
