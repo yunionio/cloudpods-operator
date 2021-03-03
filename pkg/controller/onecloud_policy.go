@@ -15,6 +15,8 @@
 package controller
 
 import (
+	"strings"
+
 	"golang.org/x/sync/errgroup"
 
 	"yunion.io/x/jsonutils"
@@ -30,47 +32,60 @@ func createOrUpdatePolicy(s *mcclient.ClientSession, policy locale.SPolicyData) 
 	policyJson, err := modules.Policies.GetByName(s, policy.Name, nil)
 	if err != nil {
 		if httputils.ErrorCode(err) == 404 {
-			// not found, to create
-			params := jsonutils.NewDict()
-			params.Add(jsonutils.NewString(policy.Name), "name")
-			params.Add(jsonutils.NewString(policy.Name), "type")
-			params.Add(jsonutils.NewString(policy.Name), "description")
-			params.Add(policy.Policy, "policy")
-			params.Add(jsonutils.NewString(string(policy.Scope)), "scope")
-			params.Add(jsonutils.JSONTrue, "enabled")
-			params.Add(jsonutils.JSONTrue, "is_system")
-			params.Add(jsonutils.JSONTrue, "is_public")
-			_, err := modules.Policies.Create(s, params)
+			// not found, try names without -
+			policyJson, err = modules.Policies.GetByName(s, strings.ReplaceAll(policy.Name, "-", ""), nil)
 			if err != nil {
-				return errors.Wrap(err, "Policies.Create")
+				if httputils.ErrorCode(err) == 404 {
+					// not found, to create
+					params := jsonutils.NewDict()
+					params.Add(jsonutils.NewString(policy.Name), "name")
+					params.Add(jsonutils.NewString(policy.Name), "type")
+					params.Add(jsonutils.NewString(policy.Name), "description")
+					params.Add(policy.Policy, "policy")
+					params.Add(jsonutils.NewString(string(policy.Scope)), "scope")
+					params.Add(jsonutils.JSONTrue, "enabled")
+					params.Add(jsonutils.JSONTrue, "is_system")
+					params.Add(jsonutils.JSONTrue, "is_public")
+					_, err := modules.Policies.Create(s, params)
+					if err != nil {
+						return errors.Wrap(err, "Policies.Create")
+					}
+					return nil
+				} else {
+					return errors.Wrap(err, "Policies.GetByName without dash")
+				}
 			}
-			return nil
 		} else {
 			return errors.Wrap(err, "Policies.GetByName")
 		}
-	} else {
-		// find policy, do update
-		remotePolicy, _ := policyJson.Get("policy")
-		isSystem := jsonutils.QueryBoolean(policyJson, "is_system", false)
-		desc, _ := policyJson.GetString("description")
-		if remotePolicy == nil || !policy.Policy.Equals(remotePolicy) || desc != policy.Name || !isSystem {
-			// need to update policy data
-			pid, _ := policyJson.GetString("id")
-			params := jsonutils.NewDict()
-			params.Add(jsonutils.NewString(policy.Name), "description")
-			params.Add(policy.Policy, "policy")
-			params.Add(jsonutils.NewString(string(policy.Scope)), "scope")
-			params.Add(jsonutils.JSONTrue, "enabled")
-			params.Add(jsonutils.JSONTrue, "is_system")
-			_, err := modules.Policies.Update(s, pid, params)
-			if err != nil {
-				return errors.Wrap(err, "Policies.Update")
-			}
-			return nil
-		} else {
-			// no change, no need to update
-			return nil
+	}
+	// find policy, do update
+	remotePolicy, _ := policyJson.Get("policy")
+	isSystem := jsonutils.QueryBoolean(policyJson, "is_system", false)
+	desc, _ := policyJson.GetString("description")
+	name, _ := policyJson.GetString("name")
+	if len(name) == 0 {
+		name, _ = policyJson.GetString("type")
+	}
+	if remotePolicy == nil || !policy.Policy.Equals(remotePolicy) || desc != policy.Name || name != policy.Name || !isSystem {
+		// need to update policy data
+		pid, _ := policyJson.GetString("id")
+		params := jsonutils.NewDict()
+		params.Add(jsonutils.NewString(policy.Name), "description")
+		params.Add(jsonutils.NewString(policy.Name), "name")
+		params.Add(jsonutils.NewString(policy.Name), "type")
+		params.Add(policy.Policy, "policy")
+		params.Add(jsonutils.NewString(string(policy.Scope)), "scope")
+		params.Add(jsonutils.JSONTrue, "enabled")
+		params.Add(jsonutils.JSONTrue, "is_system")
+		_, err := modules.Policies.Update(s, pid, params)
+		if err != nil {
+			return errors.Wrap(err, "Policies.Update")
 		}
+		return nil
+	} else {
+		// no change, no need to update
+		return nil
 	}
 }
 
@@ -145,7 +160,7 @@ func createOrUpdateRole(s *mcclient.ClientSession, role locale.SRoleDefiniton) e
 		if desc != role.Name {
 			params := jsonutils.NewDict()
 			params.Add(jsonutils.NewString(role.Name), "description")
-			params.Add(jsonutils.JSONTrue, "is_public")
+			// params.Add(jsonutils.JSONTrue, "is_public")
 			roleJson, err = modules.RolesV3.Update(s, idstr, params)
 			if err != nil {
 				return errors.Wrap(err, "RolesV3.Update")

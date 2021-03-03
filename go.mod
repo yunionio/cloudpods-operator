@@ -14,8 +14,6 @@ require (
 	github.com/spf13/pflag v1.0.3 // indirect
 	go.etcd.io/etcd v0.5.0-alpha.5.0.20200819165624-17cef6e3e9d5
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
-	google.golang.org/grpc v1.29.0 // indirect
-	google.golang.org/protobuf v1.24.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	k8s.io/api v0.19.3
@@ -28,8 +26,8 @@ require (
 	k8s.io/utils v0.0.0-20190607212802-c55fbcfc754a // indirect
 	yunion.io/x/jsonutils v0.0.0-20201110084044-3e4e1cb49769
 	yunion.io/x/log v0.0.0-20201210064738-43181789dc74
-	yunion.io/x/onecloud v0.0.0-20201223181411-65781bfe0673
-	yunion.io/x/pkg v0.0.0-20201123083159-ca3aea986ff2
+	yunion.io/x/onecloud v0.0.0-20210302062934-0eeb75d94564
+	yunion.io/x/pkg v0.0.0-20210218105412-13a69f60034c
 	yunion.io/x/structarg v0.0.0-20200720093445-9f850fa222ce
 )
 
