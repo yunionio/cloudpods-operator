@@ -22,7 +22,9 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"yunion.io/x/jsonutils"
+	"yunion.io/x/log"
 	ansibleapi "yunion.io/x/onecloud/pkg/apis/ansible"
+	devtoolapi "yunion.io/x/onecloud/pkg/apis/devtool"
 	monitorapi "yunion.io/x/onecloud/pkg/apis/monitor"
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/mcclient/modulebase"
@@ -788,4 +790,54 @@ func newCommonalertQuery(tem CommonAlertTem) monitorapi.CommonAlertQuery {
 		commonAlert.ConditionType = tem.ConditionType
 	}
 	return commonAlert
+}
+
+var agentName = "monitor agent"
+
+func EnsureAgentAnsiblePlaybookRef(s *mcclient.ClientSession) error {
+    log.Infof("start to EnsureAgentAnsiblePlaybookRef")
+	ctrue := true
+	data, err := modules.AnsiblePlaybookReference.GetByName(s, agentName, nil)
+	if err != nil {
+		if httputils.ErrorCode(err) != 404 {
+			return errors.Wrapf(err, "unable to get ansible playbook ref %q", agentName)
+		}
+		// create one
+		params := ansibleapi.AnsiblePlaybookReferenceCreateInput{}
+		params.SAnsiblePlaybookReference.Name = agentName
+		params.SharableVirtualResourceCreateInput.Name = agentName
+		params.Project = "system"
+		params.IsPublic = &ctrue
+		params.PublicScope = "system"
+		params.PlaybookPath = "/opt/yunion/playbook/monitor-agent/playbook.yaml"
+		params.Method = "offline"
+		params.PlaybookParams = map[string]interface{}{
+			"telegraf_agent_package_method":     "offline",
+			"telegraf_agent_package_local_dir": "/opt/yunion/ansible-install-pkg",
+		}
+		data, err = modules.AnsiblePlaybookReference.Create(s, jsonutils.Marshal(params))
+		if err != nil {
+			return errors.Wrapf(err, "unable to create ansible playbook ref %q", agentName)
+		}
+	}
+	refId, _ := data.GetString("id")
+	_, err = modules.DevToolScripts.GetByName(s, agentName, nil)
+	if err != nil {
+		if httputils.ErrorCode(err) != 404 {
+			return errors.Wrapf(err, "unable to get devtool script %q", agentName)
+		}
+		// create one
+		params := devtoolapi.ScriptCreateInput{}
+		params.Name = agentName
+		params.Project = "system"
+		params.IsPublic = &ctrue
+        params.PublicScope = "system"
+        params.PlaybookReference = refId
+        params.MaxTryTimes = 3
+        _, err := modules.DevToolScripts.Create(s, jsonutils.Marshal(params))
+        if err != nil {
+            return errors.Wrapf(err, "unable to create devtool script %q", agentName)
+        }
+	}
+    return nil
 }
