@@ -963,6 +963,7 @@ func (c devtoolComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 		c.ensureTemplatePing,
 		c.ensureTemplateTelegraf,
 		c.ensureTemplateNginx,
+		c.ensureMonitorAgentScript,
 	} {
 		if err := f(); err != nil {
 			return err
@@ -1035,6 +1036,10 @@ func (c devtoolComponent) ensureTemplateTelegraf() error {
 		_, err := onecloud.EnsureDevtoolTemplate(s, "install-telegraf-on-centos", hosts, mods, files, 86400)
 		return err
 	})
+}
+
+func (c devtoolComponent) ensureMonitorAgentScript() error {
+	return c.RunWithSession(onecloud.EnsureAgentAnsiblePlaybookRef)
 }
 
 type monitorComponent struct {
