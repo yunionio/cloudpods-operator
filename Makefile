@@ -15,16 +15,16 @@ GOARCH := $(if $(GOARCH),$(GOARCH),amd64)
 GOENV := GO111MODULE=on CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH)
 GO := $(GOENV) go build
 
-build: controller-manager
+build: onecloud-operator
 
-controller-manager:
-	$(GO) -mod vendor -ldflags $(LDFLAGS) -o $(BIN_DIR)/onecloud-controller-manager cmd/controller-manager/main.go
+onecloud-operator:
+	$(GO) -mod vendor -ldflags $(LDFLAGS) -o $(BIN_DIR)/onecloud-controller-manager cmd/onecloud-operator/main.go
 
 telegraf-init:
 	$(GO) -mod vendor -ldflags $(LDFLAGS) -o $(BIN_DIR)/telegraf-init cmd/telegraf-init/main.go
 
 image:
-	DOCKER_DIR=${CURDIR}/images/onecloud-operator IMAGE_KEYWORD=onecloud-operator PUSH=true DEBUG=${DEBUG} REGISTRY=${REGISTRY} TAG=${VERSION} ARCH=${ARCH} ${CURDIR}/scripts/docker_push.sh controller-manager
+	DOCKER_DIR=${CURDIR}/images/onecloud-operator IMAGE_KEYWORD=onecloud-operator PUSH=true DEBUG=${DEBUG} REGISTRY=${REGISTRY} TAG=${VERSION} ARCH=${ARCH} ${CURDIR}/scripts/docker_push.sh onecloud-operator
 
 telegraf-init-image: telegraf-init
 	DOCKER_DIR=${CURDIR}/images/telegraf-init IMAGE_KEYWORD=telegraf-init PUSH=true DEBUG=${DEBUG} REGISTRY=${REGISTRY} TAG=${VERSION} ARCH=${ARCH} ${CURDIR}/scripts/docker_push.sh telegraf-init
@@ -40,4 +40,4 @@ mod:
 	go mod tidy
 	go mod vendor -v
 
-.PHONY: image telegraf-init-image mod fmt telegraf-init build controller-manager
+.PHONY: image telegraf-init-image mod fmt telegraf-init build onecloud-operator
