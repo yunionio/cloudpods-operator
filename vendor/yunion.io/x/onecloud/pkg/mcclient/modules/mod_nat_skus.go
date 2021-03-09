@@ -12,15 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cloudprovider
+package modules
 
-import "reflect"
+import "yunion.io/x/onecloud/pkg/mcclient/modulebase"
 
-type TagsUpdateInfo struct {
-	OldTags map[string]string
-	NewTags map[string]string
+type NatSkusManager struct {
+	modulebase.ResourceManager
 }
 
-func (t TagsUpdateInfo) IsChanged() bool {
-	return !reflect.DeepEqual(t.OldTags, t.NewTags)
+var (
+	NatSkus NatSkusManager
+)
+
+func init() {
+	NatSkus = NatSkusManager{NewComputeManager("nat_sku", "nat_skus",
+		[]string{},
+		[]string{})}
+
+	registerCompute(&NatSkus)
 }
