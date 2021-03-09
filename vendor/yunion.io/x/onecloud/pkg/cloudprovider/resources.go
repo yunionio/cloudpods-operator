@@ -55,8 +55,13 @@ type IBillingResource interface {
 	IsAutoRenew() bool
 }
 
+type ICloudI18nResource interface {
+	GetI18n() SModelI18nTable
+}
+
 type ICloudRegion interface {
 	ICloudResource
+	ICloudI18nResource
 
 	// GetLatitude() float32
 	// GetLongitude() float32
@@ -114,7 +119,7 @@ type ICloudRegion interface {
 	CreateILoadBalancerCertificate(cert *SLoadbalancerCertificate) (ICloudLoadbalancerCertificate, error)
 
 	GetISkus() ([]ICloudSku, error)
-	CreateISku(name string, vCpu int, memoryMb int) error
+	CreateISku(opts *SServerSkuCreateOption) (ICloudSku, error)
 
 	GetINetworkInterfaces() ([]ICloudNetworkInterface, error)
 
@@ -148,6 +153,7 @@ type ICloudRegion interface {
 
 type ICloudZone interface {
 	ICloudResource
+	ICloudI18nResource
 
 	GetIRegion() ICloudRegion
 
@@ -831,6 +837,7 @@ type ICloudDBInstance interface {
 
 	GetMasterInstanceId() string
 	GetSecurityGroupIds() ([]string, error)
+	SetSecurityGroups(ids []string) error
 	GetPort() int
 	GetEngine() string
 	GetEngineVersion() string
