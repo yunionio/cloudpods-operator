@@ -77,10 +77,24 @@ push_image() {
     docker push "$tag"
 }
 
+get_image_name() {
+    local component=$1
+    local arch=$2
+    local is_all_arch=$3
+    local img_name="$REGISTRY/$component:$TAG"
+    if [[ "$is_all_arch" == "true" || "$arch" == arm64 ]]; then
+        img_name="${img_name}-$arch"
+    fi
+    echo $img_name
+}
+
 build_process() {
-    local component="$1"; shift
+    local component=$1
+    local arch=$2
+    local is_all_arch=$3
+    local img_name=$(get_image_name $component $arch $is_all_arch)
+
     build_bin $component
-    img_name="$REGISTRY/$image_keyword:$TAG"
     build_image $img_name $DOCKER_DIR/Dockerfile $SRC_DIR
     if [[ "$PUSH" == "true" ]]; then
         push_image "$img_name"
@@ -88,17 +102,27 @@ build_process() {
 }
 
 build_process_with_buildx() {
-    local component="$1"; shift
-    local arch=$1
+    local component=$1
+    local arch=$2
+    local is_all_arch=$3
+    local img_name=$(get_image_name $component $arch $is_all_arch)
 
     build_env="GOARCH=$arch "
-    img_name="$REGISTRY/$image_keyword:$TAG"
     if [[ $arch == arm64 ]]; then
-        img_name="$img_name-$arch"
         build_env="$build_env CC=aarch64-linux-musl-gcc"
     fi
 	build_bin $component $build_env
-	buildx_and_push $img_name $DOCKER_DIR/Dockerfile $SRC_DIR $ARCH
+	buildx_and_push $img_name $DOCKER_DIR/Dockerfile $SRC_DIR $arch
+}
+
+make_manifest_image() {
+    local component=$1
+    local img_name=$(get_image_name $component "" "false")
+    docker manifest create --amend $img_name \
+        $img_name-amd64 \
+        $img_name-arm64
+    docker manifest annotate $img_name $img_name-arm64 --arch arm64
+    docker manifest push $img_name
 }
 
 cd $SRC_DIR
@@ -124,16 +148,15 @@ for component in $COMPONENTS; do
     case "$ARCH" in
         all)
             for arch in "arm64" "amd64"; do
-                build_process_with_buildx $component $arch
+                build_process_with_buildx $component $arch "true"
             done
+            make_manifest_image $component
             ;;
         arm64)
-            build_process_with_buildx $component $ARCH
+            build_process_with_buildx $component $ARCH "false"
             ;;
         *)
-            build_process $component
+            build_process $component $ARCH "false"
             ;;
     esac
 done
-
-
