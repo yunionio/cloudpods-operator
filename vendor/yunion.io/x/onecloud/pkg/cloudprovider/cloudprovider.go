@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"time"
 
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/pkg/errors"
@@ -74,7 +73,7 @@ type SCloudaccountCredential struct {
 	// 主机端口 (esxi)
 	Port int `json:"port"`
 
-	// 端点 (s3)
+	// 端点 (s3) 或 Apsara(飞天)
 	Endpoint string `json:"endpoint"`
 
 	// app id (Qcloud)
@@ -161,12 +160,6 @@ type ProviderConfig struct {
 	SApsaraEndpoints
 
 	ProxyFunc httputils.TransportProxyFunc
-}
-
-func (cp *ProviderConfig) HttpClient() *http.Client {
-	client := httputils.GetClient(true, 15*time.Second)
-	httputils.SetClientProxyFunc(client, cp.ProxyFunc)
-	return client
 }
 
 func (cp *ProviderConfig) AdaptiveTimeoutHttpClient() *http.Client {

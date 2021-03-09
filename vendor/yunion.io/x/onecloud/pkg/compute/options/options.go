@@ -149,7 +149,8 @@ type ComputeOptions struct {
 	SyncStorageCapacityUsedIntervalMinutes int  `help:"interval sync storage capacity used" default:"20"`
 	LockStorageFromCachedimage             bool `help:"must use storage in where selected cachedimage when creating vm"`
 
-	SyncExtDiskSnapshotIntervalMinutes int `help:"sync snapshot for external disk" default:"20"`
+	SyncExtDiskSnapshotIntervalMinutes int  `help:"sync snapshot for external disk" default:"20"`
+	AutoReconcileBackupServers         bool `help:"auto reconcile backup servers" default:"false"`
 
 	SCapabilityOptions
 	SASControllerOptions
@@ -157,6 +158,7 @@ type ComputeOptions struct {
 	common_options.DBOptions
 
 	EnableAutoMergeSecurityGroup bool `help:"Enable auto merge secgroup when sync security group from cloud, default False" default:"false"`
+	DeleteSnapshotExpiredRelease bool `help:"Should the virtual machine be automatically deleted when the virtual machine expires?" default:"false"`
 
 	DefaultNetworkGatewayAddressEsxi uint32 `help:"Default address for network gateway" default:"1"`
 

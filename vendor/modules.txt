@@ -192,7 +192,7 @@ golang.org/x/crypto/poly1305
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
 golang.org/x/crypto/ssh/terminal
-# golang.org/x/net v0.0.0-20200707034311-ab3426394381
+# golang.org/x/net v0.0.0-20201110031124-69a78807bb2b
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
 golang.org/x/net/http/httpguts
@@ -208,7 +208,7 @@ golang.org/x/oauth2
 golang.org/x/oauth2/internal
 # golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.0.0-20200622214017-ed371f2e16b4
+# golang.org/x/sys v0.0.0-20200930185726-fdedc70b468f
 golang.org/x/sys/cpu
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
@@ -315,6 +315,8 @@ google.golang.org/protobuf/runtime/protoimpl
 google.golang.org/protobuf/types/known/anypb
 google.golang.org/protobuf/types/known/durationpb
 google.golang.org/protobuf/types/known/timestamppb
+# gopkg.in/fatih/set.v0 v0.2.1
+gopkg.in/fatih/set.v0
 # gopkg.in/go-playground/validator.v9 v9.29.1
 gopkg.in/go-playground/validator.v9
 # gopkg.in/inf.v0 v0.9.1
@@ -641,7 +643,7 @@ k8s.io/utils/pointer
 k8s.io/utils/trace
 # sigs.k8s.io/yaml v1.1.0
 sigs.k8s.io/yaml
-# yunion.io/x/executor v0.0.0-20201201131200-44fa553abd9e
+# yunion.io/x/executor v0.0.0-20201231064744-df32f32165a9
 yunion.io/x/executor/apis
 yunion.io/x/executor/client
 # yunion.io/x/jsonutils v0.0.0-20201110084044-3e4e1cb49769
@@ -649,11 +651,7 @@ yunion.io/x/jsonutils
 # yunion.io/x/log v0.0.0-20201210064738-43181789dc74
 yunion.io/x/log
 yunion.io/x/log/hooks
-<<<<<<< HEAD
-# yunion.io/x/onecloud v0.0.0-20201223181411-65781bfe0673
-=======
-# yunion.io/x/onecloud v0.0.0-20210302062934-0eeb75d94564
->>>>>>> fix: default policy name should be separated by dash
+# yunion.io/x/onecloud v0.0.0-20210309100643-e63a207c294d
 yunion.io/x/onecloud/locales
 yunion.io/x/onecloud/pkg/ansibleserver/options
 yunion.io/x/onecloud/pkg/apis
@@ -729,7 +727,7 @@ yunion.io/x/onecloud/pkg/util/vmdkutils
 yunion.io/x/onecloud/pkg/vpcagent/options
 yunion.io/x/onecloud/pkg/webconsole/options
 yunion.io/x/onecloud/pkg/yunionconf/options
-# yunion.io/x/pkg v0.0.0-20201123083159-ca3aea986ff2
+# yunion.io/x/pkg v0.0.0-20210218105412-13a69f60034c
 yunion.io/x/pkg/errors
 yunion.io/x/pkg/gotypes
 yunion.io/x/pkg/sortedmap
@@ -751,7 +749,7 @@ yunion.io/x/pkg/util/version
 yunion.io/x/pkg/utils
 # yunion.io/x/s3cli v0.0.0-20190917004522-13ac36d8687e
 yunion.io/x/s3cli
-# yunion.io/x/sqlchemy v0.0.0-20201219153152-2d901261898c
+# yunion.io/x/sqlchemy v0.0.0-20210204030051-4fb14f92a88f
 yunion.io/x/sqlchemy
 # yunion.io/x/structarg v0.0.0-20200720093445-9f850fa222ce
 yunion.io/x/structarg
