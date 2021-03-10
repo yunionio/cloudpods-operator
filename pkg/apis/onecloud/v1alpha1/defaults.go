@@ -43,9 +43,9 @@ const (
 	// rancher local-path-provisioner: https://github.com/rancher/local-path-provisioner
 	DefaultStorageClass = "local-path"
 
-	DefaultOvnVersion   = "2.10.4"
+	DefaultOvnVersion   = "2.10.5"
 	DefaultOvnImageName = "openvswitch"
-	DefaultOvnImageTag  = DefaultOvnVersion + "-0"
+	DefaultOvnImageTag  = DefaultOvnVersion + "-1"
 
 	DefaultHostImageName = "host-image"
 	DefaultHostImageTag  = "v1.0.1"
