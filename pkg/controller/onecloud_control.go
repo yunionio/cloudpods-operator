@@ -1253,7 +1253,6 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 			"offline",
 			"failed",
 			"degraded",
-			"rebuilding",
 			"out of sync",
 		),
 		Name:        "host_raid.adapter",
