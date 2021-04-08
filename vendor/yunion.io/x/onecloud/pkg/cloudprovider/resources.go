@@ -38,7 +38,6 @@ type ICloudResource interface {
 	Refresh() error
 
 	IsEmulated() bool
-	//	GetMetadata() *jsonutils.JSONDict
 
 	GetSysTags() map[string]string
 	GetTags() (map[string]string, error)
@@ -416,6 +415,7 @@ type ICloudSecurityGroup interface {
 	GetVpcId() string
 
 	SyncRules(common, inAdds, outAdds, inDels, outDels []SecurityRule) error
+	GetReferences() ([]SecurityGroupReference, error)
 	Delete() error
 }
 
