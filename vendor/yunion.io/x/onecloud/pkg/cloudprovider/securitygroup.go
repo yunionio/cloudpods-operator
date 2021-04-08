@@ -26,6 +26,11 @@ import (
 	"yunion.io/x/pkg/utils"
 )
 
+type SecurityGroupReference struct {
+	Id   string
+	Name string
+}
+
 type SecDriver interface {
 	GetDefaultSecurityGroupInRule() SecurityRule
 	GetDefaultSecurityGroupOutRule() SecurityRule

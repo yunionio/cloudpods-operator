@@ -148,11 +148,28 @@ func (t *STableSpec) insertSqlPrep(dataFields reflectutils.SStructFieldValueSet,
 	return insertSql, values, nil
 }
 
-func (t *STableSpec) insert(data interface{}, update bool, debug bool) error {
-	beforeInsertFunc := reflect.ValueOf(data).MethodByName("BeforeInsert")
-	if beforeInsertFunc.IsValid() && !beforeInsertFunc.IsNil() {
-		beforeInsertFunc.Call([]reflect.Value{})
+func beforeInsert(val reflect.Value) {
+	switch val.Kind() {
+	case reflect.Struct:
+		structType := val.Type()
+		for i := 0; i < val.NumField(); i++ {
+			fieldType := structType.Field(i)
+			if fieldType.Anonymous {
+				beforeInsert(val.Field(i))
+			}
+		}
+		valPtr := val.Addr()
+		afterMarshalFunc := valPtr.MethodByName("BeforeInsert")
+		if afterMarshalFunc.IsValid() && !afterMarshalFunc.IsNil() {
+			afterMarshalFunc.Call([]reflect.Value{})
+		}
+	case reflect.Ptr:
+		beforeInsert(val.Elem())
 	}
+}
+
+func (t *STableSpec) insert(data interface{}, update bool, debug bool) error {
+	beforeInsert(reflect.ValueOf(data))
 
 	dataValue := reflect.ValueOf(data).Elem()
 	dataFields := reflectutils.FetchStructFieldValueSet(dataValue)
@@ -179,7 +196,7 @@ func (t *STableSpec) insert(data interface{}, update bool, debug bool) error {
 		// for insertOrUpdate cases, if no duplication, targetCnt=1, else targetCnt=2
 		targetCnt = 2
 	}
-	if affectCnt < 1 || affectCnt > targetCnt {
+	if (!update && affectCnt < 1) || affectCnt > targetCnt {
 		return errors.Wrapf(ErrUnexpectRowCount, "Insert affected cnt %d != (1, %d)", affectCnt, targetCnt)
 	}
 
