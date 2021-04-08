@@ -175,6 +175,8 @@ type OnecloudClusterSpec struct {
 	CertSANs []string
 	// Services list non-headless services type used in OnecloudCluster
 	Services []Service `json:"services,omitempty"`
+	// Minio holds configuration for minio S3 storage backend
+	Minio Minio `json:"minio"`
 	// ImageRepository defines default image registry
 	ImageRepository string `json:"imageRepository"`
 	// Region is cluster region
@@ -463,6 +465,11 @@ type Mysql struct {
 	Username string `json:"username"`
 	// Password is mysql user password
 	Password string `json:"password"`
+}
+
+// Minio hols configration for minio S3 object storage backend
+type Minio struct {
+	Enable bool `json:"enable"`
 }
 
 // DeploymentSpec constains defails of deployment resource service

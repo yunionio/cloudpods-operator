@@ -226,6 +226,7 @@ type ComponentManager interface {
 	GetController() *OnecloudControl
 	GetCluster() *v1alpha1.OnecloudCluster
 	Keystone() PhaseControl
+	KubeServer() PhaseControl
 	Region() PhaseControl
 	Glance() PhaseControl
 	YunionAgent() PhaseControl
@@ -267,6 +268,10 @@ func (c *realComponent) RunWithSession(oc *v1alpha1.OnecloudCluster, f func(s *m
 
 func (c *realComponent) Keystone() PhaseControl {
 	return &keystoneComponent{newBaseComponent(c)}
+}
+
+func (c *realComponent) KubeServer() PhaseControl {
+	return &kubeServerComponent{newBaseComponent(c)}
 }
 
 func (c *realComponent) Region() PhaseControl {
@@ -1267,4 +1272,31 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		noDataTem.Name:       noDataTem,
 	}
 	return speAlert
+}
+
+type kubeServerComponent struct {
+	*baseComponent
+}
+
+func (c *kubeServerComponent) Setup() error {
+	return NewRegisterEndpointComponent(
+		c.manager, v1alpha1.KubeServerComponentType,
+		constants.ServiceNameKubeServer, constants.ServiceTypeKubeServer,
+		constants.KubeServerPort, "api").Setup()
+}
+
+func (c *kubeServerComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
+	if !oc.Spec.Minio.Enable {
+		return nil
+	}
+	return c.RunWithSession(func(s *mcclient.ClientSession) error {
+		if err := c.doEnableMinio(s); err != nil {
+			return errors.Wrap(err, "Enable minio")
+		}
+		return nil
+	})
+}
+
+func (c *kubeServerComponent) doEnableMinio(s *mcclient.ClientSession) error {
+	return onecloud.EnableMinio(s)
 }
