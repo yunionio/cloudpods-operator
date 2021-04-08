@@ -1,3 +1,5 @@
+# github.com/360EntSecGroup-Skylar/excelize v1.4.0
+github.com/360EntSecGroup-Skylar/excelize
 # github.com/beevik/etree v1.1.0
 github.com/beevik/etree
 # github.com/coreos/go-semver v0.2.0
@@ -69,6 +71,8 @@ github.com/google/uuid
 github.com/googleapis/gnostic/OpenAPIv2
 github.com/googleapis/gnostic/compiler
 github.com/googleapis/gnostic/extensions
+# github.com/hako/durafmt v0.0.0-20180520121703-7b7ae1e72ead
+github.com/hako/durafmt
 # github.com/hashicorp/golang-lru v0.5.1
 github.com/hashicorp/golang-lru
 github.com/hashicorp/golang-lru/simplelru
@@ -100,6 +104,8 @@ github.com/mitchellh/go-homedir
 github.com/modern-go/concurrent
 # github.com/modern-go/reflect2 v1.0.1
 github.com/modern-go/reflect2
+# github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
+github.com/mohae/deepcopy
 # github.com/moul/http2curl v1.0.0
 github.com/moul/http2curl
 # github.com/opencontainers/go-digest v0.0.0-20170106003457-a6d0ee40d420
@@ -651,12 +657,14 @@ yunion.io/x/jsonutils
 # yunion.io/x/log v0.0.0-20201210064738-43181789dc74
 yunion.io/x/log
 yunion.io/x/log/hooks
-# yunion.io/x/onecloud v0.0.0-20210408021425-076669668183
+# yunion.io/x/onecloud v0.0.0-20210408101321-3a5a7401a657
+yunion.io/x/onecloud/cmd/climc/shell
 yunion.io/x/onecloud/locales
 yunion.io/x/onecloud/pkg/ansibleserver/options
 yunion.io/x/onecloud/pkg/apis
 yunion.io/x/onecloud/pkg/apis/ansible
 yunion.io/x/onecloud/pkg/apis/billing
+yunion.io/x/onecloud/pkg/apis/cloudcommon/db
 yunion.io/x/onecloud/pkg/apis/cloudcommon/proxy
 yunion.io/x/onecloud/pkg/apis/cloudprovider
 yunion.io/x/onecloud/pkg/apis/compute
@@ -667,6 +675,7 @@ yunion.io/x/onecloud/pkg/apis/scheduler
 yunion.io/x/onecloud/pkg/appctx
 yunion.io/x/onecloud/pkg/appsrv
 yunion.io/x/onecloud/pkg/baremetal/options
+yunion.io/x/onecloud/pkg/cloudcommon/cmdline
 yunion.io/x/onecloud/pkg/cloudcommon/consts
 yunion.io/x/onecloud/pkg/cloudcommon/db/lockman
 yunion.io/x/onecloud/pkg/cloudcommon/etcd
@@ -700,6 +709,9 @@ yunion.io/x/onecloud/pkg/mcclient/models
 yunion.io/x/onecloud/pkg/mcclient/modulebase
 yunion.io/x/onecloud/pkg/mcclient/modules
 yunion.io/x/onecloud/pkg/mcclient/modules/cloudproxy
+yunion.io/x/onecloud/pkg/mcclient/modules/k8s
+yunion.io/x/onecloud/pkg/mcclient/options
+yunion.io/x/onecloud/pkg/mcclient/options/k8s
 yunion.io/x/onecloud/pkg/monitor/options
 yunion.io/x/onecloud/pkg/multicloud
 yunion.io/x/onecloud/pkg/multicloud/esxi
@@ -713,12 +725,14 @@ yunion.io/x/onecloud/pkg/util/atexit
 yunion.io/x/onecloud/pkg/util/billing
 yunion.io/x/onecloud/pkg/util/choices
 yunion.io/x/onecloud/pkg/util/cloudinit
+yunion.io/x/onecloud/pkg/util/excelutils
 yunion.io/x/onecloud/pkg/util/hashcache
 yunion.io/x/onecloud/pkg/util/httputils
 yunion.io/x/onecloud/pkg/util/iproute2
 yunion.io/x/onecloud/pkg/util/netutils2
 yunion.io/x/onecloud/pkg/util/nopanic
 yunion.io/x/onecloud/pkg/util/ovsutils
+yunion.io/x/onecloud/pkg/util/printutils
 yunion.io/x/onecloud/pkg/util/procutils
 yunion.io/x/onecloud/pkg/util/rbacutils
 yunion.io/x/onecloud/pkg/util/regutils2
@@ -735,12 +749,14 @@ yunion.io/x/onecloud/pkg/yunionconf/options
 # yunion.io/x/pkg v0.0.0-20210218105412-13a69f60034c
 yunion.io/x/pkg/errors
 yunion.io/x/pkg/gotypes
+yunion.io/x/pkg/prettytable
 yunion.io/x/pkg/sortedmap
 yunion.io/x/pkg/trace
 yunion.io/x/pkg/tristate
 yunion.io/x/pkg/util/cache
 yunion.io/x/pkg/util/clock
 yunion.io/x/pkg/util/errors
+yunion.io/x/pkg/util/fileutils
 yunion.io/x/pkg/util/netutils
 yunion.io/x/pkg/util/osprofile
 yunion.io/x/pkg/util/reflectutils

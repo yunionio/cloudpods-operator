@@ -82,15 +82,12 @@ func (m *glanceManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	opt.AutoSyncTable = true
 	opt.Port = constants.GlanceAPIPort
 
-	// TODO: uncomment setS3Config when minio deployable
-	/*
-	 * if err := m.setS3Config(oc); err != nil {
-	 *     return nil, false, err
-	 * }
-	 * if oc.Spec.Glance.SwitchToS3 {
-	 *     opt.StorageDriver = "s3"
-	 * }
-	 */
+	if oc.Spec.Glance.SwitchToS3 {
+		if err := m.setS3Config(oc); err != nil {
+			return nil, false, err
+		}
+		opt.StorageDriver = "s3"
+	}
 
 	newCfg := m.newServiceConfigMap(v1alpha1.GlanceComponentType, "", oc, opt)
 	return m.customConfig(oc, newCfg)
@@ -116,25 +113,23 @@ func (m *glanceManager) setS3Config(oc *v1alpha1.OnecloudCluster) error {
 	}
 
 	sec, err := m.kubeCli.CoreV1().Secrets(constants.OnecloudMinioNamespace).Get(constants.OnecloudMinioSecret, metav1.GetOptions{})
-	if err != nil && !errors.IsNotFound(err) {
-		return err
-	} else if errors.IsNotFound(err) {
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			return err
+		}
 		log.Infof("namespace %s not found", constants.OnecloudMinioNamespace)
-		if oc.Spec.Glance.SwitchToS3 {
-			return fmt.Errorf("namespace %s not found", constants.OnecloudMinioNamespace)
-		}
-		return nil
+		return fmt.Errorf("namespace %s not found", constants.OnecloudMinioNamespace)
 	}
+
 	svc, err := m.kubeCli.CoreV1().Services(constants.OnecloudMinioNamespace).Get(constants.OnecloudMinioSvc, metav1.GetOptions{})
-	if err != nil && !errors.IsNotFound(err) {
-		return err
-	} else if errors.IsNotFound(err) {
-		log.Infof("service %s not found", constants.OnecloudMinioNamespace)
-		if oc.Spec.Glance.SwitchToS3 {
-			return fmt.Errorf("service %s not found", constants.OnecloudMinioSvc)
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			return err
 		}
-		return nil
+		log.Infof("service %s not found", constants.OnecloudMinioNamespace)
+		return fmt.Errorf("service %s not found", constants.OnecloudMinioSvc)
 	}
+
 	//svc.Spec.ClusterIP
 	port := svc.Spec.Ports[0].Port
 	endpoint := fmt.Sprintf("%s:%d", svc.Spec.ClusterIP, port)
@@ -152,10 +147,7 @@ func (m *glanceManager) setS3Config(oc *v1alpha1.OnecloudCluster) error {
 	if secretKey, ok := sec.Data["secretkey"]; ok {
 		sk = string(secretKey)
 	} else {
-		if oc.Spec.Glance.SwitchToS3 {
-			return fmt.Errorf("s3 secret key not found")
-		}
-		return nil
+		return fmt.Errorf("s3 secret key not found")
 	}
 
 	log.Infof("glance s3 config %s %s %s", endpoint, ak, sk)
@@ -171,7 +163,7 @@ func (m *glanceManager) setS3Config(oc *v1alpha1.OnecloudCluster) error {
 	if err != nil {
 		return err
 	}
-	log.Errorf("sync configmap output %s", out)
+	log.Infof("sync configmap output %s", out)
 	s3ConfigSynced = true
 	return nil
 }
