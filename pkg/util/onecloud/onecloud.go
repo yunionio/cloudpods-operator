@@ -917,7 +917,24 @@ func isMinioEnabled(s *mcclient.ClientSession, id string) (bool, error) {
 	if err != nil {
 		return false, errors.Wrap(err, "Get cluster components status")
 	}
+	if strings.HasSuffix(status.Minio.Status, "_fail") {
+		// disable it here
+		if err := disableMinio(s, id); err != nil {
+			log.Errorf("Try disable minio when status is %s: %s", status.Minio.Status, err)
+		}
+		return false, errors.Errorf("Minio deploy status: %s", status.Monitor.Status)
+	}
 	return status.Minio.Enabled, nil
+}
+
+func disableMinio(s *mcclient.ClientSession, systemClusterId string) error {
+	params := map[string]string{
+		"type": "minio",
+	}
+	if _, err := k8smod.KubeClusters.PerformAction(s, systemClusterId, "disable-component", jsonutils.Marshal(params)); err != nil {
+		return errors.Wrap(err, "disable minio")
+	}
+	return nil
 }
 
 func enableMinio(s *mcclient.ClientSession, systemClusterId string) error {
