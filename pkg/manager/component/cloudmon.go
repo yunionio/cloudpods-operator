@@ -145,25 +145,25 @@ func (m *cloudmonManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 
 func formateCloudmonProviderCommand(reportDur uint, timeout uint, reportInterval uint, command string,
 	provider string) string {
-	return fmt.Sprintf("\necho '*/%d * * * * timeout  %d /opt/yunion/bin/cloudmon --config /etc/yunion/apigateway.conf %s --interval %d --provider %s 2>&1' >> /etc/crontabs/root",
-		reportDur, timeout, command, reportInterval, provider)
+	return fmt.Sprintf("\necho '*/%d * * * * /opt/yunion/bin/cloudmon --config /etc/yunion/apigateway.conf %s --interval %d --provider %s --timeout  %d 2>&1' >> /etc/crontabs/root",
+		reportDur, command, reportInterval, provider, timeout)
 
 }
 
 func formateCloudmonNoProviderCommand(reportDur uint, timeout uint, reportInterval uint, command string) string {
 	switch command {
 	case "ping-probe":
-		return fmt.Sprintf("\necho '*/%d * * * * timeout  %d /opt/yunion/bin/cloudmon --config /etc/yunion/apigateway.conf %s 2>&1' > /etc/crontabs/root",
-			reportDur, timeout, command)
+		return fmt.Sprintf("\necho '*/%d * * * * /opt/yunion/bin/cloudmon --config /etc/yunion/apigateway.conf %s --timeout %d 2>&1' > /etc/crontabs/root",
+			reportDur, command, timeout)
 	case "report-usage":
-		return fmt.Sprintf("\necho '*/%d * * * * timeout  %d /opt/yunion/bin/cloudmon --config /etc/yunion/apigateway.conf %s 2>&1' >> /etc/crontabs/root",
-			reportDur, timeout, command)
+		return fmt.Sprintf("\necho '*/%d * * * *  /opt/yunion/bin/cloudmon --config /etc/yunion/apigateway.conf %s timeout  %d  2>&1' >> /etc/crontabs/root",
+			reportDur, command, timeout)
 	case "report-alertrecord":
-		return fmt.Sprintf("\necho '0 0 */%d * *  timeout  %d /opt/yunion/bin/cloudmon --config /etc/yunion/apigateway.conf %s --interval %d 2>&1' >> /etc/crontabs/root",
-			reportDur, timeout, command, reportInterval)
+		return fmt.Sprintf("\necho '0 0 */%d * *  /opt/yunion/bin/cloudmon --config /etc/yunion/apigateway.conf %s --interval %d --timeout  %d 2>&1' >> /etc/crontabs/root",
+			reportDur, command, reportInterval, timeout)
 	default:
-		return fmt.Sprintf("\necho '*/%d * * * * timeout  %d /opt/yunion/bin/cloudmon --config /etc/yunion/apigateway.conf %s --interval %d 2>&1' >> /etc/crontabs/root",
-			reportDur, timeout, command, reportInterval)
+		return fmt.Sprintf("\necho '*/%d * * * *  /opt/yunion/bin/cloudmon --config /etc/yunion/apigateway.conf %s --interval %d --timeout  %d 2>&1' >> /etc/crontabs/root",
+			reportDur, command, reportInterval, timeout)
 
 	}
 }
