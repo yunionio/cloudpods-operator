@@ -1235,6 +1235,7 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		Name:        "host_raid.adapter",
 		GetPointStr: true,
 		Reduce:      "last",
+		From:        "5m",
 		Description: "检查宿主机raid控制器状态",
 	}
 	cloudaccountTem := onecloud.CommonAlertTem{
