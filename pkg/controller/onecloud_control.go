@@ -1133,6 +1133,7 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		Database:    "telegraf",
 		Measurement: "disk",
 		Operator:    "",
+		FieldFunc:   "last",
 		Field:       []string{"free", "total"},
 		FieldOpt:    "/",
 		Comparator:  "<=",
@@ -1152,13 +1153,15 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 			},
 		},
 		Name:        "disk.free/total",
-		Reduce:      "avg",
+		Reduce:      "last",
+		From:        "5m",
 		Description: "检测宿主机磁盘容量空闲率",
 	}
 	diskNodeAvaTem := onecloud.CommonAlertTem{
 		Database:    "telegraf",
 		Measurement: "disk",
 		Operator:    "",
+		FieldFunc:   "last",
 		Field:       []string{"inodes_free", "inodes_total"},
 		FieldOpt:    "/",
 		Comparator:  "<=",
@@ -1172,7 +1175,8 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 			},
 		},
 		Name:        "disk.inodes_free/inodes_total",
-		Reduce:      "avg",
+		Reduce:      "last",
+		From:        "5m",
 		Description: "检测宿主机磁盘inode空闲率",
 	}
 	smartDevTem := onecloud.CommonAlertTem{
