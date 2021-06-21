@@ -599,6 +599,7 @@ type CommonAlertTem struct {
 	ConditionType string `json:"condition_type"`
 	From          string `json:"from"`
 	Interval      string `json:"interval"`
+	GroupBy       string `json:"group_by"`
 }
 
 func GetCommonAlertOfSys(session *mcclient.ClientSession) ([]jsonutils.JSONObject, error) {
@@ -733,7 +734,7 @@ func newCommonalertQuery(tem CommonAlertTem) monitorapi.CommonAlertQuery {
 		Database:     tem.Database,
 		Measurement:  tem.Measurement,
 		Tags:         make([]monitorapi.MetricQueryTag, 0),
-		GroupBy:      nil,
+		GroupBy:      make([]monitorapi.MetricQueryPart, 0),
 		Selects:      nil,
 		Interval:     "",
 		Policy:       "",
@@ -786,6 +787,12 @@ func newCommonalertQuery(tem CommonAlertTem) monitorapi.CommonAlertQuery {
 	}
 	if len(tem.ConditionType) != 0 {
 		commonAlert.ConditionType = tem.ConditionType
+	}
+	if len(tem.GroupBy) != 0 {
+		commonAlert.Model.GroupBy = append(commonAlert.Model.GroupBy, monitorapi.MetricQueryPart{
+			Type:   "field",
+			Params: []string{tem.GroupBy},
+		})
 	}
 	return commonAlert
 }
