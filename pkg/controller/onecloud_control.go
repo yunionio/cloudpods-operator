@@ -1129,7 +1129,7 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		Threshold:   90,
 		Name:        "cpu.usage_active",
 		Reduce:      "avg",
-		Description: "检测宿主机CPU使用率",
+		Description: "监测宿主机CPU使用率",
 	}
 	memTem := onecloud.CommonAlertTem{
 		Database:    "telegraf",
@@ -1139,12 +1139,13 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		Threshold:   524288000,
 		Name:        "mem.available",
 		Reduce:      "avg",
-		Description: "检测宿主机可用内存",
+		Description: "监测宿主机可用内存",
 	}
 	diskAvaTem := onecloud.CommonAlertTem{
 		Database:    "telegraf",
 		Measurement: "disk",
 		Operator:    "",
+		FieldFunc:   "last",
 		Field:       []string{"free", "total"},
 		FieldOpt:    "/",
 		Comparator:  "<=",
@@ -1164,13 +1165,15 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 			},
 		},
 		Name:        "disk.free/total",
-		Reduce:      "avg",
-		Description: "检测宿主机磁盘容量空闲率",
+		Reduce:      "last",
+		From:        "5m",
+		Description: "监测宿主机磁盘容量空闲率",
 	}
 	diskNodeAvaTem := onecloud.CommonAlertTem{
 		Database:    "telegraf",
 		Measurement: "disk",
 		Operator:    "",
+		FieldFunc:   "last",
 		Field:       []string{"inodes_free", "inodes_total"},
 		FieldOpt:    "/",
 		Comparator:  "<=",
@@ -1184,8 +1187,9 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 			},
 		},
 		Name:        "disk.inodes_free/inodes_total",
-		Reduce:      "avg",
-		Description: "检测宿主机磁盘inode空闲率",
+		Reduce:      "last",
+		From:        "5m",
+		Description: "监测宿主机磁盘inode空闲率",
 	}
 	smartDevTem := onecloud.CommonAlertTem{
 		Database:    "telegraf",
@@ -1204,7 +1208,7 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		},
 		Name:        "smart_device.exit_status",
 		Reduce:      "last",
-		Description: "检测磁盘健康状态",
+		Description: "监测磁盘健康状态",
 	}
 	genHostRaidStatusFilter := func(status ...string) []monitor.MetricQueryTag {
 		ret := make([]monitor.MetricQueryTag, 0)
@@ -1246,7 +1250,7 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		Threshold:   100,
 		Name:        "cloudaccount_balance.balance",
 		Reduce:      "last",
-		Description: "检测云账号余额",
+		Description: "监测云账号余额",
 	}
 	noDataTem := onecloud.CommonAlertTem{
 		Database:      "telegraf",
@@ -1260,17 +1264,50 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		ConditionType: "nodata_query",
 		From:          "3m",
 		Interval:      "1m",
-		Description:   "检测部署节点是否下线",
+		Description:   "监测部署节点是否下线",
 	}
+
+	defunctProcessTem := onecloud.CommonAlertTem{
+		Database:    "telegraf",
+		Measurement: "processes",
+		Operator:    "",
+		FieldFunc:   "last",
+		Field:       []string{"zombies"},
+		GroupBy:     "host_id",
+		Comparator:  ">=",
+		Threshold:   10,
+		Name:        "process.zombies",
+		Reduce:      "last",
+		From:        "5m",
+		Description: "监测节点僵尸进程数",
+	}
+
+	totalProcessTem := onecloud.CommonAlertTem{
+		Database:    "telegraf",
+		Measurement: "processes",
+		Operator:    "",
+		FieldFunc:   "last",
+		Field:       []string{"total"},
+		GroupBy:     "host_id",
+		Comparator:  ">=",
+		Threshold:   20000,
+		Name:        "process.zombies",
+		Reduce:      "last",
+		From:        "5m",
+		Description: "监测节点总进程数",
+	}
+
 	speAlert := map[string]onecloud.CommonAlertTem{
-		cpuTem.Name:          cpuTem,
-		memTem.Name:          memTem,
-		diskAvaTem.Name:      diskAvaTem,
-		diskNodeAvaTem.Name:  diskNodeAvaTem,
-		cloudaccountTem.Name: cloudaccountTem,
-		smartDevTem.Name:     smartDevTem,
-		hostRaidTem.Name:     hostRaidTem,
-		noDataTem.Name:       noDataTem,
+		cpuTem.Name:            cpuTem,
+		memTem.Name:            memTem,
+		diskAvaTem.Name:        diskAvaTem,
+		diskNodeAvaTem.Name:    diskNodeAvaTem,
+		cloudaccountTem.Name:   cloudaccountTem,
+		smartDevTem.Name:       smartDevTem,
+		hostRaidTem.Name:       hostRaidTem,
+		noDataTem.Name:         noDataTem,
+		defunctProcessTem.Name: defunctProcessTem,
+		totalProcessTem.Name:   totalProcessTem,
 	}
 	return speAlert
 }
