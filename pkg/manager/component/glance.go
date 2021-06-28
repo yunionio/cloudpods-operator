@@ -132,7 +132,7 @@ func (m *glanceManager) setS3Config(oc *v1alpha1.OnecloudCluster) error {
 
 	//svc.Spec.ClusterIP
 	port := svc.Spec.Ports[0].Port
-	endpoint := fmt.Sprintf("%s:%d", svc.Spec.ClusterIP, port)
+	endpoint := fmt.Sprintf("%s.%s:%d", svc.GetName(), svc.GetNamespace(), port)
 
 	var ak, sk string
 	// base64 decode
