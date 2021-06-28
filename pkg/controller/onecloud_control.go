@@ -1279,7 +1279,7 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		GroupBy:     "host_id",
 		Comparator:  ">=",
 		Threshold:   20000,
-		Name:        "process.zombies",
+		Name:        "process.total",
 		Reduce:      "last",
 		From:        "5m",
 		Description: "监测节点总进程数",
