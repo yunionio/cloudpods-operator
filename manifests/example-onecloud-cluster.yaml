@@ -183,4 +183,4 @@ spec:
     password: "password"
   region: "region0"
   imageRepository: "registry.cn-beijing.aliyuncs.com/yunionio"
-  version: v3.4.8
+  version: v3.7.5
