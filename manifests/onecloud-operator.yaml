@@ -46,7 +46,7 @@ spec:
       serviceAccount: onecloud-operator
       containers:
       - name: onecloud-operator
-        image: registry.cn-beijing.aliyuncs.com/yunionio/onecloud-operator:v3.4.8
+        image: registry.cn-beijing.aliyuncs.com/yunionio/onecloud-operator:v3.7.5
         imagePullPolicy: Always
         command: ["/bin/onecloud-controller-manager", "-sync-user"]
         env:
