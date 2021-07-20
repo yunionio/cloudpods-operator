@@ -58,7 +58,7 @@ func (m *kubeManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha
 }
 
 func (m *kubeManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
-	return man.KubeServer()
+	return man.KubeServer(m.nodeLister)
 }
 
 func (m *kubeManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {

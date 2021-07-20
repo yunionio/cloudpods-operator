@@ -23,6 +23,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
+	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/klog"
 
 	"yunion.io/x/jsonutils"
@@ -38,6 +39,7 @@ import (
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
+	"yunion.io/x/onecloud-operator/pkg/util/k8sutil"
 	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 )
 
@@ -226,7 +228,7 @@ type ComponentManager interface {
 	GetController() *OnecloudControl
 	GetCluster() *v1alpha1.OnecloudCluster
 	Keystone() PhaseControl
-	KubeServer() PhaseControl
+	KubeServer(nodeLister corelisters.NodeLister) PhaseControl
 	Region() PhaseControl
 	Glance() PhaseControl
 	YunionAgent() PhaseControl
@@ -270,8 +272,11 @@ func (c *realComponent) Keystone() PhaseControl {
 	return &keystoneComponent{newBaseComponent(c)}
 }
 
-func (c *realComponent) KubeServer() PhaseControl {
-	return &kubeServerComponent{newBaseComponent(c)}
+func (c *realComponent) KubeServer(nodeLister corelisters.NodeLister) PhaseControl {
+	return &kubeServerComponent{
+		baseComponent: newBaseComponent(c),
+		nodeLister:    nodeLister,
+	}
 }
 
 func (c *realComponent) Region() PhaseControl {
@@ -1314,6 +1319,8 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 
 type kubeServerComponent struct {
 	*baseComponent
+
+	nodeLister corelisters.NodeLister
 }
 
 func (c *kubeServerComponent) Setup() error {
@@ -1327,14 +1334,36 @@ func (c *kubeServerComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 	if !oc.Spec.Minio.Enable {
 		return nil
 	}
+	masterNodes, err := k8sutil.GetReadyMasterNodes(c.nodeLister)
+	if err != nil {
+		return errors.Wrap(err, "List k8s ready master node")
+	}
+
+	spec := &oc.Spec.Minio
+	if len(masterNodes) >= 3 {
+		if spec.Mode == "" {
+			spec.Mode = v1alpha1.MinioModeDistributed
+		}
+	} else {
+		if spec.Mode == v1alpha1.MinioModeDistributed {
+			return errors.Errorf("Master ready node count %d, but mode is %s", len(masterNodes), spec.Mode)
+		}
+
+		if spec.Mode == "" {
+			spec.Mode = v1alpha1.MinioModeStandalone
+		}
+	}
 	return c.RunWithSession(func(s *mcclient.ClientSession) error {
-		if err := c.doEnableMinio(s); err != nil {
+		if err := c.doEnableMinio(s, spec); err != nil {
 			return errors.Wrap(err, "Enable minio")
 		}
 		return nil
 	})
 }
 
-func (c *kubeServerComponent) doEnableMinio(s *mcclient.ClientSession) error {
-	return onecloud.EnableMinio(s)
+func (c *kubeServerComponent) doEnableMinio(
+	s *mcclient.ClientSession,
+	spec *v1alpha1.Minio,
+) error {
+	return onecloud.SyncMinio(s, spec)
 }

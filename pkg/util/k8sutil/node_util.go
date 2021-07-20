@@ -16,6 +16,11 @@ package k8sutil
 
 import (
 	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
+	corelisters "k8s.io/client-go/listers/core/v1"
+
+	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 )
 
 // IsNodeReady checks if the Node condition is ready.
@@ -27,4 +32,28 @@ func IsNodeReady(n v1.Node) bool {
 	}
 
 	return false
+}
+
+func GetReadyMasterNodes(lister corelisters.NodeLister) ([]*v1.Node, error) {
+	// list nodes by master node selector
+	masterNodeSelector := labels.NewSelector()
+	r, err := labels.NewRequirement(
+		constants.LabelNodeRoleMaster, selection.Exists, nil)
+	if err != nil {
+		return nil, err
+	}
+	masterNodeSelector = masterNodeSelector.Add(*r)
+	nodes, err := lister.List(masterNodeSelector)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := []*v1.Node{}
+	for _, n := range nodes {
+		if IsNodeReady(*n) {
+			ret = append(ret, n)
+		}
+	}
+
+	return ret, nil
 }

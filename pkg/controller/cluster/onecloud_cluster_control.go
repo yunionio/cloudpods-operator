@@ -5,6 +5,9 @@ import (
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	errorutils "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/tools/record"
+
+	"yunion.io/x/log"
+
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
@@ -56,6 +59,7 @@ func (occ *defaultClusterControl) UpdateOnecloudCluster(oc *v1alpha1.OnecloudClu
 	if apiequality.Semantic.DeepEqual(&oc.Status, oldStatus) {
 		return errorutils.NewAggregate(errs)
 	}
+
 	if _, err := occ.ocControl.UpdateCluster(oc.DeepCopy(), &oc.Status, oldStatus); err != nil {
 		errs = append(errs, err)
 	}
@@ -145,5 +149,16 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 	if err := grp.Wait(); err != nil {
 		return err
 	}
+
+	var addonComponents = []manager.Manager{
+		components.MonitorStack(),
+	}
+	// addon components' error will be ignore, only use log.Warningf
+	for _, c := range addonComponents {
+		if err := c.Sync(oc); err != nil {
+			log.Warningf("Sync addons %v error: %v", c, err)
+		}
+	}
+
 	return nil
 }
