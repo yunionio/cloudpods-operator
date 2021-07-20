@@ -15,7 +15,7 @@ github.com/docker/distribution/digestset
 github.com/docker/distribution/reference
 # github.com/evanphx/json-patch v0.0.0-20190203023257-5858425f7550
 github.com/evanphx/json-patch
-# github.com/fatih/color v1.7.0
+# github.com/fatih/color v1.9.0
 github.com/fatih/color
 # github.com/ghodss/yaml v1.0.0
 github.com/ghodss/yaml
@@ -81,26 +81,42 @@ github.com/hashicorp/golang-lru
 github.com/hashicorp/golang-lru/simplelru
 # github.com/imdario/mergo v0.3.7
 github.com/imdario/mergo
-# github.com/json-iterator/go v1.1.9
+# github.com/json-iterator/go v1.1.10
 github.com/json-iterator/go
-# github.com/konsorten/go-windows-terminal-sequences v1.0.1
-github.com/konsorten/go-windows-terminal-sequences
+# github.com/klauspost/cpuid v1.3.1
+github.com/klauspost/cpuid
 # github.com/leodido/go-urn v1.2.0
 github.com/leodido/go-urn
 # github.com/ma314smith/signedxml v0.0.0-20200410192636-c342a2d0ae60
 github.com/ma314smith/signedxml
-# github.com/mattn/go-colorable v0.1.2
+# github.com/mattn/go-colorable v0.1.4
 github.com/mattn/go-colorable
 # github.com/mattn/go-isatty v0.0.12
 github.com/mattn/go-isatty
 # github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b
 github.com/mgutz/ansi
+# github.com/minio/md5-simd v1.1.0
+github.com/minio/md5-simd
 # github.com/minio/minio-go/v6 v6.0.33
 github.com/minio/minio-go/v6/pkg/credentials
 github.com/minio/minio-go/v6/pkg/encrypt
 github.com/minio/minio-go/v6/pkg/s3signer
 github.com/minio/minio-go/v6/pkg/s3utils
 github.com/minio/minio-go/v6/pkg/set
+# github.com/minio/minio-go/v7 v7.0.6
+github.com/minio/minio-go/v7
+github.com/minio/minio-go/v7/pkg/credentials
+github.com/minio/minio-go/v7/pkg/encrypt
+github.com/minio/minio-go/v7/pkg/lifecycle
+github.com/minio/minio-go/v7/pkg/notification
+github.com/minio/minio-go/v7/pkg/replication
+github.com/minio/minio-go/v7/pkg/s3utils
+github.com/minio/minio-go/v7/pkg/set
+github.com/minio/minio-go/v7/pkg/signer
+github.com/minio/minio-go/v7/pkg/sse
+github.com/minio/minio-go/v7/pkg/tags
+# github.com/minio/sha256-simd v0.1.1
+github.com/minio/sha256-simd
 # github.com/mitchellh/go-homedir v1.1.0
 github.com/mitchellh/go-homedir
 # github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
@@ -117,7 +133,9 @@ github.com/opencontainers/go-digest
 github.com/pborman/uuid
 # github.com/pkg/errors v0.9.1
 github.com/pkg/errors
-# github.com/sirupsen/logrus v1.4.2
+# github.com/rs/xid v1.2.1
+github.com/rs/xid
+# github.com/sirupsen/logrus v1.7.0
 github.com/sirupsen/logrus
 # github.com/spf13/pflag v1.0.3
 github.com/spf13/pflag
@@ -187,7 +205,7 @@ go.uber.org/zap/internal/bufferpool
 go.uber.org/zap/internal/color
 go.uber.org/zap/internal/exit
 go.uber.org/zap/zapcore
-# golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+# golang.org/x/crypto v0.0.0-20200709230013-948cd5f35899
 golang.org/x/crypto/argon2
 golang.org/x/crypto/bcrypt
 golang.org/x/crypto/blake2b
@@ -329,7 +347,7 @@ google.golang.org/protobuf/types/known/timestamppb
 gopkg.in/fatih/set.v0
 # gopkg.in/inf.v0 v0.9.1
 gopkg.in/inf.v0
-# gopkg.in/ini.v1 v1.44.0
+# gopkg.in/ini.v1 v1.57.0
 gopkg.in/ini.v1
 # gopkg.in/yaml.v2 v2.2.8
 gopkg.in/yaml.v2
@@ -659,7 +677,7 @@ yunion.io/x/jsonutils
 # yunion.io/x/log v0.0.0-20201210064738-43181789dc74
 yunion.io/x/log
 yunion.io/x/log/hooks
-# yunion.io/x/onecloud v0.0.0-20210811095057-b47946b56220
+# yunion.io/x/onecloud v0.0.0-20210815030108-f0dfe268c702
 yunion.io/x/onecloud/cmd/climc/shell
 yunion.io/x/onecloud/locales
 yunion.io/x/onecloud/pkg/ansibleserver/options

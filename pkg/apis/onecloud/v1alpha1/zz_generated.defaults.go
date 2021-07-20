@@ -36,13 +36,10 @@ func RegisterDefaults(scheme *runtime.Scheme) error {
 
 func SetObjectDefaults_OnecloudCluster(in *OnecloudCluster) {
 	SetDefaults_OnecloudCluster(in)
-	SetDefaults_Mysql(&in.Spec.Mysql)
 }
 
 func SetObjectDefaults_OnecloudClusterConfig(in *OnecloudClusterConfig) {
 	SetDefaults_OnecloudClusterConfig(in)
-	SetDefaults_KeystoneConfig(&in.Keystone)
-	SetDefaults_ItsmConfig(&in.Itsm)
 }
 
 func SetObjectDefaults_OnecloudClusterList(in *OnecloudClusterList) {

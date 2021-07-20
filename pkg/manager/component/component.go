@@ -445,7 +445,7 @@ func (m *ComponentManager) SetComponentAffinity(spec *v1alpha1.DeploymentSpec) {
 	}
 	spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &corev1.NodeSelector{
 		NodeSelectorTerms: []corev1.NodeSelectorTerm{
-			corev1.NodeSelectorTerm{
+			{
 				MatchExpressions: []corev1.NodeSelectorRequirement{
 					{
 						Key:      constants.OnecloudControllerLabelKey,
@@ -1253,6 +1253,10 @@ func (m *ComponentManager) Cloudmon() manager.Manager {
 
 func (m *ComponentManager) Suggestion() manager.Manager {
 	return newSuggestionManager(m)
+}
+
+func (m *ComponentManager) MonitorStack() manager.Manager {
+	return newMonitorStackManager(m)
 }
 
 func setSelfAntiAffnity(deploy *apps.Deployment, component v1alpha1.ComponentType) *apps.Deployment {
