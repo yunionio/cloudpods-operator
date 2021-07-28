@@ -34,6 +34,7 @@ const (
 	HOST_TYPE_ZSTACK    = "zstack"
 	HOST_TYPE_GOOGLE    = "google"
 	HOST_TYPE_CTYUN     = "ctyun"
+	HOST_TYPE_ECLOUD    = "ecloud"
 
 	HOST_TYPE_DEFAULT = HOST_TYPE_HYPERVISOR
 
@@ -130,8 +131,4 @@ const (
 	HOST_HEALTH_PREFIX         = "/onecloud/kvm/host/health"
 	HOST_HEALTH_STATUS_RUNNING = "running"
 	HOST_HEALTH_LOCK_PREFIX    = "host-health"
-)
-
-const (
-	CPU_ARCH_AARCH64 = "aarch64"
 )

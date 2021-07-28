@@ -62,9 +62,9 @@ type ServerListInput struct {
 	// enum: linux,windows,vmware
 	OsType []string `json:"os_type"`
 
-	// 对列表结果按照磁盘进行排序
+	// 对列表结果按照磁盘大小进行排序
 	// enum: asc,desc
-	// OrderByDisk string `json:"order_by_disk"`
+	OrderByDisk string `json:"order_by_disk"`
 
 	// 根据ip查找机器
 	IpAddr string `json:"ip_addr"`
@@ -517,4 +517,28 @@ type ServerDetachnetworkInput struct {
 	IpAddr string `json:"ip_addr"`
 	// 通过Mac解绑网卡, 优先级低于ip_addr
 	Mac string `json:"mac"`
+}
+
+type ServerMigrateForecastInput struct {
+	PreferHostId string `json:"prefer_host_id"`
+	// Deprecated
+	PreferHost   string `json:"prefer_host" yunion-deprecated-by:"prefer_host_id"`
+	LiveMigrate  bool   `json:"live_migrate"`
+	SkipCpuCheck bool   `josn:"skip_cpu_check"`
+}
+
+type ServerResizeDiskInput struct {
+	// swagger: ignore
+	Disk string `json:"disk" yunion-deprecated-by:"disk_id"`
+	// 磁盘Id
+	DiskId string `json:"disk_id"`
+
+	DiskResizeInput
+}
+
+type ServerMigrateNetworkInput struct {
+	// Source network Id
+	Src string `json:"src"`
+	// Destination network Id
+	Dest string `json:"dest"`
 }

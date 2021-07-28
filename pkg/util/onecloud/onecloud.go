@@ -946,22 +946,24 @@ func disableMinio(s *mcclient.ClientSession, systemClusterId string) error {
 
 func enableMinio(s *mcclient.ClientSession, systemClusterId string) error {
 	opt := &k8s.ClusterEnableComponentMinioOpt{
-		ClusterComponentOptions: k8s.ClusterComponentOptions{
-			IdentOptions: k8s.IdentOptions{
-				ID: systemClusterId,
+		ClusterEnableComponentMinioBaseOpt: k8s.ClusterEnableComponentMinioBaseOpt{
+			ClusterComponentOptions: k8s.ClusterComponentOptions{
+				IdentOptions: k8s.IdentOptions{
+					ID: systemClusterId,
+				},
 			},
-		},
-		ClusterComponentMinioSetting: k8s.ClusterComponentMinioSetting{
-			Mode:          "distributed",
-			Replicas:      4,
-			DrivesPerNode: 1,
-			AccessKey:     "minioadmin",
-			SecretKey:     "yunionminio@admin",
-			MountPath:     "/export",
-			Storage: k8s.ClusterComponentStorage{
-				Enabled:   true,
-				SizeMB:    1024 * 1024,
-				ClassName: v1alpha1.DefaultStorageClass,
+			ClusterComponentMinioSetting: k8s.ClusterComponentMinioSetting{
+				Mode:          "distributed",
+				Replicas:      4,
+				DrivesPerNode: 1,
+				AccessKey:     "minioadmin",
+				SecretKey:     "yunionminio@admin",
+				MountPath:     "/export",
+				Storage: k8s.ClusterComponentStorage{
+					Enabled:   true,
+					SizeMB:    1024 * 1024,
+					ClassName: v1alpha1.DefaultStorageClass,
+				},
 			},
 		},
 	}

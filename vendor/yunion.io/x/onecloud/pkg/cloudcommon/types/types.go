@@ -17,6 +17,12 @@ package types
 import (
 	"net"
 	"strings"
+
+	"yunion.io/x/pkg/errors"
+)
+
+const (
+	ErrIPMIToolNull = errors.Error("IPMI tool is null")
 )
 
 type SSHConfig struct {
@@ -93,7 +99,7 @@ type SNicDevInfo struct {
 	Dev   string           `json:"dev"`
 	Mac   net.HardwareAddr `json:"mac"`
 	Speed int              `json:"speed"`
-	Up    bool             `json:"up"`
+	Up    *bool            `json:"up"`
 	Mtu   int              `json:"mtu"`
 }
 
