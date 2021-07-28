@@ -78,6 +78,7 @@ type ComputeOptions struct {
 	DefaultLoadbalancerQuota int `default:"10" help:"Common loadbalancer quota per tenant, default 10"`
 	DefaultRdsQuota          int `default:"10" help:"Common RDS quota per tenant, default 10"`
 	DefaultCacheQuota        int `default:"10" help:"Common ElasticCache quota per tenant, default 10"`
+	DefaultMongodbQuota      int `default:"10" help:"Common MongoDB quota per tenant, default 10"`
 
 	DefaultGlobalvpcQuota    int `default:"10" help:"Common global Vpc quota per domain, default 10"`
 	DefaultCloudaccountQuota int `default:"20" help:"Common cloud account quota per domain, default 20"`
@@ -102,6 +103,8 @@ type ComputeOptions struct {
 	TimePointsLimit     int `default:"1" help:"time point of every days, default 1 point"`
 	RepeatWeekdaysLimit int `default:"7" help:"day point of every weekday, default 7 points"`
 
+	ServerSkuSyncIntervalMinutes int `default:"60" help:"Interval to sync public cloud server skus, defualt is 1 hour"`
+
 	// sku sync
 	SyncSkusDay  int `default:"1" help:"Days auto sync skus data, default 1 day"`
 	SyncSkusHour int `default:"3" help:"What hour start sync skus, default 03:00"`
@@ -114,6 +117,8 @@ type ComputeOptions struct {
 	SyncCloudImagesDay  int `default:"1" help:"Days auto sync public cloud images data, default 1 day"`
 	SyncCloudImagesHour int `default:"3" help:"What hour start sync public cloud images, default 03:00"`
 
+	EnablePreAllocateIpAddr bool `help:"Enable private and public cloud private ip pre allocate, default false" default:"false"`
+
 	DefaultImageCacheDir string `default:"image_cache"`
 
 	SnapshotCreateDiskProtocol string `help:"Snapshot create disk protocol" choices:"url|fuse" default:"fuse"`
@@ -124,6 +129,7 @@ type ComputeOptions struct {
 	MinimalIpAddrReusedIntervalSeconds int `help:"Minimal seconds when a release IP address can be reallocate" default:"30"`
 
 	CloudSyncWorkerCount         int `help:"how many current synchronization threads" default:"5"`
+	CloudProviderSyncWorkerCount int `help:"how many current providers synchronize their regions, practically no limit" default:"10"`
 	CloudAutoSyncIntervalSeconds int `help:"frequency to check auto sync tasks" default:"30"`
 	DefaultSyncIntervalSeconds   int `help:"minimal synchronization interval, default 15 minutes" default:"900"`
 	MinimalSyncIntervalSeconds   int `help:"minimal synchronization interval, default 30 minutes" default:"1800"`
@@ -139,8 +145,6 @@ type ComputeOptions struct {
 
 	EnableHostHealthCheck bool `help:"enable host health check" default:"true"`
 	HostHealthTimeout     int  `help:"second of wait host reconnect" default:"60"`
-
-	FetchEtcdServiceInfoAndUseEtcdLock bool `default:"false" help:"fetch etcd service info and use etcd lock"`
 
 	GuestTemplateCheckInterval int `help:"interval between two consecutive inspections of Guest Template in hour unit" default:"12"`
 
@@ -169,6 +173,8 @@ type ComputeOptions struct {
 	DefaultVpcExternalAccessMode string `help:"default external access mode for on-premise vpc"`
 
 	NoCheckOsTypeForCachedImage bool `help:"Don't check os type for cached image"`
+
+	ProhibitRefreshingCloudImage bool `help:"Prohibit refreshing cloud image"`
 
 	esxi.EsxiOptions
 }

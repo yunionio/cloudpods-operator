@@ -1,3 +1,17 @@
+// Copyright 2019 Yunion
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package monitor
 
 var (
@@ -40,6 +54,7 @@ var (
 		"brand":          "brand",
 		"domain_id":      "domain_id",
 		"project_domain": "project_domain",
+		"access_ip":      "access_ip",
 	}
 
 	RdsTags = map[string]string{
@@ -143,5 +158,20 @@ var (
 	DomainTags = map[string]string{
 		"domain_id":      "id",
 		"project_domain": "name",
+	}
+
+	StorageTags = map[string]string{
+		"storage_id":     "id",
+		"storage_name":   "name",
+		"zone":           "zone",
+		"zone_id":        "zone_id",
+		"zone_ext_id":    "zone_ext_id",
+		"status":         "status",
+		"cloudregion":    "cloudregion",
+		"cloudregion_id": "cloudregion_id",
+		"region_ext_id":  "region_ext_id",
+		"brand":          "brand",
+		"domain_id":      "domain_id",
+		"project_domain": "project_domain",
 	}
 )

@@ -28,6 +28,13 @@ type GuestSshableMethodData struct {
 
 	Sshable bool
 	Reason  string
+
+	ForwardDetails ForwardDetails
+}
+
+type ForwardDetails struct {
+	ProxyAgentId    string
+	ProxyEndpointId string
 }
 
 type GuestSshableOutput struct {
@@ -35,4 +42,18 @@ type GuestSshableOutput struct {
 	PublicKey string
 
 	MethodTried []GuestSshableMethodData
+}
+
+type GuestMakeSshableInput struct {
+	User       string
+	PrivateKey string
+	Password   string
+}
+
+type GuestMakeSshableOutput struct {
+	AnsiblePlaybookId string
+}
+
+type GuestMakeSshableCmdOutput struct {
+	ShellCmd string
 }

@@ -44,6 +44,11 @@ type ICloudResource interface {
 	SetTags(tags map[string]string, replace bool) error
 }
 
+type ICloudEnabledResource interface {
+	ICloudResource
+	GetEnabled() bool
+}
+
 type IVirtualResource interface {
 	ICloudResource
 
@@ -153,6 +158,31 @@ type ICloudRegion interface {
 	GetCapabilities() []string
 
 	GetICloudQuotas() ([]ICloudQuota, error)
+
+	GetICloudFileSystems() ([]ICloudFileSystem, error)
+	GetICloudFileSystemById(id string) (ICloudFileSystem, error)
+
+	CreateICloudFileSystem(opts *FileSystemCraeteOptions) (ICloudFileSystem, error)
+
+	GetICloudAccessGroups() ([]ICloudAccessGroup, error)
+	CreateICloudAccessGroup(opts *SAccessGroup) (ICloudAccessGroup, error)
+	GetICloudAccessGroupById(id string) (ICloudAccessGroup, error)
+
+	GetICloudWafIPSets() ([]ICloudWafIPSet, error)
+	GetICloudWafRegexSets() ([]ICloudWafRegexSet, error)
+	GetICloudWafInstances() ([]ICloudWafInstance, error)
+	GetICloudWafInstanceById(id string) (ICloudWafInstance, error)
+	CreateICloudWafInstance(opts *WafCreateOptions) (ICloudWafInstance, error)
+	GetICloudWafRuleGroups() ([]ICloudWafRuleGroup, error)
+
+	GetICloudMongoDBs() ([]ICloudMongoDB, error)
+	GetICloudMongoDBById(id string) (ICloudMongoDB, error)
+
+	GetIElasticSearchs() ([]ICloudElasticSearch, error)
+	GetIElasticSearchById(id string) (ICloudElasticSearch, error)
+
+	GetICloudKafkas() ([]ICloudKafka, error)
+	GetICloudKafkaById(id string) (ICloudKafka, error)
 }
 
 type ICloudZone interface {
@@ -230,6 +260,8 @@ type ICloudStorage interface {
 	GetMountPoint() string
 
 	IsSysDiskStore() bool
+
+	DisableSync() bool
 }
 
 type ICloudHost interface {
@@ -616,6 +648,31 @@ type ICloudLoadbalancer interface {
 	GetILoadBalancerListenerById(listenerId string) (ICloudLoadbalancerListener, error)
 }
 
+type ICloudLoadbalancerRedirect interface {
+	GetRedirect() string
+	GetRedirectCode() int64
+	GetRedirectScheme() string
+	GetRedirectHost() string
+	GetRedirectPath() string
+}
+
+type ICloudloadbalancerHealthCheck interface {
+	GetHealthCheck() string
+	GetHealthCheckType() string
+	GetHealthCheckTimeout() int
+	GetHealthCheckInterval() int
+	GetHealthCheckRise() int
+	GetHealthCheckFail() int
+
+	GetHealthCheckReq() string
+	GetHealthCheckExp() string
+
+	// HTTP && HTTPS
+	GetHealthCheckDomain() string
+	GetHealthCheckURI() string
+	GetHealthCheckCode() string
+}
+
 type ICloudLoadbalancerListener interface {
 	IVirtualResource
 
@@ -627,24 +684,13 @@ type ICloudLoadbalancerListener interface {
 	GetAclId() string
 
 	GetEgressMbps() int
-
-	GetHealthCheck() string
-	GetHealthCheckType() string
-	GetHealthCheckTimeout() int
-	GetHealthCheckInterval() int
-	GetHealthCheckRise() int
-	GetHealthCheckFail() int
-
-	GetHealthCheckReq() string
-	GetHealthCheckExp() string
-
 	GetBackendGroupId() string
 	GetBackendServerPort() int
 
+	GetClientIdleTimeout() int
+	GetBackendConnectTimeout() int
+
 	// HTTP && HTTPS
-	GetHealthCheckDomain() string
-	GetHealthCheckURI() string
-	GetHealthCheckCode() string
 	CreateILoadBalancerListenerRule(rule *SLoadbalancerListenerRule) (ICloudLoadbalancerListenerRule, error)
 	GetILoadBalancerListenerRuleById(ruleId string) (ICloudLoadbalancerListenerRule, error)
 	GetILoadbalancerListenerRules() ([]ICloudLoadbalancerListenerRule, error)
@@ -660,6 +706,10 @@ type ICloudLoadbalancerListener interface {
 	GetTLSCipherPolicy() string
 	HTTP2Enabled() bool
 
+	// http redirect
+	ICloudLoadbalancerRedirect
+	ICloudloadbalancerHealthCheck
+
 	Start() error
 	Stop() error
 	Sync(ctx context.Context, listener *SLoadbalancerListener) error
@@ -669,6 +719,8 @@ type ICloudLoadbalancerListener interface {
 
 type ICloudLoadbalancerListenerRule interface {
 	IVirtualResource
+	// http redirect
+	ICloudLoadbalancerRedirect
 
 	IsDefault() bool
 	GetDomain() string
@@ -706,6 +758,7 @@ type ICloudLoadbalancerBackend interface {
 	GetBackendType() string
 	GetBackendRole() string
 	GetBackendId() string
+	GetIpAddress() string // backend type is ip
 	SyncConf(ctx context.Context, port, weight int) error
 }
 
@@ -1216,4 +1269,177 @@ type ICloudInterVpcNetworkRoute interface {
 
 	GetEnabled() bool
 	GetCidr() string
+}
+
+type ICloudFileSystem interface {
+	ICloudResource
+	IBillingResource
+
+	GetFileSystemType() string
+	GetStorageType() string
+	GetProtocol() string
+	GetCapacityGb() int64
+	GetUsedCapacityGb() int64
+	GetMountTargetCountLimit() int
+
+	GetZoneId() string
+
+	GetMountTargets() ([]ICloudMountTarget, error)
+	CreateMountTarget(opts *SMountTargetCreateOptions) (ICloudMountTarget, error)
+
+	Delete() error
+}
+
+type ICloudMountTarget interface {
+	GetGlobalId() string
+	GetName() string
+	GetAccessGroupId() string
+	GetDomainName() string
+	GetNetworkType() string
+	GetVpcId() string
+	GetNetworkId() string
+	GetStatus() string
+
+	Delete() error
+}
+
+type ICloudAccessGroup interface {
+	GetGlobalId() string
+	GetName() string
+	GetDesc() string
+	IsDefault() bool
+	GetMaxPriority() int
+	GetMinPriority() int
+	GetSupporedUserAccessTypes() []TUserAccessType
+	GetNetworkType() string
+	GetFileSystemType() string
+	GetMountTargetCount() int
+
+	GetRules() ([]AccessGroupRule, error)
+	SyncRules(common, added, removed AccessGroupRuleSet) error
+
+	Delete() error
+}
+
+type ICloudWafIPSet interface {
+	GetName() string
+	GetDesc() string
+	GetType() TWafType
+	GetGlobalId() string
+	GetAddresses() WafAddresses
+
+	Delete() error
+}
+
+type ICloudWafRegexSet interface {
+	GetName() string
+	GetDesc() string
+	GetType() TWafType
+	GetGlobalId() string
+	GetRegexPatterns() WafRegexPatterns
+
+	Delete() error
+}
+
+type ICloudWafInstance interface {
+	ICloudEnabledResource
+
+	GetWafType() TWafType
+	GetDefaultAction() *DefaultAction
+	GetRules() ([]ICloudWafRule, error)
+	AddRule(opts *SWafRule) (ICloudWafRule, error)
+
+	// 绑定的资源列表
+	GetCloudResources() ([]SCloudResource, error)
+
+	Delete() error
+}
+
+type ICloudWafRuleGroup interface {
+	GetName() string
+	GetDesc() string
+	GetGlobalId() string
+	GetWafType() TWafType
+	GetRules() ([]ICloudWafRule, error)
+}
+
+type ICloudWafRule interface {
+	GetName() string
+	GetDesc() string
+	GetGlobalId() string
+	GetPriority() int
+	GetAction() *DefaultAction
+	GetStatementCondition() TWafStatementCondition
+	GetStatements() ([]SWafStatement, error)
+
+	Update(opts *SWafRule) error
+	Delete() error
+}
+
+type ICloudMongoDB interface {
+	IVirtualResource
+	IBillingResource
+
+	GetVpcId() string
+	GetNetworkId() string
+	GetIpAddr() string
+	GetVcpuCount() int
+	GetVmemSizeMb() int
+	GetDiskSizeMb() int
+	GetZoneId() string
+	GetReplicationNum() int
+	GetCategory() string
+	GetEngine() string
+	GetEngineVersion() string
+	GetInstanceType() string
+	GetMaintainTime() string
+	GetPort() int
+
+	GetIBackups() ([]SMongoDBBackup, error)
+
+	Delete() error
+}
+
+type ICloudElasticSearch interface {
+	IVirtualResource
+	IBillingResource
+
+	GetVersion() string
+	GetStorageType() string
+	GetDiskSizeGb() int
+	GetCategory() string
+
+	GetInstanceType() string
+	GetVcpuCount() int
+	GetVmemSizeGb() int
+
+	GetVpcId() string
+	GetNetworkId() string
+	GetZoneId() string
+	IsMultiAz() bool
+
+	Delete() error
+}
+
+type ICloudKafka interface {
+	IVirtualResource
+	IBillingResource
+
+	GetNetworkId() string
+	GetVpcId() string
+	GetZoneId() string
+	GetInstanceType() string
+
+	GetVersion() string
+	GetDiskSizeGb() int
+	GetStorageType() string
+	GetBandwidthMb() int
+	GetEndpoint() string
+	GetMsgRetentionMinute() int
+
+	IsMultiAz() bool
+
+	GetTopics() ([]SKafkaTopic, error)
+
+	Delete() error
 }

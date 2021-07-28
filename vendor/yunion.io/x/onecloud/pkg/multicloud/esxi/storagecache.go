@@ -35,6 +35,7 @@ const (
 
 type SDatastoreImageCache struct {
 	multicloud.SResourceBase
+	multicloud.STagBase
 	datastore *SDatastore
 	host      *SHost
 }
@@ -152,10 +153,47 @@ func (self *SDatastoreImageCache) GetIImageInImagecache() ([]cloudprovider.IClou
 	return ret, nil
 }
 
+var ErrTimeConsuming = errors.Error("time consuming")
+
+func (self *SDatastoreImageCache) getTemplateVMsFromCache() ([]*SVirtualMachine, error) {
+	ihosts, err := self.datastore.datacenter.GetIHosts()
+	if err != nil {
+		return nil, err
+	}
+	dsRef := self.datastore.getDatastore().Self
+	ret := make([]*SVirtualMachine, 0)
+	for i := range ihosts {
+		tvms := ihosts[i].(*SHost).tempalteVMs
+		if tvms == nil {
+			return nil, ErrTimeConsuming
+		}
+		for _, vm := range tvms {
+			dss := vm.getVirtualMachine().Datastore
+			for _, ds := range dss {
+				if ds == dsRef {
+					ret = append(ret, vm)
+					break
+				}
+			}
+		}
+	}
+	return ret, nil
+}
+
 func (self *SDatastoreImageCache) GetIImageInTemplateVMs() ([]cloudprovider.ICloudImage, error) {
 	ret := make([]cloudprovider.ICloudImage, 0, 2)
 	log.Infof("start to GetIImages")
 
+	datastore := self.datastore
+	if datastore.datacenter.ihosts != nil {
+		vms, err := self.getTemplateVMsFromCache()
+		if err == nil {
+			for i := range vms {
+				ret = append(ret, NewVMTemplate(vms[i], self))
+			}
+			return ret, nil
+		}
+	}
 	realTemplates, err := self.getTempalteVMs()
 	if err != nil {
 		return nil, errors.Wrap(err, "getTemplateVMs")
@@ -173,8 +211,13 @@ func (self *SDatastoreImageCache) GetIImageInTemplateVMs() ([]cloudprovider.IClo
 	}
 
 	log.Infof("get templates successfully")
+	log.Debugf("fake template name: ")
 	for i := range fakeTemplates {
-		log.Infof("fake template name: %s", fakeTemplates[i].GetName())
+		log.Debugf("%s ", fakeTemplates[i].GetName())
+	}
+	log.Debugf("real template name: ")
+	for i := range realTemplates {
+		log.Debugf("%s ", realTemplates[i].GetName())
 	}
 	return ret, nil
 }
@@ -206,11 +249,12 @@ func (self *SDatastoreImageCache) GetICloudImages() ([]cloudprovider.ICloudImage
 	if err != nil {
 		return nil, err
 	}
-	images2, err := self.GetIImageInImagecache()
-	if err != nil {
-		return nil, err
-	}
-	return append(images1, images2...), nil
+	return images1, nil
+	// images2, err := self.GetIImageInImagecache()
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// return append(images1, images2...), nil
 }
 
 func (self *SDatastoreImageCache) GetIImageById(extId string) (cloudprovider.ICloudImage, error) {
