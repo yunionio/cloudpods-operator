@@ -34,6 +34,8 @@ const (
 	HOST_TYPE_ZSTACK    = "zstack"
 	HOST_TYPE_GOOGLE    = "google"
 	HOST_TYPE_CTYUN     = "ctyun"
+	HOST_TYPE_ECLOUD    = "ecloud"
+	HOST_TYPE_JDCLOUD   = "jdcloud"
 
 	HOST_TYPE_DEFAULT = HOST_TYPE_HYPERVISOR
 
@@ -113,6 +115,7 @@ var HOST_TYPES = []string{
 	HOST_TYPE_ZSTACK,
 	HOST_TYPE_CTYUN,
 	HOST_TYPE_GOOGLE,
+	HOST_TYPE_JDCLOUD,
 }
 
 var NIC_TYPES = []string{NIC_TYPE_IPMI, NIC_TYPE_ADMIN}
@@ -130,8 +133,4 @@ const (
 	HOST_HEALTH_PREFIX         = "/onecloud/kvm/host/health"
 	HOST_HEALTH_STATUS_RUNNING = "running"
 	HOST_HEALTH_LOCK_PREFIX    = "host-health"
-)
-
-const (
-	CPU_ARCH_AARCH64 = "aarch64"
 )

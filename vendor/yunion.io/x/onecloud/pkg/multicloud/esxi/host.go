@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
@@ -36,7 +35,20 @@ import (
 	"yunion.io/x/onecloud/pkg/multicloud"
 )
 
-var HOST_SYSTEM_PROPS = []string{"name", "parent", "summary", "config", "hardware", "vm", "datastore", "network"}
+var (
+	hostConfigProps   = []string{"config.network", "config.storageDevice"}
+	hostSummaryProps  = []string{"summary.runtime", "summary.hardware", "summary.config.product", "summary.managementServerIp"}
+	hostHardWareProps = []string{"hardware.systemInfo"}
+)
+
+var HOST_SYSTEM_PROPS []string
+
+func init() {
+	HOST_SYSTEM_PROPS = []string{"name", "parent", "vm", "datastore", "network"}
+	HOST_SYSTEM_PROPS = append(HOST_SYSTEM_PROPS, hostConfigProps...)
+	HOST_SYSTEM_PROPS = append(HOST_SYSTEM_PROPS, hostSummaryProps...)
+	HOST_SYSTEM_PROPS = append(HOST_SYSTEM_PROPS, hostHardWareProps...)
+}
 
 type SHostStorageAdapterInfo struct {
 	Device    string
@@ -200,22 +212,16 @@ func (self *SHost) fetchVMs(all bool) error {
 		return err
 	}
 
-	MAX_TRIES := 3
 	var vms []*SVirtualMachine
-	for tried := 0; tried < MAX_TRIES; tried += 1 {
-		hostVms := self.getHostSystem().Vm
-		if len(hostVms) == 0 {
-			// log.Errorf("host VMs are nil!!!!!")
-			return nil
-		}
+	hostVms := self.getHostSystem().Vm
+	if len(hostVms) == 0 {
+		// log.Errorf("host VMs are nil!!!!!")
+		return nil
+	}
 
-		vms, err = dc.fetchVms(hostVms, all)
-		if err != nil {
-			log.Errorf("dc.fetchVms fail %s", err)
-			time.Sleep(time.Second)
-			self.Refresh()
-			continue
-		}
+	vms, err = dc.fetchVms(hostVms, all)
+	if err != nil {
+		return err
 	}
 	for _, vm := range vms {
 		if vm.IsTemplate() {
@@ -285,20 +291,7 @@ func (self *SHost) GetIWires() ([]cloudprovider.ICloudWire, error) {
 }
 
 func (self *SHost) GetIStorages() ([]cloudprovider.ICloudStorage, error) {
-	moHost := self.getHostSystem()
-	dc, err := self.GetDatacenter()
-	if err != nil {
-		return nil, err
-	}
-	istorages := make([]cloudprovider.ICloudStorage, len(moHost.Datastore))
-	for i := 0; i < len(moHost.Datastore); i += 1 {
-		storage, err := dc.GetIStorageByMoId(moRefId(moHost.Datastore[i]))
-		if err != nil {
-			return nil, err
-		}
-		istorages[i] = storage
-	}
-	return istorages, nil
+	return self.GetDataStores()
 }
 
 func (self *SHost) GetIStorageById(id string) (cloudprovider.ICloudStorage, error) {
@@ -315,6 +308,9 @@ func (self *SHost) GetIStorageById(id string) (cloudprovider.ICloudStorage, erro
 }
 
 func (self *SHost) GetEnabled() bool {
+	if self.getHostSystem().Summary.Runtime.InMaintenanceMode {
+		return false
+	}
 	return true
 }
 
@@ -324,6 +320,9 @@ func (self *SHost) GetHostStatus() string {
 		HostSystemConnectionStateNotResponding = HostSystemConnectionState("notResponding")
 		HostSystemConnectionStateDisconnected  = HostSystemConnectionState("disconnected")
 	*/
+	if self.getHostSystem().Summary.Runtime.InMaintenanceMode {
+		return api.HOST_OFFLINE
+	}
 	switch self.getHostSystem().Summary.Runtime.ConnectionState {
 	case types.HostSystemConnectionStateConnected:
 		return api.HOST_ONLINE
@@ -489,14 +488,21 @@ type SSysInfo struct {
 
 func (self *SHost) GetSysInfo() jsonutils.JSONObject {
 	sysinfo := SSysInfo{}
-	sysinfo.Manufacture = self.getHostSystem().Summary.Hardware.Vendor
-	sysinfo.Model = self.getHostSystem().Summary.Hardware.Model
-	sysinfo.SerialNumber = self.getHostSystem().Hardware.SystemInfo.SerialNumber
+	host := self.getHostSystem()
+	sysinfo.Manufacture = host.Summary.Hardware.Vendor
+	sysinfo.Model = host.Summary.Hardware.Model
+	if host.Hardware != nil {
+		sysinfo.SerialNumber = host.Hardware.SystemInfo.SerialNumber
+	}
 	return jsonutils.Marshal(&sysinfo)
 }
 
 func (self *SHost) GetSN() string {
-	return self.getHostSystem().Hardware.SystemInfo.SerialNumber
+	host := self.getHostSystem()
+	if host.Hardware != nil {
+		return host.Hardware.SystemInfo.SerialNumber
+	}
+	return ""
 }
 
 func (self *SHost) GetCpuCount() int {
@@ -814,15 +820,30 @@ func (self *SHost) addDisks(ctx context.Context, dc *SDatacenter, ds *SDatastore
 				size = 30 * 1024
 			}
 		} else {
-			imagePath, err := self.FileUrlPathToDsPath(imagePath)
+			var err error
+			imagePath, err = self.FileUrlPathToDsPath(imagePath)
 			if err != nil {
 				return nil, errors.Wrapf(err, "SHost.FileUrlPathToDsPath")
 			}
 			newImagePath := fmt.Sprintf("[%s] %s/%s.vmdk", ds.GetRelName(), uuid, uuid)
-			fm := ds.getDatastoreObj().NewFileManager(dc.getObjectDatacenter(), true)
-			err = fm.Copy(ctx, imagePath, newImagePath)
+
+			dm := object.NewVirtualDiskManager(self.manager.client.Client)
+			spec := &types.VirtualDiskSpec{
+				DiskType: "thin",
+			}
+			switch disk.Driver {
+			case "", "scsi", "pvscsi":
+				spec.AdapterType = "lsiLogic"
+			default:
+				spec.AdapterType = "ide"
+			}
+			task, err := dm.CopyVirtualDisk(self.manager.context, imagePath, self.datacenter.getDcObj(), newImagePath, self.datacenter.getDcObj(), spec, true)
 			if err != nil {
-				return nil, errors.Wrap(err, "unable to copy system disk")
+				return nil, errors.Wrap(err, "unable to CopyVirtualDisk")
+			}
+			err = task.Wait(self.manager.context)
+			if err != nil {
+				return nil, errors.Wrap(err, "waith CopyVirtualDiskTask")
 			}
 			imagePath = newImagePath
 			rootDiskSizeMb = size
@@ -1382,24 +1403,19 @@ func (host *SHost) fetchDatastores() error {
 	if err != nil {
 		return err
 	}
-
-	MAX_TRIES := 3
-	for tried := 0; tried < MAX_TRIES; tried += 1 {
-		hostDss := host.getHostSystem().Datastore
-		if len(hostDss) == 0 {
-			// log.Errorf("host VMs are nil!!!!!")
-			return nil
+	dss := host.getHostSystem().Datastore
+	var datastores []mo.Datastore
+	err = host.manager.references2Objects(dss, DATASTORE_PROPS, &datastores)
+	if err != nil {
+		return err
+	}
+	host.datastores = make([]cloudprovider.ICloudStorage, 0)
+	for i := 0; i < len(datastores); i += 1 {
+		ds := NewDatastore(host.manager, &datastores[i], dc)
+		dsId := ds.GetGlobalId()
+		if len(dsId) > 0 {
+			host.datastores = append(host.datastores, ds)
 		}
-
-		dss, err := dc.fetchDatastores(hostDss)
-		if err != nil {
-			log.Errorf("dc.fetchVms fail %s", err)
-			time.Sleep(time.Second)
-			host.Refresh()
-			continue
-		}
-		host.datastores = dss
-		break
 	}
 	return nil
 }

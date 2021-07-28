@@ -1,3 +1,17 @@
+// Copyright 2019 Yunion
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package monitor
 
 import "yunion.io/x/onecloud/pkg/apis"
@@ -9,8 +23,11 @@ const (
 	METRIC_RES_TYPE_OSS          = "oss"
 	METRIC_RES_TYPE_RDS          = "rds"
 	METRIC_RES_TYPE_CLOUDACCOUNT = "cloudaccount"
+	METRIC_RES_TYPE_AGENT        = "agent"
 	METRIC_RES_TYPE_TENANT       = "tenant"
 	METRIC_RES_TYPE_DOMAIN       = "domain"
+	METRIC_RES_TYPE_STORAGE      = "storage"
+	METRIC_RES_TYPE_JENKINS      = "jenkins"
 
 	METRIC_UNIT_PERCENT = "%"
 	METRIC_UNIT_BPS     = "bps"
@@ -21,6 +38,7 @@ const (
 	METRIC_UNIT_MS      = "ms"
 	METRIC_UNIT_BYTE    = "byte"
 	METRIC_UNIT_RMB     = "RMB"
+	METRIC_UNIT_MB      = "Mb"
 
 	METRIC_DATABASE_TELE  = "telegraf"
 	METRIC_DATABASE_METER = "meter_db"
@@ -31,13 +49,15 @@ var (
 		METRIC_RES_TYPE_RDS, METRIC_RES_TYPE_CLOUDACCOUNT}
 	MetricUnit = []string{METRIC_UNIT_PERCENT, METRIC_UNIT_BPS, METRIC_UNIT_MBPS, METRIC_UNIT_BYTEPS, "count/s",
 		METRIC_UNIT_COUNT, METRIC_UNIT_MS, METRIC_UNIT_BYTE, METRIC_UNIT_RMB}
-	ResTypeScoreMap = map[string]int{
+	ResTypeScoreMap = map[string]float64{
 		METRIC_RES_TYPE_GUEST:        1,
+		METRIC_RES_TYPE_AGENT:        1.1,
 		METRIC_RES_TYPE_HOST:         2,
 		METRIC_RES_TYPE_OSS:          3,
 		METRIC_RES_TYPE_RDS:          4,
 		METRIC_RES_TYPE_REDIS:        5,
 		METRIC_RES_TYPE_CLOUDACCOUNT: 6,
+		METRIC_RES_TYPE_STORAGE:      7,
 	}
 )
 

@@ -375,6 +375,10 @@ type BaseCreateOptions struct {
 	Desc string `metavar:"<DESCRIPTION>" help:"Description" json:"description"`
 }
 
+func (opts *BaseCreateOptions) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.Marshal(opts), nil
+}
+
 type EnabledStatusCreateOptions struct {
 	BaseCreateOptions
 	Status  string
@@ -393,6 +397,18 @@ func (o *BaseIdOptions) Params() (jsonutils.JSONObject, error) {
 	return nil, nil
 }
 
+type BaseIdsOptions struct {
+	ID []string `json:"-"`
+}
+
+func (o *BaseIdsOptions) GetIds() []string {
+	return o.ID
+}
+
+func (o *BaseIdsOptions) Params() (jsonutils.JSONObject, error) {
+	return nil, nil
+}
+
 type BaseShowOptions struct {
 	BaseIdOptions
 	WithMeta       *bool `help:"With meta data"`
@@ -401,4 +417,23 @@ type BaseShowOptions struct {
 
 func (o BaseShowOptions) Params() (jsonutils.JSONObject, error) {
 	return StructToParams(o)
+}
+
+type ChangeOwnerOptions struct {
+	BaseIdOptions
+	ProjectDomain string `json:"project_domain" help:"target domain"`
+}
+
+func (o ChangeOwnerOptions) Params() (jsonutils.JSONObject, error) {
+	if len(o.ProjectDomain) == 0 {
+		return nil, fmt.Errorf("empty project_domain")
+	}
+	return jsonutils.Marshal(map[string]string{"project_domain": o.ProjectDomain}), nil
+}
+
+type StatusStatisticsOptions struct {
+}
+
+func (o StatusStatisticsOptions) Property() string {
+	return "statistics"
 }

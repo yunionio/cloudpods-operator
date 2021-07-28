@@ -21,14 +21,6 @@ type ScriptApplyInput struct {
 	// required: true
 	// example: b48c5c84-9952-4394-8ca9-c3b84e946a03
 	ServerID string
-	// description: whether to use eip first
-	// example: true
-	EipFirst bool
-	// description: Id of proxyEndpoint
-	// example: cf1d1a0f-9b9d-4629-8036-af3ed87c0821
-	ProxyEndpointId string
-	// description: whether to automatically select proxy endpoint
-	AutoChooseProxyEndpoint bool
 }
 
 type ScriptApplyOutput struct {
@@ -42,6 +34,23 @@ type ScriptApplyRecoredListInput struct {
 	// description: Id of Script
 	// example: cc2e2ba6-e33d-4be3-8e2d-4d2aa843dd03
 	ScriptId string
+	// description: Id of Server
+	// example:  a4b3n2c9-dbb7-4c51-8e1a-d2d4b331ccec
+	ServerId string
+	// description: Id of script apply
+	// example: a70eb6e6-dbb7-4c51-8e1a-d2d4b331ccec
+	ScriptApplyId string
+}
+
+type ScriptApplyRecordDetails struct {
+	apis.StandaloneResourceDetails
+	SScriptApplyRecord
+	// description: Id of Script
+	// example: cc2e2ba6-e33d-4be3-8e2d-4d2aa843dd03
+	ScriptId string
+	// description: Id of Server
+	// example: a4b3n2c9-dbb7-4c51-8e1a-d2d4b331ccec
+	ServerId string
 }
 
 type ScriptCreateInput struct {
@@ -60,8 +69,6 @@ type ScriptDetails struct {
 }
 
 type SApplyInfo struct {
-	ServerId        string
-	EipFirst        bool
-	ProxyEndpointId string
-	TryTimes        int
+	ServerId string
+	TryTimes int
 }

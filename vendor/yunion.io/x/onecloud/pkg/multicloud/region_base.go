@@ -24,6 +24,7 @@ import (
 
 type SRegion struct {
 	SResourceBase
+	STagBase
 }
 
 func (r *SRegion) GetIDiskById(id string) (cloudprovider.ICloudDisk, error) {
@@ -148,4 +149,76 @@ func (self *SRegion) GetICloudQuotas() ([]cloudprovider.ICloudQuota, error) {
 
 func (self *SRegion) CreateInternetGateway() (cloudprovider.ICloudInternetGateway, error) {
 	return nil, errors.Wrapf(cloudprovider.ErrNotSupported, "CreateInternetGateway")
+}
+
+func (self *SRegion) GetICloudFileSystems() ([]cloudprovider.ICloudFileSystem, error) {
+	return nil, errors.Wrapf(cloudprovider.ErrNotImplemented, "GetICloudFileSystems")
+}
+
+func (self *SRegion) GetICloudFileSystemById(id string) (cloudprovider.ICloudFileSystem, error) {
+	return nil, errors.Wrapf(cloudprovider.ErrNotImplemented, "GetICloudFileSystemById")
+}
+
+func (self *SRegion) GetICloudAccessGroups() ([]cloudprovider.ICloudAccessGroup, error) {
+	return nil, errors.Wrapf(cloudprovider.ErrNotImplemented, "GetICloudAccessGroups")
+}
+
+func (self *SRegion) GetICloudAccessGroupById(id string) (cloudprovider.ICloudAccessGroup, error) {
+	return nil, errors.Wrapf(cloudprovider.ErrNotImplemented, "GetICloudAccessGroupById")
+}
+
+func (self *SRegion) CreateICloudAccessGroup(opts *cloudprovider.SAccessGroup) (cloudprovider.ICloudAccessGroup, error) {
+	return nil, errors.Wrapf(cloudprovider.ErrNotImplemented, "CreateICloudAccessGroup")
+}
+
+func (self *SRegion) CreateICloudFileSystem(opts *cloudprovider.FileSystemCraeteOptions) (cloudprovider.ICloudFileSystem, error) {
+	return nil, errors.Wrapf(cloudprovider.ErrNotImplemented, "CreateICloudFileSystem")
+}
+
+func (self *SRegion) GetICloudWafIPSets() ([]cloudprovider.ICloudWafIPSet, error) {
+	return nil, errors.Wrapf(cloudprovider.ErrNotImplemented, "GetICloudWafIPSets")
+}
+
+func (self *SRegion) GetICloudWafRegexSets() ([]cloudprovider.ICloudWafRegexSet, error) {
+	return nil, errors.Wrapf(cloudprovider.ErrNotImplemented, "GetICloudWafRegexSets")
+}
+
+func (self *SRegion) GetICloudWafInstances() ([]cloudprovider.ICloudWafInstance, error) {
+	return nil, errors.Wrapf(cloudprovider.ErrNotImplemented, "GetICloudWafInstances")
+}
+
+func (self *SRegion) GetICloudWafInstanceById(id string) (cloudprovider.ICloudWafInstance, error) {
+	return nil, errors.Wrapf(cloudprovider.ErrNotImplemented, "GetICloudWafInstanceById")
+}
+
+func (self *SRegion) CreateICloudWafInstance(opts *cloudprovider.WafCreateOptions) (cloudprovider.ICloudWafInstance, error) {
+	return nil, errors.Wrapf(cloudprovider.ErrNotImplemented, "CreateICloudWafInstance")
+}
+
+func (self *SRegion) GetICloudWafRuleGroups() ([]cloudprovider.ICloudWafRuleGroup, error) {
+	return nil, errors.Wrapf(cloudprovider.ErrNotImplemented, "GetICloudWafRuleGroups")
+}
+
+func (self *SRegion) GetICloudMongoDBs() ([]cloudprovider.ICloudMongoDB, error) {
+	return nil, errors.Wrapf(cloudprovider.ErrNotImplemented, "GetICloudMongoDBs")
+}
+
+func (self *SRegion) GetICloudMongoDBById(id string) (cloudprovider.ICloudMongoDB, error) {
+	return nil, errors.Wrapf(cloudprovider.ErrNotImplemented, "GetICloudMongoDBById")
+}
+
+func (self *SRegion) GetIElasticSearchs() ([]cloudprovider.ICloudElasticSearch, error) {
+	return nil, errors.Wrapf(cloudprovider.ErrNotImplemented, "GetIElasticSearchs")
+}
+
+func (self *SRegion) GetIElasticSearchById(id string) (cloudprovider.ICloudElasticSearch, error) {
+	return nil, errors.Wrapf(cloudprovider.ErrNotImplemented, "GetIElasticSearchById")
+}
+
+func (self *SRegion) GetICloudKafkas() ([]cloudprovider.ICloudKafka, error) {
+	return nil, errors.Wrapf(cloudprovider.ErrNotImplemented, "GetICloudKafkas")
+}
+
+func (self *SRegion) GetICloudKafkaById(id string) (cloudprovider.ICloudKafka, error) {
+	return nil, errors.Wrapf(cloudprovider.ErrNotImplemented, "GetICloudKafkaById")
 }
