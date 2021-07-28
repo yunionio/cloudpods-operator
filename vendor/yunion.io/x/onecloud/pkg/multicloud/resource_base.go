@@ -14,13 +14,8 @@
 
 package multicloud
 
-import (
-	"yunion.io/x/pkg/errors"
-
-	"yunion.io/x/onecloud/pkg/cloudprovider"
-)
-
-type SResourceBase struct{}
+type SResourceBase struct {
+}
 
 func (self *SResourceBase) IsEmulated() bool {
 	return false
@@ -28,16 +23,4 @@ func (self *SResourceBase) IsEmulated() bool {
 
 func (self *SResourceBase) Refresh() error {
 	return nil
-}
-
-func (self *SResourceBase) GetSysTags() map[string]string {
-	return nil
-}
-
-func (self *SResourceBase) GetTags() (map[string]string, error) {
-	return nil, errors.Wrapf(cloudprovider.ErrNotImplemented, "GetTags")
-}
-
-func (self *SResourceBase) SetTags(tags map[string]string, replace bool) error {
-	return cloudprovider.ErrNotImplemented
 }

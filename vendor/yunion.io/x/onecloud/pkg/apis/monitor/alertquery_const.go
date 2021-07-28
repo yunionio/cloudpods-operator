@@ -40,6 +40,7 @@ var (
 		"brand":          "brand",
 		"domain_id":      "domain_id",
 		"project_domain": "project_domain",
+		"access_ip":      "access_ip",
 	}
 
 	RdsTags = map[string]string{
@@ -143,5 +144,20 @@ var (
 	DomainTags = map[string]string{
 		"domain_id":      "id",
 		"project_domain": "name",
+	}
+
+	StorageTags = map[string]string{
+		"storage_id":     "id",
+		"storage_name":   "name",
+		"zone":           "zone",
+		"zone_id":        "zone_id",
+		"zone_ext_id":    "zone_ext_id",
+		"status":         "status",
+		"cloudregion":    "cloudregion",
+		"cloudregion_id": "cloudregion_id",
+		"region_ext_id":  "region_ext_id",
+		"brand":          "brand",
+		"domain_id":      "domain_id",
+		"project_domain": "project_domain",
 	}
 )
