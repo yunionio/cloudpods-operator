@@ -128,6 +128,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		ItsmComponentType:            &obj.Itsm,
 		CloudIdComponentType:         &obj.CloudId,
 		SuggestionComponentType:      &obj.Suggestion,
+		CloudmonComponentType:        &obj.Cloudmon.DeploymentSpec,
 	} {
 		SetDefaults_DeploymentSpec(spec, getImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag))
 	}
@@ -207,9 +208,9 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	}
 
 	// cloudmon spec
-	SetDefaults_DeploymentSpec(&obj.Cloudmon.DeploymentSpec,
-		getImage(obj.ImageRepository, obj.Cloudmon.Repository, APIGatewayComponentTypeEE,
-			obj.Cloudmon.ImageName, obj.Version, obj.APIGateway.Tag))
+	//SetDefaults_DeploymentSpec(&obj.Cloudmon.DeploymentSpec,
+	//	getImage(obj.ImageRepository, obj.Cloudmon.Repository, APIGatewayComponentTypeEE,
+	//		obj.Cloudmon.ImageName, obj.Version, obj.APIGateway.Tag))
 	if obj.Cloudmon.CloudmonReportUsageDuration == 0 {
 		obj.Cloudmon.CloudmonReportUsageDuration = 15
 	}
@@ -220,7 +221,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		obj.Cloudmon.CloudmonReportHostDuration = 4
 	}
 	if obj.Cloudmon.CloudmonPingDuration == 0 {
-		obj.Cloudmon.CloudmonPingDuration = 5
+		obj.Cloudmon.CloudmonPingDuration = 60
 	}
 	if obj.Cloudmon.CloudmonReportCloudAccountDuration == 0 {
 		obj.Cloudmon.CloudmonReportCloudAccountDuration = 30
