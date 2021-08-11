@@ -20,10 +20,12 @@ var (
 		METRIC_RES_TYPE_OSS:          "oss_name",
 		METRIC_RES_TYPE_CLOUDACCOUNT: "cloudaccount_name",
 		METRIC_RES_TYPE_STORAGE:      "storage_name",
+		METRIC_RES_TYPE_AGENT:        "vm_name",
 	}
 	MEASUREMENT_TAG_ID = map[string]string{
 		METRIC_RES_TYPE_HOST:         "host_id",
 		METRIC_RES_TYPE_GUEST:        "vm_id",
+		METRIC_RES_TYPE_AGENT:        "vm_id",
 		METRIC_RES_TYPE_REDIS:        "redis_id",
 		METRIC_RES_TYPE_RDS:          "rds_id",
 		METRIC_RES_TYPE_OSS:          "oss_id",
