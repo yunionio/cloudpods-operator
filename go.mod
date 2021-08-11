@@ -4,8 +4,10 @@ go 1.12
 
 require (
 	github.com/docker/distribution v0.0.0-20170726174610-edc3ab29cdff
+	github.com/gin-gonic/gin v1.7.0 // indirect
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/googleapis/gnostic v0.3.0 // indirect
+	github.com/gorilla/websocket v1.4.1 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/onsi/ginkgo v1.8.0 // indirect
 	github.com/onsi/gomega v1.5.0 // indirect
@@ -27,12 +29,11 @@ require (
 	k8s.io/kube-openapi v0.0.0-20190603182131-db7b694dc208 // indirect
 	k8s.io/kubernetes v1.16.0
 	k8s.io/utils v0.0.0-20190607212802-c55fbcfc754a // indirect
-	yunion.io/x/executor v0.0.0-20201231064744-df32f32165a9 // indirect
-	yunion.io/x/jsonutils v0.0.0-20201110084044-3e4e1cb49769
+	yunion.io/x/jsonutils v0.0.0-20210709075951-798a67800349
 	yunion.io/x/log v0.0.0-20201210064738-43181789dc74
-	yunion.io/x/onecloud v0.0.0-20210309100643-e63a207c294d
-	yunion.io/x/pkg v0.0.0-20210218105412-13a69f60034c
-	yunion.io/x/sqlchemy v0.0.0-20210204030051-4fb14f92a88f // indirect
+	yunion.io/x/onecloud v0.0.0-20210811095049-963550ebf4fc
+	yunion.io/x/pkg v0.0.0-20210721081124-55078288ca4c
+	yunion.io/x/sqlchemy v0.0.0-20210619142628-653684d2c4f8 // indirect
 	yunion.io/x/structarg v0.0.0-20200720093445-9f850fa222ce
 )
 

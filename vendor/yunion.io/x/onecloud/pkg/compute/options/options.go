@@ -102,6 +102,8 @@ type ComputeOptions struct {
 	TimePointsLimit     int `default:"1" help:"time point of every days, default 1 point"`
 	RepeatWeekdaysLimit int `default:"7" help:"day point of every weekday, default 7 points"`
 
+	ServerSkuSyncIntervalMinutes int `default:"60" help:"Interval to sync public cloud server skus, defualt is 1 hour"`
+
 	// sku sync
 	SyncSkusDay  int `default:"1" help:"Days auto sync skus data, default 1 day"`
 	SyncSkusHour int `default:"3" help:"What hour start sync skus, default 03:00"`
@@ -109,6 +111,8 @@ type ComputeOptions struct {
 	ConvertHypervisorDefaultTemplate string `help:"Kvm baremetal convert option"`
 	ConvertEsxiDefaultTemplate       string `help:"ESXI baremetal convert option"`
 	ConvertKubeletDockerVolumeSize   string `default:"256g" help:"Docker volume size"`
+
+	EnablePreAllocateIpAddr bool `help:"Enable private and public cloud private ip pre allocate, default false" default:"false"`
 
 	DefaultImageCacheDir string `default:"image_cache"`
 
@@ -120,9 +124,10 @@ type ComputeOptions struct {
 	MinimalIpAddrReusedIntervalSeconds int `help:"Minimal seconds when a release IP address can be reallocate" default:"30"`
 
 	CloudSyncWorkerCount         int `help:"how many current synchronization threads" default:"5"`
+	CloudProviderSyncWorkerCount int `help:"how many current providers synchronize their regions, practically no limit" default:"10"`
 	CloudAutoSyncIntervalSeconds int `help:"frequency to check auto sync tasks" default:"30"`
-	DefaultSyncIntervalSeconds   int `help:"minimal synchronization interval, default 1 minutes" default:"900"`
-	MinimalSyncIntervalSeconds   int `help:"minimal synchronization interval, default 1 minutes" default:"300"`
+	DefaultSyncIntervalSeconds   int `help:"minimal synchronization interval, default 15 minutes" default:"900"`
+	MinimalSyncIntervalSeconds   int `help:"minimal synchronization interval, default 30 minutes" default:"1800"`
 	MaxCloudAccountErrorCount    int `help:"maximal consecutive error count allow for a cloud account" default:"5"`
 
 	NameSyncResources []string `help:"resources that need synchronization of name"`
@@ -135,8 +140,6 @@ type ComputeOptions struct {
 
 	EnableHostHealthCheck bool `help:"enable host health check" default:"true"`
 	HostHealthTimeout     int  `help:"second of wait host reconnect" default:"60"`
-
-	FetchEtcdServiceInfoAndUseEtcdLock bool `default:"true" help:"fetch etcd service info and use etcd lock"`
 
 	GuestTemplateCheckInterval int `help:"interval between two consecutive inspections of Guest Template in hour unit" default:"12"`
 
@@ -165,6 +168,8 @@ type ComputeOptions struct {
 	DefaultVpcExternalAccessMode string `help:"default external access mode for on-premise vpc"`
 
 	NoCheckOsTypeForCachedImage bool `help:"Don't check os type for cached image"`
+
+	ProhibitRefreshingCloudImage bool `help:"Prohibit refreshing cloud image"`
 
 	esxi.EsxiOptions
 }

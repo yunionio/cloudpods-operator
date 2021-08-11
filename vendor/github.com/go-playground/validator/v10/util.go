@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // extractTypeInternal gets the actual underlying type of field value.
@@ -57,11 +58,10 @@ BEGIN:
 //
 // NOTE: when not successful ok will be false, this can happen when a nested struct is nil and so the field
 // could not be retrieved because it didn't exist.
-func (v *validate) getStructFieldOKInternal(val reflect.Value, namespace string) (current reflect.Value, kind reflect.Kind, found bool) {
+func (v *validate) getStructFieldOKInternal(val reflect.Value, namespace string) (current reflect.Value, kind reflect.Kind, nullable bool, found bool) {
 
 BEGIN:
-	current, kind, _ = v.ExtractType(val)
-
+	current, kind, nullable = v.ExtractType(val)
 	if kind == reflect.Invalid {
 		return
 	}
@@ -112,7 +112,7 @@ BEGIN:
 		arrIdx, _ := strconv.Atoi(namespace[idx+1 : idx2])
 
 		if arrIdx >= current.Len() {
-			return current, kind, false
+			return
 		}
 
 		startIdx := idx2 + 1
@@ -223,11 +223,32 @@ BEGIN:
 // asInt returns the parameter as a int64
 // or panics if it can't convert
 func asInt(param string) int64 {
-
 	i, err := strconv.ParseInt(param, 0, 64)
 	panicIf(err)
 
 	return i
+}
+
+// asIntFromTimeDuration parses param as time.Duration and returns it as int64
+// or panics on error.
+func asIntFromTimeDuration(param string) int64 {
+	d, err := time.ParseDuration(param)
+	if err != nil {
+		// attempt parsing as an an integer assuming nanosecond precision
+		return asInt(param)
+	}
+	return int64(d)
+}
+
+// asIntFromType calls the proper function to parse param as int64,
+// given a field's Type t.
+func asIntFromType(t reflect.Type, param string) int64 {
+	switch t {
+	case timeDurationType:
+		return asIntFromTimeDuration(param)
+	default:
+		return asInt(param)
+	}
 }
 
 // asUint returns the parameter as a uint64
@@ -245,6 +266,16 @@ func asUint(param string) uint64 {
 func asFloat(param string) float64 {
 
 	i, err := strconv.ParseFloat(param, 64)
+	panicIf(err)
+
+	return i
+}
+
+// asBool returns the parameter as a bool
+// or panics if it can't convert
+func asBool(param string) bool {
+
+	i, err := strconv.ParseBool(param)
 	panicIf(err)
 
 	return i

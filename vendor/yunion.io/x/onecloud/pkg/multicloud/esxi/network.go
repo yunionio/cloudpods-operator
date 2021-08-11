@@ -47,8 +47,8 @@ const (
 	VLAN_MODE_TRUNK = "trunk"
 )
 
-var NETWORK_PROPS = []string{"name", "parent", "summary", "host", "vm"}
-var DVPORTGROUP_PROPS = []string{"name", "parent", "summary", "host", "vm", "config", "key"}
+var NETWORK_PROPS = []string{"name", "parent", "host"}
+var DVPORTGROUP_PROPS = []string{"name", "parent", "host", "config", "key"}
 
 type SNetwork struct {
 	SManagedObject
@@ -281,7 +281,7 @@ type SVirtualLan struct {
 
 func (h *SHost) getVirtualSwitchs() []SVirtualSwitch {
 	hs := h.getHostSystem()
-	if hs.Config.Network == nil {
+	if hs.Config == nil || hs.Config.Network == nil {
 		return nil
 	}
 	vss := make([]SVirtualSwitch, 0, len(hs.Config.Network.Vswitch))
@@ -311,7 +311,7 @@ func (h *SHost) getVirtualSwitchs() []SVirtualSwitch {
 
 func (cli *SESXiClient) getVPGMap(mohost *mo.HostSystem) sVPGMap {
 	sm := newVPGMap()
-	if mohost.Config.Network == nil {
+	if mohost.Config == nil || mohost.Config.Network == nil {
 		return sm
 	}
 	for i := range mohost.Config.Network.Portgroup {
@@ -320,23 +320,36 @@ func (cli *SESXiClient) getVPGMap(mohost *mo.HostSystem) sVPGMap {
 		vlan := ipg.Spec.VlanId
 		sm.Insert(key, sVPGProc{
 			vlanId: vlan,
+			name:   ipg.Spec.Name,
 		})
 		// TODO: fill VSId
 	}
 	return sm
 }
 
-func (cli *SESXiClient) getDVPGMap() (sVPGMap, error) {
+func (cli *SESXiClient) getDVPGMap(dc *SDatacenter) (sVPGMap, error) {
 	sm := newVPGMap()
-	dvpgs, err := cli.scanAllDvPortgroups()
-	if err != nil {
-		return sm, err
+	var (
+		dvpgs []*SDistributedVirtualPortgroup
+		err   error
+	)
+	if dc == nil {
+		dvpgs, err = cli.scanAllDvPortgroups()
+		if err != nil {
+			return sm, err
+		}
+	} else {
+		dvpgs, err = cli.scanAllDvPortgroupsInDatacenter(dc)
+		if err != nil {
+			return sm, err
+		}
 	}
 	for i := range dvpgs {
 		key := dvpgs[i].getMODVPortgroup().Key
 		vlanid := dvpgs[i].GetVlanId()
 		sm.Insert(key, sVPGProc{
 			vlanId: vlanid,
+			name:   dvpgs[i].getMODVPortgroup().Name,
 		})
 		// TODO: fill VSId
 	}
@@ -370,6 +383,7 @@ func (vm *sVPGMap) Get(key string) (sVPGProc, bool) {
 }
 
 type sVPGProc struct {
+	name   string
 	vlanId int32
 	dvId   string
 }

@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
@@ -36,7 +35,20 @@ import (
 	"yunion.io/x/onecloud/pkg/multicloud"
 )
 
-var HOST_SYSTEM_PROPS = []string{"name", "parent", "summary", "config", "hardware", "vm", "datastore", "network"}
+var (
+	hostConfigProps   = []string{"config.network", "config.storageDevice"}
+	hostSummaryProps  = []string{"summary.runtime", "summary.hardware", "summary.config.product", "summary.managementServerIp"}
+	hostHardWareProps = []string{"hardware.systemInfo"}
+)
+
+var HOST_SYSTEM_PROPS []string
+
+func init() {
+	HOST_SYSTEM_PROPS = []string{"name", "parent", "vm", "datastore", "network"}
+	HOST_SYSTEM_PROPS = append(HOST_SYSTEM_PROPS, hostConfigProps...)
+	HOST_SYSTEM_PROPS = append(HOST_SYSTEM_PROPS, hostSummaryProps...)
+	HOST_SYSTEM_PROPS = append(HOST_SYSTEM_PROPS, hostHardWareProps...)
+}
 
 type SHostStorageAdapterInfo struct {
 	Device    string
@@ -204,22 +216,16 @@ func (self *SHost) fetchVMs(all bool) error {
 		return err
 	}
 
-	MAX_TRIES := 3
 	var vms []*SVirtualMachine
-	for tried := 0; tried < MAX_TRIES; tried += 1 {
-		hostVms := self.getHostSystem().Vm
-		if len(hostVms) == 0 {
-			// log.Errorf("host VMs are nil!!!!!")
-			return nil
-		}
+	hostVms := self.getHostSystem().Vm
+	if len(hostVms) == 0 {
+		// log.Errorf("host VMs are nil!!!!!")
+		return nil
+	}
 
-		vms, err = dc.fetchVms(hostVms, all)
-		if err != nil {
-			log.Errorf("dc.fetchVms fail %s", err)
-			time.Sleep(time.Second)
-			self.Refresh()
-			continue
-		}
+	vms, err = dc.fetchVms(hostVms, all)
+	if err != nil {
+		return err
 	}
 	for _, vm := range vms {
 		if vm.IsTemplate() {
@@ -289,20 +295,7 @@ func (self *SHost) GetIWires() ([]cloudprovider.ICloudWire, error) {
 }
 
 func (self *SHost) GetIStorages() ([]cloudprovider.ICloudStorage, error) {
-	moHost := self.getHostSystem()
-	dc, err := self.GetDatacenter()
-	if err != nil {
-		return nil, err
-	}
-	istorages := make([]cloudprovider.ICloudStorage, len(moHost.Datastore))
-	for i := 0; i < len(moHost.Datastore); i += 1 {
-		storage, err := dc.GetIStorageByMoId(moRefId(moHost.Datastore[i]))
-		if err != nil {
-			return nil, err
-		}
-		istorages[i] = storage
-	}
-	return istorages, nil
+	return self.GetDataStores()
 }
 
 func (self *SHost) GetIStorageById(id string) (cloudprovider.ICloudStorage, error) {
@@ -319,6 +312,9 @@ func (self *SHost) GetIStorageById(id string) (cloudprovider.ICloudStorage, erro
 }
 
 func (self *SHost) GetEnabled() bool {
+	if self.getHostSystem().Summary.Runtime.InMaintenanceMode {
+		return false
+	}
 	return true
 }
 
@@ -328,6 +324,9 @@ func (self *SHost) GetHostStatus() string {
 		HostSystemConnectionStateNotResponding = HostSystemConnectionState("notResponding")
 		HostSystemConnectionStateDisconnected  = HostSystemConnectionState("disconnected")
 	*/
+	if self.getHostSystem().Summary.Runtime.InMaintenanceMode {
+		return api.HOST_OFFLINE
+	}
 	switch self.getHostSystem().Summary.Runtime.ConnectionState {
 	case types.HostSystemConnectionStateConnected:
 		return api.HOST_ONLINE
@@ -493,14 +492,21 @@ type SSysInfo struct {
 
 func (self *SHost) GetSysInfo() jsonutils.JSONObject {
 	sysinfo := SSysInfo{}
-	sysinfo.Manufacture = self.getHostSystem().Summary.Hardware.Vendor
-	sysinfo.Model = self.getHostSystem().Summary.Hardware.Model
-	sysinfo.SerialNumber = self.getHostSystem().Hardware.SystemInfo.SerialNumber
+	host := self.getHostSystem()
+	sysinfo.Manufacture = host.Summary.Hardware.Vendor
+	sysinfo.Model = host.Summary.Hardware.Model
+	if host.Hardware != nil {
+		sysinfo.SerialNumber = host.Hardware.SystemInfo.SerialNumber
+	}
 	return jsonutils.Marshal(&sysinfo)
 }
 
 func (self *SHost) GetSN() string {
-	return self.getHostSystem().Hardware.SystemInfo.SerialNumber
+	host := self.getHostSystem()
+	if host.Hardware != nil {
+		return host.Hardware.SystemInfo.SerialNumber
+	}
+	return ""
 }
 
 func (self *SHost) GetCpuCount() int {
@@ -725,18 +731,23 @@ type SEsxiImageInfo struct {
 	StorageCacheHostIp string
 }
 
-func (self *SHost) CreateVM2(ctx context.Context, ds *SDatastore, params SCreateVMParam) (*SVirtualMachine, error) {
+func (self *SHost) CreateVM2(ctx context.Context, ds *SDatastore, params SCreateVMParam) (needDeploy bool, vm *SVirtualMachine, err error) {
+	needDeploy = true
+	var temvm *SVirtualMachine
 	if len(params.InstanceSnapshotInfo.InstanceSnapshotId) > 0 {
-		temvm, err := self.manager.SearchVM(params.InstanceSnapshotInfo.InstanceId)
+		temvm, err = self.manager.SearchVM(params.InstanceSnapshotInfo.InstanceId)
 		if err != nil {
-			return nil, errors.Wrapf(err, "can't find vm %q, please sync status for vm or sync cloudaccount", params.InstanceSnapshotInfo.InstanceId)
+			err = errors.Wrapf(err, "can't find vm %q, please sync status for vm or sync cloudaccount", params.InstanceSnapshotInfo.InstanceId)
 		}
-		isp, err := temvm.GetInstanceSnapshot(params.InstanceSnapshotInfo.InstanceSnapshotId)
+		var isp cloudprovider.ICloudInstanceSnapshot
+		isp, err = temvm.GetInstanceSnapshot(params.InstanceSnapshotInfo.InstanceSnapshotId)
 		if err != nil {
-			return nil, errors.Wrap(err, "unable to GetInstanceSnapshot")
+			err = errors.Wrap(err, "unable to GetInstanceSnapshot")
+			return
 		}
 		sp := isp.(*SVirtualMachineSnapshot)
-		return self.CloneVM(ctx, temvm, &sp.snapshotTree.Snapshot, ds, params)
+		vm, err = self.CloneVM(ctx, temvm, &sp.snapshotTree.Snapshot, ds, params)
+		return
 	}
 	if len(params.Disks) == 0 {
 		return self.DoCreateVM(ctx, ds, params)
@@ -745,14 +756,183 @@ func (self *SHost) CreateVM2(ctx context.Context, ds *SDatastore, params SCreate
 	if imageInfo.ImageType != cloudprovider.CachedImageTypeSystem {
 		return self.DoCreateVM(ctx, ds, params)
 	}
-	temvm, err := self.manager.SearchTemplateVM(imageInfo.ImageExternalId)
+	temvm, err = self.manager.SearchTemplateVM(imageInfo.ImageExternalId)
 	if err != nil {
-		return nil, errors.Wrapf(err, "SEsxiClient.SearchTemplateVM for image %q", imageInfo.ImageExternalId)
+		err = errors.Wrapf(err, "SEsxiClient.SearchTemplateVM for image %q", imageInfo.ImageExternalId)
+		return
 	}
-	return self.CloneVM(ctx, temvm, nil, ds, params)
+	vm, err = self.CloneVM(ctx, temvm, nil, ds, params)
+	return
 }
 
-func (self *SHost) DoCreateVM(ctx context.Context, ds *SDatastore, params SCreateVMParam) (*SVirtualMachine, error) {
+func (self *SHost) needScsi(disks []SDiskInfo) bool {
+	if len(disks) == 0 {
+		return false
+	}
+	for i := range disks {
+		driver := disks[i].Driver
+		if driver == "" || driver == "scsi" || driver == "pvscsi" {
+			return true
+		}
+	}
+	return false
+}
+
+func (self *SHost) addDisks(ctx context.Context, dc *SDatacenter, ds *SDatastore, disks []SDiskInfo, uuid string, objectVm *object.VirtualMachine) (*SVirtualMachine, error) {
+	getVM := func() (*SVirtualMachine, error) {
+		var moVM mo.VirtualMachine
+		err := self.manager.reference2Object(objectVm.Reference(), VIRTUAL_MACHINE_PROPS, &moVM)
+		if err != nil {
+			return nil, errors.Wrap(err, "fail to fetch virtual machine just created")
+		}
+
+		evm := NewVirtualMachine(self.manager, &moVM, self.datacenter)
+		if evm == nil {
+			return nil, errors.Error("create successfully but unable to NewVirtualMachine")
+		}
+		return evm, nil
+	}
+
+	if len(disks) == 0 {
+		return getVM()
+	}
+
+	var (
+		scsiIdx    = 0
+		ideIdx     = 0
+		ide1un     = 0
+		ide2un     = 1
+		unitNumber = 0
+		ctrlKey    = 0
+	)
+	deviceChange := make([]types.BaseVirtualDeviceConfigSpec, 0, 1)
+	// add disks
+	var rootDiskSizeMb int64
+	for i, disk := range disks {
+		imagePath := disk.ImagePath
+		var size = disk.Size
+		if len(imagePath) == 0 {
+			if size == 0 {
+				size = 30 * 1024
+			}
+		} else {
+			var err error
+			imagePath, err = self.FileUrlPathToDsPath(imagePath)
+			if err != nil {
+				return nil, errors.Wrapf(err, "SHost.FileUrlPathToDsPath")
+			}
+			newImagePath := fmt.Sprintf("[%s] %s/%s.vmdk", ds.GetRelName(), uuid, uuid)
+
+			err = self.copyVirtualDisk(imagePath, newImagePath, disk.Driver)
+			if err != nil {
+				return nil, err
+			}
+			imagePath = newImagePath
+			rootDiskSizeMb = size
+		}
+		uuid, driver := disk.DiskId, "scsi"
+		if len(disk.Driver) > 0 {
+			driver = disk.Driver
+		}
+		if driver == "scsi" || driver == "pvscsi" {
+			if self.isVersion50() {
+				driver = "scsi"
+			}
+			ctrlKey = 1000
+			unitNumber = scsiIdx
+			scsiIdx += 1
+			if scsiIdx == 7 {
+				scsiIdx++
+			}
+		} else {
+			ideno := ideIdx % 2
+			if ideno == 0 {
+				unitNumber = ideIdx/2 + ide1un
+			} else {
+				unitNumber = ideIdx/2 + ide2un
+			}
+			ctrlKey = 200 + ideno
+			ideIdx += 1
+		}
+		log.Debugf("size: %d, image path: %s, uuid: %s, index: %d, ctrlKey: %d, driver: %s, key: %d.", size, imagePath, uuid, unitNumber, ctrlKey, disk.Driver, 2000+i)
+		spec := addDevSpec(NewDiskDev(size, SDiskConfig{
+			SizeMb:        size,
+			Uuid:          uuid,
+			ControllerKey: int32(ctrlKey),
+			UnitNumber:    int32(unitNumber),
+			Key:           int32(2000 + i),
+			ImagePath:     imagePath,
+			IsRoot:        i == 0,
+		}))
+		if len(imagePath) == 0 {
+			spec.FileOperation = "create"
+		}
+		deviceChange = append(deviceChange, spec)
+	}
+	log.Infof("deviceChange: %s", jsonutils.Marshal(deviceChange))
+
+	configSpec := types.VirtualMachineConfigSpec{}
+	configSpec.DeviceChange = deviceChange
+	task, err := objectVm.Reconfigure(ctx, configSpec)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to reconfigure")
+	}
+	err = task.Wait(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "task.Wait")
+	}
+
+	evm, err := getVM()
+	if err != nil {
+		return nil, err
+	}
+
+	// resize root disk
+	if rootDiskSizeMb > 0 && int64(evm.vdisks[0].GetDiskSizeMB()) != rootDiskSizeMb {
+		err = evm.vdisks[0].Resize(ctx, rootDiskSizeMb)
+		if err != nil {
+			return evm, errors.Wrap(err, "resize for root disk")
+		}
+	}
+	return evm, nil
+}
+
+func (self *SHost) copyVirtualDisk(srcPath, dstPath, diskDriver string) error {
+	dm := object.NewVirtualDiskManager(self.manager.client.Client)
+	spec := &types.VirtualDiskSpec{
+		DiskType: "thin",
+	}
+	switch diskDriver {
+	case "", "scsi", "pvscsi":
+		spec.AdapterType = "lsiLogic"
+	default:
+		spec.AdapterType = "ide"
+	}
+	task, err := dm.CopyVirtualDisk(self.manager.context, srcPath, self.datacenter.getDcObj(), dstPath, self.datacenter.getDcObj(), spec, true)
+	if err != nil {
+		return errors.Wrap(err, "unable to CopyVirtualDisk")
+	}
+	err = task.Wait(self.manager.context)
+	if err == nil {
+		return nil
+	}
+	errStr := strings.ToLower(err.Error())
+	if !strings.Contains(errStr, "the requested operation is not implemented by the server") {
+		return errors.Wrap(err, "wait CopyVirtualDiskTask")
+	}
+	task, err = dm.CopyVirtualDisk(self.manager.context, srcPath, self.datacenter.getDcObj(), dstPath, self.datacenter.getDcObj(), nil, true)
+	if err != nil {
+		return errors.Wrap(err, "unable to CopyVirtualDisk")
+	}
+	err = task.Wait(self.manager.context)
+	if err != nil {
+		return errors.Wrap(err, "wait CopyVirtualDiskTask")
+	}
+	return nil
+}
+
+func (self *SHost) DoCreateVM(ctx context.Context, ds *SDatastore, params SCreateVMParam) (needDeploy bool, vm *SVirtualMachine, err error) {
+	needDeploy = true
 	deviceChange := make([]types.BaseVirtualDeviceConfigSpec, 0, 5)
 
 	// uuid first
@@ -797,11 +977,9 @@ func (self *SHost) DoCreateVM(ctx context.Context, ds *SDatastore, params SCreat
 	deviceChange = append(deviceChange, addDevSpec(NewIDEDev(200, 0)))
 	deviceChange = append(deviceChange, addDevSpec(NewIDEDev(200, 1)))
 	deviceChange = append(deviceChange, addDevSpec(NewSVGADev(500, 100)))
-	disks, driver := params.Disks, "scsi"
-	if len(disks) > 0 {
-		driver = disks[0].Driver
-	}
-	if driver == "scsi" || driver == "pvscsi" {
+
+	if self.needScsi(params.Disks) {
+		driver := "pvscsi"
 		if self.isVersion50() {
 			driver = "scsi"
 		}
@@ -811,23 +989,15 @@ func (self *SHost) DoCreateVM(ctx context.Context, ds *SDatastore, params SCreat
 	if params.Cdrom != nil {
 		cdromPath, _ = params.Cdrom.GetString("path")
 	}
-	var err error
 	if len(cdromPath) != 0 && !strings.HasPrefix(cdromPath, "[") {
+		needDeploy = false
 		cdromPath, err = self.FileUrlPathToDsPath(cdromPath)
 		if err != nil {
-			return nil, errors.Wrapf(err, "SHost.FileUrlPathToDsPath")
+			err = errors.Wrapf(err, "SHost.FileUrlPathToDsPath")
+			return
 		}
 	}
 	deviceChange = append(deviceChange, addDevSpec(NewCDROMDev(cdromPath, 16000, 201)))
-
-	var (
-		scsiIdx = 0
-		ideIdx  = 0
-		ide1un  = 0
-		ide2un  = 1
-		index   = 0
-		ctrlKey = 0
-	)
 
 	// add usb to support mouse
 	usbController := addDevSpec(NewUSBController(nil))
@@ -851,7 +1021,7 @@ func (self *SHost) DoCreateVM(ctx context.Context, ds *SDatastore, params SCreat
 		}
 		dev, err := NewVNICDev(self, mac, driver, bridge, int32(vlanId), 4000, 100, int32(index))
 		if err != nil {
-			return nil, errors.Wrap(err, "NewVNICDev")
+			return needDeploy, nil, errors.Wrap(err, "NewVNICDev")
 		}
 		deviceChange = append(deviceChange, addDevSpec(dev))
 	}
@@ -859,118 +1029,36 @@ func (self *SHost) DoCreateVM(ctx context.Context, ds *SDatastore, params SCreat
 	spec.DeviceChange = deviceChange
 	dc, err := self.GetDatacenter()
 	if err != nil {
-		return nil, errors.Wrapf(err, "SHost.GetDatacenter for host '%s'", self.GetId())
+		err = errors.Wrapf(err, "SHost.GetDatacenter for host '%s'", self.GetId())
+		return
 	}
 	// get vmFloder
 	folders, err := dc.getObjectDatacenter().Folders(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "object.DataCenter.Folders")
+		err = errors.Wrap(err, "object.DataCenter.Folders")
+		return
 	}
 	vmFolder := folders.VmFolder
 	resourcePool, err := self.SyncResourcePool(params.ResourcePool)
 	if err != nil {
-		return nil, errors.Wrap(err, "SyncResourcePool")
+		err = errors.Wrap(err, "SyncResourcePool")
+		return
 	}
 	task, err := vmFolder.CreateVM(ctx, spec, resourcePool, self.GetoHostSystem())
 	if err != nil {
-		return nil, errors.Wrap(err, "VmFolder.Create")
+		err = errors.Wrap(err, "VmFolder.Create")
+		return
 	}
 
 	info, err := task.WaitForResult(ctx, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "Task.WaitForResult")
+		err = errors.Wrap(err, "Task.WaitForResult")
+		return
 	}
-
-	deviceChange = make([]types.BaseVirtualDeviceConfigSpec, 0, 1)
-	// add disks
-	var rootDiskSizeMb int64
-	for _, disk := range disks {
-		imagePath := disk.ImagePath
-		var size = disk.Size
-		if len(imagePath) == 0 {
-			if size == 0 {
-				size = 30 * 1024
-			}
-		} else {
-			imagePath, err = self.FileUrlPathToDsPath(imagePath)
-			if err != nil {
-				return nil, errors.Wrapf(err, "SHost.FileUrlPathToDsPath")
-			}
-			newImagePath := fmt.Sprintf("[%s] %s/%s.vmdk", ds.GetRelName(), params.Uuid, params.Uuid)
-			fm := ds.getDatastoreObj().NewFileManager(dc.getObjectDatacenter(), true)
-			err := fm.Copy(ctx, imagePath, newImagePath)
-			if err != nil {
-				return nil, errors.Wrap(err, "unable to copy system disk")
-			}
-			imagePath = newImagePath
-			rootDiskSizeMb = size
-		}
-		uuid, driver := disk.DiskId, "scsi"
-		if len(disk.Driver) > 0 {
-			driver = disk.Driver
-		}
-		if driver == "scsi" || driver == "pvscsi" {
-			if self.isVersion50() {
-				driver = "scsi"
-			}
-			ctrlKey = 1000
-			index = scsiIdx
-			scsiIdx += 1
-			if scsiIdx == 7 {
-				scsiIdx++
-			}
-		} else {
-			ideno := ideIdx % 2
-			if ideno == 0 {
-				index = ideIdx/2 + ide1un
-			} else {
-				index = ideIdx/2 + ide2un
-			}
-			ctrlKey = 200 + ideno
-			ideIdx += 1
-		}
-		log.Debugf("size: %d, image path: %s, uuid: %s, index: %d, ctrlKey: %d, driver: %s.", size, imagePath, uuid,
-			index, ctrlKey, disk.Driver)
-		spec := addDevSpec(NewDiskDev(size, imagePath, uuid, int32(index), 2000, int32(ctrlKey), 0))
-		if len(imagePath) == 0 {
-			spec.FileOperation = "create"
-		}
-		deviceChange = append(deviceChange, spec)
-	}
-
-	configSpec := types.VirtualMachineConfigSpec{}
-	configSpec.DeviceChange = deviceChange
-
 	vmRef := info.Result.(types.ManagedObjectReference)
 	objectVM := object.NewVirtualMachine(self.manager.client.Client, vmRef)
-	task, err = objectVM.Reconfigure(ctx, configSpec)
-	if err != nil {
-		return nil, errors.Wrap(err, "unable to reconfigure")
-	}
-	err = task.Wait(ctx)
-	if err != nil {
-		return nil, errors.Wrap(err, "task.Wait")
-	}
-
-	var moVM mo.VirtualMachine
-	err = self.manager.reference2Object(vmRef, VIRTUAL_MACHINE_PROPS, &moVM)
-	if err != nil {
-		return nil, errors.Wrap(err, "fail to fetch virtual machine just created")
-	}
-
-	evm := NewVirtualMachine(self.manager, &moVM, self.datacenter)
-	if evm == nil {
-		return nil, errors.Error("create successfully but unable to NewVirtualMachine")
-	}
-
-	// resize root disk
-	if rootDiskSizeMb > 0 && int64(evm.vdisks[0].GetDiskSizeMB()) != rootDiskSizeMb {
-		err = evm.vdisks[0].Resize(ctx, rootDiskSizeMb)
-		if err != nil {
-			return evm, errors.Wrap(err, "resize for root disk")
-		}
-	}
-	return evm, nil
+	vm, err = self.addDisks(ctx, dc, ds, params.Disks, params.Uuid, objectVM)
+	return
 }
 
 // If snapshot is not nil, params.Disks will be ignored
@@ -1334,24 +1422,19 @@ func (host *SHost) fetchDatastores() error {
 	if err != nil {
 		return err
 	}
-
-	MAX_TRIES := 3
-	for tried := 0; tried < MAX_TRIES; tried += 1 {
-		hostDss := host.getHostSystem().Datastore
-		if len(hostDss) == 0 {
-			// log.Errorf("host VMs are nil!!!!!")
-			return nil
+	dss := host.getHostSystem().Datastore
+	var datastores []mo.Datastore
+	err = host.manager.references2Objects(dss, DATASTORE_PROPS, &datastores)
+	if err != nil {
+		return err
+	}
+	host.datastores = make([]cloudprovider.ICloudStorage, 0)
+	for i := 0; i < len(datastores); i += 1 {
+		ds := NewDatastore(host.manager, &datastores[i], dc)
+		dsId := ds.GetGlobalId()
+		if len(dsId) > 0 {
+			host.datastores = append(host.datastores, ds)
 		}
-
-		dss, err := dc.fetchDatastores(hostDss)
-		if err != nil {
-			log.Errorf("dc.fetchVms fail %s", err)
-			time.Sleep(time.Second)
-			host.Refresh()
-			continue
-		}
-		host.datastores = dss
-		break
 	}
 	return nil
 }
