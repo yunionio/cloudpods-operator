@@ -96,6 +96,9 @@ type SCloudaccountCredential struct {
 
 	// 阿里云专有云Endpoints
 	*SApsaraEndpoints
+
+	// Huawei Cloud Stack Online
+	*SHuaweiCloudStackEndpoints
 }
 
 type SCloudaccount struct {
@@ -158,6 +161,7 @@ type ProviderConfig struct {
 	AccountId string
 
 	SApsaraEndpoints
+	SHuaweiCloudStackEndpoints
 
 	ProxyFunc httputils.TransportProxyFunc
 }
@@ -317,6 +321,10 @@ func IsSupportObjectstore(prod ICloudProvider) bool {
 
 func IsSupportRds(prod ICloudProvider) bool {
 	return utils.IsInStringArray(CLOUD_CAPABILITY_RDS, prod.GetCapabilities())
+}
+
+func IsSupportNAT(prod ICloudProvider) bool {
+	return utils.IsInStringArray(CLOUD_CAPABILITY_NAT, prod.GetCapabilities())
 }
 
 func IsSupportElasticCache(prod ICloudProvider) bool {

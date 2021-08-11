@@ -26,7 +26,7 @@ require (
 	k8s.io/utils v0.0.0-20190607212802-c55fbcfc754a // indirect
 	yunion.io/x/jsonutils v0.0.0-20210709075951-798a67800349
 	yunion.io/x/log v0.0.0-20201210064738-43181789dc74
-	yunion.io/x/onecloud v0.0.0-20210728021722-3a0ef9d8d191
+	yunion.io/x/onecloud v0.0.0-20210811095035-e95f6570c5d8
 	yunion.io/x/pkg v0.0.0-20210721081124-55078288ca4c
 	yunion.io/x/structarg v0.0.0-20200720093445-9f850fa222ce
 )

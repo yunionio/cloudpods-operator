@@ -271,6 +271,18 @@ func (opts *SHuaweiCloudAccountCreateOptions) Params() (jsonutils.JSONObject, er
 	return params, nil
 }
 
+type SHuaweiCloudStackAccountCreateOptions struct {
+	SCloudAccountCreateBaseOptions
+	cloudprovider.SHuaweiCloudStackEndpoints
+	SAccessKeyCredential
+}
+
+func (opts *SHuaweiCloudStackAccountCreateOptions) Params() (jsonutils.JSONObject, error) {
+	params := jsonutils.Marshal(opts)
+	params.(*jsonutils.JSONDict).Add(jsonutils.NewString("HuaweiCloudStack"), "provider")
+	return params, nil
+}
+
 type SUcloudCloudAccountCreateOptions struct {
 	SCloudAccountCreateBaseOptions
 	SAccessKeyCredential
@@ -359,6 +371,18 @@ func (opts *SJDcloudCloudAccountCreateOptions) Params() (jsonutils.JSONObject, e
 	return params, nil
 }
 
+type SCloudpodsCloudAccountCreateOptions struct {
+	SCloudAccountCreateBaseOptions
+	SAccessKeyCredential
+	AuthURL string `help:"Cloudpods auth_url" positional:"true" json:"auth_url"`
+}
+
+func (opts *SCloudpodsCloudAccountCreateOptions) Params() (jsonutils.JSONObject, error) {
+	params := jsonutils.Marshal(opts)
+	params.(*jsonutils.JSONDict).Add(jsonutils.NewString("Cloudpods"), "provider")
+	return params, nil
+}
+
 // update credential options
 
 type SCloudAccountIdOptions struct {
@@ -436,6 +460,16 @@ func (opts *SHuaweiCloudAccountUpdateCredentialOptions) Params() (jsonutils.JSON
 	return jsonutils.Marshal(opts), nil
 }
 
+type SHuaweiCloudStackAccountUpdateCredentialOptions struct {
+	SCloudAccountIdOptions
+	cloudprovider.SHuaweiCloudStackEndpoints
+	SAccessKeyCredential
+}
+
+func (opts *SHuaweiCloudStackAccountUpdateCredentialOptions) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.Marshal(opts), nil
+}
+
 type SUcloudCloudAccountUpdateCredentialOptions struct {
 	SCloudAccountIdOptions
 	SAccessKeyCredential
@@ -479,6 +513,15 @@ type SJDcloudCloudAccountUpdateCredentialOptions struct {
 
 func (opts *SJDcloudCloudAccountUpdateCredentialOptions) Params() (jsonutils.JSONObject, error) {
 	return jsonutils.Marshal(opts), nil
+}
+
+type SCloudpodsCloudAccountUpdateCredentialOptions struct {
+	SCloudAccountIdOptions
+	SAccessKeyCredential
+}
+
+func (opts *SCloudpodsCloudAccountUpdateCredentialOptions) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.Marshal(opts.SAccessKeyCredential), nil
 }
 
 type SGoogleCloudAccountUpdateCredentialOptions struct {
@@ -748,6 +791,14 @@ func (opts *SHuaweiCloudAccountUpdateOptions) Params() (jsonutils.JSONObject, er
 	return params, nil
 }
 
+type SHuaweiCloudStackAccountUpdateOptions struct {
+	SCloudAccountUpdateBaseOptions
+}
+
+func (opts *SHuaweiCloudStackAccountUpdateOptions) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.Marshal(opts), nil
+}
+
 type SUcloudCloudAccountUpdateOptions struct {
 	SCloudAccountUpdateBaseOptions
 }
@@ -785,6 +836,14 @@ type SJDcloudCloudAccountUpdateOptions struct {
 }
 
 func (opts *SJDcloudCloudAccountUpdateOptions) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.Marshal(opts), nil
+}
+
+type SCloudpodsCloudAccountUpdateOptions struct {
+	SCloudAccountUpdateBaseOptions
+}
+
+func (opts *SCloudpodsCloudAccountUpdateOptions) Params() (jsonutils.JSONObject, error) {
 	return jsonutils.Marshal(opts), nil
 }
 
