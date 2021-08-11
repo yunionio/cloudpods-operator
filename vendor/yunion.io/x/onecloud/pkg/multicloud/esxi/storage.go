@@ -59,6 +59,7 @@ type SDatastore struct {
 	// vms []cloudprovider.ICloudVM
 
 	ihosts []cloudprovider.ICloudHost
+	idisks []cloudprovider.ICloudDisk
 
 	storageCache *SDatastoreImageCache
 }
@@ -294,6 +295,7 @@ func (self *SDatastore) FetchFakeTempateVMById(id string, regex string) (*SVirtu
 	filter["summary.config.uuid"] = uuid
 	filter["datastore"] = mods.Reference()
 	filter["summary.runtime.powerState"] = types.VirtualMachinePowerStatePoweredOff
+	filter["config.template"] = false
 	movms, err := self.datacenter.fetchMoVms(filter, []string{"name"})
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to fetch mo.VirtualMachines")
@@ -313,6 +315,7 @@ func (self *SDatastore) FetchFakeTempateVMs(regex string) ([]*SVirtualMachine, e
 	filter := property.Filter{}
 	filter["datastore"] = mods.Reference()
 	filter["summary.runtime.powerState"] = types.VirtualMachinePowerStatePoweredOff
+	filter["config.template"] = false
 	movms, err := self.datacenter.fetchMoVms(filter, []string{"name"})
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to fetch mo.VirtualMachines")
@@ -330,7 +333,7 @@ func (self *SDatastore) getVMs() ([]cloudprovider.ICloudVM, error) {
 	if len(vms) == 0 {
 		return nil, nil
 	}
-	svms, err := dc.fetchVms(vms, false)
+	svms, err := dc.fetchVmsFromCache(vms)
 	if err != nil {
 		return nil, err
 	}
@@ -357,20 +360,32 @@ func (self *SDatastore) GetIDiskById(idStr string) (cloudprovider.ICloudDisk, er
 	return nil, cloudprovider.ErrNotFound
 }
 
-func (self *SDatastore) GetIDisks() ([]cloudprovider.ICloudDisk, error) {
+func (self *SDatastore) fetchDisks() error {
 	vms, err := self.getVMs()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	allDisks := make([]cloudprovider.ICloudDisk, 0)
 	for i := 0; i < len(vms); i += 1 {
 		disks, err := vms[i].GetIDisks()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		allDisks = append(allDisks, disks...)
 	}
-	return allDisks, nil
+	self.idisks = allDisks
+	return nil
+}
+
+func (self *SDatastore) GetIDisks() ([]cloudprovider.ICloudDisk, error) {
+	if self.idisks != nil {
+		return self.idisks, nil
+	}
+	err := self.fetchDisks()
+	if err != nil {
+		return nil, err
+	}
+	return self.idisks, nil
 }
 
 func (self *SDatastore) isLocalVMFS() bool {
@@ -593,6 +608,91 @@ func (self *SDatastore) ListDir(ctx context.Context, remotePath string) ([]SData
 	}
 
 	return ret, nil
+}
+
+func (self *SDatastore) listPath(b *object.HostDatastoreBrowser, path string, spec types.HostDatastoreBrowserSearchSpec) ([]types.HostDatastoreBrowserSearchResults, error) {
+	ctx := context.TODO()
+
+	path = self.getDatastoreObj().Path(path)
+
+	search := b.SearchDatastore
+
+	task, err := search(ctx, path, &spec)
+	if err != nil {
+		return nil, err
+	}
+
+	info, err := task.WaitForResult(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	switch r := info.Result.(type) {
+	case types.HostDatastoreBrowserSearchResults:
+		return []types.HostDatastoreBrowserSearchResults{r}, nil
+	case types.ArrayOfHostDatastoreBrowserSearchResults:
+		return r.HostDatastoreBrowserSearchResults, nil
+	default:
+		return nil, errors.Error(fmt.Sprintf("unknown result type: %T", r))
+	}
+
+}
+
+func (self *SDatastore) ListPath(ctx context.Context, remotePath string) ([]types.HostDatastoreBrowserSearchResults, error) {
+	//types.HostDatastoreBrowserSearchResults
+	ds := self.getDatastoreObj()
+
+	b, err := ds.Browser(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := make([]types.HostDatastoreBrowserSearchResults, 0)
+
+	spec := types.HostDatastoreBrowserSearchSpec{
+		MatchPattern: []string{"*"},
+		Details: &types.FileQueryFlags{
+			FileType:     true,
+			FileSize:     true,
+			FileOwner:    types.NewBool(true), // TODO: omitempty is generated, but seems to be required
+			Modification: true,
+		},
+	}
+
+	for i := 0; ; i++ {
+		r, err := self.listPath(b, remotePath, spec)
+		if err != nil {
+			// Treat the argument as a match pattern if not found as directory
+			if i == 0 && types.IsFileNotFound(err) || isInvalid(err) {
+				spec.MatchPattern[0] = path.Base(remotePath)
+				remotePath = path.Dir(remotePath)
+				continue
+			}
+			if types.IsFileNotFound(err) {
+				return nil, errors.ErrNotFound
+			}
+			return nil, err
+		}
+		if i == 1 && len(r) == 1 && len(r[0].File) == 0 {
+			return nil, errors.ErrNotFound
+		}
+		for n := range r {
+			ret = append(ret, r[n])
+		}
+		break
+	}
+	return ret, nil
+}
+
+func isInvalid(err error) bool {
+	if f, ok := err.(types.HasFault); ok {
+		switch f.Fault().(type) {
+		case *types.InvalidArgument:
+			return true
+		}
+	}
+
+	return false
 }
 
 func (self *SDatastore) CheckFile(ctx context.Context, remotePath string) (*SDatastoreFileInfo, error) {
