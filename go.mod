@@ -4,8 +4,10 @@ go 1.12
 
 require (
 	github.com/docker/distribution v0.0.0-20170726174610-edc3ab29cdff
+	github.com/gin-gonic/gin v1.7.0 // indirect
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/googleapis/gnostic v0.3.0 // indirect
+	github.com/gorilla/websocket v1.4.1 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/onsi/ginkgo v1.8.0 // indirect
 	github.com/onsi/gomega v1.5.0 // indirect
@@ -26,7 +28,7 @@ require (
 	k8s.io/utils v0.0.0-20190607212802-c55fbcfc754a // indirect
 	yunion.io/x/jsonutils v0.0.0-20210709075951-798a67800349
 	yunion.io/x/log v0.0.0-20201210064738-43181789dc74
-	yunion.io/x/onecloud v0.0.0-20210729112357-c7c87652567c
+	yunion.io/x/onecloud v0.0.0-20210811095057-b47946b56220
 	yunion.io/x/pkg v0.0.0-20210721081124-55078288ca4c
 	yunion.io/x/structarg v0.0.0-20200720093445-9f850fa222ce
 )
