@@ -130,6 +130,8 @@ type ICloudRegion interface {
 	GetISkus() ([]ICloudSku, error)
 	CreateISku(opts *SServerSkuCreateOption) (ICloudSku, error)
 
+	GetICloudNatSkus() ([]ICloudNatSku, error)
+
 	GetINetworkInterfaces() ([]ICloudNetworkInterface, error)
 
 	GetIBuckets() ([]ICloudBucket, error)
@@ -143,6 +145,7 @@ type ICloudRegion interface {
 	GetIDBInstanceById(instanceId string) (ICloudDBInstance, error)
 	GetIDBInstanceBackups() ([]ICloudDBInstanceBackup, error)
 	GetIDBInstanceBackupById(backupId string) (ICloudDBInstanceBackup, error)
+	GetIDBInstanceSkus() ([]ICloudDBInstanceSku, error)
 
 	CreateIDBInstance(desc *SManagedDBInstanceCreateConfig) (ICloudDBInstance, error)
 
@@ -183,6 +186,9 @@ type ICloudRegion interface {
 
 	GetICloudKafkas() ([]ICloudKafka, error)
 	GetICloudKafkaById(id string) (ICloudKafka, error)
+
+	GetICloudApps() ([]ICloudApp, error)
+	GetICloudAppById(id string) (ICloudApp, error)
 }
 
 type ICloudZone interface {
@@ -1442,4 +1448,50 @@ type ICloudKafka interface {
 	GetTopics() ([]SKafkaTopic, error)
 
 	Delete() error
+}
+
+type ICloudApp interface {
+	IVirtualResource
+	GetEnvironments() ([]ICloudAppEnvironment, error)
+	GetTechStack() string
+	GetType() string
+	GetKind() string
+	GetOsType() string
+}
+
+type ICloudAppEnvironment interface {
+	IVirtualResource
+	GetInstanceType() (string, error)
+	GetInstanceNumber() (int, error)
+}
+
+type ICloudDBInstanceSku interface {
+	GetName() string
+	GetGlobalId() string
+	GetStatus() string
+	GetEngine() string
+	GetEngineVersion() string
+	GetStorageType() string
+	GetDiskSizeStep() int
+	GetMaxDiskSizeGb() int
+	GetMinDiskSizeGb() int
+	GetIOPS() int
+	GetTPS() int
+	GetQPS() int
+	GetMaxConnections() int
+	GetVcpuCount() int
+	GetVmemSizeMb() int
+	GetCategory() string
+	GetZone1Id() string
+	GetZone2Id() string
+	GetZone3Id() string
+	GetZoneId() string
+}
+
+type ICloudNatSku interface {
+	GetName() string
+	GetDesc() string
+	GetGlobalId() string
+	GetPrepaidStatus() string
+	GetPostpaidStatus() string
 }

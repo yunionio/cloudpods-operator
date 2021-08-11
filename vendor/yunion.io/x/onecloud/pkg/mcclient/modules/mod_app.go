@@ -16,18 +16,28 @@ package modules
 
 import "yunion.io/x/onecloud/pkg/mcclient/modulebase"
 
+type AppManager struct {
+	modulebase.ResourceManager
+}
+
+type AppEnvironmentManager struct {
+	modulebase.ResourceManager
+}
+
 var (
-	Actions    modulebase.ResourceManager
-	ActionLogs modulebase.ResourceManager
+	Apps            AppManager
+	AppEnvironments AppEnvironmentManager
 )
 
 func init() {
-	Actions = NewActionManager("action", "actions",
-		[]string{"id", "start_time", "service", "ops_time", "obj_id", "obj_type", "obj_name", "user", "user_id", "tenant", "tenant_id", "owner_tenant_id", "action", "success", "notes"},
-		[]string{})
-	register(&Actions)
-
-	ActionLogs = NewActionManager("event", "events",
-		[]string{"id", "ops_time", "obj_id", "obj_type", "obj_name", "user", "user_id", "tenant", "tenant_id", "owner_tenant_id", "action", "notes"},
-		[]string{})
+	Apps = AppManager{NewComputeManager("webapp", "webapps",
+		[]string{},
+		[]string{},
+	)}
+	AppEnvironments = AppEnvironmentManager{NewComputeManager("webappenvironment", "webappenvironments",
+		[]string{},
+		[]string{},
+	)}
+	registerCompute(&Apps)
+	registerCompute(&AppEnvironments)
 }
