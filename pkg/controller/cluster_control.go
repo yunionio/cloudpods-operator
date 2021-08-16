@@ -66,7 +66,7 @@ func (c *clusterControl) UpdateCluster(oc *v1alpha1.OnecloudCluster, newStatus, 
 		var updateErr error
 		updateOC, updateErr = c.cli.OnecloudV1alpha1().OnecloudClusters(ns).Update(oc)
 		if updateErr == nil {
-			klog.Infof("OnecloudCluster: [%s/%s] updated successfully", ns, ocName)
+			klog.Infof("OnecloudCluster: [%s/%s] updated successfully, spec: %#v", ns, ocName, oc.Spec.MonitorStack)
 			return nil
 		}
 		klog.Errorf("failed to update OnecloudCluster: [%s/%s], error: %v", ns, ocName, updateErr)

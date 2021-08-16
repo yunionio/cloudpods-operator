@@ -99,13 +99,18 @@ func main() {
 
 	var informerFactory informers.SharedInformerFactory
 	var kubeInformerFactory kubeinformers.SharedInformerFactory
+
 	options := []informers.SharedInformerOption{
-		informers.WithNamespace(ns),
+		/* Operator need to care about other namespaces
+		 * informers.WithNamespace(ns),
+		 */
 	}
 	informerFactory = informers.NewSharedInformerFactoryWithOptions(cli, resyncDuration, options...)
 
 	kubeOptions := []kubeinformers.SharedInformerOption{
-		kubeinformers.WithNamespace(ns),
+		/* Operator need to care about other namespaces
+		 * kubeinformers.WithNamespace(ns),
+		 */
 	}
 	kubeInformerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(kubeCli, resyncDuration, kubeOptions...)
 

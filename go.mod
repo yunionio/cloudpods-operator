@@ -9,6 +9,7 @@ require (
 	github.com/googleapis/gnostic v0.3.0 // indirect
 	github.com/gorilla/websocket v1.4.1 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
+	github.com/minio/minio-go/v7 v7.0.6
 	github.com/onsi/ginkgo v1.8.0 // indirect
 	github.com/onsi/gomega v1.5.0 // indirect
 	github.com/pborman/uuid v1.2.0
@@ -28,7 +29,7 @@ require (
 	k8s.io/utils v0.0.0-20190607212802-c55fbcfc754a // indirect
 	yunion.io/x/jsonutils v0.0.0-20210709075951-798a67800349
 	yunion.io/x/log v0.0.0-20201210064738-43181789dc74
-	yunion.io/x/onecloud v0.0.0-20210811095057-b47946b56220
+	yunion.io/x/onecloud v0.0.0-20210815030108-f0dfe268c702
 	yunion.io/x/pkg v0.0.0-20210721081124-55078288ca4c
 	yunion.io/x/structarg v0.0.0-20200720093445-9f850fa222ce
 )
