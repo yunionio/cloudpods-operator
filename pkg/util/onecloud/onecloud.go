@@ -28,14 +28,11 @@ import (
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/mcclient/modulebase"
 	"yunion.io/x/onecloud/pkg/mcclient/modules"
-	k8smod "yunion.io/x/onecloud/pkg/mcclient/modules/k8s"
-	"yunion.io/x/onecloud/pkg/mcclient/options/k8s"
 	"yunion.io/x/onecloud/pkg/util/ansible"
 	"yunion.io/x/onecloud/pkg/util/httputils"
 	"yunion.io/x/pkg/errors"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
-	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 )
 
 const (
@@ -849,131 +846,6 @@ func EnsureAgentAnsiblePlaybookRef(s *mcclient.ClientSession) error {
 		if err != nil {
 			return errors.Wrapf(err, "unable to create devtool script %q", agentName)
 		}
-	}
-	return nil
-}
-
-func GetSystemCluster(s *mcclient.ClientSession) (jsonutils.JSONObject, error) {
-	ret, err := k8smod.KubeClusters.Get(s, K8SSystemClusterName, nil)
-	if err != nil {
-		return nil, errors.Wrap(err, "Get kubernetes system default cluster")
-	}
-	return ret, nil
-}
-
-func SyncSystemCluster(s *mcclient.ClientSession, id string) error {
-	_, err := k8smod.KubeClusters.PerformAction(s, id, "sync", nil)
-	return err
-}
-
-func EnableMinio(s *mcclient.ClientSession) error {
-	ret, err := GetSystemCluster(s)
-	if err != nil {
-		return err
-	}
-	id, err := ret.GetString("id")
-	if err != nil {
-		return errors.Wrapf(err, "Get kubernetes system default cluster id from %s", ret)
-	}
-
-	isEnabled, err := isMinioEnabled(s, id)
-	if err != nil {
-		return errors.Wrap(err, "Check minio is enabled")
-	}
-	if isEnabled {
-		return nil
-	}
-	if err := SyncSystemCluster(s, id); err != nil {
-		return errors.Wrap(err, "Sync system default cluster")
-	}
-	if err := enableMinio(s, id); err != nil {
-		return errors.Wrap(err, "Enable system default cluster minio component")
-	}
-	return nil
-}
-
-type ComponentStatus struct {
-	Id      string `json:"id"`
-	Created bool   `json:"created"`
-	Enabled bool   `json:"enabled"`
-	Status  string `json:"status"`
-}
-
-type ClusterComponentsStatus struct {
-	CephCSI   *ComponentStatus `json:"cephCSI"`
-	Monitor   *ComponentStatus `json:"monitor"`
-	FluentBit *ComponentStatus `json:"fluentbit"`
-	Thanos    *ComponentStatus `json:"thanos"`
-	Minio     *ComponentStatus `json:"minio"`
-}
-
-func GetSystemClusterComponentsStatus(s *mcclient.ClientSession, id string) (*ClusterComponentsStatus, error) {
-	ret, err := k8smod.KubeClusters.GetSpecific(s, id, "components-status", nil)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Get cluster %s components status", id)
-	}
-	out := new(ClusterComponentsStatus)
-	if err := ret.Unmarshal(out); err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func isMinioEnabled(s *mcclient.ClientSession, id string) (bool, error) {
-	status, err := GetSystemClusterComponentsStatus(s, id)
-	if err != nil {
-		return false, errors.Wrap(err, "Get cluster components status")
-	}
-	if strings.HasSuffix(status.Minio.Status, "_fail") {
-		// disable it here
-		if err := disableMinio(s, id); err != nil {
-			log.Errorf("Try disable minio when status is %s: %s", status.Minio.Status, err)
-		}
-		return false, errors.Errorf("Minio deploy status: %s", status.Monitor.Status)
-	}
-	return status.Minio.Enabled, nil
-}
-
-func disableMinio(s *mcclient.ClientSession, systemClusterId string) error {
-	params := map[string]string{
-		"type": "minio",
-	}
-	if _, err := k8smod.KubeClusters.PerformAction(s, systemClusterId, "disable-component", jsonutils.Marshal(params)); err != nil {
-		return errors.Wrap(err, "disable minio")
-	}
-	return nil
-}
-
-func enableMinio(s *mcclient.ClientSession, systemClusterId string) error {
-	opt := &k8s.ClusterEnableComponentMinioOpt{
-		ClusterEnableComponentMinioBaseOpt: k8s.ClusterEnableComponentMinioBaseOpt{
-			ClusterComponentOptions: k8s.ClusterComponentOptions{
-				IdentOptions: k8s.IdentOptions{
-					ID: systemClusterId,
-				},
-			},
-			ClusterComponentMinioSetting: k8s.ClusterComponentMinioSetting{
-				Mode:          "distributed",
-				Replicas:      4,
-				DrivesPerNode: 1,
-				AccessKey:     "minioadmin",
-				SecretKey:     "yunionminio@admin",
-				MountPath:     "/export",
-				Storage: k8s.ClusterComponentStorage{
-					Enabled:   true,
-					SizeMB:    1024 * 1024,
-					ClassName: v1alpha1.DefaultStorageClass,
-				},
-			},
-		},
-	}
-	params, err := opt.Params()
-	if err != nil {
-		return errors.Wrap(err, "Generate minio component params")
-	}
-	_, err = k8smod.KubeClusters.PerformAction(s, systemClusterId, "enable-component", params)
-	if err != nil {
-		return errors.Wrapf(err, "Enable minio cluster component of system-cluster %s", systemClusterId)
 	}
 	return nil
 }

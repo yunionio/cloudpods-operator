@@ -71,6 +71,19 @@ const (
 )
 
 const (
+	MonitorStackNamespace = "onecloud-monitoring"
+
+	MonitorMinioName   = "monitor-minio"
+	MonitorThanosQuery = "thanos-query"
+	MonitorGrafana     = "monitor-grafana"
+	MonitorLoki        = "monitor-loki"
+	MonitorPrometheus  = "prometheus-monitor-monitor-stack-prometheus"
+
+	MonitorBucketThanos = "thanos"
+	MonitorBucketLoki   = "loki"
+)
+
+const (
 	SysAdminUsername = "sysadmin"
 	SysAdminProject  = "system"
 	DefaultDomain    = "Default"
