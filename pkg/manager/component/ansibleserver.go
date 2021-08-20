@@ -86,7 +86,7 @@ func (m *ansibleManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 			},
 		}
 	}
-	return m.newDefaultDeploymentNoInit(v1alpha1.AnsibleServerComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.AnsibleServerComponentType), v1alpha1.AnsibleServerComponentType), oc.Spec.AnsibleServer, cf)
+	return m.newDefaultDeploymentNoInit(v1alpha1.AnsibleServerComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.AnsibleServerComponentType), v1alpha1.AnsibleServerComponentType), &oc.Spec.AnsibleServer, cf)
 }
 
 func (m *ansibleManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {

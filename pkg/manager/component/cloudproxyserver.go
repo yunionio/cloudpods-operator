@@ -117,7 +117,7 @@ func (m *cloudproxyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1a
 			},
 		}
 	}
-	return m.newDefaultDeploymentNoInit(v1alpha1.CloudproxyComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.CloudproxyComponentType), v1alpha1.CloudproxyComponentType), oc.Spec.Cloudproxy, cf)
+	return m.newDefaultDeploymentNoInit(v1alpha1.CloudproxyComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.CloudproxyComponentType), v1alpha1.CloudproxyComponentType), &oc.Spec.Cloudproxy, cf)
 }
 
 func (m *cloudproxyManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {

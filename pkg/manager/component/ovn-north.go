@@ -66,7 +66,7 @@ func (m *ovnNorthManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 			},
 		}
 	}
-	deploy, err := m.newDefaultDeploymentNoInit(v1alpha1.OvnNorthComponentType, "", oc, NewVolumeHelper(oc, "", v1alpha1.OvnNorthComponentType), oc.Spec.OvnNorth, containersF)
+	deploy, err := m.newDefaultDeploymentNoInit(v1alpha1.OvnNorthComponentType, "", oc, NewVolumeHelper(oc, "", v1alpha1.OvnNorthComponentType), &oc.Spec.OvnNorth, containersF)
 	if err != nil {
 		return nil, err
 	}
