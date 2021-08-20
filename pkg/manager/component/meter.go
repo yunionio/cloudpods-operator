@@ -104,7 +104,7 @@ func (m *meterManager) getPVC(oc *v1alpha1.OnecloudCluster, zone string) (*corev
 }
 
 func (m *meterManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
-	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.MeterComponentType, "", oc, oc.Spec.Meter.DeploymentSpec, constants.MeterPort, true, false)
+	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.MeterComponentType, "", oc, &oc.Spec.Meter.DeploymentSpec, constants.MeterPort, true, false)
 	if err != nil {
 		return nil, err
 	}

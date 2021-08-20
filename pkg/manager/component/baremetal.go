@@ -128,7 +128,7 @@ func (m *baremetalManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1al
 			oc, controller.ComponentConfigMapName(oc, zoneComponentType),
 			zoneComponentType,
 		),
-		dmSpec, hostNetwork, containersF,
+		&dmSpec, hostNetwork, containersF,
 	)
 	if err != nil {
 		return nil, err
