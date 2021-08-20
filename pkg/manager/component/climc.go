@@ -83,5 +83,5 @@ func (m *climcManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 			},
 		}
 	}
-	return m.newDefaultDeploymentNoInit(v1alpha1.ClimcComponentType, "", oc, NewVolumeHelper(oc, "", v1alpha1.ClimcComponentType), oc.Spec.Climc, containersF)
+	return m.newDefaultDeploymentNoInit(v1alpha1.ClimcComponentType, "", oc, NewVolumeHelper(oc, "", v1alpha1.ClimcComponentType), &oc.Spec.Climc, containersF)
 }

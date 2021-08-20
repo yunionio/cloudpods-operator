@@ -463,7 +463,7 @@ func (m *webManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 		}
 		return containers
 	}
-	deploy, err := m.newDefaultDeploymentNoInit(v1alpha1.WebComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.WebComponentType), v1alpha1.WebComponentType), oc.Spec.Web, cf)
+	deploy, err := m.newDefaultDeploymentNoInit(v1alpha1.WebComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.WebComponentType), v1alpha1.WebComponentType), &oc.Spec.Web, cf)
 	if err != nil {
 		return nil, err
 	}

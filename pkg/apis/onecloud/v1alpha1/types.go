@@ -19,6 +19,7 @@ import (
 
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -821,9 +822,9 @@ type Service struct {
 
 type ResourceRequirement struct {
 	// CPU is how many cores a pod requires
-	CPU string `json:"cpu,omitempty"`
+	CPU *resource.Quantity `json:"cpu,omitempty"`
 	// Memory is how much memory a pod requires
-	Memory string `json:"memory,omitempty"`
+	Memory *resource.Quantity `json:"memory,omitempty"`
 	// Storage is storage size a pod requires
 	Storage string `json:"storage,omitempty"`
 }

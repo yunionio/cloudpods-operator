@@ -85,7 +85,7 @@ func (m *cloudidManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 			},
 		}
 	}
-	return m.newDefaultDeploymentNoInit(v1alpha1.CloudIdComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.CloudIdComponentType), v1alpha1.CloudIdComponentType), oc.Spec.CloudId, cf)
+	return m.newDefaultDeploymentNoInit(v1alpha1.CloudIdComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.CloudIdComponentType), v1alpha1.CloudIdComponentType), &oc.Spec.CloudId, cf)
 }
 
 func (m *cloudidManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {

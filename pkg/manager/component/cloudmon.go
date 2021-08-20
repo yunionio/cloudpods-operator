@@ -138,7 +138,7 @@ func (m *cloudmonManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 			},
 		}
 	}
-	return m.newDefaultDeployment(v1alpha1.CloudmonComponentType, v1alpha1.CloudmonComponentType, oc, h, spec, nil, containersF)
+	return m.newDefaultDeployment(v1alpha1.CloudmonComponentType, v1alpha1.CloudmonComponentType, oc, h, &spec, nil, containersF)
 }
 
 func formateCloudmonProviderCommand(reportDur uint, timeout uint, reportInterval uint, command string,

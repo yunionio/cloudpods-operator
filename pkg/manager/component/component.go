@@ -17,7 +17,6 @@ package component
 import (
 	"fmt"
 
-	errorswrap "github.com/pkg/errors"
 	apps "k8s.io/api/apps/v1"
 	jobbatchv1 "k8s.io/api/batch/v1"
 	batchv1 "k8s.io/api/batch/v1beta1"
@@ -35,7 +34,9 @@ import (
 	"k8s.io/klog"
 
 	"yunion.io/x/jsonutils"
+	"yunion.io/x/log"
 	"yunion.io/x/onecloud/pkg/mcclient"
+	errorswrap "yunion.io/x/pkg/errors"
 	"yunion.io/x/pkg/utils"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
@@ -43,6 +44,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/label"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/util/k8sutil"
 )
 
 type ComponentManager struct {
@@ -425,7 +427,7 @@ func (m *ComponentManager) newDefaultDeployment(
 	zoneComponentType v1alpha1.ComponentType,
 	oc *v1alpha1.OnecloudCluster,
 	volHelper *VolumeHelper,
-	spec v1alpha1.DeploymentSpec,
+	spec *v1alpha1.DeploymentSpec,
 	initContainersFactory func([]corev1.VolumeMount) []corev1.Container, containersFactory func([]corev1.VolumeMount) []corev1.Container,
 ) (*apps.Deployment, error) {
 	return m.newDefaultDeploymentWithCloudAffinity(componentType, zoneComponentType, oc, volHelper, spec, initContainersFactory, containersFactory)
@@ -463,7 +465,7 @@ func (m *ComponentManager) newDefaultDeploymentWithCloudAffinity(
 	zoneComponentType v1alpha1.ComponentType,
 	oc *v1alpha1.OnecloudCluster,
 	volHelper *VolumeHelper,
-	spec v1alpha1.DeploymentSpec,
+	spec *v1alpha1.DeploymentSpec,
 	initContainersFactory func([]corev1.VolumeMount) []corev1.Container,
 	containersFactory func([]corev1.VolumeMount) []corev1.Container,
 ) (*apps.Deployment, error) {
@@ -491,7 +493,7 @@ func (m *ComponentManager) newDefaultDeploymentWithCloudAffinity(
 
 func (m *ComponentManager) newDefaultDeploymentNoInit(
 	componentType v1alpha1.ComponentType, zoneComponentType v1alpha1.ComponentType,
-	oc *v1alpha1.OnecloudCluster, volHelper *VolumeHelper, spec v1alpha1.DeploymentSpec,
+	oc *v1alpha1.OnecloudCluster, volHelper *VolumeHelper, spec *v1alpha1.DeploymentSpec,
 	containersFactory func([]corev1.VolumeMount) []corev1.Container,
 ) (*apps.Deployment, error) {
 	return m.newDefaultDeploymentWithCloudAffinity(componentType, zoneComponentType, oc, volHelper, spec, nil, containersFactory)
@@ -502,7 +504,7 @@ func (m *ComponentManager) newDefaultDeploymentNoInitWithoutCloudAffinity(
 	zoneComponentType v1alpha1.ComponentType,
 	oc *v1alpha1.OnecloudCluster,
 	volHelper *VolumeHelper,
-	spec v1alpha1.DeploymentSpec,
+	spec *v1alpha1.DeploymentSpec,
 	hostNetwork bool,
 	containersFactory func([]corev1.VolumeMount) []corev1.Container,
 ) (*apps.Deployment, error) {
@@ -631,7 +633,7 @@ func (m *ComponentManager) newEtcdService(
 
 func (m *ComponentManager) newDeployment(
 	componentType v1alpha1.ComponentType, zoneComponentType v1alpha1.ComponentType,
-	oc *v1alpha1.OnecloudCluster, volHelper *VolumeHelper, spec v1alpha1.DeploymentSpec,
+	oc *v1alpha1.OnecloudCluster, volHelper *VolumeHelper, spec *v1alpha1.DeploymentSpec,
 	initContainersFactory func([]corev1.VolumeMount) []corev1.Container, containersFactory func([]corev1.VolumeMount) []corev1.Container,
 	hostNetwork bool, dnsPolicy corev1.DNSPolicy,
 ) (*apps.Deployment, error) {
@@ -686,15 +688,127 @@ func (m *ComponentManager) newDeployment(
 	if containersFactory != nil {
 		templateSpec.Containers = containersFactory(volMounts)
 	}
+
+	if err := m.setContainerResources(&spec.ContainerSpec, templateSpec); err != nil {
+		log.Errorf("set container resources %v", err)
+	}
+
 	if hostNetwork {
 		appDeploy.Spec.Strategy = apps.DeploymentStrategy{Type: apps.RecreateDeploymentStrategyType}
 	}
 	return appDeploy, nil
 }
 
+func (m *ComponentManager) setContainerResources(spec *v1alpha1.ContainerSpec, templateSpec *corev1.PodSpec) error {
+	// process resources limits
+	if spec.Limits == nil {
+		spec.Limits = new(v1alpha1.ResourceRequirement)
+	}
+	// set default limits by node capacity
+	cpu, mem, err := m.getDefaultResourceLimits()
+	if err != nil {
+		return errorswrap.Wrap(err, "get default cpu and memory limits")
+	}
+	if spec.Limits.CPU == nil {
+		spec.Limits.CPU = cpu
+	}
+	if spec.Limits.Memory == nil {
+		spec.Limits.Memory = mem
+	}
+
+	// process resources requests
+	if spec.Requests == nil {
+		spec.Requests = new(v1alpha1.ResourceRequirement)
+	}
+	// hack: set default request cpu and memory requests
+	reqCPU, _ := resource.ParseQuantity("0.01")
+	reqMem, _ := resource.ParseQuantity("10Mi")
+	if spec.Requests.CPU == nil {
+		spec.Requests.CPU = &reqCPU
+	}
+	if spec.Requests.Memory == nil {
+		spec.Requests.Memory = &reqMem
+	}
+
+	// set deployment resources limits and request
+	m.setPodSpecResources(templateSpec, corev1.ResourceCPU, spec.Limits.CPU, spec.Requests.CPU)
+	m.setPodSpecResources(templateSpec, corev1.ResourceMemory, spec.Limits.Memory, spec.Requests.Memory)
+
+	return nil
+}
+
+func (m *ComponentManager) setPodSpecResources(
+	spec *corev1.PodSpec, key corev1.ResourceName,
+	iLimit, iReq *resource.Quantity) {
+	if iLimit == nil || iReq == nil {
+		return
+	}
+	for idx, ctr := range spec.Containers {
+		if ctr.Resources.Limits == nil {
+			ctr.Resources.Limits = make(map[corev1.ResourceName]resource.Quantity)
+		}
+		if ctr.Resources.Requests == nil {
+			ctr.Resources.Requests = make(map[corev1.ResourceName]resource.Quantity)
+		}
+		ctr.Resources.Limits[key] = *iLimit
+		ctr.Resources.Requests[key] = *iReq
+		spec.Containers[idx] = ctr
+	}
+}
+
+func (m *ComponentManager) getDefaultResourceLimits() (*resource.Quantity, *resource.Quantity, error) {
+	nodes, err := k8sutil.GetReadyMasterNodes(m.nodeLister)
+	if err != nil {
+		return nil, nil, errorswrap.Wrap(err, "get ready master nodes")
+	}
+	if len(nodes) == 0 {
+		return nil, nil, errorswrap.Wrap(err, "get 0 ready master node")
+	}
+	node := nodes[0]
+	cpu, mem, err := m.getNodeCapacity(node)
+	if err != nil {
+		return nil, nil, errorswrap.Wrapf(err, "get node %s capacity", node.GetName())
+	}
+	cpuCount, _ := cpu.AsInt64()
+	memBytes, _ := mem.AsInt64()
+	defCPUStr := fmt.Sprintf("%f", float64(cpuCount)/3.0)
+	defMemMB := memBytes / 1000 / 1000 / 4
+	if defMemMB < 1024 {
+		defMemMB = 1024
+	}
+	defMemMBStr := fmt.Sprintf("%dMi", defMemMB)
+
+	defCPU, err := resource.ParseQuantity(defCPUStr)
+	if err != nil {
+		return nil, nil, errorswrap.Wrapf(err, "parse cpu %s", defCPUStr)
+	}
+	defMem, err := resource.ParseQuantity(defMemMBStr)
+	if err != nil {
+		return nil, nil, errorswrap.Wrapf(err, "parse mem %s", defMemMBStr)
+	}
+
+	return &defCPU, &defMem, nil
+}
+
+func (m *ComponentManager) getNodeCapacity(node *corev1.Node) (*resource.Quantity, *resource.Quantity, error) {
+	capacity := node.Status.Capacity
+	// nodeCpuInt, ok := capacity.Cpu().AsInt64()
+	_, ok := capacity.Cpu().AsInt64()
+	if !ok {
+		return nil, nil, errorswrap.Errorf("node %s cpu as int64", capacity.Cpu())
+	}
+	// nodeMemInt, ok := capacity.Memory().AsInt64()
+	_, ok = capacity.Memory().AsInt64()
+	if !ok {
+		return nil, nil, errorswrap.Errorf("node %s memory as int64", capacity.Memory())
+	}
+	// log.Infof("get node %s cpu int: %d, memory int: %d", node.GetName(), nodeCpuInt, nodeMemInt)
+	return capacity.Cpu(), capacity.Memory(), nil
+}
+
 func (m *ComponentManager) newCloudServiceDeployment(
 	cType v1alpha1.ComponentType, zoneComponentType v1alpha1.ComponentType,
-	oc *v1alpha1.OnecloudCluster, deployCfg v1alpha1.DeploymentSpec,
+	oc *v1alpha1.OnecloudCluster, deployCfg *v1alpha1.DeploymentSpec,
 	initContainersF func([]corev1.VolumeMount) []corev1.Container, ports []corev1.ContainerPort, mountEtcdTLS bool, keepAffinity bool,
 ) (*apps.Deployment, error) {
 	configMap := controller.ComponentConfigMapName(oc, zoneComponentType)
@@ -735,7 +849,7 @@ func (m *ComponentManager) newCloudServiceDeployment(
 func (m *ComponentManager) newCloudServiceDeploymentWithInit(
 	cType, zoneComponentType v1alpha1.ComponentType,
 	oc *v1alpha1.OnecloudCluster,
-	deployCfg v1alpha1.DeploymentSpec,
+	deployCfg *v1alpha1.DeploymentSpec,
 	ports []corev1.ContainerPort,
 	mountEtcdTLS bool,
 ) (*apps.Deployment, error) {
@@ -765,7 +879,7 @@ func (m *ComponentManager) newCloudServiceDeploymentWithInit(
 func (m *ComponentManager) newCloudServiceDeploymentNoInit(
 	cType, zoneComponentType v1alpha1.ComponentType,
 	oc *v1alpha1.OnecloudCluster,
-	deployCfg v1alpha1.DeploymentSpec,
+	deployCfg *v1alpha1.DeploymentSpec,
 	ports []corev1.ContainerPort,
 	mountEtcdTLS bool,
 ) (*apps.Deployment, error) {
@@ -778,7 +892,7 @@ func (m *ComponentManager) newCloudServiceDeploymentNoInit(
 func (m *ComponentManager) newCloudServiceSinglePortDeployment(
 	cType, zoneComponentType v1alpha1.ComponentType,
 	oc *v1alpha1.OnecloudCluster,
-	deployCfg v1alpha1.DeploymentSpec,
+	deployCfg *v1alpha1.DeploymentSpec,
 	port int32, doInit bool, mountEtcdTLS bool,
 ) (*apps.Deployment, error) {
 	ports := []corev1.ContainerPort{
@@ -862,7 +976,7 @@ func (m *ComponentManager) newCronJob(
 	componentType v1alpha1.ComponentType,
 	oc *v1alpha1.OnecloudCluster,
 	volHelper *VolumeHelper,
-	spec v1alpha1.CronJobSpec,
+	spec *v1alpha1.CronJobSpec,
 	initContainersFactory func([]corev1.VolumeMount) []corev1.Container,
 	containersFactory func([]corev1.VolumeMount) []corev1.Container,
 	hostNetwork bool, dnsPolicy corev1.DNSPolicy,
@@ -925,6 +1039,11 @@ func (m *ComponentManager) newCronJob(
 	if initContainersFactory != nil {
 		templateSpec.InitContainers = initContainersFactory(volMounts)
 	}
+
+	if err := m.setContainerResources(&spec.ContainerSpec, templateSpec); err != nil {
+		log.Errorf("set container resources %v", err)
+	}
+
 	return cronJob, nil
 }
 
@@ -932,7 +1051,7 @@ func (m *ComponentManager) newDefaultCronJob(
 	componentType v1alpha1.ComponentType,
 	oc *v1alpha1.OnecloudCluster,
 	volHelper *VolumeHelper,
-	spec v1alpha1.CronJobSpec,
+	spec *v1alpha1.CronJobSpec,
 	initContainersFactory func([]corev1.VolumeMount) []corev1.Container,
 	containersFactory func([]corev1.VolumeMount) []corev1.Container,
 ) (*batchv1.CronJob, error) {

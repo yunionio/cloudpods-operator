@@ -144,7 +144,7 @@ func (m *notifyManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []
 func (m *notifyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
 	img := oc.Spec.Notify.Image
 	pluginImg := strings.ReplaceAll(img, "notify", "notify-plugins")
-	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.NotifyComponentType, "", oc, oc.Spec.Notify.DeploymentSpec, constants.NotifyPort, true, false)
+	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.NotifyComponentType, "", oc, &oc.Spec.Notify.DeploymentSpec, constants.NotifyPort, true, false)
 	if err != nil {
 		return nil, err
 	}

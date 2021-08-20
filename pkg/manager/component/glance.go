@@ -213,7 +213,7 @@ func (m *glanceManager) getPVC(oc *v1alpha1.OnecloudCluster, zone string) (*core
 }
 
 func (m *glanceManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
-	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.GlanceComponentType, "", oc, oc.Spec.Glance.DeploymentSpec, constants.GlanceAPIPort, true, false)
+	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.GlanceComponentType, "", oc, &oc.Spec.Glance.DeploymentSpec, constants.GlanceAPIPort, true, false)
 	if err != nil {
 		return nil, err
 	}

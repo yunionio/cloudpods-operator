@@ -67,5 +67,5 @@ func (m *suggestionManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1a
 			},
 		}
 	}
-	return m.newDefaultDeploymentNoInit(v1alpha1.SuggestionComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.SuggestionComponentType), v1alpha1.SuggestionComponentType), oc.Spec.Suggestion, cf)
+	return m.newDefaultDeploymentNoInit(v1alpha1.SuggestionComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.SuggestionComponentType), v1alpha1.SuggestionComponentType), &oc.Spec.Suggestion, cf)
 }

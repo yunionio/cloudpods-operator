@@ -85,7 +85,7 @@ func (m *cloudeventManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1a
 			},
 		}
 	}
-	return m.newDefaultDeploymentNoInit(v1alpha1.CloudeventComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.CloudeventComponentType), v1alpha1.CloudeventComponentType), oc.Spec.Cloudevent, cf)
+	return m.newDefaultDeploymentNoInit(v1alpha1.CloudeventComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.CloudeventComponentType), v1alpha1.CloudeventComponentType), &oc.Spec.Cloudevent, cf)
 }
 
 func (m *cloudeventManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {

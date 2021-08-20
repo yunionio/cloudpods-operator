@@ -72,7 +72,7 @@ func (m *yunoinconfManager) getService(oc *v1alpha1.OnecloudCluster, zone string
 }
 
 func (m *yunoinconfManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
-	return m.newCloudServiceSinglePortDeployment(v1alpha1.YunionconfComponentType, "", oc, oc.Spec.Yunionconf, constants.YunionConfPort, false, false)
+	return m.newCloudServiceSinglePortDeployment(v1alpha1.YunionconfComponentType, "", oc, &oc.Spec.Yunionconf, constants.YunionConfPort, false, false)
 }
 
 func (m *yunoinconfManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {

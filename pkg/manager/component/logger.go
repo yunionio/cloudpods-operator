@@ -71,7 +71,7 @@ func (m *loggerManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []
 }
 
 func (m *loggerManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
-	return m.newCloudServiceSinglePortDeployment(v1alpha1.LoggerComponentType, "", oc, oc.Spec.Logger, constants.LoggerPort, true, false)
+	return m.newCloudServiceSinglePortDeployment(v1alpha1.LoggerComponentType, "", oc, &oc.Spec.Logger, constants.LoggerPort, true, false)
 }
 
 func (m *loggerManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
