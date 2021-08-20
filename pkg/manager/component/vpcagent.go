@@ -65,7 +65,7 @@ func (m *vpcAgentManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 }
 
 func (m *vpcAgentManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
-	return m.newCloudServiceDeployment(v1alpha1.VpcAgentComponentType, v1alpha1.VpcAgentComponentType, oc, oc.Spec.VpcAgent, nil, nil, false, true)
+	return m.newCloudServiceDeployment(v1alpha1.VpcAgentComponentType, v1alpha1.VpcAgentComponentType, oc, &oc.Spec.VpcAgent, nil, nil, false, true)
 }
 
 func (m *vpcAgentManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {

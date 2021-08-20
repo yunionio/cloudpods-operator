@@ -240,7 +240,7 @@ func (m *itsmManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 			},
 		}
 	}
-	deploy, err := m.newDefaultDeploymentNoInit(v1alpha1.ItsmComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.ItsmComponentType), v1alpha1.ItsmComponentType), oc.Spec.Itsm, cf)
+	deploy, err := m.newDefaultDeploymentNoInit(v1alpha1.ItsmComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.ItsmComponentType), v1alpha1.ItsmComponentType), &oc.Spec.Itsm, cf)
 	if err != nil {
 		return nil, err
 	}

@@ -130,5 +130,5 @@ func (m *keystoneManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 		}
 	}
 
-	return m.newDefaultDeployment(v1alpha1.KeystoneComponentType, v1alpha1.KeystoneComponentType, oc, NewVolumeHelper(oc, ksConfigMap, v1alpha1.KeystoneComponentType), oc.Spec.Keystone.DeploymentSpec, initContainersF, containersF)
+	return m.newDefaultDeployment(v1alpha1.KeystoneComponentType, v1alpha1.KeystoneComponentType, oc, NewVolumeHelper(oc, ksConfigMap, v1alpha1.KeystoneComponentType), &oc.Spec.Keystone.DeploymentSpec, initContainersF, containersF)
 }

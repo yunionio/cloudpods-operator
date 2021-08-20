@@ -70,7 +70,7 @@ func (m *devtoolManager) getService(oc *v1alpha1.OnecloudCluster, zone string) [
 }
 
 func (m *devtoolManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
-	return m.newCloudServiceSinglePortDeployment(v1alpha1.DevtoolComponentType, "", oc, oc.Spec.Devtool, constants.DevtoolPort, false, false)
+	return m.newCloudServiceSinglePortDeployment(v1alpha1.DevtoolComponentType, "", oc, &oc.Spec.Devtool, constants.DevtoolPort, false, false)
 }
 
 func (m *devtoolManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {

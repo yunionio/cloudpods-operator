@@ -127,7 +127,7 @@ func (m *influxdbManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 			},
 		}
 	}
-	deploy, err := m.newDefaultDeploymentNoInit(v1alpha1.InfluxdbComponentType, "", oc, NewVolumeHelper(oc, configMap, v1alpha1.InfluxdbComponentType), oc.Spec.Influxdb.DeploymentSpec, containersF)
+	deploy, err := m.newDefaultDeploymentNoInit(v1alpha1.InfluxdbComponentType, "", oc, NewVolumeHelper(oc, configMap, v1alpha1.InfluxdbComponentType), &oc.Spec.Influxdb.DeploymentSpec, containersF)
 	if err != nil {
 		return nil, err
 	}
