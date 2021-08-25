@@ -481,31 +481,34 @@ type Minio struct {
 // DeploymentSpec constains defails of deployment resource service
 type DeploymentSpec struct {
 	ContainerSpec
-	Disable      bool                `json:"disable"`
-	Replicas     int32               `json:"replicas"`
-	Affinity     *corev1.Affinity    `json:"affinity,omitempty"`
-	NodeSelector map[string]string   `json:"nodeSelector,omitempty"`
-	Tolerations  []corev1.Toleration `json:"tolerations,omitempty"`
-	Annotations  map[string]string   `json:"annotations,omitempty"`
+	Disable          bool                          `json:"disable"`
+	Replicas         int32                         `json:"replicas"`
+	Affinity         *corev1.Affinity              `json:"affinity,omitempty"`
+	NodeSelector     map[string]string             `json:"nodeSelector,omitempty"`
+	Tolerations      []corev1.Toleration           `json:"tolerations,omitempty"`
+	Annotations      map[string]string             `json:"annotations,omitempty"`
+	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 }
 
 type CronJobSpec struct {
 	ContainerSpec
-	Disable      bool                `json:"disable"`
-	Schedule     string              `json:"schedule"`
-	Affinity     *corev1.Affinity    `json:"affinity,omitempty"`
-	NodeSelector map[string]string   `json:"nodeSelector,omitempty"`
-	Tolerations  []corev1.Toleration `json:"tolerations,omitempty"`
-	Annotations  map[string]string   `json:"annotations,omitempty"`
+	Disable          bool                          `json:"disable"`
+	Schedule         string                        `json:"schedule"`
+	Affinity         *corev1.Affinity              `json:"affinity,omitempty"`
+	NodeSelector     map[string]string             `json:"nodeSelector,omitempty"`
+	Tolerations      []corev1.Toleration           `json:"tolerations,omitempty"`
+	Annotations      map[string]string             `json:"annotations,omitempty"`
+	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 }
 
 type DaemonSetSpec struct {
 	ContainerSpec
-	Disable      bool                `json:"disable"`
-	Affinity     *corev1.Affinity    `json:"affinity,omitempty"`
-	NodeSelector map[string]string   `json:"nodeSelector,omitempty"`
-	Tolerations  []corev1.Toleration `json:"tolerations,omitempty"`
-	Annotations  map[string]string   `json:"annotations,omitempty"`
+	Disable          bool                          `json:"disable"`
+	Affinity         *corev1.Affinity              `json:"affinity,omitempty"`
+	NodeSelector     map[string]string             `json:"nodeSelector,omitempty"`
+	Tolerations      []corev1.Toleration           `json:"tolerations,omitempty"`
+	Annotations      map[string]string             `json:"annotations,omitempty"`
+	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 }
 
 type StatefulDeploymentSpec struct {
