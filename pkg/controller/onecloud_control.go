@@ -682,51 +682,50 @@ func (c *regionComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 	return c.RunWithSession(func(s *mcclient.ClientSession) error {
 		region := oc.Spec.Region
 		zone := oc.Spec.Zone
-		regionZone := fmt.Sprintf("%s-%s", region, zone)
-		wire := v1alpha1.DefaultOnecloudWire
-		{ // ensure region-zone created
-			if len(oc.Status.RegionServer.RegionZoneId) > 0 {
-				regionZone = oc.Status.RegionServer.RegionZoneId
-			}
-			if regionId, err := ensureRegionZone(s, regionZone, ""); err != nil {
-				return errors.Wrapf(err, "create region-zone %s-%s", region, zone)
-			} else {
-				oc.Status.RegionServer.RegionZoneId = regionId
+		{
+			// ensure region-zone created
+			regionZone := fmt.Sprintf("%s-%s", region, zone)
+			if len(oc.Status.RegionServer.RegionZoneId) == 0 {
+				if regionId, err := ensureRegionZone(s, regionZone, ""); err != nil {
+					return errors.Wrapf(err, "create region-zone %s-%s", region, zone)
+				} else {
+					oc.Status.RegionServer.RegionZoneId = regionId
+				}
 			}
 		}
-		{ // ensure zone created
-			if len(oc.Status.RegionServer.ZoneId) > 0 {
-				zone = oc.Status.RegionServer.ZoneId
-			}
-			if zoneId, err := ensureZone(s, zone); err != nil {
-				return errors.Wrapf(err, "create zone %s", zone)
-			} else {
-				oc.Status.RegionServer.ZoneId = zoneId
+		{
+			// ensure zone created
+			if len(oc.Status.RegionServer.ZoneId) == 0 {
+				if zoneId, err := ensureZone(s, zone); err != nil {
+					return errors.Wrapf(err, "create zone %s", zone)
+				} else {
+					oc.Status.RegionServer.ZoneId = zoneId
+				}
 			}
 			for _, cZone := range oc.Spec.CustomZones {
-				var cZoneId = cZone
-				// if zone created, use zoneId
-				if zoneId, ok := oc.Status.RegionServer.CustomZones[cZone]; ok {
-					cZoneId = zoneId
+				// ensure each customized zone created
+				if oc.Status.RegionServer.CustomZones == nil {
+					oc.Status.RegionServer.CustomZones = make(map[string]string)
 				}
-				if zoneId, err := ensureZone(s, cZoneId); err != nil {
+				// if zone created, continue
+				if _, ok := oc.Status.RegionServer.CustomZones[cZone]; ok {
+					continue
+				}
+				if zoneId, err := ensureZone(s, cZone); err != nil {
 					return errors.Wrapf(err, "create zone %s", cZone)
 				} else {
-					if oc.Status.RegionServer.CustomZones == nil {
-						oc.Status.RegionServer.CustomZones = make(map[string]string)
-					}
 					oc.Status.RegionServer.CustomZones[cZone] = zoneId
 				}
 			}
 		}
 		{ // ensure wire created
-			if len(oc.Status.RegionServer.WireId) > 0 {
-				wire = oc.Status.RegionServer.WireId
-			}
-			if wireId, err := ensureWire(s, zone, wire, 1000); err != nil {
-				return errors.Wrapf(err, "create default wire")
-			} else {
-				oc.Status.RegionServer.WireId = wireId
+			if len(oc.Status.RegionServer.WireId) == 0 {
+				wire := v1alpha1.DefaultOnecloudWire
+				if wireId, err := ensureWire(s, zone, wire, 1000); err != nil {
+					return errors.Wrapf(err, "create default wire")
+				} else {
+					oc.Status.RegionServer.WireId = wireId
+				}
 			}
 		}
 		if err := initScheduleData(s); err != nil {
