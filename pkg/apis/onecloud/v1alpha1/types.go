@@ -128,6 +128,8 @@ const (
 	CloudIdComponentType  ComponentType = "cloudid"
 
 	SuggestionComponentType ComponentType = "suggestion"
+
+	RepoComponentType ComponentType = "repo"
 )
 
 // ComponentPhase is the current state of component
@@ -266,6 +268,9 @@ type OnecloudClusterSpec struct {
 
 	// MonitorStack holds configuration for grafana, loki, prometheus and thanos services
 	MonitorStack MonitorStackSpec `json:"monitorStack"`
+
+	// Influxdb holds configuration for influxdb
+	Repo DeploymentSpec `json:"repo"`
 }
 
 // OnecloudClusterStatus describes cluster status
@@ -300,6 +305,7 @@ type OnecloudClusterStatus struct {
 	Itsm           DeploymentStatus     `json:"itsm,omitempty"`
 	CloudId        DeploymentStatus     `json:"cloudid,omitempty"`
 	MonitorStack   MonitorStackStatus   `json:"monitorStack,omitempty"`
+	Repo           DeploymentStatus     `json:"repo,omitempty"`
 }
 
 type EtcdClusterSpec struct {
