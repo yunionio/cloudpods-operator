@@ -67,10 +67,11 @@ func (m *cloudmonManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 		commandBuilder.WriteString(formateCloudmonProviderCommand(oc.Spec.Cloudmon.CloudmonReportServerDuration,
 			oc.Spec.Cloudmon.CloudmonReportServerDuration*60, oc.Spec.Cloudmon.CloudmonReportServerDuration*3, "report-server", "Aliyun"))
 		commandBuilder.WriteString(formateCloudmonProviderCommand(oc.Spec.Cloudmon.CloudmonReportServerDuration,
+			oc.Spec.Cloudmon.CloudmonReportServerDuration*60, oc.Spec.Cloudmon.CloudmonReportServerDuration*3, "report-server", "Apsara"))
+		commandBuilder.WriteString(formateCloudmonProviderCommand(oc.Spec.Cloudmon.CloudmonReportServerDuration,
 			oc.Spec.Cloudmon.CloudmonReportServerDuration*60, oc.Spec.Cloudmon.CloudmonReportServerDuration*3, "report-server", "Huawei"))
 		commandBuilder.WriteString(formateCloudmonProviderCommand(oc.Spec.Cloudmon.CloudmonReportServerDuration,
-			oc.Spec.Cloudmon.CloudmonReportServerDuration*60, oc.Spec.Cloudmon.CloudmonReportServerDuration*3,
-			"report-server", "HCSO"))
+			oc.Spec.Cloudmon.CloudmonReportServerDuration*60, oc.Spec.Cloudmon.CloudmonReportServerDuration*3, "report-server", "HCSO"))
 		commandBuilder.WriteString(formateCloudmonProviderCommand(oc.Spec.Cloudmon.CloudmonReportServerDuration,
 			oc.Spec.Cloudmon.CloudmonReportServerDuration*60, oc.Spec.Cloudmon.CloudmonReportServerDuration*3, "report-server", "Qcloud"))
 		commandBuilder.WriteString(formateCloudmonProviderCommand(oc.Spec.Cloudmon.CloudmonReportServerDuration,
@@ -92,16 +93,19 @@ func (m *cloudmonManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 		commandBuilder.WriteString(formateCloudmonProviderCommand(oc.Spec.Cloudmon.CloudmonReportServerDuration,
 			oc.Spec.Cloudmon.CloudmonReportServerDuration*60, oc.Spec.Cloudmon.CloudmonReportServerDuration*3, "report-rds", "Aliyun"))
 		commandBuilder.WriteString(formateCloudmonProviderCommand(oc.Spec.Cloudmon.CloudmonReportServerDuration,
+			oc.Spec.Cloudmon.CloudmonReportServerDuration*60, oc.Spec.Cloudmon.CloudmonReportServerDuration*3, "report-rds", "Apsara"))
+		commandBuilder.WriteString(formateCloudmonProviderCommand(oc.Spec.Cloudmon.CloudmonReportServerDuration,
 			oc.Spec.Cloudmon.CloudmonReportServerDuration*60, oc.Spec.Cloudmon.CloudmonReportServerDuration*3, "report-rds", "Huawei"))
 		commandBuilder.WriteString(formateCloudmonProviderCommand(oc.Spec.Cloudmon.CloudmonReportServerDuration,
-			oc.Spec.Cloudmon.CloudmonReportServerDuration*60, oc.Spec.Cloudmon.CloudmonReportServerDuration*3,
-			"report-rds", "HCSO"))
+			oc.Spec.Cloudmon.CloudmonReportServerDuration*60, oc.Spec.Cloudmon.CloudmonReportServerDuration*3, "report-rds", "HCSO"))
 		commandBuilder.WriteString(formateCloudmonProviderCommand(oc.Spec.Cloudmon.CloudmonReportServerDuration,
 			oc.Spec.Cloudmon.CloudmonReportServerDuration*60, oc.Spec.Cloudmon.CloudmonReportServerDuration*3, "report-rds", "Qcloud"))
 
 		// report-redis
 		commandBuilder.WriteString(formateCloudmonProviderCommand(oc.Spec.Cloudmon.CloudmonReportServerDuration,
 			oc.Spec.Cloudmon.CloudmonReportServerDuration*60, oc.Spec.Cloudmon.CloudmonReportServerDuration*3, "report-redis", "Aliyun"))
+		commandBuilder.WriteString(formateCloudmonProviderCommand(oc.Spec.Cloudmon.CloudmonReportServerDuration,
+			oc.Spec.Cloudmon.CloudmonReportServerDuration*60, oc.Spec.Cloudmon.CloudmonReportServerDuration*3, "report-redis", "Apsara"))
 		commandBuilder.WriteString(formateCloudmonProviderCommand(oc.Spec.Cloudmon.CloudmonReportServerDuration,
 			oc.Spec.Cloudmon.CloudmonReportServerDuration*60, oc.Spec.Cloudmon.CloudmonReportServerDuration*3, "report-redis", "Huawei"))
 		commandBuilder.WriteString(formateCloudmonProviderCommand(oc.Spec.Cloudmon.CloudmonReportServerDuration,
@@ -110,6 +114,8 @@ func (m *cloudmonManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 		// report-oss
 		commandBuilder.WriteString(formateCloudmonProviderCommand(oc.Spec.Cloudmon.CloudmonReportServerDuration,
 			oc.Spec.Cloudmon.CloudmonReportServerDuration*60, oc.Spec.Cloudmon.CloudmonReportServerDuration*3, "report-oss", "Aliyun"))
+		commandBuilder.WriteString(formateCloudmonProviderCommand(oc.Spec.Cloudmon.CloudmonReportServerDuration,
+			oc.Spec.Cloudmon.CloudmonReportServerDuration*60, oc.Spec.Cloudmon.CloudmonReportServerDuration*3, "report-oss", "Apsara"))
 		commandBuilder.WriteString(formateCloudmonProviderCommand(oc.Spec.Cloudmon.CloudmonReportServerDuration,
 			oc.Spec.Cloudmon.CloudmonReportServerDuration*60, oc.Spec.Cloudmon.CloudmonReportServerDuration*3, "report-oss", "Huawei"))
 
