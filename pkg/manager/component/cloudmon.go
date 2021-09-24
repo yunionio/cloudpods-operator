@@ -158,7 +158,7 @@ func formateCloudmonNoProviderCommand(reportDur uint, timeout uint, reportInterv
 		return fmt.Sprintf("\necho '*/%d * * * * /opt/yunion/bin/cloudmon --config /etc/yunion/apigateway.conf %s --timeout %d 2>&1' > /etc/crontabs/root",
 			reportDur, command, timeout)
 	case "report-usage":
-		return fmt.Sprintf("\necho '*/%d * * * *  /opt/yunion/bin/cloudmon --config /etc/yunion/apigateway.conf %s timeout  %d  2>&1' >> /etc/crontabs/root",
+		return fmt.Sprintf("\necho '*/%d * * * *  /opt/yunion/bin/cloudmon --config /etc/yunion/apigateway.conf %s  --timeout  %d  2>&1' >> /etc/crontabs/root",
 			reportDur, command, timeout)
 	case "report-alertrecord":
 		return fmt.Sprintf("\necho '0 0 */%d * *  /opt/yunion/bin/cloudmon --config /etc/yunion/apigateway.conf %s --interval %d --timeout  %d 2>&1' >> /etc/crontabs/root",
