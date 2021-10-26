@@ -104,6 +104,8 @@ func (m *cloudmonManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 			oc.Spec.Cloudmon.CloudmonReportServerDuration*60, oc.Spec.Cloudmon.CloudmonReportServerDuration*3, "report-rds", "Qcloud"))
 		commandBuilder.WriteString(formateCloudmonProviderCommand(oc.Spec.Cloudmon.CloudmonReportServerDuration,
 			oc.Spec.Cloudmon.CloudmonReportServerDuration*60, oc.Spec.Cloudmon.CloudmonReportServerDuration*3, "report-rds", "JDcloud"))
+		commandBuilder.WriteString(formateCloudmonProviderCommand(oc.Spec.Cloudmon.CloudmonReportServerDuration,
+			oc.Spec.Cloudmon.CloudmonReportServerDuration*60, oc.Spec.Cloudmon.CloudmonReportServerDuration*3, "report-redis", "Azure"))
 
 		// report-redis
 		commandBuilder.WriteString(formateCloudmonProviderCommand(oc.Spec.Cloudmon.CloudmonReportServerDuration,
@@ -114,6 +116,8 @@ func (m *cloudmonManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 			oc.Spec.Cloudmon.CloudmonReportServerDuration*60, oc.Spec.Cloudmon.CloudmonReportServerDuration*3, "report-redis", "Huawei"))
 		commandBuilder.WriteString(formateCloudmonProviderCommand(oc.Spec.Cloudmon.CloudmonReportServerDuration,
 			oc.Spec.Cloudmon.CloudmonReportServerDuration*60, oc.Spec.Cloudmon.CloudmonReportServerDuration*3, "report-redis", "Qcloud"))
+		commandBuilder.WriteString(formateCloudmonProviderCommand(oc.Spec.Cloudmon.CloudmonReportServerDuration,
+			oc.Spec.Cloudmon.CloudmonReportServerDuration*60, oc.Spec.Cloudmon.CloudmonReportServerDuration*3, "report-redis", "Azure"))
 
 		// report-oss
 		commandBuilder.WriteString(formateCloudmonProviderCommand(oc.Spec.Cloudmon.CloudmonReportServerDuration,
@@ -134,6 +138,10 @@ func (m *cloudmonManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 		// report-storage
 		commandBuilder.WriteString(formateCloudmonNoProviderCommand(oc.Spec.Cloudmon.CloudmonReportCloudAccountDuration,
 			oc.Spec.Cloudmon.CloudmonReportCloudAccountDuration*60, 0, "report-storage"))
+
+		// report-elb
+		commandBuilder.WriteString(formateCloudmonProviderCommand(oc.Spec.Cloudmon.CloudmonReportServerDuration,
+			oc.Spec.Cloudmon.CloudmonReportServerDuration*60, oc.Spec.Cloudmon.CloudmonReportServerDuration*3, "report-elb", "Azure"))
 
 		return []corev1.Container{
 			{
