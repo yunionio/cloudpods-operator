@@ -43,6 +43,19 @@ const (
 
 	SERVICE_TYPE_ETCD     = "etcd"
 	SERVICE_TYPE_INFLUXDB = "influxdb"
+
+	STATUS_UPDATE_TAGS        = "update_tags"
+	STATUS_UPDATE_TAGS_FAILED = "update_tags_fail"
+
+	STATUS_DELETING      = "deleting"
+	STATUS_DELETE_FAILED = "delete_failed"
+	STATUS_UNKNOWN       = "unknown"
+	STATUS_CREATING      = "creating"
+	STATUS_CREATE_FAILED = "create_failed"
+
+	CLOUD_TAG_PREFIX     = "ext:"
+	USER_TAG_PREFIX      = "user:"
+	SYS_CLOUD_TAG_PREFIX = "sys:"
 )
 
 var (
@@ -74,10 +87,20 @@ const (
 	OS_ARCH_AARCH64 = "aarch64"
 )
 
-func IsARM(osArch string) bool {
-	return utils.IsInStringArray(osArch, []string{
+var (
+	ARCH_X86 = []string{
+		OS_ARCH_X86,
+		OS_ARCH_I386,
+		OS_ARCH_X86_32,
+		OS_ARCH_X86_64,
+	}
+	ARCH_ARM = []string{
 		OS_ARCH_ARM,
 		OS_ARCH_AARCH32,
 		OS_ARCH_AARCH64,
-	})
+	}
+)
+
+func IsARM(osArch string) bool {
+	return utils.IsInStringArray(osArch, ARCH_ARM)
 }

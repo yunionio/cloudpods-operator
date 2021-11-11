@@ -49,8 +49,7 @@ type SHostOptions struct {
 	EnableMonitor  bool `help:"Enable monitor"`
 	ReportInterval int  `help:"Report interval in seconds" default:"60"`
 
-	EnableTcBwlimit     bool `help:"Enable linux tc bandwidth limit"`
-	BwDownloadBandwidth int  `help:"Default ingress bandwidth in mbit (0 disabled)" default:"10"`
+	BwDownloadBandwidth int `help:"Default ingress bandwidth in mbit (0 disabled)" default:"10"`
 
 	DnsServer       string `help:"Address of host DNS server"`
 	DnsServerLegacy string `help:"Deprecated Address of host DNS server"`
@@ -143,6 +142,10 @@ type SHostOptions struct {
 
 	DisableProbeKubelet bool   `help:"Disable probe kubelet config" default:"false"`
 	KubeletRunDirectory string `help:"Kubelet config file path" default:"/var/lib/kubelet"`
+
+	DisableKVM bool `help:"force disable KVM" default:"false" json:"disable_kvm"`
+
+	DisableGPU bool `help:"force disable GPU" default:"false" json:"disable_gpu"`
 }
 
 var (

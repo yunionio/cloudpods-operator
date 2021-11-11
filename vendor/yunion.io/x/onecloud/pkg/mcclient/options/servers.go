@@ -99,10 +99,11 @@ type ServerLoginInfoOptions struct {
 
 type ServerSSHLoginOptions struct {
 	ServerLoginInfoOptions
-	Host     string `help:"IP address or hostname of the server"`
-	Port     int    `help:"SSH service port" default:"22"`
-	User     string `help:"SSH login user"`
-	Password string `help:"SSH password"`
+	Host         string `help:"IP address or hostname of the server"`
+	Port         int    `help:"SSH service port" default:"22"`
+	User         string `help:"SSH login user"`
+	Password     string `help:"SSH password"`
+	UseCloudroot bool   `help:"SSH login with cloudroot"`
 }
 
 type ServerConvertToKvmOptions struct {
@@ -364,6 +365,7 @@ type ServerCreateOptionalOptions struct {
 	Vga              string   `help:"VGA driver" choices:"std|vmware|cirrus|qxl"`
 	Vdi              string   `help:"VDI protocool" choices:"vnc|spice"`
 	Bios             string   `help:"BIOS" choices:"BIOS|UEFI"`
+	Machine          string   `help:"Machine type" choices:"pc|q35"`
 	Desc             string   `help:"Description" metavar:"<DESCRIPTION>" json:"description"`
 	Boot             string   `help:"Boot device" metavar:"<BOOT_DEVICE>" choices:"disk|cdrom" json:"-"`
 	EnableCloudInit  bool     `help:"Enable cloud-init service"`
@@ -467,6 +469,7 @@ func (opts *ServerCreateOptionalOptions) OptionalParams() (*computeapi.ServerCre
 		Vga:                opts.Vga,
 		Vdi:                opts.Vdi,
 		Bios:               opts.Bios,
+		Machine:            opts.Machine,
 		ShutdownBehavior:   opts.ShutdownBehavior,
 		AutoStart:          opts.AutoStart,
 		Duration:           opts.Duration,
@@ -582,6 +585,7 @@ type ServerUpdateOptions struct {
 	Boot             string `help:"Boot device" choices:"disk|cdrom"`
 	Delete           string `help:"Lock server to prevent from deleting" choices:"enable|disable" json:"-"`
 	ShutdownBehavior string `help:"Behavior after VM server shutdown" choices:"stop|terminate"`
+	Machine          string `help:"Machine type" choices:"q35|pc"`
 }
 
 func (opts *ServerUpdateOptions) Params() (jsonutils.JSONObject, error) {
@@ -633,17 +637,17 @@ func (o *ServerCancelDeleteOptions) Description() string {
 type ServerDeployOptions struct {
 	ServerIdOptions
 	Keypair       string   `help:"ssh Keypair used for login" json:"-"`
-	DeleteKeypair *bool    `help:"Remove ssh Keypairs" json:"-"`
+	DeleteKeypair bool     `help:"Remove ssh Keypairs" json:"-"`
 	Deploy        []string `help:"Specify deploy files in virtual server file system" json:"-"`
-	ResetPassword *bool    `help:"Force reset password"`
+	ResetPassword bool     `help:"Force reset password"`
 	Password      string   `help:"Default user password"`
-	AutoStart     *bool    `help:"Auto start server after deployed"`
+	AutoStart     bool     `help:"Auto start server after deployed"`
 }
 
 func (opts *ServerDeployOptions) Params() (jsonutils.JSONObject, error) {
 	params := new(computeapi.ServerDeployInput)
 	{
-		if opts.DeleteKeypair != nil {
+		if opts.DeleteKeypair == true {
 			params.DeleteKeypair = opts.DeleteKeypair
 		} else if len(opts.Keypair) > 0 {
 			params.Keypair = opts.Keypair
@@ -1123,6 +1127,20 @@ func (opts *ServerMakeSshableOptions) Params() (jsonutils.JSONObject, error) {
 	return jsonutils.Marshal(opts), nil
 }
 
+type ServerSetSshportOptions struct {
+	BaseIdOptions
+
+	Port int `help:"ssh port" default:"22"`
+}
+
+func (opts *ServerSetSshportOptions) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.Marshal(opts), nil
+}
+
+type ServerHaveAgentOptions struct {
+	BaseIdOptions
+}
+
 type ServerMigrateNetworkOptions struct {
 	BaseIdOptions
 
@@ -1136,4 +1154,25 @@ func (opts *ServerMigrateNetworkOptions) Params() (jsonutils.JSONObject, error) 
 type ServerStatusStatisticsOptions struct {
 	ServerListOptions
 	StatusStatisticsOptions
+}
+
+type ServerProjectStatisticsOptions struct {
+	ServerListOptions
+	ProjectStatisticsOptions
+}
+
+type ServerDomainStatisticsOptions struct {
+	ServerListOptions
+	DomainStatisticsOptions
+}
+
+type ServerChangeDiskStorageOptions struct {
+	BaseIdOptions
+	DISKID         string `json:"disk_id" help:"Disk id or name"`
+	TARGETSTORAGE  string `json:"target_storage_id" help:"Target storage id or name"`
+	KeepOriginDisk bool   `json:"keep_origin_disk" help:"Keep origin disk when changed"`
+}
+
+func (o *ServerChangeDiskStorageOptions) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.Marshal(o), nil
 }

@@ -189,6 +189,9 @@ type ICloudRegion interface {
 
 	GetICloudApps() ([]ICloudApp, error)
 	GetICloudAppById(id string) (ICloudApp, error)
+
+	GetICloudKubeClusters() ([]ICloudKubeCluster, error)
+	GetICloudKubeClusterById(id string) (ICloudKubeCluster, error)
 }
 
 type ICloudZone interface {
@@ -213,7 +216,7 @@ type ICloudImage interface {
 	GetSizeByte() int64
 	GetImageType() TImageType
 	GetImageStatus() string
-	GetOsType() string
+	GetOsType() TOsType
 	GetOsDist() string
 	GetOsVersion() string
 	GetOsArch() string
@@ -241,7 +244,7 @@ type ICloudStoragecache interface {
 
 	DownloadImage(userCred mcclient.TokenCredential, imageId string, extId string, path string) (jsonutils.JSONObject, error)
 
-	UploadImage(ctx context.Context, userCred mcclient.TokenCredential, image *SImageCreateOption, isForce bool) (string, error)
+	UploadImage(ctx context.Context, userCred mcclient.TokenCredential, image *SImageCreateOption, callback func(float32)) (string, error)
 }
 
 type ICloudStorage interface {
@@ -306,6 +309,8 @@ type ICloudHost interface {
 	GetIHostNics() ([]ICloudHostNetInterface, error)
 
 	GetSchedtags() ([]string, error)
+
+	GetOvnVersion() string // just for cloudpods host
 }
 
 type ICloudVM interface {
@@ -332,7 +337,8 @@ type ICloudVM interface {
 	GetBootOrder() string
 	GetVga() string
 	GetVdi() string
-	GetOSType() string
+	GetOSArch() string
+	GetOsType() TOsType
 	GetOSName() string
 	GetBios() string
 	GetMachine() string
@@ -360,7 +366,7 @@ type ICloudVM interface {
 
 	ChangeConfig(ctx context.Context, config *SManagedVMChangeConfig) error
 
-	GetVNCInfo() (jsonutils.JSONObject, error)
+	GetVNCInfo(input *ServerVncInput) (*ServerVncOutput, error)
 	AttachDisk(ctx context.Context, diskId string) error
 	DetachDisk(ctx context.Context, diskId string) error
 
@@ -551,8 +557,8 @@ type ICloudVpc interface {
 	GetRegion() ICloudRegion
 	GetIsDefault() bool
 	GetCidrBlock() string
-	// GetStatus() string
 	GetIWires() ([]ICloudWire, error)
+	CreateIWire(opts *SWireCreateOptions) (ICloudWire, error)
 	GetISecurityGroups() ([]ICloudSecurityGroup, error)
 	GetIRouteTables() ([]ICloudRouteTable, error)
 	GetIRouteTableById(routeTableId string) (ICloudRouteTable, error)
@@ -831,6 +837,9 @@ type ICloudSku interface {
 
 type ICloudProject interface {
 	ICloudResource
+
+	GetDomainId() string
+	GetDomainName() string
 }
 
 type ICloudNatGateway interface {
@@ -1457,7 +1466,7 @@ type ICloudApp interface {
 	GetTechStack() string
 	GetType() string
 	GetKind() string
-	GetOsType() string
+	GetOsType() TOsType
 }
 
 type ICloudAppEnvironment interface {
@@ -1495,4 +1504,36 @@ type ICloudNatSku interface {
 	GetGlobalId() string
 	GetPrepaidStatus() string
 	GetPostpaidStatus() string
+}
+
+type ICloudCDNDomain interface {
+	ICloudEnabledResource
+
+	GetArea() string
+	GetServiceType() string
+	GetCname() string
+	GetOrigins() *SCdnOrigins
+
+	Delete() error
+}
+
+type ICloudKubeCluster interface {
+	ICloudEnabledResource
+
+	GetKubeConfig(private bool, expireMinutes int) (*SKubeconfig, error)
+
+	GetIKubeNodePools() ([]ICloudKubeNodePool, error)
+	GetIKubeNodes() ([]ICloudKubeNode, error)
+
+	Delete(isRetain bool) error
+}
+
+type ICloudKubeNode interface {
+	ICloudResource
+
+	GetINodePoolId() string
+}
+
+type ICloudKubeNodePool interface {
+	ICloudResource
 }

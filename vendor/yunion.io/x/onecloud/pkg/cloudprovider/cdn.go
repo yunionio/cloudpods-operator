@@ -14,6 +14,14 @@
 
 package cloudprovider
 
+import (
+	"reflect"
+
+	"yunion.io/x/jsonutils"
+	"yunion.io/x/pkg/gotypes"
+)
+
+// +onecloud:model-api-gen
 type SCdnDomain struct {
 	// cdn加速域名
 	Domain string
@@ -27,4 +35,33 @@ type SCdnDomain struct {
 	Origin string
 	// 源站类型 domain|ip|bucket
 	OriginType string
+}
+
+// +onecloud:model-api-gen
+type SCdnOrigin struct {
+	Type       string
+	Origin     string
+	ServerName string
+	Protocol   string
+	Path       string
+	Port       int
+	Enabled    string
+	Priority   int
+}
+
+// +onecloud:model-api-gen
+type SCdnOrigins []SCdnOrigin
+
+func (self SCdnOrigins) IsZero() bool {
+	return len(self) == 0
+}
+
+func (self SCdnOrigins) String() string {
+	return jsonutils.Marshal(self).String()
+}
+
+func init() {
+	gotypes.RegisterSerializable(reflect.TypeOf(&SCdnOrigins{}), func() gotypes.ISerializable {
+		return &SCdnOrigins{}
+	})
 }

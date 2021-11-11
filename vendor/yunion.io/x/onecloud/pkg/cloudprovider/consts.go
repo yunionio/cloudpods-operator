@@ -41,6 +41,8 @@ const (
 )
 
 const (
+	READ_ONLY_SUFFIX = ".readonly"
+
 	CLOUD_CAPABILITY_PROJECT         = "project"
 	CLOUD_CAPABILITY_COMPUTE         = "compute"
 	CLOUD_CAPABILITY_NETWORK         = "network"
@@ -60,7 +62,9 @@ const (
 	CLOUD_CAPABILITY_MONGO_DB        = "mongodb"   // MongoDB
 	CLOUD_CAPABILITY_ES              = "es"        // ElasticSearch
 	CLOUD_CAPABILITY_KAFKA           = "kafka"     // Kafka
-	CLOUD_CAPABILITY_APP             = "app"       //App
+	CLOUD_CAPABILITY_APP             = "app"       // App
+	CLOUD_CAPABILITY_CDN             = "cdn"       // CDN
+	CLOUD_CAPABILITY_CONTAINER       = "container" // 容器
 )
 
 const (

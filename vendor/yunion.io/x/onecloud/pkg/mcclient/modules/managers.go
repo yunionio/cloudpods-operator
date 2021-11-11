@@ -96,7 +96,7 @@ func NewJointCloudIdManager(keyword, keywordPlural string, columns, adminColumns
 		Slave:           slave}
 }
 
-func NewJointMonitorManager(keyword, keywordPlural string, columns, adminColumns []string, master, slave modulebase.Manager) modulebase.JointResourceManager {
+func NewJointServiceTreeManager(keyword, keywordPlural string, columns, adminColumns []string, master, slave modulebase.Manager) modulebase.JointResourceManager {
 	return modulebase.JointResourceManager{
 		ResourceManager: NewServiceTreeManager(keyword, keywordPlural, columns, adminColumns),
 		Master:          master,
@@ -135,12 +135,6 @@ func NewITSMManager(keyword, keywordPlural string, columns, adminColumns []strin
 func NewSchedulerManager(keyword, keywordPlural string, columns, adminColumns []string) modulebase.ResourceManager {
 	return modulebase.ResourceManager{
 		BaseManager: *modulebase.NewBaseManager(apis.SERVICE_TYPE_SCHEDULER, "", "", columns, adminColumns),
-		Keyword:     keyword, KeywordPlural: keywordPlural}
-}
-
-func NewMeterManager(keyword, keywordPlural string, columns, adminColumns []string) modulebase.ResourceManager {
-	return modulebase.ResourceManager{
-		BaseManager: *modulebase.NewBaseManager(apis.SERVICE_TYPE_METER, "", "", columns, adminColumns),
 		Keyword:     keyword, KeywordPlural: keywordPlural}
 }
 

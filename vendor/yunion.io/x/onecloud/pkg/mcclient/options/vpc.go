@@ -23,12 +23,14 @@ import (
 type VpcListOptions struct {
 	BaseListOptions
 
-	Usable             *bool  `help:"Filter usable vpcs"`
-	Region             string `help:"ID or Name of region" json:"-"`
-	Globalvpc          string `help:"Filter by globalvpc"`
-	DnsZoneId          string `help:"Filter by DnsZone"`
-	InterVpcNetworkId  string `help:"Filter by InterVpcNetwork"`
-	ExternalAccessMode string `help:"Filter by external access mode" choices:"distgw|eip|eip-distgw"`
+	Usable                     *bool  `help:"Filter usable vpcs"`
+	Region                     string `help:"ID or Name of region" json:"-"`
+	Globalvpc                  string `help:"Filter by globalvpc"`
+	DnsZoneId                  string `help:"Filter by DnsZone"`
+	InterVpcNetworkId          string `help:"Filter by InterVpcNetwork"`
+	ExternalAccessMode         string `help:"Filter by external access mode" choices:"distgw|eip|eip-distgw"`
+	ZoneId                     string `help:"Filter by zone which has networks"`
+	UsableForInterVpcNetworkId string `help:"Filter usable vpcs for inter vpc network"`
 }
 
 func (opts *VpcListOptions) GetContextId() string {
@@ -88,6 +90,7 @@ func (opts *VpcIdOptions) Params() (jsonutils.JSONObject, error) {
 type VpcUpdateOptions struct {
 	BaseUpdateOptions
 	ExternalAccessMode string `help:"Filter by external access mode" choices:"distgw|eip|eip-distgw"`
+	Direct             bool   `help:"Can it be connected directly"`
 }
 
 func (opts *VpcUpdateOptions) Params() (jsonutils.JSONObject, error) {

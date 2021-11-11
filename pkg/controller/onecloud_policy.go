@@ -24,16 +24,16 @@ import (
 
 	"yunion.io/x/onecloud/pkg/keystone/locale"
 	"yunion.io/x/onecloud/pkg/mcclient"
-	"yunion.io/x/onecloud/pkg/mcclient/modules"
+	identity_modules "yunion.io/x/onecloud/pkg/mcclient/modules/identity"
 	"yunion.io/x/onecloud/pkg/util/httputils"
 )
 
 func createOrUpdatePolicy(s *mcclient.ClientSession, policy locale.SPolicyData) error {
-	policyJson, err := modules.Policies.GetByName(s, policy.Name, nil)
+	policyJson, err := identity_modules.Policies.GetByName(s, policy.Name, nil)
 	if err != nil {
 		if httputils.ErrorCode(err) == 404 {
 			// not found, try names without -
-			policyJson, err = modules.Policies.GetByName(s, strings.ReplaceAll(policy.Name, "-", ""), nil)
+			policyJson, err = identity_modules.Policies.GetByName(s, strings.ReplaceAll(policy.Name, "-", ""), nil)
 			if err != nil {
 				if httputils.ErrorCode(err) == 404 {
 					// not found, to create
@@ -46,7 +46,7 @@ func createOrUpdatePolicy(s *mcclient.ClientSession, policy locale.SPolicyData) 
 					params.Add(jsonutils.JSONTrue, "enabled")
 					params.Add(jsonutils.JSONTrue, "is_system")
 					params.Add(jsonutils.JSONTrue, "is_public")
-					_, err := modules.Policies.Create(s, params)
+					_, err := identity_modules.Policies.Create(s, params)
 					if err != nil {
 						return errors.Wrap(err, "Policies.Create")
 					}
@@ -78,7 +78,7 @@ func createOrUpdatePolicy(s *mcclient.ClientSession, policy locale.SPolicyData) 
 		params.Add(jsonutils.NewString(string(policy.Scope)), "scope")
 		params.Add(jsonutils.JSONTrue, "enabled")
 		params.Add(jsonutils.JSONTrue, "is_system")
-		_, err := modules.Policies.Update(s, pid, params)
+		_, err := identity_modules.Policies.Update(s, pid, params)
 		if err != nil {
 			return errors.Wrap(err, "Policies.Update")
 		}
@@ -94,12 +94,12 @@ func PoliciesPublic(s *mcclient.ClientSession, types []string) error {
 	for _, t := range types {
 		pt := t
 		errgrp.Go(func() error {
-			policyJson, err := modules.Policies.Get(s, pt, nil)
+			policyJson, err := identity_modules.Policies.Get(s, pt, nil)
 			if err != nil {
 				return errors.Wrapf(err, "modules.Policies.Get %s", pt)
 			}
 			if !jsonutils.QueryBoolean(policyJson, "is_public", false) {
-				_, err = modules.Policies.PerformAction(s, pt, "public", nil)
+				_, err = identity_modules.Policies.PerformAction(s, pt, "public", nil)
 				if err != nil {
 					return errors.Wrap(err, "Policies.PerformAction")
 				}
@@ -118,12 +118,12 @@ func RolesPublic(s *mcclient.ClientSession, roles []string) error {
 	for _, t := range roles {
 		pt := t
 		errgrp.Go(func() error {
-			roleJson, err := modules.RolesV3.Get(s, pt, nil)
+			roleJson, err := identity_modules.RolesV3.Get(s, pt, nil)
 			if err != nil {
 				return errors.Wrapf(err, "modules.RolesV3.Get %s", pt)
 			}
 			if !jsonutils.QueryBoolean(roleJson, "is_public", false) {
-				_, err := modules.RolesV3.PerformAction(s, pt, "public", nil)
+				_, err := identity_modules.RolesV3.PerformAction(s, pt, "public", nil)
 				if err != nil {
 					return errors.Wrap(err, "RolesV3.PerformAction")
 				}
@@ -138,7 +138,7 @@ func RolesPublic(s *mcclient.ClientSession, roles []string) error {
 }
 
 func createOrUpdateRole(s *mcclient.ClientSession, role locale.SRoleDefiniton) error {
-	roleJson, err := modules.RolesV3.GetByName(s, role.Name, nil)
+	roleJson, err := identity_modules.RolesV3.GetByName(s, role.Name, nil)
 	if err != nil {
 		if httputils.ErrorCode(err) == 404 {
 			// role not exists, create one
@@ -152,7 +152,7 @@ func createOrUpdateRole(s *mcclient.ClientSession, role locale.SRoleDefiniton) e
 				params.Add(jsonutils.JSONFalse, "is_public")
 				params.Add(jsonutils.NewString("none"), "public_scope")
 			}
-			roleJson, err = modules.RolesV3.Create(s, params)
+			roleJson, err = identity_modules.RolesV3.Create(s, params)
 			if err != nil {
 				return errors.Wrap(err, "RolesV3.Create")
 			}
@@ -168,7 +168,7 @@ func createOrUpdateRole(s *mcclient.ClientSession, role locale.SRoleDefiniton) e
 			params := jsonutils.NewDict()
 			params.Add(jsonutils.NewString(role.Name), "description")
 			// params.Add(jsonutils.JSONTrue, "is_public")
-			roleJson, err = modules.RolesV3.Update(s, idstr, params)
+			roleJson, err = identity_modules.RolesV3.Update(s, idstr, params)
 			if err != nil {
 				return errors.Wrap(err, "RolesV3.Update")
 			}
@@ -177,13 +177,13 @@ func createOrUpdateRole(s *mcclient.ClientSession, role locale.SRoleDefiniton) e
 		/* if isPublic != role.IsPublic {
 			if role.IsPublic {
 				// perform public
-				_, err := modules.RolesV3.PerformAction(s, idstr, "public", nil)
+				_, err := identity_modules.RolesV3.PerformAction(s, idstr, "public", nil)
 				if err != nil {
 					log.Warningf("public role %s fail %s", idstr, err)
 				}
 			} else {
 				// perform private
-				_, err := modules.RolesV3.PerformAction(s, idstr, "private", nil)
+				_, err := identity_modules.RolesV3.PerformAction(s, idstr, "private", nil)
 				if err != nil {
 					log.Warningf("private role %s fail %s", idstr, err)
 				}
@@ -199,7 +199,7 @@ func createOrUpdateRole(s *mcclient.ClientSession, role locale.SRoleDefiniton) e
 			params.Add(jsonutils.NewString(role.Project), "project_id")
 		}
 		params.Add(jsonutils.NewString(policy), "policy_id")
-		_, err = modules.RolesV3.PerformAction(s, roleId, "add-policy", params)
+		_, err = identity_modules.RolesV3.PerformAction(s, roleId, "add-policy", params)
 		if err != nil {
 			return errors.Wrap(err, "RolesV3.PerformAction add-policy")
 		}
