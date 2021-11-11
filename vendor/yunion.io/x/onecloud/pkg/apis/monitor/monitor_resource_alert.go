@@ -30,6 +30,9 @@ type MonitorResourceJointListInput struct {
 	Alerting          bool    `json:"alertinng"`
 	SendState         string  `json:"send_state"`
 	ResType           string  `json:"res_type"`
+	ResName           string  `json:"res_name"`
+	AlertName         string  `json:"alert_name"`
+	Level             string  `json:"level"`
 }
 
 type MonitorResourceJointCreateInput struct {
@@ -44,10 +47,13 @@ type MonitorResourceJointCreateInput struct {
 }
 
 type MonitorResourceJointDetails struct {
-	ResName   string               `json:"res_name"`
-	ResType   string               `json:"res_type"`
-	AlertName string               `json:"alert_name"`
-	AlertRule jsonutils.JSONObject `json:"alert_rule"`
-	Level     string               `json:"level"`
-	SendState string               `json:"send_state"`
+	ResName     string               `json:"res_name"`
+	ResId       string               `json:"res_id"`
+	ResType     string               `json:"res_type"`
+	AlertName   string               `json:"alert_name"`
+	AlertRule   jsonutils.JSONObject `json:"alert_rule"`
+	Level       string               `json:"level"`
+	SendState   string               `json:"send_state"`
+	State       string               `json:"state"`
+	IsSetShield bool                 `json:"is_set_shield"`
 }

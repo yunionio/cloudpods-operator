@@ -27,7 +27,11 @@ import (
 	monitorapi "yunion.io/x/onecloud/pkg/apis/monitor"
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/mcclient/modulebase"
-	"yunion.io/x/onecloud/pkg/mcclient/modules"
+	ansible_modules "yunion.io/x/onecloud/pkg/mcclient/modules/ansible"
+	"yunion.io/x/onecloud/pkg/mcclient/modules/compute"
+	"yunion.io/x/onecloud/pkg/mcclient/modules/devtool"
+	"yunion.io/x/onecloud/pkg/mcclient/modules/identity"
+	"yunion.io/x/onecloud/pkg/mcclient/modules/monitor"
 	"yunion.io/x/onecloud/pkg/util/ansible"
 	"yunion.io/x/onecloud/pkg/util/httputils"
 	"yunion.io/x/pkg/errors"
@@ -97,7 +101,7 @@ func DeleteResource(
 }
 
 func IsRoleExists(s *mcclient.ClientSession, roleName string) (jsonutils.JSONObject, bool, error) {
-	return IsResourceExists(s, &modules.RolesV3, roleName)
+	return IsResourceExists(s, &identity.RolesV3, roleName)
 }
 
 func CreateRole(s *mcclient.ClientSession, roleName, description string) (jsonutils.JSONObject, error) {
@@ -106,34 +110,34 @@ func CreateRole(s *mcclient.ClientSession, roleName, description string) (jsonut
 	if description != "" {
 		params.Add(jsonutils.NewString(description), "description")
 	}
-	return modules.RolesV3.Create(s, params)
+	return identity.RolesV3.Create(s, params)
 }
 
 func EnsureRole(s *mcclient.ClientSession, roleName, description string) (jsonutils.JSONObject, error) {
-	return EnsureResource(s, &modules.RolesV3, roleName, func() (jsonutils.JSONObject, error) {
+	return EnsureResource(s, &identity.RolesV3, roleName, func() (jsonutils.JSONObject, error) {
 		return CreateRole(s, roleName, description)
 	})
 }
 
 func IsServiceExists(s *mcclient.ClientSession, svcName string) (jsonutils.JSONObject, bool, error) {
-	return IsResourceExists(s, &modules.ServicesV3, svcName)
+	return IsResourceExists(s, &identity.ServicesV3, svcName)
 }
 
 func EnsureService(s *mcclient.ClientSession, svcName, svcType string) (jsonutils.JSONObject, error) {
-	return EnsureResource(s, &modules.ServicesV3, svcName, func() (jsonutils.JSONObject, error) {
+	return EnsureResource(s, &identity.ServicesV3, svcName, func() (jsonutils.JSONObject, error) {
 		return CreateService(s, svcName, svcType)
 	})
 }
 
 func EnsureServiceCertificate(s *mcclient.ClientSession, certName string, certDetails *jsonutils.JSONDict) (jsonutils.JSONObject, error) {
-	return EnsureResource(s, &modules.ServiceCertificatesV3, certName, func() (jsonutils.JSONObject, error) {
+	return EnsureResource(s, &identity.ServiceCertificatesV3, certName, func() (jsonutils.JSONObject, error) {
 		return CreateServiceCertificate(s, certName, certDetails)
 	})
 }
 
 func CreateServiceCertificate(s *mcclient.ClientSession, certName string, certDetails *jsonutils.JSONDict) (jsonutils.JSONObject, error) {
 	certDetails.Add(jsonutils.NewString(certName), "name")
-	return modules.ServiceCertificatesV3.Create(s, certDetails)
+	return identity.ServiceCertificatesV3.Create(s, certDetails)
 }
 
 func CreateService(s *mcclient.ClientSession, svcName, svcType string) (jsonutils.JSONObject, error) {
@@ -141,7 +145,7 @@ func CreateService(s *mcclient.ClientSession, svcName, svcType string) (jsonutil
 	params.Add(jsonutils.NewString(svcType), "type")
 	params.Add(jsonutils.NewString(svcName), "name")
 	params.Add(jsonutils.JSONTrue, "enabled")
-	return modules.ServicesV3.Create(s, params)
+	return identity.ServicesV3.Create(s, params)
 }
 
 func IsEndpointExists(s *mcclient.ClientSession, svcId, regionId, interfaceType string) (jsonutils.JSONObject, bool, error) {
@@ -149,7 +153,7 @@ func IsEndpointExists(s *mcclient.ClientSession, svcId, regionId, interfaceType 
 	params.Add(jsonutils.NewString(svcId), "service_id")
 	params.Add(jsonutils.NewString(regionId), "region_id")
 	params.Add(jsonutils.NewString(interfaceType), "interface")
-	eps, err := modules.EndpointsV3.List(s, params)
+	eps, err := identity.EndpointsV3.List(s, params)
 	if err != nil {
 		return nil, false, err
 	}
@@ -176,7 +180,7 @@ func EnsureEndpoint(
 		if len(serviceCert) > 0 {
 			createParams.Add(jsonutils.NewString(serviceCert), "service_certificate")
 		}
-		return modules.EndpointsV3.Create(s, createParams)
+		return identity.EndpointsV3.Create(s, createParams)
 	}
 	epId, err := ep.GetString("id")
 	if err != nil {
@@ -194,11 +198,11 @@ func EnsureEndpoint(
 	if len(serviceCert) > 0 {
 		updateParams.Add(jsonutils.NewString(serviceCert), "service_certificate")
 	}
-	return modules.EndpointsV3.Update(s, epId, updateParams)
+	return identity.EndpointsV3.Update(s, epId, updateParams)
 }
 
 func IsUserExists(s *mcclient.ClientSession, username string) (jsonutils.JSONObject, bool, error) {
-	return IsResourceExists(s, &modules.UsersV3, username)
+	return IsResourceExists(s, &identity.UsersV3, username)
 }
 
 func CreateUser(s *mcclient.ClientSession, username string, password string) (jsonutils.JSONObject, error) {
@@ -206,36 +210,36 @@ func CreateUser(s *mcclient.ClientSession, username string, password string) (js
 	params.Add(jsonutils.NewString(username), "name")
 	params.Add(jsonutils.NewString(password), "password")
 	params.Add(jsonutils.JSONTrue, "is_system_account")
-	return modules.UsersV3.Create(s, params)
+	return identity.UsersV3.Create(s, params)
 }
 
 func ChangeUserPassword(s *mcclient.ClientSession, username string, password string) (jsonutils.JSONObject, error) {
 	params := jsonutils.NewDict()
 	params.Add(jsonutils.NewString(password), "password")
-	return modules.UsersV3.Update(s, username, params)
+	return identity.UsersV3.Update(s, username, params)
 }
 
 func ProjectAddUser(s *mcclient.ClientSession, projectId string, userId string, roleId string) error {
-	_, err := modules.RolesV3.PutInContexts(s, roleId, nil,
+	_, err := identity.RolesV3.PutInContexts(s, roleId, nil,
 		[]modulebase.ManagerContext{
-			{InstanceManager: &modules.Projects, InstanceId: projectId},
-			{InstanceManager: &modules.UsersV3, InstanceId: userId},
+			{InstanceManager: &identity.Projects, InstanceId: projectId},
+			{InstanceManager: &identity.UsersV3, InstanceId: userId},
 		})
 	return err
 }
 
 func IsZoneExists(s *mcclient.ClientSession, zone string) (jsonutils.JSONObject, bool, error) {
-	return IsResourceExists(s, &modules.Zones, zone)
+	return IsResourceExists(s, &compute.Zones, zone)
 }
 
 func CreateZone(s *mcclient.ClientSession, zone string) (jsonutils.JSONObject, error) {
 	params := jsonutils.NewDict()
 	params.Add(jsonutils.NewString(zone), "name")
-	return modules.Zones.Create(s, params)
+	return compute.Zones.Create(s, params)
 }
 
 func IsWireExists(s *mcclient.ClientSession, wire string) (jsonutils.JSONObject, bool, error) {
-	return IsResourceExists(s, &modules.Wires, wire)
+	return IsResourceExists(s, &compute.Wires, wire)
 }
 
 func CreateWire(s *mcclient.ClientSession, zone string, wire string, bw int, vpc string) (jsonutils.JSONObject, error) {
@@ -243,11 +247,11 @@ func CreateWire(s *mcclient.ClientSession, zone string, wire string, bw int, vpc
 	params.Add(jsonutils.NewString(wire), "name")
 	params.Add(jsonutils.NewInt(int64(bw)), "bandwidth")
 	params.Add(jsonutils.NewString(vpc), "vpc")
-	return modules.Wires.CreateInContext(s, params, &modules.Zones, zone)
+	return compute.Wires.CreateInContext(s, params, &compute.Zones, zone)
 }
 
 func IsNetworkExists(s *mcclient.ClientSession, net string) (jsonutils.JSONObject, bool, error) {
-	return IsResourceExists(s, &modules.Networks, net)
+	return IsResourceExists(s, &compute.Networks, net)
 }
 
 func CreateNetwork(
@@ -271,18 +275,18 @@ func CreateNetwork(
 	if serverType != "" {
 		params.Add(jsonutils.NewString(serverType), "server_type")
 	}
-	return modules.Networks.CreateInContext(s, params, &modules.Wires, wireId)
+	return compute.Networks.CreateInContext(s, params, &compute.Wires, wireId)
 }
 
 func NetworkPrivate(s *mcclient.ClientSession, name string) (jsonutils.JSONObject, error) {
-	return modules.Networks.PerformAction(s, "private", name, nil)
+	return compute.Networks.PerformAction(s, "private", name, nil)
 }
 
 func CreateRegion(s *mcclient.ClientSession, region, zone string) (jsonutils.JSONObject, error) {
 	if zone != "" {
 		region = mcclient.RegionID(region, zone)
 	}
-	obj, err := modules.Regions.Get(s, region, nil)
+	obj, err := identity.Regions.Get(s, region, nil)
 	if err == nil {
 		// region already exists
 		return obj, nil
@@ -292,11 +296,11 @@ func CreateRegion(s *mcclient.ClientSession, region, zone string) (jsonutils.JSO
 	}
 	params := jsonutils.NewDict()
 	params.Add(jsonutils.NewString(region), "id")
-	return modules.Regions.Create(s, params)
+	return identity.Regions.Create(s, params)
 }
 
 func IsSchedtagExists(s *mcclient.ClientSession, name string) (jsonutils.JSONObject, bool, error) {
-	return IsResourceExists(s, &modules.Schedtags, name)
+	return IsResourceExists(s, &compute.Schedtags, name)
 }
 
 func CreateSchedtag(s *mcclient.ClientSession, name string, strategy string, description string) (jsonutils.JSONObject, error) {
@@ -304,17 +308,17 @@ func CreateSchedtag(s *mcclient.ClientSession, name string, strategy string, des
 	params.Add(jsonutils.NewString(name), "name")
 	params.Add(jsonutils.NewString(strategy), "default_strategy")
 	params.Add(jsonutils.NewString(description), "description")
-	return modules.Schedtags.Create(s, params)
+	return compute.Schedtags.Create(s, params)
 }
 
 func EnsureSchedtag(s *mcclient.ClientSession, name string, strategy string, description string) (jsonutils.JSONObject, error) {
-	return EnsureResource(s, &modules.Schedtags, name, func() (jsonutils.JSONObject, error) {
+	return EnsureResource(s, &compute.Schedtags, name, func() (jsonutils.JSONObject, error) {
 		return CreateSchedtag(s, name, strategy, description)
 	})
 }
 
 func IsDynamicSchedtagExists(s *mcclient.ClientSession, name string) (jsonutils.JSONObject, bool, error) {
-	return IsResourceExists(s, &modules.Dynamicschedtags, name)
+	return IsResourceExists(s, &compute.Dynamicschedtags, name)
 }
 
 func CreateDynamicSchedtag(s *mcclient.ClientSession, name, schedtag, condition string) (jsonutils.JSONObject, error) {
@@ -323,24 +327,24 @@ func CreateDynamicSchedtag(s *mcclient.ClientSession, name, schedtag, condition 
 	params.Add(jsonutils.NewString(schedtag), "schedtag")
 	params.Add(jsonutils.NewString(condition), "condition")
 	params.Add(jsonutils.JSONTrue, "enabled")
-	return modules.Dynamicschedtags.Create(s, params)
+	return compute.Dynamicschedtags.Create(s, params)
 }
 
 func EnsureDynamicSchedtag(s *mcclient.ClientSession, name, schedtag, condition string) (jsonutils.JSONObject, error) {
-	return EnsureResource(s, &modules.Dynamicschedtags, name, func() (jsonutils.JSONObject, error) {
+	return EnsureResource(s, &compute.Dynamicschedtags, name, func() (jsonutils.JSONObject, error) {
 		return CreateDynamicSchedtag(s, name, schedtag, condition)
 	})
 }
 
 func GetEndpointsByService(s *mcclient.ClientSession, serviceName string) ([]jsonutils.JSONObject, error) {
-	obj, err := modules.ServicesV3.Get(s, serviceName, nil)
+	obj, err := identity.ServicesV3.Get(s, serviceName, nil)
 	if err != nil {
 		return nil, err
 	}
 	svcId, _ := obj.GetString("id")
 	searchParams := jsonutils.NewDict()
 	searchParams.Add(jsonutils.NewString(svcId), "service_id")
-	ret, err := modules.EndpointsV3.List(s, searchParams)
+	ret, err := identity.EndpointsV3.List(s, searchParams)
 	if err != nil {
 		return nil, err
 	}
@@ -350,14 +354,14 @@ func GetEndpointsByService(s *mcclient.ClientSession, serviceName string) ([]jso
 func DisableService(s *mcclient.ClientSession, id string) error {
 	params := jsonutils.NewDict()
 	params.Add(jsonutils.JSONFalse, "enabled")
-	_, err := modules.ServicesV3.Patch(s, id, params)
+	_, err := identity.ServicesV3.Patch(s, id, params)
 	return err
 }
 
 func DisableEndpoint(s *mcclient.ClientSession, id string) error {
 	params := jsonutils.NewDict()
 	params.Add(jsonutils.JSONFalse, "enabled")
-	_, err := modules.EndpointsV3.Patch(s, id, params)
+	_, err := identity.EndpointsV3.Patch(s, id, params)
 	return err
 }
 
@@ -375,14 +379,14 @@ func DeleteServiceEndpoints(s *mcclient.ClientSession, serviceName string) error
 		if err := DisableEndpoint(s, tmpId); err != nil {
 			return err
 		}
-		if _, err := modules.EndpointsV3.Delete(s, id, nil); err != nil {
+		if _, err := identity.EndpointsV3.Delete(s, id, nil); err != nil {
 			return err
 		}
 	}
 	if err := DisableService(s, serviceName); err != nil {
 		return err
 	}
-	return DeleteResource(s, &modules.ServicesV3, serviceName)
+	return DeleteResource(s, &identity.ServicesV3, serviceName)
 }
 
 func InitServiceAccount(s *mcclient.ClientSession, username string, password string) error {
@@ -543,7 +547,7 @@ func CreateDevtoolTemplate(
 	if err != nil {
 		return nil, errors.Wrapf(err, "get devtool template %s create params", name)
 	}
-	return modules.DevToolTemplates.Create(s, params)
+	return devtool.DevToolTemplates.Create(s, params)
 }
 
 func EnsureDevtoolTemplate(
@@ -554,7 +558,7 @@ func EnsureDevtoolTemplate(
 	files map[string]string,
 	interval int64,
 ) (jsonutils.JSONObject, error) {
-	return EnsureResource(s, &modules.DevToolTemplates, name, func() (jsonutils.JSONObject, error) {
+	return EnsureResource(s, &devtool.DevToolTemplates, name, func() (jsonutils.JSONObject, error) {
 		return CreateDevtoolTemplate(s, name, hosts, mods, files, interval)
 	})
 }
@@ -562,7 +566,7 @@ func EnsureDevtoolTemplate(
 func SyncServiceConfig(
 	s *mcclient.ClientSession, syncConf map[string]string, serviceName string,
 ) (jsonutils.JSONObject, error) {
-	iconf, err := modules.ServicesV3.GetSpecific(s, serviceName, "config", nil)
+	iconf, err := identity.ServicesV3.GetSpecific(s, serviceName, "config", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -580,7 +584,7 @@ func SyncServiceConfig(
 			conf.Add(jsonutils.NewString(v), "config", "default", k)
 		}
 	}
-	return modules.ServicesV3.PerformAction(s, serviceName, "config", conf)
+	return identity.ServicesV3.PerformAction(s, serviceName, "config", conf)
 }
 
 type CommonAlertTem struct {
@@ -611,7 +615,7 @@ func GetCommonAlertOfSys(session *mcclient.ClientSession) ([]jsonutils.JSONObjec
 	param.Add(jsonutils.NewString(monitorapi.CommonAlertSystemAlertType), "alert_type")
 	param.Add(jsonutils.NewString("system"), "scope")
 
-	rtn, err := modules.CommonAlertManager.List(session, param)
+	rtn, err := monitor.CommonAlertManager.List(session, param)
 	if err != nil {
 		return nil, err
 	}
@@ -646,7 +650,7 @@ func CreateCommonAlert(s *mcclient.ClientSession, tem CommonAlertTem) (jsonutils
 		param.(*jsonutils.JSONDict).Set("description", jsonutils.NewString(tem.Description))
 	}
 	param.(*jsonutils.JSONDict).Set("meta_name", jsonutils.NewString(tem.Name))
-	return modules.CommonAlertManager.Create(s, param)
+	return monitor.CommonAlertManager.Create(s, param)
 }
 
 func UpdateCommonAlert(s *mcclient.ClientSession, tem CommonAlertTem, id string,
@@ -680,7 +684,7 @@ func UpdateCommonAlert(s *mcclient.ClientSession, tem CommonAlertTem, id string,
 	}
 
 	param.(*jsonutils.JSONDict).Set("meta_name", jsonutils.NewString(tem.Name))
-	return modules.CommonAlertManager.Update(s, id, param)
+	return monitor.CommonAlertManager.Update(s, id, param)
 }
 
 func containDiffsWithRtnAlert(input monitorapi.CommonAlertUpdateInput, rtnAlert jsonutils.JSONObject) (bool, error) {
@@ -727,7 +731,7 @@ func containDiffsWithRtnAlert(input monitorapi.CommonAlertUpdateInput, rtnAlert 
 }
 
 func DeleteCommonAlert(s *mcclient.ClientSession, ids []string) {
-	modules.CommonAlertManager.BatchDelete(s, ids, jsonutils.NewDict())
+	monitor.CommonAlertManager.BatchDelete(s, ids, jsonutils.NewDict())
 }
 
 func newCommonalertQuery(tem CommonAlertTem) monitorapi.CommonAlertQuery {
@@ -805,7 +809,7 @@ var agentName = "monitor agent"
 func EnsureAgentAnsiblePlaybookRef(s *mcclient.ClientSession) error {
 	log.Infof("start to EnsureAgentAnsiblePlaybookRef")
 	ctrue := true
-	data, err := modules.AnsiblePlaybookReference.GetByName(s, agentName, nil)
+	data, err := ansible_modules.AnsiblePlaybookReference.GetByName(s, agentName, nil)
 	if err != nil {
 		if httputils.ErrorCode(err) != 404 {
 			return errors.Wrapf(err, "unable to get ansible playbook ref %q", agentName)
@@ -823,13 +827,13 @@ func EnsureAgentAnsiblePlaybookRef(s *mcclient.ClientSession) error {
 			"telegraf_agent_package_method":    "offline",
 			"telegraf_agent_package_local_dir": "/opt/yunion/ansible-install-pkg",
 		}
-		data, err = modules.AnsiblePlaybookReference.Create(s, jsonutils.Marshal(params))
+		data, err = ansible_modules.AnsiblePlaybookReference.Create(s, jsonutils.Marshal(params))
 		if err != nil {
 			return errors.Wrapf(err, "unable to create ansible playbook ref %q", agentName)
 		}
 	}
 	refId, _ := data.GetString("id")
-	_, err = modules.DevToolScripts.GetByName(s, agentName, nil)
+	_, err = devtool.DevToolScripts.GetByName(s, agentName, nil)
 	if err != nil {
 		if httputils.ErrorCode(err) != 404 {
 			return errors.Wrapf(err, "unable to get devtool script %q", agentName)
@@ -842,7 +846,7 @@ func EnsureAgentAnsiblePlaybookRef(s *mcclient.ClientSession) error {
 		params.PublicScope = "system"
 		params.PlaybookReference = refId
 		params.MaxTryTimes = 3
-		_, err := modules.DevToolScripts.Create(s, jsonutils.Marshal(params))
+		_, err := devtool.DevToolScripts.Create(s, jsonutils.Marshal(params))
 		if err != nil {
 			return errors.Wrapf(err, "unable to create devtool script %q", agentName)
 		}

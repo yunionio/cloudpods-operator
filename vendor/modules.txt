@@ -2,6 +2,8 @@
 github.com/360EntSecGroup-Skylar/excelize
 # github.com/beevik/etree v1.1.0
 github.com/beevik/etree
+# github.com/coredns/coredns v1.3.0
+github.com/coredns/coredns/plugin/pkg/log
 # github.com/coreos/go-semver v0.2.0
 github.com/coreos/go-semver/semver
 # github.com/coreos/go-systemd v0.0.0-20190620071333-e64a0ec8b42a
@@ -15,7 +17,7 @@ github.com/docker/distribution/digestset
 github.com/docker/distribution/reference
 # github.com/evanphx/json-patch v0.0.0-20190203023257-5858425f7550
 github.com/evanphx/json-patch
-# github.com/fatih/color v1.9.0
+# github.com/fatih/color v1.10.0
 github.com/fatih/color
 # github.com/ghodss/yaml v1.0.0
 github.com/ghodss/yaml
@@ -89,9 +91,9 @@ github.com/klauspost/cpuid
 github.com/leodido/go-urn
 # github.com/ma314smith/signedxml v0.0.0-20200410192636-c342a2d0ae60
 github.com/ma314smith/signedxml
-# github.com/mattn/go-colorable v0.1.4
+# github.com/mattn/go-colorable v0.1.8
 github.com/mattn/go-colorable
-# github.com/mattn/go-isatty v0.0.12
+# github.com/mattn/go-isatty v0.0.14
 github.com/mattn/go-isatty
 # github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b
 github.com/mgutz/ansi
@@ -205,13 +207,14 @@ go.uber.org/zap/internal/bufferpool
 go.uber.org/zap/internal/color
 go.uber.org/zap/internal/exit
 go.uber.org/zap/zapcore
-# golang.org/x/crypto v0.0.0-20200709230013-948cd5f35899
+# golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
 golang.org/x/crypto/argon2
 golang.org/x/crypto/bcrypt
 golang.org/x/crypto/blake2b
 golang.org/x/crypto/blowfish
 golang.org/x/crypto/chacha20
 golang.org/x/crypto/curve25519
+golang.org/x/crypto/curve25519/internal/field
 golang.org/x/crypto/ed25519
 golang.org/x/crypto/ed25519/internal/edwards25519
 golang.org/x/crypto/internal/subtle
@@ -220,7 +223,7 @@ golang.org/x/crypto/sha3
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
 golang.org/x/crypto/ssh/terminal
-# golang.org/x/net v0.0.0-20201110031124-69a78807bb2b
+# golang.org/x/net v0.0.0-20210226172049-e18ecbb05110
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
 golang.org/x/net/http/httpguts
@@ -236,11 +239,14 @@ golang.org/x/oauth2
 golang.org/x/oauth2/internal
 # golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.0.0-20200930185726-fdedc70b468f
+# golang.org/x/sys v0.0.0-20210910150752-751e447fb3d0
 golang.org/x/sys/cpu
 golang.org/x/sys/internal/unsafeheader
+golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
+# golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b
+golang.org/x/term
 # golang.org/x/text v0.3.3
 golang.org/x/text/feature/plural
 golang.org/x/text/internal
@@ -669,15 +675,15 @@ k8s.io/utils/pointer
 k8s.io/utils/trace
 # sigs.k8s.io/yaml v1.1.0
 sigs.k8s.io/yaml
-# yunion.io/x/executor v0.0.0-20210310041834-3fcd1574f68e
+# yunion.io/x/executor v0.0.0-20211018100936-39a2cd966656
 yunion.io/x/executor/apis
 yunion.io/x/executor/client
-# yunion.io/x/jsonutils v0.0.0-20210709075951-798a67800349
+# yunion.io/x/jsonutils v0.0.0-20211105163012-d846c05a3c9a
 yunion.io/x/jsonutils
 # yunion.io/x/log v0.0.0-20201210064738-43181789dc74
 yunion.io/x/log
 yunion.io/x/log/hooks
-# yunion.io/x/onecloud v0.0.0-20210815031556-cbfaca01f7f8
+# yunion.io/x/onecloud v0.0.0-20211111052824-72f4ce4a5ea4
 yunion.io/x/onecloud/cmd/climc/shell
 yunion.io/x/onecloud/locales
 yunion.io/x/onecloud/pkg/ansibleserver/options
@@ -728,11 +734,19 @@ yunion.io/x/onecloud/pkg/mcclient/informer
 yunion.io/x/onecloud/pkg/mcclient/models
 yunion.io/x/onecloud/pkg/mcclient/modulebase
 yunion.io/x/onecloud/pkg/mcclient/modules
+yunion.io/x/onecloud/pkg/mcclient/modules/ansible
 yunion.io/x/onecloud/pkg/mcclient/modules/cloudproxy
+yunion.io/x/onecloud/pkg/mcclient/modules/compute
+yunion.io/x/onecloud/pkg/mcclient/modules/devtool
+yunion.io/x/onecloud/pkg/mcclient/modules/identity
+yunion.io/x/onecloud/pkg/mcclient/modules/image
 yunion.io/x/onecloud/pkg/mcclient/modules/k8s
+yunion.io/x/onecloud/pkg/mcclient/modules/monitor
+yunion.io/x/onecloud/pkg/mcclient/modules/scheduler
 yunion.io/x/onecloud/pkg/mcclient/options
 yunion.io/x/onecloud/pkg/mcclient/options/k8s
 yunion.io/x/onecloud/pkg/monitor/options
+yunion.io/x/onecloud/pkg/monitor/tsdb
 yunion.io/x/onecloud/pkg/multicloud
 yunion.io/x/onecloud/pkg/multicloud/esxi
 yunion.io/x/onecloud/pkg/multicloud/esxi/vcenter
@@ -766,7 +780,7 @@ yunion.io/x/onecloud/pkg/util/vmdkutils
 yunion.io/x/onecloud/pkg/vpcagent/options
 yunion.io/x/onecloud/pkg/webconsole/options
 yunion.io/x/onecloud/pkg/yunionconf/options
-# yunion.io/x/pkg v0.0.0-20210721081124-55078288ca4c
+# yunion.io/x/pkg v0.0.0-20210918114143-ce839f862c5f
 yunion.io/x/pkg/errors
 yunion.io/x/pkg/gotypes
 yunion.io/x/pkg/prettytable
@@ -790,7 +804,7 @@ yunion.io/x/pkg/util/version
 yunion.io/x/pkg/utils
 # yunion.io/x/s3cli v0.0.0-20190917004522-13ac36d8687e
 yunion.io/x/s3cli
-# yunion.io/x/sqlchemy v0.0.0-20210619142628-653684d2c4f8
+# yunion.io/x/sqlchemy v0.0.0-20210918113031-c1c107f37ada
 yunion.io/x/sqlchemy
 # yunion.io/x/structarg v0.0.0-20200720093445-9f850fa222ce
 yunion.io/x/structarg
