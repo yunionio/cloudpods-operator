@@ -603,6 +603,7 @@ type CommonAlertTem struct {
 	From          string `json:"from"`
 	Interval      string `json:"interval"`
 	GroupBy       string `json:"group_by"`
+	Level         string `json:"level"`
 }
 
 func GetCommonAlertOfSys(session *mcclient.ClientSession) ([]jsonutils.JSONObject, error) {
@@ -626,11 +627,14 @@ func CreateCommonAlert(s *mcclient.ClientSession, tem CommonAlertTem) (jsonutils
 		},
 		AlertCreateInput: monitorapi.AlertCreateInput{
 			Name:  tem.Name,
-			Level: "important",
+			Level: "fatal",
 		},
 		Recipients: []string{monitorapi.CommonAlertDefaultRecipient},
 		AlertType:  monitorapi.CommonAlertSystemAlertType,
 		Scope:      "system",
+	}
+	if tem.Level != "" {
+		input.Level = tem.Level
 	}
 	if len(tem.From) != 0 {
 		input.From = tem.From
@@ -652,11 +656,16 @@ func CreateCommonAlert(s *mcclient.ClientSession, tem CommonAlertTem) (jsonutils
 func UpdateCommonAlert(s *mcclient.ClientSession, tem CommonAlertTem, id string,
 	alert jsonutils.JSONObject) (jsonutils.JSONObject, error) {
 	commonAlert := newCommonalertQuery(tem)
+	level := "fatal"
 	input := monitorapi.CommonAlertUpdateInput{
 		CommonMetricInputQuery: monitorapi.CommonMetricInputQuery{
 			MetricQuery: []*monitorapi.CommonAlertQuery{&commonAlert},
 		},
 	}
+	if len(tem.Level) != 0 {
+		level = tem.Level
+	}
+	input.Level = &level
 	if len(tem.From) != 0 {
 		input.From = tem.From
 	}
@@ -685,6 +694,10 @@ func UpdateCommonAlert(s *mcclient.ClientSession, tem CommonAlertTem, id string,
 
 func containDiffsWithRtnAlert(input monitorapi.CommonAlertUpdateInput, rtnAlert jsonutils.JSONObject) (bool, error) {
 	conDiff := true
+	level, _ := rtnAlert.GetString("level")
+	if level != *(input.Level) {
+		return conDiff, nil
+	}
 	alertSetting, err := rtnAlert.Get("settings")
 	if err != nil {
 		return conDiff, errors.Wrap(err, "get rtnAlert settings error")
