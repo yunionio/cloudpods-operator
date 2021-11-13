@@ -35,8 +35,8 @@ import (
 	"yunion.io/x/onecloud/pkg/keystone/locale"
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/mcclient/auth"
-	compute_modules "yunion.io/x/onecloud/pkg/mcclient/modules/compute"
 	identity_modules "yunion.io/x/onecloud/pkg/mcclient/modules/identity"
+	quota_modules "yunion.io/x/onecloud/pkg/mcclient/modules/quota"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -572,14 +572,14 @@ func doPolicyRoleInit(s *mcclient.ClientSession) error {
 	// update policy quota
 	params := jsonutils.NewDict()
 	params.Add(jsonutils.NewString("default"), "domain")
-	result, err := compute_modules.IdentityQuotas.GetQuota(s, params)
+	result, err := quota_modules.IdentityQuotas.GetQuota(s, params)
 	if err != nil {
 		log.Warningf("get IdentityQuotas fail %s", err)
 	} else {
 		policyCnt, _ := result.Int("policy")
 		if policyCnt < 500 {
 			params.Add(jsonutils.NewInt(500), "policy")
-			_, err := compute_modules.IdentityQuotas.DoQuotaSet(s, params)
+			_, err := quota_modules.IdentityQuotas.DoQuotaSet(s, params)
 			if err != nil {
 				// ignore the error
 				log.Warningf("update IdentityQuotas fail %s", err)
