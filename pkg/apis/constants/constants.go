@@ -313,6 +313,10 @@ const (
 	DevtoolDB           = "devtool"
 	DevtoolDBUser       = "devtool"
 
+	ServiceNameRepo = "repo"
+	ServiceTypeRepo = "repo"
+	RepoPort        = 30998
+
 	ServiceNameMeter  = "meter"
 	ServiceTypeMeter  = "meter"
 	MeterPort         = 30909
