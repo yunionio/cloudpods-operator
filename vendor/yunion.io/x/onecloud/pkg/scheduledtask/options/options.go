@@ -12,15 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cloudprovider
+package options
 
-type SAWSExtraOptions struct {
-	AWSAssumeRoleName string `json:"aws_assume_role_name"`
+import (
+	"yunion.io/x/onecloud/pkg/cloudcommon/options"
+)
+
+type SOption struct {
+	options.CommonOptions
+	options.DBOptions
+
+	ScheduledTaskQueueSize int `help:"the maximum number of scheduled tasks that are being executed simultaneously" default:"100"`
 }
 
-type SCtyunExtraOptions struct {
-	// customInfo type=1
-	CrmBizId string `help:"ctyun crm user biz id. eg. ACMB1000000000123456 " json:"crm_biz_id" default:"$CTYUN_CRM_BIZ_ID"`
-	// customInfo type=2
-	// OptionsAccountId string `help:"ctyun account id." json:"options_account_id"`
-}
+var Options SOption

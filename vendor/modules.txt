@@ -683,7 +683,7 @@ yunion.io/x/jsonutils
 # yunion.io/x/log v0.0.0-20201210064738-43181789dc74
 yunion.io/x/log
 yunion.io/x/log/hooks
-# yunion.io/x/onecloud v0.0.0-20211113105258-fa8a7d4a355f
+# yunion.io/x/onecloud v0.0.0-20211116021841-1b1af80abf6a
 yunion.io/x/onecloud/cmd/climc/shell
 yunion.io/x/onecloud/locales
 yunion.io/x/onecloud/pkg/ansibleserver/options
@@ -754,6 +754,7 @@ yunion.io/x/onecloud/pkg/multicloud/esxi/vcenter
 yunion.io/x/onecloud/pkg/notify/options
 yunion.io/x/onecloud/pkg/proxy
 yunion.io/x/onecloud/pkg/s3gateway/options
+yunion.io/x/onecloud/pkg/scheduledtask/options
 yunion.io/x/onecloud/pkg/scheduler/options
 yunion.io/x/onecloud/pkg/util/ansible
 yunion.io/x/onecloud/pkg/util/atexit
