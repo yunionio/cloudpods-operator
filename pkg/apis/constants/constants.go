@@ -360,6 +360,10 @@ const (
 	ServiceNameSuggestion = "suggestion"
 	ServiceTypeSuggestion = "suggestion"
 	SuggestionPort        = 30987
+
+	ServiceNameScheduledtask = "scheduledtask"
+	ServiceTypeScheduledtask = "scheduledtask"
+	ScheduledtaskPort        = 30978
 )
 
 var (

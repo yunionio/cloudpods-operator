@@ -129,6 +129,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		CloudIdComponentType:         &obj.CloudId,
 		SuggestionComponentType:      &obj.Suggestion,
 		CloudmonComponentType:        &obj.Cloudmon.DeploymentSpec,
+		ScheduledtaskComponentType:   &obj.Scheduledtask,
 	} {
 		SetDefaults_DeploymentSpec(spec, getImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag))
 	}

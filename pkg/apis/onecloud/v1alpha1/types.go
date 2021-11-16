@@ -128,6 +128,8 @@ const (
 	CloudIdComponentType  ComponentType = "cloudid"
 
 	SuggestionComponentType ComponentType = "suggestion"
+
+	ScheduledtaskComponentType ComponentType = "scheduledtask"
 )
 
 // ComponentPhase is the current state of component
@@ -266,6 +268,8 @@ type OnecloudClusterSpec struct {
 
 	// MonitorStack holds configuration for grafana, loki, prometheus and thanos services
 	MonitorStack MonitorStackSpec `json:"monitorStack"`
+
+	Scheduledtask DeploymentSpec `json:"scheduledtask"`
 }
 
 // OnecloudClusterStatus describes cluster status
@@ -300,6 +304,7 @@ type OnecloudClusterStatus struct {
 	Itsm           DeploymentStatus     `json:"itsm,omitempty"`
 	CloudId        DeploymentStatus     `json:"cloudid,omitempty"`
 	MonitorStack   MonitorStackStatus   `json:"monitorStack,omitempty"`
+	Scheduledtask  DeploymentStatus     `json:"scheduledtask,omitempty"`
 }
 
 type EtcdClusterSpec struct {
@@ -931,4 +936,5 @@ type OnecloudClusterConfig struct {
 	Itsm            ItsmConfig             `json:"itsm"`
 	CloudId         ServiceDBCommonOptions `json:"cloudid"`
 	Suggestion      ServiceDBCommonOptions `json:"suggestion"`
+	Scheduledtask   ServiceDBCommonOptions `json:"scheduledtask"`
 }
