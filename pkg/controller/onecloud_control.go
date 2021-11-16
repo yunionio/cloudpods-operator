@@ -1256,6 +1256,7 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		Name:        "cloudaccount_balance.balance",
 		Reduce:      "last",
 		Description: "监测云账号余额",
+		Level:       "important",
 	}
 	noDataTem := onecloud.CommonAlertTem{
 		Database:      "telegraf",
