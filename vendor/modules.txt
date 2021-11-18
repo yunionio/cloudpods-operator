@@ -683,7 +683,7 @@ yunion.io/x/jsonutils
 # yunion.io/x/log v0.0.0-20201210064738-43181789dc74
 yunion.io/x/log
 yunion.io/x/log/hooks
-# yunion.io/x/onecloud v0.0.0-20211116021841-1b1af80abf6a
+# yunion.io/x/onecloud v0.0.0-20211118023410-aaddc0870084
 yunion.io/x/onecloud/cmd/climc/shell
 yunion.io/x/onecloud/locales
 yunion.io/x/onecloud/pkg/ansibleserver/options
@@ -711,6 +711,7 @@ yunion.io/x/onecloud/pkg/cloudcommon/pending_delete
 yunion.io/x/onecloud/pkg/cloudcommon/syncman
 yunion.io/x/onecloud/pkg/cloudcommon/syncman/watcher
 yunion.io/x/onecloud/pkg/cloudcommon/types
+yunion.io/x/onecloud/pkg/cloudmon/options
 yunion.io/x/onecloud/pkg/cloudnet/options
 yunion.io/x/onecloud/pkg/cloudprovider
 yunion.io/x/onecloud/pkg/cloudproxy/agent/options
@@ -775,6 +776,7 @@ yunion.io/x/onecloud/pkg/util/regutils2
 yunion.io/x/onecloud/pkg/util/s3auth
 yunion.io/x/onecloud/pkg/util/samlutils
 yunion.io/x/onecloud/pkg/util/seclib2
+yunion.io/x/onecloud/pkg/util/shellutils
 yunion.io/x/onecloud/pkg/util/streamutils
 yunion.io/x/onecloud/pkg/util/stringutils2
 yunion.io/x/onecloud/pkg/util/version
@@ -782,7 +784,7 @@ yunion.io/x/onecloud/pkg/util/vmdkutils
 yunion.io/x/onecloud/pkg/vpcagent/options
 yunion.io/x/onecloud/pkg/webconsole/options
 yunion.io/x/onecloud/pkg/yunionconf/options
-# yunion.io/x/pkg v0.0.0-20210918114143-ce839f862c5f
+# yunion.io/x/pkg v0.0.0-20211116020154-6a76ba2f7e97
 yunion.io/x/pkg/errors
 yunion.io/x/pkg/gotypes
 yunion.io/x/pkg/prettytable
@@ -806,7 +808,7 @@ yunion.io/x/pkg/util/version
 yunion.io/x/pkg/utils
 # yunion.io/x/s3cli v0.0.0-20190917004522-13ac36d8687e
 yunion.io/x/s3cli
-# yunion.io/x/sqlchemy v0.0.0-20210918113031-c1c107f37ada
+# yunion.io/x/sqlchemy v0.0.0-20211116231750-5ec40db49db1
 yunion.io/x/sqlchemy
 # yunion.io/x/structarg v0.0.0-20200720093445-9f850fa222ce
 yunion.io/x/structarg

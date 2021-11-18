@@ -12,27 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package sqlchemy
+package shellutils
 
-import (
-	"fmt"
-	"sync"
-)
-
-var (
-	tableID                 = 0
-	tableIDLock *sync.Mutex = &sync.Mutex{}
-)
-
-func getTableAliasName() string {
-	tableIDLock.Lock()
-	defer tableIDLock.Unlock()
-	tableID++
-	return fmt.Sprintf("t%d", tableID)
+type CMD struct {
+	Options  interface{}
+	Command  string
+	Desc     string
+	Callback interface{}
 }
 
-func ResetTableID() {
-	tableIDLock.Lock()
-	defer tableIDLock.Unlock()
-	tableID = 0
+var CommandTable = make([]CMD, 0)
+
+func R(options interface{}, command string, desc string, callback interface{}) {
+	CommandTable = append(CommandTable, CMD{options, command, desc, callback})
 }
