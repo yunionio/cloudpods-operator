@@ -19,6 +19,7 @@ import (
 
 	"yunion.io/x/pkg/errors"
 
+	"yunion.io/x/onecloud/pkg/apis"
 	"yunion.io/x/onecloud/pkg/cloudprovider"
 )
 
@@ -46,22 +47,43 @@ type QcloudTags struct {
 	TagList []STag
 	// Kafka
 	Tags []STag
+	// Cdn
+	Tag []STag
 }
 
 func (self *QcloudTags) GetTags() (map[string]string, error) {
 	ret := map[string]string{}
 	for _, tag := range self.TagSet {
+		if tag.Value == "null" {
+			tag.Value = ""
+		}
 		ret[tag.Key] = tag.Value
 	}
 	for _, tag := range self.InstanceTags {
+		if tag.TagValue == "null" {
+			tag.TagValue = ""
+		}
 		ret[tag.TagKey] = tag.TagValue
 	}
 	for _, tag := range self.TagList {
+		if tag.TagValue == "null" {
+			tag.TagValue = ""
+		}
 		ret[tag.TagKey] = tag.TagValue
 	}
 	for _, tag := range self.Tags {
+		if tag.TagValue == "null" {
+			tag.TagValue = ""
+		}
 		ret[tag.TagKey] = tag.TagValue
 	}
+	for _, tag := range self.Tag {
+		if tag.TagValue == "null" {
+			tag.TagValue = ""
+		}
+		ret[tag.TagKey] = tag.TagValue
+	}
+
 	return ret, nil
 }
 
@@ -357,7 +379,13 @@ type CloudpodsTags struct {
 }
 
 func (self *CloudpodsTags) GetTags() (map[string]string, error) {
-	return self.Metadata, nil
+	metadatas := map[string]string{}
+	for k, v := range self.Metadata {
+		if strings.HasPrefix(k, apis.USER_TAG_PREFIX) {
+			metadatas[strings.TrimPrefix(k, apis.USER_TAG_PREFIX)] = v
+		}
+	}
+	return metadatas, nil
 }
 
 func (self *CloudpodsTags) GetSysTags() map[string]string {

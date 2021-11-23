@@ -42,11 +42,16 @@ type MonitorResourceListInput struct {
 	ResId     []string `json:"res_id"`
 	ResType   string   `json:"res_type"`
 	OnlyResId bool     `json:"only_res_id"`
+
+	ResName string `json:"res_name"`
 }
 
 type MonitorResourceDetails struct {
 	apis.VirtualResourceDetails
 	compute.CloudregionResourceInfo
+	compute.CloudaccountResourceInfo
+	Ips      string `json:"ips"`
+	AccessIp string `json:"access_ip"`
 
 	AttachAlertCount int64 `json:"attach_alert_count"`
 }

@@ -44,10 +44,18 @@ type GuestSshableOutput struct {
 	MethodTried []GuestSshableMethodData
 }
 
+type GuestHaveAgentInput struct {
+}
+
+type GuestHaveAgentOutput struct {
+	Have bool
+}
+
 type GuestMakeSshableInput struct {
 	User       string
 	PrivateKey string
 	Password   string
+	Port       int
 }
 
 type GuestMakeSshableOutput struct {
@@ -56,4 +64,8 @@ type GuestMakeSshableOutput struct {
 
 type GuestMakeSshableCmdOutput struct {
 	ShellCmd string
+}
+
+type GuestSetSshPortInput struct {
+	Port int
 }
