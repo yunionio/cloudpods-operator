@@ -213,7 +213,7 @@ type ICloudImage interface {
 	GetSizeByte() int64
 	GetImageType() TImageType
 	GetImageStatus() string
-	GetOsType() string
+	GetOsType() TOsType
 	GetOsDist() string
 	GetOsVersion() string
 	GetOsArch() string
@@ -306,6 +306,8 @@ type ICloudHost interface {
 	GetIHostNics() ([]ICloudHostNetInterface, error)
 
 	GetSchedtags() ([]string, error)
+
+	GetOvnVersion() string // just for cloudpods host
 }
 
 type ICloudVM interface {
@@ -332,7 +334,8 @@ type ICloudVM interface {
 	GetBootOrder() string
 	GetVga() string
 	GetVdi() string
-	GetOSType() string
+	GetOSArch() string
+	GetOsType() TOsType
 	GetOSName() string
 	GetBios() string
 	GetMachine() string
@@ -551,8 +554,8 @@ type ICloudVpc interface {
 	GetRegion() ICloudRegion
 	GetIsDefault() bool
 	GetCidrBlock() string
-	// GetStatus() string
 	GetIWires() ([]ICloudWire, error)
+	CreateIWire(opts *SWireCreateOptions) (ICloudWire, error)
 	GetISecurityGroups() ([]ICloudSecurityGroup, error)
 	GetIRouteTables() ([]ICloudRouteTable, error)
 	GetIRouteTableById(routeTableId string) (ICloudRouteTable, error)
@@ -831,6 +834,9 @@ type ICloudSku interface {
 
 type ICloudProject interface {
 	ICloudResource
+
+	GetDomainId() string
+	GetDomainName() string
 }
 
 type ICloudNatGateway interface {
@@ -1457,7 +1463,7 @@ type ICloudApp interface {
 	GetTechStack() string
 	GetType() string
 	GetKind() string
-	GetOsType() string
+	GetOsType() TOsType
 }
 
 type ICloudAppEnvironment interface {
@@ -1495,4 +1501,15 @@ type ICloudNatSku interface {
 	GetGlobalId() string
 	GetPrepaidStatus() string
 	GetPostpaidStatus() string
+}
+
+type ICloudCDNDomain interface {
+	ICloudEnabledResource
+
+	GetArea() string
+	GetServiceType() string
+	GetCname() string
+	GetOrigins() *SCdnOrigins
+
+	Delete() error
 }

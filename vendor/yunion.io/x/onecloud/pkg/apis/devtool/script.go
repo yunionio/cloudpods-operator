@@ -29,6 +29,21 @@ type ScriptApplyOutput struct {
 	ScriptApplyId string
 }
 
+type ScriptBatchApplyInput struct {
+	ServerIds []string
+}
+
+type ScriptBatchApplyOutput struct {
+	Results []ScriptBatchApplyResult
+}
+
+type ScriptBatchApplyResult struct {
+	ServerId      string
+	Succeed       bool
+	Reason        string
+	ScriptApplyId string
+}
+
 type ScriptApplyRecoredListInput struct {
 	apis.StatusStandaloneResourceListInput
 	// description: Id of Script
@@ -71,4 +86,13 @@ type ScriptDetails struct {
 type SApplyInfo struct {
 	ServerId string
 	TryTimes int
+}
+
+type DevtoolManagerServiceUrlInput struct {
+	ServiceName string
+	ServerId    string
+}
+
+type DevtoolManagerServiceUrlOutput struct {
+	ServiceUrl string
 }

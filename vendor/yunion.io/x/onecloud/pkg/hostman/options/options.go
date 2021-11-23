@@ -18,6 +18,7 @@ import (
 	"os"
 
 	common_options "yunion.io/x/onecloud/pkg/cloudcommon/options"
+	"yunion.io/x/onecloud/pkg/util/fileutils2"
 )
 
 type SHostOptions struct {
@@ -49,8 +50,7 @@ type SHostOptions struct {
 	EnableMonitor  bool `help:"Enable monitor"`
 	ReportInterval int  `help:"Report interval in seconds" default:"60"`
 
-	EnableTcBwlimit     bool `help:"Enable linux tc bandwidth limit"`
-	BwDownloadBandwidth int  `help:"Default ingress bandwidth in mbit (0 disabled)" default:"10"`
+	BwDownloadBandwidth int `help:"Default ingress bandwidth in mbit (0 disabled)" default:"10"`
 
 	DnsServer       string `help:"Address of host DNS server"`
 	DnsServerLegacy string `help:"Deprecated Address of host DNS server"`
@@ -121,6 +121,7 @@ type SHostOptions struct {
 	SdnSocketPath     string `help:"sdnagent listen socket path" default:"/var/run/onecloud/sdnagent.sock"`
 	SdnEnableGuestMan bool   `help:"enable guest network manager in sdnagent" default:"$SDN_ENABLE_GUEST_MAN|true"`
 	SdnEnableEipMan   bool   `help:"enable eip network manager in sdnagent" default:"$SDN_ENABLE_EIP_MAN|false"`
+	SdnEnableTcMan    bool   `help:"enable TC manager in sdnagent" default:"$SDN_ENABLE_TC_MAN|true"`
 
 	SdnAllowConntrackInvalid bool `help:"allow packets marked by conntrack as INVALID to pass" default:"$SDN_ALLOW_CONNTRACK_INVALID|false"`
 
@@ -143,6 +144,12 @@ type SHostOptions struct {
 
 	DisableProbeKubelet bool   `help:"Disable probe kubelet config" default:"false"`
 	KubeletRunDirectory string `help:"Kubelet config file path" default:"/var/lib/kubelet"`
+
+	DisableKVM bool `help:"force disable KVM" default:"false" json:"disable_kvm"`
+
+	DisableGPU bool `help:"force disable GPU" default:"false" json:"disable_gpu"`
+
+	EthtoolEnableGso bool `help:"use ethtool to turn on or off GSO(generic segment offloading)" default:"false" json:"ethtool_enable_gso"`
 }
 
 var (
@@ -151,7 +158,7 @@ var (
 
 func Parse() (hostOpts SHostOptions) {
 	common_options.ParseOptions(&hostOpts, os.Args, "host.conf", "host")
-	if len(hostOpts.CommonConfigFile) > 0 {
+	if len(hostOpts.CommonConfigFile) > 0 && fileutils2.Exists(hostOpts.CommonConfigFile) {
 		commonCfg := &common_options.HostCommonOptions{}
 		commonCfg.Config = hostOpts.CommonConfigFile
 		common_options.ParseOptions(commonCfg, []string{os.Args[0]}, "common.conf", "host")

@@ -7,6 +7,7 @@ require (
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/googleapis/gnostic v0.3.0 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
+	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/minio/minio-go/v7 v7.0.6
 	github.com/onsi/ginkgo v1.8.0 // indirect
 	github.com/onsi/gomega v1.5.0 // indirect
@@ -14,7 +15,10 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/pflag v1.0.3 // indirect
 	go.etcd.io/etcd v0.5.0-alpha.5.0.20200819165624-17cef6e3e9d5
+	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
+	golang.org/x/sys v0.0.0-20210910150752-751e447fb3d0 // indirect
+	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b // indirect
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	k8s.io/api v0.19.3
@@ -25,10 +29,10 @@ require (
 	k8s.io/kube-openapi v0.0.0-20190603182131-db7b694dc208 // indirect
 	k8s.io/kubernetes v0.0.0-00010101000000-000000000000
 	k8s.io/utils v0.0.0-20190607212802-c55fbcfc754a // indirect
-	yunion.io/x/jsonutils v0.0.0-20210709075951-798a67800349
+	yunion.io/x/jsonutils v0.0.0-20211105163012-d846c05a3c9a
 	yunion.io/x/log v0.0.0-20201210064738-43181789dc74
-	yunion.io/x/onecloud v0.0.0-20210815031556-cbfaca01f7f8
-	yunion.io/x/pkg v0.0.0-20210721081124-55078288ca4c
+	yunion.io/x/onecloud v0.0.0-20211123021444-e9079f9f2c8a
+	yunion.io/x/pkg v0.0.0-20211116020154-6a76ba2f7e97
 	yunion.io/x/structarg v0.0.0-20200720093445-9f850fa222ce
 )
 

@@ -27,7 +27,6 @@ type ComputeOptions struct {
 	DNSDomain    string   `help:"Domain suffix for virtual servers"`
 	DNSResolvers []string `help:"Upstream DNS resolvers"`
 
-	IgnoreNonrunningGuests        bool    `default:"true" help:"Count memory for running guests only when do scheduling. Ignore memory allocation for non-running guests"`
 	DefaultCPUOvercommitBound     float32 `default:"8.0" help:"Default cpu overcommit bound for host, default to 8"`
 	DefaultMemoryOvercommitBound  float32 `default:"1.0" help:"Default memory overcommit bound for host, default to 1"`
 	DefaultStorageOvercommitBound float32 `default:"1.0" help:"Default storage overcommit bound for storage, default to 1"`
@@ -175,6 +174,10 @@ type ComputeOptions struct {
 	NoCheckOsTypeForCachedImage bool `help:"Don't check os type for cached image"`
 
 	ProhibitRefreshingCloudImage bool `help:"Prohibit refreshing cloud image"`
+
+	GlobalMacPrefix string `help:"Global prefix of MAC address, default to 00:22" default:"00:22"`
+
+	DefaultIPAllocationDirection string `help:"default IP allocation direction" default:"stepdown"`
 
 	esxi.EsxiOptions
 }

@@ -193,16 +193,17 @@ const (
 )
 
 type BaseListOptions struct {
-	Limit       *int     `default:"20" help:"Page limit"`
-	Offset      *int     `default:"0" help:"Page offset"`
-	OrderBy     []string `help:"Name of the field to be ordered by"`
-	Order       string   `help:"List order" choices:"desc|asc"`
-	Details     *bool    `help:"Show more details" default:"false"`
-	Search      string   `help:"Filter results by a simple keyword search"`
-	Meta        *bool    `help:"Piggyback metadata information" json:"with_meta" token:"meta"`
-	Filter      []string `help:"Filters"`
-	JointFilter []string `help:"Filters with joint table col; joint_tbl.related_key(origin_key).filter_col.filter_cond(filters)"`
-	FilterAny   *bool    `help:"If true, match if any of the filters matches; otherwise, match if all of the filters match"`
+	Limit          *int     `default:"20" help:"Page limit"`
+	Offset         *int     `default:"0" help:"Page offset"`
+	OrderBy        []string `help:"Name of the field to be ordered by"`
+	Order          string   `help:"List order" choices:"desc|asc"`
+	Details        *bool    `help:"Show more details" default:"false"`
+	ShowFailReason *bool    `help:"show fail reason fields"`
+	Search         string   `help:"Filter results by a simple keyword search"`
+	Meta           *bool    `help:"Piggyback metadata information" json:"with_meta" token:"meta"`
+	Filter         []string `help:"Filters"`
+	JointFilter    []string `help:"Filters with joint table col; joint_tbl.related_key(origin_key).filter_col.filter_cond(filters)"`
+	FilterAny      *bool    `help:"If true, match if any of the filters matches; otherwise, match if all of the filters match"`
 
 	Admin         *bool    `help:"Is an admin call?"`
 	Tenant        string   `help:"Tenant ID or Name" alias:"project"`
@@ -221,6 +222,7 @@ type BaseListOptions struct {
 	ExtraListOptions
 
 	Tags      []string `help:"Tags info, eg: hypervisor=aliyun, os_type=Linux, os_version" json:"-"`
+	NoTags    []string `help:"List resources without this tags, eg: os_type=Linux, os_version" json:"-"`
 	UserTags  []string `help:"UserTags info, eg: group=rd" json:"-"`
 	CloudTags []string `help:"CloudTags info, eg: price_key=cn-beijing" json:"-"`
 
@@ -237,22 +239,50 @@ type BaseListOptions struct {
 	PagingMarker string `help:"Marker for pagination" json:"paging_marker"`
 
 	OrderByTag string `help:"Order results by tag values, composed by a tag key and order, e.g user:部门:ASC"`
+
+	Delete string `help:"show deleted records"`
 }
 
 func (opts *BaseListOptions) addTag(prefix, tag string, idx int, params *jsonutils.JSONDict) error {
-	tagInfo := strings.Split(tag, "=")
-	if len(tagInfo) > 2 {
-		return fmt.Errorf("Too many equal characters %s", tag)
+	key, value, err := opts.spliteTag(tag)
+	if err != nil {
+		return err
 	}
-	key := tagInfo[0]
 	if len(key) == 0 {
 		return fmt.Errorf("Key must not be empty")
 	}
 	params.Add(jsonutils.NewString(prefix+key), fmt.Sprintf("tags.%d.key", idx))
-	if len(tagInfo) == 2 {
-		params.Add(jsonutils.NewString(tagInfo[1]), fmt.Sprintf("tags.%d.value", idx))
+	if len(value) > 0 {
+		params.Add(jsonutils.NewString(value), fmt.Sprintf("tags.%d.value", idx))
 	}
 	return nil
+}
+
+func (opts *BaseListOptions) addNoTag(prefix, tag string, idx int, params *jsonutils.JSONDict) error {
+	key, value, err := opts.spliteTag(tag)
+	if err != nil {
+		return err
+	}
+	if len(key) == 0 {
+		return fmt.Errorf("Key must not be empty")
+	}
+	params.Add(jsonutils.NewString(prefix+key), fmt.Sprintf("no_tags.%d.key", idx))
+	if len(value) > 0 {
+		params.Add(jsonutils.NewString(value), fmt.Sprintf("no_tags.%d.value", idx))
+	}
+	return nil
+}
+
+func (opts *BaseListOptions) spliteTag(tag string) (key string, value string, err error) {
+	tagInfo := strings.Split(tag, "=")
+	if len(tagInfo) > 2 {
+		return "", "", fmt.Errorf("Too many equal characters %s", tag)
+	}
+	key = tagInfo[0]
+	if len(tagInfo) > 1 {
+		value = tagInfo[1]
+	}
+	return key, value, nil
 }
 
 func (opts *BaseListOptions) Params() (*jsonutils.JSONDict, error) {
@@ -279,13 +309,20 @@ func (opts *BaseListOptions) Params() (*jsonutils.JSONDict, error) {
 			params.Set("admin", jsonutils.JSONTrue)
 		}
 	}*/
-	tagIdx := 0
+	tagIdx, noTagIdx := 0, 0
 	for _, tag := range opts.Tags {
 		err = opts.addTag("", tag, tagIdx, params)
 		if err != nil {
 			return nil, err
 		}
 		tagIdx++
+	}
+	for _, tag := range opts.NoTags {
+		err = opts.addNoTag("", tag, noTagIdx, params)
+		if err != nil {
+			return nil, err
+		}
+		noTagIdx++
 	}
 	for _, tag := range opts.UserTags {
 		err = opts.addTag(dbapi.USER_TAG_PREFIX, tag, tagIdx, params)
@@ -436,4 +473,18 @@ type StatusStatisticsOptions struct {
 
 func (o StatusStatisticsOptions) Property() string {
 	return "statistics"
+}
+
+type ProjectStatisticsOptions struct {
+}
+
+func (o ProjectStatisticsOptions) Property() string {
+	return "project-statistics"
+}
+
+type DomainStatisticsOptions struct {
+}
+
+func (o DomainStatisticsOptions) Property() string {
+	return "domain-statistics"
 }

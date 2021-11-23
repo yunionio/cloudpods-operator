@@ -33,10 +33,11 @@ fmt:
 	find . -type f -name "*.go" -not -path "./_output/*" \
 		-not -path "./vendor/*" | xargs gofmt -s -w
 
-RELEASE_BRANCH:=master
+RELEASE_BRANCH:=release/3.8
 mod:
 	go get yunion.io/x/onecloud@$(RELEASE_BRANCH)
-	go get $(patsubst %,%@master,$(shell GO111MODULE=on go mod edit -print | sed -n -e 's|.*\(yunion.io/x/[a-z].*\) v.*|\1|p' | grep -v '/onecloud$$'))
+	go get $(patsubst %,%@master,$(shell GO111MODULE=on go mod edit -print | sed -n -e 's|.*\(yunion.io/x/[a-z].*\) v.*|\1|p' | grep -v '/onecloud$$' | grep -v sqlchemy))
+	go get yunion.io/x/sqlchemy@v1.0.0
 	go mod tidy
 	go mod vendor -v
 
