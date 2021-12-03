@@ -46,8 +46,8 @@ func (m *hostImageManager) newHostPrivilegedDaemonSet(
 					Image: oc.Spec.HostImage.Image,
 					Command: []string{
 						"sh", "-c", fmt.Sprintf(`
-							mount --bind /etc/hosts %s/etc/hosts
-							mount --bind /etc/resolv.conf %s/etc/resolv.conf
+							mount --bind -o ro /etc/hosts %s/etc/hosts
+							mount --bind -o ro /etc/resolv.conf %s/etc/resolv.conf
 							mkdir -p %s/etc/yunion/common
 							mount --bind /etc/yunion/common %s/etc/yunion/common
 							mkdir -p %s/etc/yunion/pki
