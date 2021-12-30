@@ -14,7 +14,11 @@
 
 package apis
 
-import "time"
+import (
+	"time"
+
+	"yunion.io/x/onecloud/pkg/util/tagutils"
+)
 
 type ScopedResourceInput struct {
 	// 指定查询的权限范围，可能值为project, domain or system
@@ -40,6 +44,15 @@ type DomainizedResourceListInput struct {
 	// 按domain名称排序，可能值为asc|desc
 	// pattern: asc|desc
 	OrderByDomain string `json:"order_by_domain"`
+
+	// filter by domain tags
+	DomainTags tagutils.TTagSetList `json:"domain_tags"`
+	// filter by domain tags
+	NoDomainTags tagutils.TTagSetList `json:"no_domain_tags"`
+
+	// ignore
+	// domain tags filters imposed by policy
+	PolicyDomainTags tagutils.TTagSetList `json:"policy_domain_tags"`
 }
 
 type ProjectizedResourceListInput struct {
@@ -59,6 +72,15 @@ type ProjectizedResourceListInput struct {
 	// swagger:ignore
 	// Deprecated
 	OrderByTenant string `json:"order_by_tenant" yunion-deprecated-by:"order_by_project"`
+
+	// filter by project tags
+	ProjectTags tagutils.TTagSetList `json:"project_tags"`
+	// filter by no project tags
+	NoProjectTags tagutils.TTagSetList `json:"no_project_tags"`
+
+	// ignore
+	// project tag fitlers imposed by policy
+	PolicyProjectTags tagutils.TTagSetList `json:"policy_project_tags"`
 }
 
 type StatusDomainLevelUserResourceListInput struct {
@@ -187,19 +209,22 @@ type AdminSharableVirtualResourceListInput struct {
 	SharableVirtualResourceListInput
 }
 
-type STag struct {
-	// 标签key
-	Key string
-	// 标签Value
-	Value string
-}
-
 type MetadataResourceListInput struct {
 	// 通过标签过滤（包含这些标签）
-	Tags []STag `json:"tags"`
+	Tags tagutils.TTagSet `json:"tags"`
+
+	// 通过一组标签过滤（还包含这些标签，OR的关系）
+	ObjTags tagutils.TTagSetList `json:"obj_tags"`
 
 	// 通过标签过滤（不包含这些标签）
-	NoTags []STag `json:"no_tags"`
+	NoTags tagutils.TTagSet `json:"no_tags"`
+
+	// 通过一组标签过滤（还不包含这些标签，AND的关系）
+	NoObjTags tagutils.TTagSetList `json:"no_obj_tags"`
+
+	// ignore
+	// 策略规定的标签过滤器
+	PolicyObjectTags tagutils.TTagSetList `json:"policy_object_tags"`
 
 	// 通过标签排序
 	OrderByTag string `json:"order_by_tag"`

@@ -678,12 +678,12 @@ sigs.k8s.io/yaml
 # yunion.io/x/executor v0.0.0-20211018100936-39a2cd966656
 yunion.io/x/executor/apis
 yunion.io/x/executor/client
-# yunion.io/x/jsonutils v0.0.0-20211105163012-d846c05a3c9a
+# yunion.io/x/jsonutils v0.0.0-20211213041607-f6733e38783e
 yunion.io/x/jsonutils
 # yunion.io/x/log v0.0.0-20201210064738-43181789dc74
 yunion.io/x/log
 yunion.io/x/log/hooks
-# yunion.io/x/onecloud v0.0.0-20211123021323-38abd9222262
+# yunion.io/x/onecloud v0.0.0-20211230024524-5b23f4c1bfcb
 yunion.io/x/onecloud/cmd/climc/shell
 yunion.io/x/onecloud/locales
 yunion.io/x/onecloud/pkg/ansibleserver/options
@@ -780,6 +780,7 @@ yunion.io/x/onecloud/pkg/util/seclib2
 yunion.io/x/onecloud/pkg/util/shellutils
 yunion.io/x/onecloud/pkg/util/streamutils
 yunion.io/x/onecloud/pkg/util/stringutils2
+yunion.io/x/onecloud/pkg/util/tagutils
 yunion.io/x/onecloud/pkg/util/version
 yunion.io/x/onecloud/pkg/util/vmdkutils
 yunion.io/x/onecloud/pkg/vpcagent/options
@@ -809,7 +810,7 @@ yunion.io/x/pkg/util/version
 yunion.io/x/pkg/utils
 # yunion.io/x/s3cli v0.0.0-20190917004522-13ac36d8687e
 yunion.io/x/s3cli
-# yunion.io/x/sqlchemy v0.0.0-20211122161511-49c4c457e2c4
+# yunion.io/x/sqlchemy v0.0.0-20211212072622-e63b8097854a
 yunion.io/x/sqlchemy
 # yunion.io/x/structarg v0.0.0-20200720093445-9f850fa222ce
 yunion.io/x/structarg

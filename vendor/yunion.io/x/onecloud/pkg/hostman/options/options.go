@@ -78,9 +78,10 @@ type SHostOptions struct {
 
 	CheckSystemServices bool `help:"Check system services (ntpd, telegraf) on startup" default:"true"`
 
-	DhcpServerPort int    `help:"Host dhcp server bind port" default:"67"`
-	DiskIsSsd      bool   `default:"false"`
-	FetcherfsPath  string `default:"/opt/yunion/fetchclient/bin/fetcherfs" help:"Fuse fetcherfs path"`
+	DhcpServerPort     int    `help:"Host dhcp server bind port" default:"67"`
+	DiskIsSsd          bool   `default:"false"`
+	FetcherfsPath      string `default:"/opt/yunion/fetchclient/bin/fetcherfs" help:"Fuse fetcherfs path"`
+	FetcherfsBlockSize int    `default:"16" help:"Fuse fetcherfs fetch chunk_size MB"`
 
 	DefaultImageSaveFormat string `default:"qcow2" help:"Default image save format, default is qcow2, canbe vmdk"`
 
@@ -97,7 +98,11 @@ type SHostOptions struct {
 	PingRegionInterval     int      `default:"60" help:"interval to ping region, deefault is 1 minute"`
 	ManageNtpConfiguration bool     `default:"true"`
 	LogSystemdUnits        []string `help:"Systemd units log collected by fluent-bit"`
-	BandwidthLimit         int      `default:"50" help:"Bandwidth upper bound when migrating disk image in MB/sec"`
+	// 更改默认带宽限速为400GBps, qiujian
+	BandwidthLimit int `default:"400000" help:"Bandwidth upper bound when migrating disk image in MB/sec, default 400GBps"`
+	// 热迁移带宽，预期不低于8MBps, 1G Memory takes 128 seconds
+	MigrateExpectRate        int `default:"8" help:"Expected memory migration rate in MB/sec, default 8MBps"`
+	MinMigrateTimeoutSeconds int `default:"30" help:"minimal timeout for a migration process, default 30 seconds"`
 
 	SnapshotDirSuffix  string `help:"Snapshot dir name equal diskId concat snapshot dir suffix" default:"_snap"`
 	SnapshotRecycleDay int    `default:"1" help:"Snapshot Recycle delete Duration day"`
@@ -147,9 +152,14 @@ type SHostOptions struct {
 
 	DisableKVM bool `help:"force disable KVM" default:"false" json:"disable_kvm"`
 
-	DisableGPU bool `help:"force disable GPU" default:"false" json:"disable_gpu"`
+	DisableGPU bool `help:"force disable GPU detect" default:"false" json:"disable_gpu"`
+	DisableUSB bool `help:"force disable USB detect" default:"true" json:"disable_usb"`
 
 	EthtoolEnableGso bool `help:"use ethtool to turn on or off GSO(generic segment offloading)" default:"false" json:"ethtool_enable_gso"`
+
+	EnableVmUuid bool `help:"enable vm UUID" default:"true" json:"enable_vm_uuid"`
+
+	EnableVirtioRngDevice bool `help:"enable qemu virtio-rng device" default:"false"`
 }
 
 var (
