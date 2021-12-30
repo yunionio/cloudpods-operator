@@ -154,6 +154,8 @@ var (
 			// db blacklist options
 			// ############################
 			"sql_connection",
+			"clickhouse",
+			"ops_log_with_clickhouse",
 			"auto_sync_table",
 			"exit_after_db_init",
 			"global_virtual_resource_namespace",

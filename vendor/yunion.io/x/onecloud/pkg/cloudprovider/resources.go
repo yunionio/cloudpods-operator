@@ -59,7 +59,7 @@ type IBillingResource interface {
 	GetBillingType() string
 	GetCreatedAt() time.Time
 	GetExpiredAt() time.Time
-	SetAutoRenew(autoRenew bool) error
+	SetAutoRenew(bc billing.SBillingCycle) error
 	Renew(bc billing.SBillingCycle) error
 	IsAutoRenew() bool
 }
@@ -90,7 +90,7 @@ type ICloudRegion interface {
 	GetISecurityGroupByName(opts *SecurityGroupFilterOptions) (ICloudSecurityGroup, error)
 	CreateISecurityGroup(conf *SecurityGroupCreateInput) (ICloudSecurityGroup, error)
 
-	CreateIVpc(name string, desc string, cidr string) (ICloudVpc, error)
+	CreateIVpc(opts *VpcCreateOptions) (ICloudVpc, error)
 	CreateInternetGateway() (ICloudInternetGateway, error)
 	CreateEIP(eip *SEip) (ICloudEIP, error)
 
@@ -319,6 +319,7 @@ type ICloudVM interface {
 
 	ConvertPublicIpToEip() error
 
+	GetHostname() string
 	GetIHost() ICloudHost
 	GetIHostId() string
 
@@ -393,7 +394,7 @@ type ICloudNic interface {
 	GetMAC() string
 	InClassicNetwork() bool
 	GetDriver() string
-	GetINetwork() ICloudNetwork
+	GetINetworkId() string
 
 	// GetSubAddress returns non-primary/secondary/alias ipv4 addresses of
 	// the network interface
@@ -414,12 +415,12 @@ type DummyICloudNic struct{}
 
 var _ ICloudNic = DummyICloudNic{}
 
-func (d DummyICloudNic) GetId() string              { panic(errors.ErrNotImplemented) }
-func (d DummyICloudNic) GetIP() string              { panic(errors.ErrNotImplemented) }
-func (d DummyICloudNic) GetMAC() string             { panic(errors.ErrNotImplemented) }
-func (d DummyICloudNic) InClassicNetwork() bool     { panic(errors.ErrNotImplemented) }
-func (d DummyICloudNic) GetDriver() string          { panic(errors.ErrNotImplemented) }
-func (d DummyICloudNic) GetINetwork() ICloudNetwork { panic(errors.ErrNotImplemented) }
+func (d DummyICloudNic) GetId() string          { panic(errors.ErrNotImplemented) }
+func (d DummyICloudNic) GetIP() string          { panic(errors.ErrNotImplemented) }
+func (d DummyICloudNic) GetMAC() string         { panic(errors.ErrNotImplemented) }
+func (d DummyICloudNic) InClassicNetwork() bool { panic(errors.ErrNotImplemented) }
+func (d DummyICloudNic) GetDriver() string      { panic(errors.ErrNotImplemented) }
+func (d DummyICloudNic) GetINetworkId() string  { panic(errors.ErrNotImplemented) }
 func (d DummyICloudNic) GetSubAddress() ([]string, error) {
 	return nil, nil
 }
@@ -546,10 +547,16 @@ type ICloudSnapshotPolicy interface {
 	GetTimePoints() ([]int, error)
 }
 
-type ICloudVpc interface {
-	// GetGlobalId() // 若vpc属于globalvpc,此函数返回格式必须是 'region.GetGlobalId()/vpc.GetGlobalId()'
+type ICloudGlobalVpc interface {
 	ICloudResource
 
+	Delete() error
+}
+
+type ICloudVpc interface {
+	ICloudResource
+
+	GetGlobalVpcId() string
 	IsSupportSetExternalAccess() bool // 是否支持Attach互联网网关.
 	GetExternalAccessMode() string
 	AttachInternetGateway(igwId string) error
@@ -1433,6 +1440,8 @@ type ICloudElasticSearch interface {
 	GetNetworkId() string
 	GetZoneId() string
 	IsMultiAz() bool
+
+	GetAccessInfo() (*ElasticSearchAccessInfo, error)
 
 	Delete() error
 }

@@ -20,10 +20,14 @@ import (
 
 type GlobalVpcCreateInput struct {
 	apis.EnabledStatusInfrasResourceBaseCreateInput
+
+	// 目前仅支持谷歌云创建
+	CloudproviderResourceInput
 }
 
 type GlobalVpcDetails struct {
 	apis.EnabledStatusInfrasResourceBaseDetails
+	ManagedResourceInfo
 
 	SGlobalVpc
 
@@ -58,4 +62,7 @@ type GlobalvpcUpdateInput struct {
 
 type GlobalVpcListInput struct {
 	apis.EnabledStatusInfrasResourceBaseListInput
+	apis.ExternalizedResourceBaseListInput
+
+	ManagedResourceListInput
 }
