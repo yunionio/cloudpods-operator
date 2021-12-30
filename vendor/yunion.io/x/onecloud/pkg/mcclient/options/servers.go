@@ -540,6 +540,8 @@ func (opts *ServerCreateOptionalOptions) OptionalParams() (*computeapi.ServerCre
 	// set description
 	params.Description = opts.Desc
 
+	params.IsSystem = &opts.System
+
 	return params, nil
 }
 
@@ -1065,12 +1067,14 @@ func (o *ServerPublicipToEip) Description() string {
 
 type ServerSetAutoRenew struct {
 	ServerIdOptions
-	AutoRenew bool `help:"Set server auto renew or manual renew"`
+	AutoRenew bool   `help:"Set server auto renew or manual renew"`
+	Duration  string `help:"Duration for renew" default:"1M"`
 }
 
 func (o *ServerSetAutoRenew) Params() (jsonutils.JSONObject, error) {
 	params := jsonutils.NewDict()
 	params.Set("auto_renew", jsonutils.NewBool(o.AutoRenew))
+	params.Set("duration", jsonutils.NewString(o.Duration))
 	return params, nil
 }
 

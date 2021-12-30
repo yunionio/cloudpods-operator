@@ -77,6 +77,10 @@ type VpcCreateInput struct {
 	// CIDR_BLOCK
 	CidrBlock string `json:"cidr_block"`
 
+	// 仅对谷歌云有用，若谷歌云订阅只有一个全局VPC，此参数可不传
+	// 若有多个全局VPC，谷歌云需要指定其中一个全局VPC
+	GlobalvpcId string `json:"globalvpc_id"`
+
 	// Vpc外网访问模式
 	ExternalAccessMode string `json:"external_access_mode"`
 }
@@ -112,4 +116,47 @@ type VpcFilterListInput struct {
 	VpcFilterListInputBase
 	RegionalFilterListInput
 	ManagedResourceListInput
+}
+
+type VpcTopologyInput struct {
+}
+
+type NetworkTopologyOutput struct {
+	Name         string                `json:"name"`
+	Status       string                `json:"status"`
+	GuestIpStart string                `json:"guest_ip_start"`
+	GuestIpEnd   string                `json:"guest_ip_end"`
+	GuestIpMask  int8                  `json:"guest_ip_mask"`
+	ServerType   string                `json:"server_type"`
+	VlanId       int                   `json:"vlan_id"`
+	Address      []SNetworkUsedAddress `json:"address"`
+}
+
+type HostnetworkTopologyOutput struct {
+	IpAddr  string `json:"ip_addr"`
+	MacAddr string `json:"mac_addr"`
+}
+
+type HostTopologyOutput struct {
+	Name       string                      `json:"name"`
+	Id         string                      `json:"id"`
+	Status     string                      `json:"status"`
+	HostStatus string                      `json:"host_status"`
+	HostType   string                      `json:"host_type"`
+	Networks   []HostnetworkTopologyOutput `json:"networks"`
+}
+
+type WireTopologyOutput struct {
+	Name      string                  `json:"name"`
+	Status    string                  `json:"status"`
+	Bandwidth int                     `json:"bandwidth"`
+	Zone      string                  `json:"zone"`
+	Networks  []NetworkTopologyOutput `json:"networks"`
+	Hosts     []HostTopologyOutput    `json:"hosts"`
+}
+
+type VpcTopologyOutput struct {
+	Name   string               `json:"name"`
+	Status string               `json:"status"`
+	Wires  []WireTopologyOutput `json:"wires"`
 }
