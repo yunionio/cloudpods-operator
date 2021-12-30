@@ -12,24 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package modules
+package cloudprovider
 
-import "yunion.io/x/onecloud/pkg/mcclient/modulebase"
-
-var (
-	Servernetworks modulebase.JointResourceManager
-)
-
-func init() {
-	Servernetworks = NewJointComputeManager(
-		"guestnetwork",
-		"guestnetworks",
-		[]string{"Guest_ID", "Guest",
-			"Network_ID", "Network", "Mac_addr", "Mapped_Ip_Addr",
-			"IP_addr", "Driver", "BW_limit", "Index",
-			"Virtual", "Ifname", "team_with"},
-		[]string{},
-		&Servers,
-		&Networks)
-	registerCompute(&Servernetworks)
+// +onecloud:model-api-gen
+type ElasticSearchAccessInfo struct {
+	Domain           string
+	PrivateDomain    string
+	Vip              string
+	Port             int
+	PrivatePort      int
+	KibanaUrl        string
+	KibanaPrivateUrl string
 }

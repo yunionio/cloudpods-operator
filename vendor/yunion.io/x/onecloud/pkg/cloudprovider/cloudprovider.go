@@ -265,7 +265,6 @@ type ICloudProvider interface {
 	GetObjectCannedAcls(regionId string) []string
 
 	GetCapabilities() []string
-	GetICloudQuotas() ([]ICloudQuota, error)
 
 	IsClouduserSupportPassword() bool
 	GetICloudusers() ([]IClouduser, error)
@@ -294,20 +293,33 @@ type ICloudProvider interface {
 	GetICloudDnsZoneById(id string) (ICloudDnsZone, error)
 	CreateICloudDnsZone(opts *SDnsZoneCreateOptions) (ICloudDnsZone, error)
 
+	GetICloudGlobalVpcs() ([]ICloudGlobalVpc, error)
+	CreateICloudGlobalVpc(opts *GlobalVpcCreateOptions) (ICloudGlobalVpc, error)
+	GetICloudGlobalVpcById(id string) (ICloudGlobalVpc, error)
+
 	GetICloudInterVpcNetworks() ([]ICloudInterVpcNetwork, error)
 	GetICloudInterVpcNetworkById(id string) (ICloudInterVpcNetwork, error)
 	CreateICloudInterVpcNetwork(opts *SInterVpcNetworkCreateOptions) (ICloudInterVpcNetwork, error)
 
 	GetICloudCDNDomains() ([]ICloudCDNDomain, error)
 	GetICloudCDNDomainByName(name string) (ICloudCDNDomain, error)
+	CreateICloudCDNDomain(opts *CdnCreateOptions) (ICloudCDNDomain, error)
 }
 
 func IsSupportCapability(prod ICloudProvider, capa string) bool {
 	return utils.IsInStringArray(capa, prod.GetCapabilities()) || utils.IsInStringArray(capa+READ_ONLY_SUFFIX, prod.GetCapabilities())
 }
 
+func IsSupportCDN(prod ICloudProvider) bool {
+	return IsSupportCapability(prod, CLOUD_CAPABILITY_CDN)
+}
+
 func IsSupportProject(prod ICloudProvider) bool {
 	return IsSupportCapability(prod, CLOUD_CAPABILITY_PROJECT)
+}
+
+func IsSupportQuota(prod ICloudProvider) bool {
+	return IsSupportCapability(prod, CLOUD_CAPABILITY_QUOTA)
 }
 
 func IsSupportDnsZone(prod ICloudProvider) bool {
@@ -441,10 +453,6 @@ func (self *SBaseProvider) GetOnPremiseIRegion() (ICloudRegion, error) {
 	return nil, ErrNotImplemented
 }
 
-func (self *SBaseProvider) GetICloudQuotas() ([]ICloudQuota, error) {
-	return nil, ErrNotImplemented
-}
-
 func (self *SBaseProvider) GetIamLoginUrl() string {
 	return ""
 }
@@ -561,12 +569,28 @@ func (self *SBaseProvider) CreateICloudInterVpcNetwork(opts *SInterVpcNetworkCre
 	return nil, ErrNotImplemented
 }
 
+func (self *SBaseProvider) GetICloudGlobalVpcs() ([]ICloudGlobalVpc, error) {
+	return nil, errors.Wrapf(ErrNotImplemented, "GetICloudGlobalVpcs")
+}
+
+func (self *SBaseProvider) GetICloudGlobalVpcById(id string) (ICloudGlobalVpc, error) {
+	return nil, errors.Wrapf(ErrNotImplemented, "GetICloudGlobalVpcById")
+}
+
+func (self *SBaseProvider) CreateICloudGlobalVpc(opts *GlobalVpcCreateOptions) (ICloudGlobalVpc, error) {
+	return nil, errors.Wrapf(ErrNotImplemented, "CreateICloudGlobalVpc")
+}
+
 func (self *SBaseProvider) GetICloudCDNDomains() ([]ICloudCDNDomain, error) {
 	return nil, errors.Wrapf(ErrNotImplemented, "GetICloudCDNDomains")
 }
 
 func (self *SBaseProvider) GetICloudCDNDomainByName(name string) (ICloudCDNDomain, error) {
 	return nil, errors.Wrapf(ErrNotImplemented, "GetICloudCDNDomainByName")
+}
+
+func (self *SBaseProvider) CreateICloudCDNDomain(opts *CdnCreateOptions) (ICloudCDNDomain, error) {
+	return nil, errors.Wrapf(ErrNotImplemented, "CreateICloudCDNDomain")
 }
 
 func NewBaseProvider(factory ICloudProviderFactory) SBaseProvider {
