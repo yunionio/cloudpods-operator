@@ -185,7 +185,7 @@ func (m *serviceOperatorManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg
 }
 
 func (n *serviceOperatorManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
-	service := m.newSingleNodePortService(v1alpha1.ServiceOperatorComponentType, oc, constants.ServiceOperatorPort)
+	service := n.newSingleNodePortService(v1alpha1.ServiceOperatorComponentType, oc, constants.ServiceOperatorPort)
 	// diy
 	service.ObjectMeta.Labels["control-plane"] = "controller-manager"
 	service.Spec.Selector["control-plane"] = "controller-manager"
