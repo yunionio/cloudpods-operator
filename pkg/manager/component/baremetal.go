@@ -124,7 +124,7 @@ func (m *baremetalManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	}
 	hostNetwork := true
 	dm, err := m.newDefaultDeploymentNoInitWithoutCloudAffinity(cType, zoneComponentType, oc,
-		newBaremetalVolHelper(
+		m.newBaremetalVolHelper(
 			oc, controller.ComponentConfigMapName(oc, zoneComponentType),
 			zoneComponentType,
 		),
@@ -144,7 +144,7 @@ func (m *baremetalManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	return setSelfAntiAffnity(dm, cType), nil
 }
 
-func newBaremetalVolHelper(oc *v1alpha1.OnecloudCluster, optCfgMap string, component v1alpha1.ComponentType) *VolumeHelper {
+func (m *baremetalManager) newBaremetalVolHelper(oc *v1alpha1.OnecloudCluster, optCfgMap string, component v1alpha1.ComponentType) *VolumeHelper {
 	volHelper := NewVolumeHelper(oc, optCfgMap, v1alpha1.BaremetalAgentComponentType)
 	volHelper.volumeMounts = append(volHelper.volumeMounts,
 		corev1.VolumeMount{
