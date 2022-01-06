@@ -50,6 +50,24 @@ const (
         index index.html;
         try_files $uri $uri/ /index.html;
     }
+
+    location /overview {
+        proxy_pass http://localhost:8080;
+        proxy_redirect   off;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+   }
+
+    location /docs {
+        proxy_pass http://localhost:8081;
+        proxy_redirect   off;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+   }
 `
 
 	WebNginxConfigTemplate = `
@@ -325,32 +343,34 @@ func (m *webManager) getIngress(oc *v1alpha1.OnecloudCluster, zone string) *exte
 }
 
 func (m *webManager) addIngressPaths(isEE bool, svcName string, ing *extensions.Ingress) *extensions.Ingress {
-	rule := &ing.Spec.Rules[0]
 	if !isEE {
 		return ing
 	}
-	if !IsPathIngressRule("/overview", rule.HTTP.Paths) {
-		rule.HTTP.Paths = append(rule.HTTP.Paths,
-			extensions.HTTPIngressPath{
-				Path: "/overview",
-				Backend: extensions.IngressBackend{
-					ServiceName: svcName,
-					ServicePort: intstr.FromInt(8080),
-				},
-			},
-		)
-	}
-	if !IsPathIngressRule("/docs", rule.HTTP.Paths) {
-		rule.HTTP.Paths = append(rule.HTTP.Paths,
-			extensions.HTTPIngressPath{
-				Path: "/docs",
-				Backend: extensions.IngressBackend{
-					ServiceName: svcName,
-					ServicePort: intstr.FromInt(8081),
-				},
-			},
-		)
-	}
+	/*
+	 * rule := &ing.Spec.Rules[0]
+	 * if !IsPathIngressRule("/overview", rule.HTTP.Paths) {
+	 * 	rule.HTTP.Paths = append(rule.HTTP.Paths,
+	 * 		extensions.HTTPIngressPath{
+	 * 			Path: "/overview",
+	 * 			Backend: extensions.IngressBackend{
+	 * 				ServiceName: svcName,
+	 * 				ServicePort: intstr.FromInt(8080),
+	 * 			},
+	 * 		},
+	 * 	)
+	 * }
+	 * if !IsPathIngressRule("/docs", rule.HTTP.Paths) {
+	 * 	rule.HTTP.Paths = append(rule.HTTP.Paths,
+	 * 		extensions.HTTPIngressPath{
+	 * 			Path: "/docs",
+	 * 			Backend: extensions.IngressBackend{
+	 * 				ServiceName: svcName,
+	 * 				ServicePort: intstr.FromInt(8081),
+	 * 			},
+	 * 		},
+	 * 	)
+	 * }
+	 */
 	return ing
 }
 
