@@ -689,9 +689,10 @@ func newEtcdServiceManifest(
 			Annotations: annotations,
 		},
 		Spec: corev1.ServiceSpec{
-			Ports:     ports,
-			Selector:  labels,
-			ClusterIP: clusterIP,
+			PublishNotReadyAddresses: true,
+			Ports:                    ports,
+			Selector:                 labels,
+			ClusterIP:                clusterIP,
 		},
 	}
 	return svc

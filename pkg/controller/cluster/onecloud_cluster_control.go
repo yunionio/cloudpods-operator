@@ -89,11 +89,10 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 	}*/
 
 	components := occ.components
-	/*
-	 * if err := components.Etcd().Sync(oc); err != nil {
-	 * 	return err
-	 * }
-	 */
+
+	if err := components.Etcd().Sync(oc); err != nil {
+		return err
+	}
 
 	for _, component := range []manager.Manager{
 		components.Keystone(),
