@@ -70,7 +70,7 @@ const (
 )
 
 var (
-	m *etcdManager
+	etcdMan *etcdManager
 
 	reconcileInterval         = 8 * time.Second
 	podTerminationGracePeriod = int64(5)
@@ -79,13 +79,13 @@ var (
 )
 
 func newEtcdComponentManager(baseMan *ComponentManager) manager.Manager {
-	if m == nil {
-		m = &etcdManager{
+	if etcdMan == nil {
+		etcdMan = &etcdManager{
 			ComponentManager: baseMan,
 		}
-		go m.defrag()
+		go etcdMan.defrag()
 	}
-	return m
+	return etcdMan
 }
 
 func (m *etcdManager) isSyncing() bool {
