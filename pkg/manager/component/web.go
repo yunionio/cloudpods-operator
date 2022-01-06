@@ -315,6 +315,12 @@ func (m *webManager) getIngress(oc *v1alpha1.OnecloudCluster, zone string) *exte
 		},
 	}
 
+	// for nginx ingress
+	if len(ing.Annotations) == 0 {
+		ing.Annotations = map[string]string{}
+	}
+	ing.Annotations["nginx.ingress.kubernetes.io/backend-protocol"] = "HTTPS"
+
 	return m.addIngressPaths(IsEnterpriseEdition(oc), svcName, ing)
 }
 
