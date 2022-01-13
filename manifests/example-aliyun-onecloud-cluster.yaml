@@ -1,0 +1,39 @@
+# deploy onecloud cluster customize resource instance
+apiVersion: "onecloud.yunion.io/v1alpha1"
+kind: OnecloudCluster
+metadata:
+  annotations:
+    onecloud.yunion.io/edition: ee
+  name: "default"
+  namespace: "onecloud"
+spec:
+  mysql:
+    host: mysql.rds.aliyuncs.com
+    username: "root"
+    password: "password"
+  region: "region0"
+  imageRepository: "registry.cn-beijing.aliyuncs.com/yunionio"
+  version: v3.8.6
+  baremetalagent:
+    disable: true
+    requests:
+      storage: 100G
+    storageClassName: alicloud-disk-ssd
+  glance:
+    requests:
+      cpu: 10m
+      memory: 10Mi
+      storage: 100G
+    storageClassName: alicloud-disk-ssd
+  influxdb:
+    requests:
+      cpu: 10m
+      memory: 10Mi
+      storage: 100G
+    storageClassName: alicloud-disk-ssd
+  meter:
+    requests:
+      cpu: 10m
+      memory: 10Mi
+      storage: 25G
+    storageClassName: alicloud-disk-ssd
