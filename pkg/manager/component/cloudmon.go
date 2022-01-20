@@ -80,9 +80,14 @@ func (m *cloudmonManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 			},
 		}
 	}
-	return m.newDefaultDeployment(v1alpha1.CloudmonComponentType, "", oc,
+	deployment, err := m.newDefaultDeployment(v1alpha1.CloudmonComponentType, "", oc,
 		NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.CloudmonComponentType), v1alpha1.CloudmonComponentType), &spec, nil,
 		containersF)
+	if err != nil {
+		return deployment, err
+	}
+	oc.Spec.Cloudmon.DeploymentSpec = spec
+	return deployment, err
 }
 
 func formateCloudmonProviderCommand(reportDur uint, timeout uint, reportInterval uint, command string,
