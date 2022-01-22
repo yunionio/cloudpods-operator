@@ -720,11 +720,13 @@ func NewHostVolume(
 			ReadOnly:  false,
 			MountPath: "/usr/local",
 		},
-		{
-			Name:      "proc",
-			ReadOnly:  false,
-			MountPath: "/proc",
-		},
+		/*
+		 * {
+		 * 	Name:      "proc",
+		 * 	ReadOnly:  false,
+		 * 	MountPath: "/proc",
+		 * },
+		 */
 		{
 			Name:      "dev",
 			ReadOnly:  false,
@@ -799,15 +801,17 @@ func NewHostVolume(
 				},
 			},
 		},
-		{
-			Name: "proc",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/proc",
-					Type: &hostPathDirectory,
-				},
-			},
-		},
+		/*
+		 * {
+		 * 	Name: "proc",
+		 * 	VolumeSource: corev1.VolumeSource{
+		 * 		HostPath: &corev1.HostPathVolumeSource{
+		 * 			Path: "/proc",
+		 * 			Type: &hostPathDirectory,
+		 * 		},
+		 * 	},
+		 * },
+		 */
 		{
 			Name: "dev",
 			VolumeSource: corev1.VolumeSource{
