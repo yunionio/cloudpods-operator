@@ -1239,6 +1239,7 @@ func (in *OnecloudClusterStatus) DeepCopyInto(out *OnecloudClusterStatus) {
 	in.Itsm.DeepCopyInto(&out.Itsm)
 	in.CloudId.DeepCopyInto(&out.CloudId)
 	in.MonitorStack.DeepCopyInto(&out.MonitorStack)
+	in.Scheduledtask.DeepCopyInto(&out.Scheduledtask)
 	return
 }
 
