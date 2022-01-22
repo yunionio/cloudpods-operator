@@ -166,6 +166,8 @@ type OnecloudClusterList struct {
 
 // OnecloudClusterSpec describes the attributes that a user creates on a onecloud cluster
 type OnecloudClusterSpec struct {
+	// DisableResourceManagement disable container cgroup resource limits and requests
+	DisableResourceManagement bool `json:"disableResourceMangement"`
 	// Etcd holds configuration for etcd
 	Etcd Etcd `json:"etcd,omitempty"`
 	// Mysql holds configuration for mysql

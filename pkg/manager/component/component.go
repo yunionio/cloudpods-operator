@@ -690,7 +690,7 @@ func (m *ComponentManager) newDeployment(
 		templateSpec.Containers = containersFactory(volMounts)
 	}
 
-	if err := m.setContainerResources(&spec.ContainerSpec, templateSpec); err != nil {
+	if err := m.setContainerResources(oc.Spec.DisableResourceManagement, &spec.ContainerSpec, templateSpec); err != nil {
 		log.Errorf("set container resources %v", err)
 	}
 
@@ -700,7 +700,26 @@ func (m *ComponentManager) newDeployment(
 	return appDeploy, nil
 }
 
-func (m *ComponentManager) setContainerResources(spec *v1alpha1.ContainerSpec, templateSpec *corev1.PodSpec) error {
+func (m *ComponentManager) setContainerResources(disable bool, spec *v1alpha1.ContainerSpec, templateSpec *corev1.PodSpec) error {
+	if disable {
+		if spec.Limits != nil {
+			if spec.Limits.CPU != nil {
+				spec.Limits.CPU = nil
+			}
+			if spec.Limits.Memory != nil {
+				spec.Limits.Memory = nil
+			}
+		}
+		if spec.Requests != nil {
+			if spec.Requests.CPU != nil {
+				spec.Requests.CPU = nil
+			}
+			if spec.Requests.Memory != nil {
+				spec.Requests.Memory = nil
+			}
+		}
+		return nil
+	}
 	// process resources limits
 	if spec.Limits == nil {
 		spec.Limits = new(v1alpha1.ResourceRequirement)
@@ -1043,7 +1062,7 @@ func (m *ComponentManager) newCronJob(
 		templateSpec.InitContainers = initContainersFactory(volMounts)
 	}
 
-	if err := m.setContainerResources(&spec.ContainerSpec, templateSpec); err != nil {
+	if err := m.setContainerResources(oc.Spec.DisableResourceManagement, &spec.ContainerSpec, templateSpec); err != nil {
 		log.Errorf("set container resources %v", err)
 	}
 
