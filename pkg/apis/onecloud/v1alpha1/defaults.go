@@ -48,7 +48,7 @@ const (
 	DefaultOvnImageTag  = DefaultOvnVersion + "-1"
 
 	DefaultHostImageName = "host-image"
-	DefaultHostImageTag  = "v1.0.2"
+	DefaultHostImageTag  = "v1.0.3"
 
 	DefaultInfluxdbImageVersion = "1.7.7"
 
