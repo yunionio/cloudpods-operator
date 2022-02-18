@@ -51,7 +51,7 @@ func (m *schedulerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 	// scheduler use region config directly
 	config := cfg.RegionServer
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
-	SetOptionsServiceTLS(&opt.BaseOptions)
+	SetOptionsServiceTLS(&opt.BaseOptions, false)
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceDBCommonOptions.ServiceCommonOptions)
 
 	opt.SchedulerPort = constants.SchedulerPort

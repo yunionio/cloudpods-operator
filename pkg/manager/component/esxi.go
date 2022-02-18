@@ -54,7 +54,7 @@ func (m *esxiManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 	opt.Zone = zoneId
 	opt.ListenInterface = "eth0"
 	config := cfg.EsxiAgent
-	SetOptionsServiceTLS(&opt.BaseOptions)
+	SetOptionsServiceTLS(&opt.BaseOptions, false)
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 	opt.Port = constants.EsxiAgentPort
 	newCfg := m.newServiceConfigMap(v1alpha1.EsxiAgentComponentType, zone, oc, opt)
