@@ -93,7 +93,7 @@ func (m *apiGatewayManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	if err := SetOptionsDefault(opt, "apigateway"); err != nil {
 		return nil, false, err
 	}
-	SetOptionsServiceTLS(&opt.BaseOptions)
+	SetOptionsServiceTLS(&opt.BaseOptions, false)
 	SetServiceCommonOptions(&opt.CommonOptions, oc, cfg.APIGateway)
 	opt.Port = constants.APIGatewayPort
 	opt.WsPort = constants.APIWebsocketPort

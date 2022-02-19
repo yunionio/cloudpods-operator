@@ -530,9 +530,14 @@ type ZoneStatefulDeploymentSpec struct {
 	Zones []string `json:"zones,omitempty"`
 }
 
+type DeploymentServiceSpec struct {
+	DeploymentSpec
+	DisableTLS bool `json:"disableTLS"`
+}
+
 // KeystoneSpec contains details of keystone service
 type KeystoneSpec struct {
-	DeploymentSpec
+	DeploymentServiceSpec
 	BootstrapPassword string `json:"bootstrapPassword"`
 }
 
