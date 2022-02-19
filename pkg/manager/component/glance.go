@@ -72,7 +72,7 @@ func (m *glanceManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	}
 	config := cfg.Glance
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
-	SetOptionsServiceTLS(&opt.BaseOptions)
+	SetOptionsServiceTLS(&opt.BaseOptions, false)
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceDBCommonOptions.ServiceCommonOptions)
 
 	opt.FilesystemStoreDatadir = constants.GlanceFileStoreDir

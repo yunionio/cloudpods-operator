@@ -45,7 +45,7 @@ func (m *baremetalManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 		return nil, false, err
 	}
 	config := cfg.BaremetalAgent
-	SetOptionsServiceTLS(&opt.BaseOptions)
+	SetOptionsServiceTLS(&opt.BaseOptions, false)
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 	opt.Port = constants.BaremetalPort
 	opt.AutoRegisterBaremetal = false

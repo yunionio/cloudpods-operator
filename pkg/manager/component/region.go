@@ -61,7 +61,7 @@ func (m *regionManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	config := cfg.RegionServer
 	spec := oc.Spec.RegionServer
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
-	SetOptionsServiceTLS(&opt.BaseOptions)
+	SetOptionsServiceTLS(&opt.BaseOptions, false)
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceDBCommonOptions.ServiceCommonOptions)
 	// TODO: fix this, currently init container can't sync table
 	opt.AutoSyncTable = true

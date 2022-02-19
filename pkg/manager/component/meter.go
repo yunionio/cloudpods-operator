@@ -82,7 +82,7 @@ func (m *meterManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 	}
 	config := cfg.Meter
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
-	SetOptionsServiceTLS(&opt.BaseOptions)
+	SetOptionsServiceTLS(&opt.BaseOptions, false)
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceDBCommonOptions.ServiceCommonOptions)
 
 	opt.BillingFileDirectory = filepath.Join(constants.MeterDataStore, constants.MeterBillingDataDir)

@@ -54,7 +54,11 @@ var (
 
 func GetAuthURL(oc *v1alpha1.OnecloudCluster) string {
 	keystoneSvcName := KeystoneComponentName(oc.GetName())
-	return fmt.Sprintf("https://%s:%d/v3", keystoneSvcName, constants.KeystoneAdminPort)
+	protol := "https"
+	if oc.Spec.Keystone.DisableTLS {
+		protol = "http"
+	}
+	return fmt.Sprintf("%s://%s:%d/v3", protol, keystoneSvcName, constants.KeystoneAdminPort)
 }
 
 type OnecloudRCAdminConfig struct {
@@ -431,7 +435,7 @@ func (c keystoneComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 			oc.Status.RegionServer.RegionId = regionId
 		}
 		if err := c.doRegisterIdentity(s, region, oc.Spec.LoadBalancerEndpoint, KeystoneComponentName(oc.GetName()),
-			constants.KeystoneAdminPort, constants.KeystonePublicPort, true); err != nil {
+			constants.KeystoneAdminPort, constants.KeystonePublicPort, !oc.Spec.Keystone.DisableTLS); err != nil {
 			return errors.Wrap(err, "register identity endpoint")
 		}
 		return nil
@@ -630,7 +634,7 @@ func (c *keystoneComponent) doRegisterIdentity(
 		newEndpointByInterfaceType(publicAddress, adminPort, "v3", constants.EndpointTypeAdmin),
 	)
 
-	return c.registerServiceEndpointsBySession(s, constants.ServiceNameKeystone, constants.ServiceTypeIdentity, eps, true)
+	return c.registerServiceEndpointsBySession(s, constants.ServiceNameKeystone, constants.ServiceTypeIdentity, eps, enableSSL)
 }
 
 func doCreateExternalService(s *mcclient.ClientSession) error {
