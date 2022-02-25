@@ -35,7 +35,8 @@ import (
 	"yunion.io/x/onecloud/pkg/keystone/locale"
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/mcclient/auth"
-	"yunion.io/x/onecloud/pkg/mcclient/modules"
+	identity_modules "yunion.io/x/onecloud/pkg/mcclient/modules/identity"
+	quota_modules "yunion.io/x/onecloud/pkg/mcclient/modules/quota"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -53,7 +54,11 @@ var (
 
 func GetAuthURL(oc *v1alpha1.OnecloudCluster) string {
 	keystoneSvcName := KeystoneComponentName(oc.GetName())
-	return fmt.Sprintf("https://%s:%d/v3", keystoneSvcName, constants.KeystoneAdminPort)
+	protol := "https"
+	if oc.Spec.Keystone.DisableTLS {
+		protol = "http"
+	}
+	return fmt.Sprintf("%s://%s:%d/v3", protol, keystoneSvcName, constants.KeystoneAdminPort)
 }
 
 type OnecloudRCAdminConfig struct {
@@ -430,7 +435,7 @@ func (c keystoneComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 			oc.Status.RegionServer.RegionId = regionId
 		}
 		if err := c.doRegisterIdentity(s, region, oc.Spec.LoadBalancerEndpoint, KeystoneComponentName(oc.GetName()),
-			constants.KeystoneAdminPort, constants.KeystonePublicPort, true); err != nil {
+			constants.KeystoneAdminPort, constants.KeystonePublicPort, !oc.Spec.Keystone.DisableTLS); err != nil {
 			return errors.Wrap(err, "register identity endpoint")
 		}
 		return nil
@@ -525,7 +530,7 @@ func (c keystoneComponent) getEtcdUrl() string {
 }
 
 func shouldDoPolicyRoleInit(s *mcclient.ClientSession) (bool, error) {
-	ret, err := modules.Policies.List(s, nil)
+	ret, err := identity_modules.Policies.List(s, nil)
 	if err != nil {
 		return false, errors.Wrap(err, "list policy")
 	}
@@ -533,7 +538,7 @@ func shouldDoPolicyRoleInit(s *mcclient.ClientSession) (bool, error) {
 }
 
 func ensureKeystoneVersion36(s *mcclient.ClientSession) error {
-	ret, err := modules.Policies.List(s, nil)
+	ret, err := identity_modules.Policies.List(s, nil)
 	if err != nil {
 		return errors.Wrap(err, "list policy")
 	}
@@ -571,14 +576,14 @@ func doPolicyRoleInit(s *mcclient.ClientSession) error {
 	// update policy quota
 	params := jsonutils.NewDict()
 	params.Add(jsonutils.NewString("default"), "domain")
-	result, err := modules.IdentityQuotas.GetQuota(s, params)
+	result, err := quota_modules.IdentityQuotas.GetQuota(s, params)
 	if err != nil {
 		log.Warningf("get IdentityQuotas fail %s", err)
 	} else {
 		policyCnt, _ := result.Int("policy")
 		if policyCnt < 500 {
 			params.Add(jsonutils.NewInt(500), "policy")
-			_, err := modules.IdentityQuotas.DoQuotaSet(s, params)
+			_, err := quota_modules.IdentityQuotas.DoQuotaSet(s, params)
 			if err != nil {
 				// ignore the error
 				log.Warningf("update IdentityQuotas fail %s", err)
@@ -629,7 +634,7 @@ func (c *keystoneComponent) doRegisterIdentity(
 		newEndpointByInterfaceType(publicAddress, adminPort, "v3", constants.EndpointTypeAdmin),
 	)
 
-	return c.registerServiceEndpointsBySession(s, constants.ServiceNameKeystone, constants.ServiceTypeIdentity, eps, true)
+	return c.registerServiceEndpointsBySession(s, constants.ServiceNameKeystone, constants.ServiceTypeIdentity, eps, enableSSL)
 }
 
 func doCreateExternalService(s *mcclient.ClientSession) error {
@@ -1255,6 +1260,7 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		Name:        "cloudaccount_balance.balance",
 		Reduce:      "last",
 		Description: "监测云账号余额",
+		Level:       "important",
 	}
 	noDataTem := onecloud.CommonAlertTem{
 		Database:      "telegraf",

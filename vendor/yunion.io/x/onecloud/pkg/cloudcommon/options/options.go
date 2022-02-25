@@ -25,8 +25,10 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"golang.org/x/net/http/httpproxy"
+	"golang.org/x/text/language"
 
 	"yunion.io/x/log"
 	"yunion.io/x/log/hooks"
@@ -37,6 +39,7 @@ import (
 	"yunion.io/x/structarg"
 
 	"yunion.io/x/onecloud/pkg/cloudcommon/consts"
+	"yunion.io/x/onecloud/pkg/httperrors"
 	"yunion.io/x/onecloud/pkg/util/atexit"
 	"yunion.io/x/onecloud/pkg/util/httputils"
 )
@@ -73,7 +76,7 @@ type BaseOptions struct {
 	NotifyAdminUsers  []string `default:"sysadmin" help:"System administrator user ID or name to notify system events, if domain is not default, specify domain as prefix ending with double backslash, e.g. domain\\\\user"`
 	NotifyAdminGroups []string `help:"System administrator group ID or name to notify system events, if domain is not default, specify domain as prefix ending with double backslash, e.g. domain\\\\group"`
 
-	EnableRbac                       bool `help:"Switch on Role-based Access Control" default:"true"`
+	// EnableRbac                       bool `help:"Switch on Role-based Access Control" default:"true"`
 	RbacDebug                        bool `help:"turn on rbac debug log" default:"false"`
 	RbacPolicyRefreshIntervalSeconds int  `help:"policy refresh interval in seconds, default half a minute" default:"30"`
 	// RbacPolicySyncFailedRetrySeconds int  `help:"seconds to wait after a failed sync, default 30 seconds" default:"30"`
@@ -105,6 +108,9 @@ type BaseOptions struct {
 
 	IgnoreNonrunningGuests bool `default:"true" help:"Count memory for running guests only when do scheduling. Ignore memory allocation for non-running guests"`
 
+	PlatformName  string            `help:"identity name of this platform" default:"Cloudpods"`
+	PlatformNames map[string]string `help:"identity name of this platform by language"`
+
 	EnableTlsMigration bool `help:"Enable TLS migration" default:"false"`
 }
 
@@ -119,7 +125,7 @@ type CommonOptions struct {
 	AdminDomain        string `help:"Admin user domain" default:"Default"`
 	AdminPassword      string `help:"Admin password" alias:"admin-passwd"`
 	AdminProject       string `help:"Admin project" default:"system" alias:"admin-tenant-name"`
-	AdminProjectDomain string `help:"Domain of Admin project" default:"default"`
+	AdminProjectDomain string `help:"Domain of Admin project" default:"Default"`
 	AuthTokenCacheSize uint32 `help:"Auth token Cache Size" default:"2048"`
 
 	TenantCacheExpireSeconds int `help:"expire seconds of cached tenant/domain info. defailt 15 minutes" default:"900"`
@@ -139,6 +145,10 @@ type HostCommonOptions struct {
 type DBOptions struct {
 	SqlConnection string `help:"SQL connection string" alias:"connection"`
 
+	Clickhouse string `help:"Connection string for click house"`
+
+	OpsLogWithClickhouse bool `help:"store operation logs with clickhouse" default:"false"`
+
 	AutoSyncTable   bool `help:"Automatically synchronize table changes if differences are detected"`
 	ExitAfterDBInit bool `help:"Exit program after db initialization" default:"false"`
 
@@ -151,7 +161,7 @@ type DBOptions struct {
 
 	LockmanMethod string `help:"method for lock synchronization" choices:"inmemory|etcd" default:"inmemory"`
 
-	// SplitableMaxKeepSegments  int `help:"maximal segements of splitable to keep, default 6 segments" default:"6"`
+	OpsLogMaxKeepMonths int `help:"maximal months of logs to keep, default 6 months" default:"6"`
 	// SplitableMaxDurationHours int `help:"maximal number of hours that a splitable segement lasts, default 30 days" default:"720"`
 
 	EtcdOptions
@@ -171,23 +181,23 @@ type EtcdOptions struct {
 	EtcdKey           string   `help:"path to key file for connecting to etcd cluster"`
 }
 
-func (this *EtcdOptions) GetEtcdTLSConfig() (*tls.Config, error) {
+func (opt *EtcdOptions) GetEtcdTLSConfig() (*tls.Config, error) {
 	var (
 		cert       tls.Certificate
 		certLoaded bool
 		capool     *x509.CertPool
 	)
-	if this.EtcdCert != "" && this.EtcdKey != "" {
+	if opt.EtcdCert != "" && opt.EtcdKey != "" {
 		var err error
-		cert, err = tls.LoadX509KeyPair(this.EtcdCert, this.EtcdKey)
+		cert, err = tls.LoadX509KeyPair(opt.EtcdCert, opt.EtcdKey)
 		if err != nil {
 			return nil, errors.Wrap(err, "load etcd cert and key")
 		}
 		certLoaded = true
-		this.EtcdUseTLS = true
+		opt.EtcdUseTLS = true
 	}
-	if this.EtcdCacert != "" {
-		data, err := ioutil.ReadFile(this.EtcdCacert)
+	if opt.EtcdCacert != "" {
+		data, err := ioutil.ReadFile(opt.EtcdCacert)
 		if err != nil {
 			return nil, errors.Wrap(err, "read cacert file")
 		}
@@ -204,15 +214,15 @@ func (this *EtcdOptions) GetEtcdTLSConfig() (*tls.Config, error) {
 			}
 			capool.AddCert(cacert)
 		}
-		this.EtcdUseTLS = true
+		opt.EtcdUseTLS = true
 	}
-	if this.EtcdSkipTLSVerify { // it's false by default, true means user intends to use tls
-		this.EtcdUseTLS = true
+	if opt.EtcdSkipTLSVerify { // it's false by default, true means user intends to use tls
+		opt.EtcdUseTLS = true
 	}
-	if this.EtcdUseTLS {
+	if opt.EtcdUseTLS {
 		cfg := &tls.Config{
 			RootCAs:            capool,
-			InsecureSkipVerify: this.EtcdSkipTLSVerify,
+			InsecureSkipVerify: opt.EtcdSkipTLSVerify,
 		}
 		if certLoaded {
 			cfg.Certificates = []tls.Certificate{cert}
@@ -222,8 +232,24 @@ func (this *EtcdOptions) GetEtcdTLSConfig() (*tls.Config, error) {
 	return nil, nil
 }
 
-func (this *DBOptions) GetDBConnection() (dialect, connstr string, err error) {
-	return utils.TransSQLAchemyURL(this.SqlConnection)
+func (opt *DBOptions) GetDBConnection() (string, string, error) {
+	if strings.HasPrefix(opt.SqlConnection, "mysql") {
+		return utils.TransSQLAchemyURL(opt.SqlConnection)
+	} else {
+		pos := strings.Index(opt.SqlConnection, "://")
+		if pos > 0 {
+			return opt.SqlConnection[:pos], opt.SqlConnection[pos+3:], nil
+		} else {
+			return "", "", httperrors.ErrNotSupported
+		}
+	}
+}
+
+func (opt *DBOptions) GetClickhouseConnStr() (string, string, error) {
+	if len(opt.Clickhouse) == 0 {
+		return "", "", errors.ErrNotFound
+	}
+	return "clickhouse", opt.Clickhouse, nil
 }
 
 func ParseOptions(optStruct interface{}, args []string, configFileName string, serviceType string) {
@@ -295,6 +321,9 @@ func ParseOptions(optStruct interface{}, args []string, configFileName string, s
 	if err != nil {
 		log.Fatalf("Set log level %q: %v", optionsRef.LogLevel, err)
 	}
+	log.Logger().Formatter = &log.TextFormatter{
+		TimestampFormat: "2006-01-02 15:04:05",
+	}
 	if optionsRef.LogFilePrefix != "" {
 		dir, name := filepath.Split(optionsRef.LogFilePrefix)
 		h := &hooks.LogFileRotateHook{
@@ -336,4 +365,13 @@ func (self *BaseOptions) HttpTransportProxyFunc() httputils.TransportProxyFunc {
 	return func(req *http.Request) (*url.URL, error) {
 		return proxyFunc(req.URL)
 	}
+}
+
+func (opt *BaseOptions) GetPlatformName(lang language.Tag) string {
+	if len(opt.PlatformNames) > 0 {
+		if name, ok := opt.PlatformNames[lang.String()]; ok {
+			return name
+		}
+	}
+	return opt.PlatformName
 }

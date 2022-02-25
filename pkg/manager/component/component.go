@@ -1397,6 +1397,10 @@ func (m *ComponentManager) Suggestion() manager.Manager {
 	return newSuggestionManager(m)
 }
 
+func (m *ComponentManager) Scheduledtask() manager.Manager {
+	return newScheduledtaskManager(m)
+}
+
 func (m *ComponentManager) MonitorStack() manager.Manager {
 	return newMonitorStackManager(m)
 }

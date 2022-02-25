@@ -26,7 +26,7 @@ import (
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
 	"yunion.io/x/onecloud/pkg/mcclient/auth"
-	"yunion.io/x/onecloud/pkg/mcclient/modules"
+	identity_modules "yunion.io/x/onecloud/pkg/mcclient/modules/identity"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -72,7 +72,7 @@ func (m *glanceManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	}
 	config := cfg.Glance
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
-	SetOptionsServiceTLS(&opt.BaseOptions)
+	SetOptionsServiceTLS(&opt.BaseOptions, false)
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceDBCommonOptions.ServiceCommonOptions)
 
 	opt.FilesystemStoreDatadir = constants.GlanceFileStoreDir
@@ -99,7 +99,7 @@ func (m *glanceManager) setS3Config(oc *v1alpha1.OnecloudCluster) error {
 	}
 	// fetch s3 config
 	s := auth.GetAdminSession(context.Background(), oc.Spec.Region, "")
-	conf, err := modules.ServicesV3.GetSpecific(s, "glance", "config", nil)
+	conf, err := identity_modules.ServicesV3.GetSpecific(s, "glance", "config", nil)
 	if err != nil && !strings.Contains(err.Error(), "not found") {
 		return err
 	}
@@ -159,7 +159,7 @@ func (m *glanceManager) setS3Config(oc *v1alpha1.OnecloudCluster) error {
 	confDict.Set("s3_secret_key", jsonutils.NewString(sk))
 	config := jsonutils.NewDict()
 	config.Add(confDict, "config", "default")
-	out, err := modules.ServicesV3.PerformAction(s, "glance", "config", config)
+	out, err := identity_modules.ServicesV3.PerformAction(s, "glance", "config", config)
 	if err != nil {
 		return err
 	}

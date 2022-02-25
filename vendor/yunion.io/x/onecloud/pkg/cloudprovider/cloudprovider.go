@@ -97,6 +97,11 @@ type SCloudaccountCredential struct {
 	// 阿里云专有云Endpoints
 	*SApsaraEndpoints
 
+	// 默认区域Id, Apara及HCSO需要此参数
+	// example: cn-north-2
+	// required: true
+	DefaultRegion string `default:"$DEFAULT_REGION" metavar:"$DEFAULT_REGION"`
+
 	// Huawei Cloud Stack Online
 	*SHCSOEndpoints
 
@@ -165,7 +170,8 @@ type ProviderConfig struct {
 
 	Options *jsonutils.JSONDict
 
-	ProxyFunc httputils.TransportProxyFunc
+	DefaultRegion string
+	ProxyFunc     httputils.TransportProxyFunc
 }
 
 func (cp *ProviderConfig) AdaptiveTimeoutHttpClient() *http.Client {
@@ -346,6 +352,10 @@ func IsSupportRds(prod ICloudProvider) bool {
 	return IsSupportCapability(prod, CLOUD_CAPABILITY_RDS)
 }
 
+func IsSupportNAS(prod ICloudProvider) bool {
+	return IsSupportCapability(prod, CLOUD_CAPABILITY_NAS)
+}
+
 func IsSupportNAT(prod ICloudProvider) bool {
 	return IsSupportCapability(prod, CLOUD_CAPABILITY_NAT)
 }
@@ -372,6 +382,10 @@ func IsSupportKafka(prod ICloudProvider) bool {
 
 func IsSupportApp(prod ICloudProvider) bool {
 	return IsSupportCapability(prod, CLOUD_CAPABILITY_APP)
+}
+
+func IsSupportContainer(prod ICloudProvider) bool {
+	return IsSupportCapability(prod, CLOUD_CAPABILITY_CONTAINER)
 }
 
 var providerTable map[string]ICloudProviderFactory
@@ -428,17 +442,16 @@ func IsSupported(provider string) bool {
 	return ok
 }
 
-func IsValidCloudAccount(cfg ProviderConfig) (string, error) {
+func IsValidCloudAccount(cfg ProviderConfig) (ICloudProvider, string, error) {
 	factory, ok := providerTable[cfg.Vendor]
 	if ok {
 		provider, err := factory.GetProvider(cfg)
 		if err != nil {
-			return "", err
+			return nil, "", err
 		}
-		return provider.GetAccountId(), nil
-	} else {
-		return "", ErrNoSuchProvder
+		return provider, provider.GetAccountId(), nil
 	}
+	return nil, "", ErrNoSuchProvder
 }
 
 type SBaseProvider struct {

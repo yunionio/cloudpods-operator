@@ -17,7 +17,7 @@ package compute
 import "yunion.io/x/onecloud/pkg/apis"
 
 type WireCreateInput struct {
-	apis.InfrasResourceBaseCreateInput
+	apis.StatusInfrasResourceBaseCreateInput
 
 	// 带宽大小,单位: Mbps
 	// default: 0
@@ -38,7 +38,7 @@ type WireCreateInput struct {
 }
 
 type WireDetails struct {
-	apis.InfrasResourceBaseDetails
+	apis.StatusInfrasResourceBaseDetails
 	VpcResourceInfo
 	ZoneResourceInfoBase
 
@@ -84,7 +84,7 @@ type WireUpdateInput struct {
 }
 
 type WireListInput struct {
-	apis.InfrasResourceBaseListInput
+	apis.StatusInfrasResourceBaseListInput
 	apis.ExternalizedResourceBaseListInput
 
 	VpcFilterListInput

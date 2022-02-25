@@ -28,7 +28,10 @@ import (
 	"k8s.io/klog"
 
 	"yunion.io/x/onecloud/pkg/mcclient"
-	"yunion.io/x/onecloud/pkg/mcclient/modules"
+	compute_modules "yunion.io/x/onecloud/pkg/mcclient/modules/compute"
+	identity_modules "yunion.io/x/onecloud/pkg/mcclient/modules/identity"
+	image_modules "yunion.io/x/onecloud/pkg/mcclient/modules/image"
+	scheduler_modules "yunion.io/x/onecloud/pkg/mcclient/modules/scheduler"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/util/apiclient"
@@ -124,7 +127,7 @@ func (w *OCWaiter) WaitForKeystone() error {
 			}
 			return false, nil
 		}
-		if _, err := modules.Policies.List(session, nil); err != nil {
+		if _, err := identity_modules.Policies.List(session, nil); err != nil {
 			return false, errors.Wrap(err, "Failed to get policy")
 		}
 		fmt.Printf("[keystone] healthy after %f seconds\n", time.Since(start).Seconds())
@@ -153,7 +156,7 @@ func (w *OCWaiter) waitForServiceHealthy(serviceName string, checkFunc func(*mcc
 
 func (w *OCWaiter) WaitForRegion() error {
 	return w.waitForServiceHealthy(constants.ServiceNameRegionV2, func(s *mcclient.ClientSession) (bool, error) {
-		_, err := modules.Servers.List(s, nil)
+		_, err := compute_modules.Servers.List(s, nil)
 		if err == nil {
 			return true, nil
 		}
@@ -164,7 +167,7 @@ func (w *OCWaiter) WaitForRegion() error {
 
 func (w *OCWaiter) WaitForScheduler() error {
 	return w.waitForServiceHealthy(constants.ServiceNameScheduler, func(s *mcclient.ClientSession) (bool, error) {
-		_, err := modules.SchedManager.HistoryList(s, nil)
+		_, err := scheduler_modules.SchedManager.HistoryList(s, nil)
 		if err == nil {
 			return true, nil
 		}
@@ -175,7 +178,7 @@ func (w *OCWaiter) WaitForScheduler() error {
 
 func (w *OCWaiter) WaitForGlance() error {
 	return w.waitForServiceHealthy(constants.ServiceNameGlance, func(s *mcclient.ClientSession) (bool, error) {
-		_, err := modules.Images.List(s, nil)
+		_, err := image_modules.Images.List(s, nil)
 		if err == nil {
 			return true, nil
 		}

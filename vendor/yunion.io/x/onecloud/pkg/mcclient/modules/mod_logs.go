@@ -14,15 +14,77 @@
 
 package modules
 
-import "yunion.io/x/onecloud/pkg/mcclient/modulebase"
+import (
+	"yunion.io/x/jsonutils"
 
-var (
-	Logs modulebase.ResourceManager
+	"yunion.io/x/onecloud/pkg/apis"
+	"yunion.io/x/onecloud/pkg/mcclient"
+	"yunion.io/x/onecloud/pkg/mcclient/modulebase"
 )
 
+type LogsManager struct {
+	modulebase.ResourceManager
+}
+
+var (
+	Logs           LogsManager
+	IdentityLogs   modulebase.ResourceManager
+	ImageLogs      modulebase.ResourceManager
+	ActionLogs     modulebase.ResourceManager
+	CloudeventLogs modulebase.ResourceManager
+	ComputeLogs    modulebase.ResourceManager
+)
+
+func (this *LogsManager) Get(session *mcclient.ClientSession, id string, params jsonutils.JSONObject) (jsonutils.JSONObject, error) {
+	service, _ := params.GetString("service")
+	switch service {
+	case apis.SERVICE_TYPE_LOG:
+		return ActionLogs.Get(session, id, params)
+	case apis.SERVICE_TYPE_IMAGE:
+		return ImageLogs.Get(session, id, params)
+	case apis.SERVICE_TYPE_KEYSTONE:
+		return IdentityLogs.Get(session, id, params)
+	case apis.SERVICE_TYPE_CLOUDEVENT:
+		return CloudeventLogs.Get(session, id, params)
+	default:
+		return ComputeLogs.Get(session, id, params)
+	}
+}
+
+func (this *LogsManager) PerformClassAction(session *mcclient.ClientSession, action string, params jsonutils.JSONObject) (jsonutils.JSONObject, error) {
+	service, _ := params.GetString("service")
+	switch service {
+	case apis.SERVICE_TYPE_LOG:
+		return ActionLogs.PerformClassAction(session, action, params)
+	case apis.SERVICE_TYPE_IMAGE:
+		return ImageLogs.PerformClassAction(session, action, params)
+	case apis.SERVICE_TYPE_KEYSTONE:
+		return IdentityLogs.PerformClassAction(session, action, params)
+	case apis.SERVICE_TYPE_CLOUDEVENT:
+		return CloudeventLogs.PerformClassAction(session, action, params)
+	default:
+		return ComputeLogs.PerformClassAction(session, action, params)
+	}
+}
+
 func init() {
-	Logs = NewComputeManager("event", "events",
+	IdentityLogs = NewIdentityV3Manager("event", "events",
 		[]string{"id", "ops_time", "obj_id", "obj_type", "obj_name", "user", "user_id", "tenant", "tenant_id", "owner_tenant_id", "action", "notes"},
 		[]string{})
-	registerCompute(&Logs)
+	ImageLogs = NewImageManager("event", "events",
+		[]string{"id", "ops_time", "obj_id", "obj_type", "obj_name", "user", "user_id", "tenant", "tenant_id", "owner_tenant_id", "action", "notes"},
+		[]string{})
+	ActionLogs = NewActionManager("event", "events",
+		[]string{"id", "ops_time", "obj_id", "obj_type", "obj_name", "user", "user_id", "tenant", "tenant_id", "owner_tenant_id", "action", "notes"},
+		[]string{})
+	CloudeventLogs = NewCloudeventManager("event", "events",
+		[]string{"id", "ops_time", "obj_id", "obj_type", "obj_name", "user", "user_id", "tenant", "tenant_id", "owner_tenant_id", "action", "notes"},
+		[]string{})
+	ComputeLogs = NewComputeManager("event", "events",
+		[]string{"id", "ops_time", "obj_id", "obj_type", "obj_name", "user", "user_id", "tenant", "tenant_id", "owner_tenant_id", "action", "notes"},
+		[]string{})
+	ComputeLogs.SetApiVersion(mcclient.V2_API_VERSION)
+
+	Logs = LogsManager{ComputeLogs}
+	register(&Logs)
 }

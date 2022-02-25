@@ -386,6 +386,8 @@ type GuestLiveMigrateInput struct {
 	PreferHost string `json:"prefer_host"`
 	// 是否跳过CPU检查，默认要做CPU检查
 	SkipCpuCheck *bool `json:"skip_cpu_check"`
+	// 是否跳过kernel检查
+	SkipKernelCheck *bool `json:"skip_kernel_check"`
 	// 是否启用 tls
 	EnableTLS *bool `json:"enable_tls"`
 }
@@ -554,9 +556,10 @@ type ServerDetachnetworkInput struct {
 type ServerMigrateForecastInput struct {
 	PreferHostId string `json:"prefer_host_id"`
 	// Deprecated
-	PreferHost   string `json:"prefer_host" yunion-deprecated-by:"prefer_host_id"`
-	LiveMigrate  bool   `json:"live_migrate"`
-	SkipCpuCheck bool   `josn:"skip_cpu_check"`
+	PreferHost      string `json:"prefer_host" yunion-deprecated-by:"prefer_host_id"`
+	LiveMigrate     bool   `json:"live_migrate"`
+	SkipCpuCheck    bool   `json:"skip_cpu_check"`
+	SkipKernelCheck bool   `json:"skip_kernel_check"`
 }
 
 type ServerResizeDiskInput struct {
@@ -663,6 +666,7 @@ type ServerUpdateInput struct {
 
 type GuestJsonDesc struct {
 	Name        string `json:"name"`
+	Hostname    string `json:"hostname"`
 	Description string `json:"description"`
 	UUID        string `json:"uuid"`
 	Mem         int    `json:"mem"`
@@ -792,4 +796,18 @@ type ServerInstanceSnapshot struct {
 type ServerCreateSnapshotParams struct {
 	Name         string `json:"name"`
 	GenerateName string `json:"generate_name"`
+}
+
+type ServerCPUSetInput struct {
+	// Specifies the CPUs that tasks in this cgroup are permitted to access.
+	CPUS []int `json:"cpus"`
+}
+
+type ServerCPUSetResp struct{}
+
+type ServerCPUSetRemoveInput struct{}
+
+type ServerCPUSetRemoveResp struct {
+	Done  bool   `json:"done"`
+	Error string `json:"error"`
 }

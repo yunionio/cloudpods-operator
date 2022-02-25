@@ -5,7 +5,6 @@ go 1.12
 require (
 	github.com/docker/distribution v0.0.0-20170726174610-edc3ab29cdff
 	github.com/go-sql-driver/mysql v1.5.0
-	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/minio/minio-go/v7 v7.0.6
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/pborman/uuid v1.2.0
@@ -14,7 +13,6 @@ require (
 	go.etcd.io/etcd/client/pkg/v3 v3.5.0
 	go.etcd.io/etcd/client/v3 v3.5.0
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20210910150752-751e447fb3d0 // indirect
 	k8s.io/api v0.23.4
 	k8s.io/apiextensions-apiserver v0.23.4
 	k8s.io/apimachinery v0.23.4
@@ -24,7 +22,7 @@ require (
 	yunion.io/x/log v0.0.0-20201210064738-43181789dc74
 	yunion.io/x/onecloud v0.0.0-20211230024531-348442d65f38
 	yunion.io/x/pkg v0.0.0-20211116020154-6a76ba2f7e97
-	yunion.io/x/structarg v0.0.0-20200720093445-9f850fa222ce
+	yunion.io/x/structarg v0.0.0-20220224030024-02b7582b2546
 )
 
 replace (

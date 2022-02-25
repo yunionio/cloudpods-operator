@@ -20,6 +20,7 @@ import (
 
 	"yunion.io/x/jsonutils"
 
+	api "yunion.io/x/onecloud/pkg/apis/compute"
 	"yunion.io/x/onecloud/pkg/cloudprovider"
 )
 
@@ -117,7 +118,9 @@ type SCloudAccountCreateBaseOptions struct {
 
 	SamlAuth string `help:"Enable or disable saml auth" choices:"true|false"`
 
-	ProxySetting string `help:"proxy setting id or name" json:"proxy_setting"`
+	ProxySetting    string `help:"proxy setting id or name" json:"proxy_setting"`
+	DryRun          bool   `help:"test create cloudaccount params"`
+	ShowSubAccounts bool   `help:"test and show subaccount info"`
 }
 
 type SVMwareCloudAccountCreateOptions struct {
@@ -937,11 +940,8 @@ func (opts *CloudaccountUpdateCredentialOptions) Params() (jsonutils.JSONObject,
 
 type CloudaccountSyncOptions struct {
 	SCloudAccountIdOptions
-	Force    bool     `help:"Force sync no matter what"`
-	FullSync bool     `help:"Synchronize everything"`
-	Region   []string `help:"region to sync"`
-	Zone     []string `help:"region to sync"`
-	Host     []string `help:"region to sync"`
+
+	api.SyncRangeInput
 }
 
 func (opts *CloudaccountSyncOptions) Params() (jsonutils.JSONObject, error) {
@@ -1069,4 +1069,29 @@ func (opts *SNutanixCloudAccountUpdateCredentialOptions) Params() (jsonutils.JSO
 
 type SNutanixCloudAccountUpdateOptions struct {
 	SCloudAccountUpdateBaseOptions
+}
+
+type SBingoCloudAccountCreateOptions struct {
+	SCloudAccountCreateBaseOptions
+	Endpoint string
+	SAccessKeyCredential
+}
+
+func (opts *SBingoCloudAccountCreateOptions) Params() (jsonutils.JSONObject, error) {
+	params := jsonutils.Marshal(opts)
+	params.(*jsonutils.JSONDict).Add(jsonutils.NewString("BingoCloud"), "provider")
+	return params, nil
+}
+
+type SBingoCloudAccountUpdateOptions struct {
+	SCloudAccountUpdateBaseOptions
+}
+
+type SBingoCloudAccountUpdateCredentialOptions struct {
+	SCloudAccountIdOptions
+	SAccessKeyCredential
+}
+
+func (opts *SBingoCloudAccountUpdateCredentialOptions) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.Marshal(opts.SAccessKeyCredential), nil
 }

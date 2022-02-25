@@ -189,6 +189,9 @@ type ICloudRegion interface {
 
 	GetICloudApps() ([]ICloudApp, error)
 	GetICloudAppById(id string) (ICloudApp, error)
+
+	GetICloudKubeClusters() ([]ICloudKubeCluster, error)
+	GetICloudKubeClusterById(id string) (ICloudKubeCluster, error)
 }
 
 type ICloudZone interface {
@@ -241,7 +244,7 @@ type ICloudStoragecache interface {
 
 	DownloadImage(userCred mcclient.TokenCredential, imageId string, extId string, path string) (jsonutils.JSONObject, error)
 
-	UploadImage(ctx context.Context, userCred mcclient.TokenCredential, image *SImageCreateOption, isForce bool) (string, error)
+	UploadImage(ctx context.Context, userCred mcclient.TokenCredential, image *SImageCreateOption, callback func(float32)) (string, error)
 }
 
 type ICloudStorage interface {
@@ -316,6 +319,7 @@ type ICloudVM interface {
 
 	ConvertPublicIpToEip() error
 
+	GetHostname() string
 	GetIHost() ICloudHost
 	GetIHostId() string
 
@@ -363,7 +367,7 @@ type ICloudVM interface {
 
 	ChangeConfig(ctx context.Context, config *SManagedVMChangeConfig) error
 
-	GetVNCInfo() (jsonutils.JSONObject, error)
+	GetVNCInfo(input *ServerVncInput) (*ServerVncOutput, error)
 	AttachDisk(ctx context.Context, diskId string) error
 	DetachDisk(ctx context.Context, diskId string) error
 
@@ -390,7 +394,7 @@ type ICloudNic interface {
 	GetMAC() string
 	InClassicNetwork() bool
 	GetDriver() string
-	GetINetwork() ICloudNetwork
+	GetINetworkId() string
 
 	// GetSubAddress returns non-primary/secondary/alias ipv4 addresses of
 	// the network interface
@@ -411,12 +415,12 @@ type DummyICloudNic struct{}
 
 var _ ICloudNic = DummyICloudNic{}
 
-func (d DummyICloudNic) GetId() string              { panic(errors.ErrNotImplemented) }
-func (d DummyICloudNic) GetIP() string              { panic(errors.ErrNotImplemented) }
-func (d DummyICloudNic) GetMAC() string             { panic(errors.ErrNotImplemented) }
-func (d DummyICloudNic) InClassicNetwork() bool     { panic(errors.ErrNotImplemented) }
-func (d DummyICloudNic) GetDriver() string          { panic(errors.ErrNotImplemented) }
-func (d DummyICloudNic) GetINetwork() ICloudNetwork { panic(errors.ErrNotImplemented) }
+func (d DummyICloudNic) GetId() string          { panic(errors.ErrNotImplemented) }
+func (d DummyICloudNic) GetIP() string          { panic(errors.ErrNotImplemented) }
+func (d DummyICloudNic) GetMAC() string         { panic(errors.ErrNotImplemented) }
+func (d DummyICloudNic) InClassicNetwork() bool { panic(errors.ErrNotImplemented) }
+func (d DummyICloudNic) GetDriver() string      { panic(errors.ErrNotImplemented) }
+func (d DummyICloudNic) GetINetworkId() string  { panic(errors.ErrNotImplemented) }
 func (d DummyICloudNic) GetSubAddress() ([]string, error) {
 	return nil, nil
 }
@@ -843,6 +847,8 @@ type ICloudProject interface {
 
 	GetDomainId() string
 	GetDomainName() string
+
+	GetAccountId() string
 }
 
 type ICloudNatGateway interface {
@@ -1520,4 +1526,25 @@ type ICloudCDNDomain interface {
 	GetOrigins() *SCdnOrigins
 
 	Delete() error
+}
+
+type ICloudKubeCluster interface {
+	ICloudEnabledResource
+
+	GetKubeConfig(private bool, expireMinutes int) (*SKubeconfig, error)
+
+	GetIKubeNodePools() ([]ICloudKubeNodePool, error)
+	GetIKubeNodes() ([]ICloudKubeNode, error)
+
+	Delete(isRetain bool) error
+}
+
+type ICloudKubeNode interface {
+	ICloudResource
+
+	GetINodePoolId() string
+}
+
+type ICloudKubeNodePool interface {
+	ICloudResource
 }

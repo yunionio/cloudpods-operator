@@ -348,6 +348,7 @@ type HostCreateInput struct {
 	apis.EnabledStatusInfrasResourceBaseCreateInput
 
 	ZoneResourceInput
+	HostnameInput
 
 	HostAccessAttributes
 	HostSizeAttributes

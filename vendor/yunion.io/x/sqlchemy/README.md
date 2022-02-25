@@ -11,11 +11,46 @@ Features
 
 * Automatic creation and synchronization of table schema based on golang struct
 * Query syntax inpired by sqlalchemy
-* Support MySQL/MariaDB with InnoDB engine ONLY
-* Support select, insert, update and insert or update
+* Support: MySQL/MariaDB with InnoDB engine / Sqlite (Exprimental) / ClickHouse (Exprimental) 
+* Support select, insert, update and insertOrupdate (no delete)
 
 Quick Examples
 ----------------
+
+## Database initialization
+
+Before using sqlchemy, database connection should be setup first.
+
+### Setup database of default backend(MySQL with InnoDB)
+
+```go
+dbconn := sql.Open("mysql", "testgo:openstack@tcp(127.0.0.1:3306)/testgo?charset=utf8&parseTime")
+
+sqlchemy.SetDefaultDB(dbconn)
+```
+
+### Setup database of MySQL with InnoDB explicitly
+
+```go
+dbconn := sql.Open("mysql", "testgo:openstack@tcp(127.0.0.1:3306)/testgo?charset=utf8&parseTime")
+
+sqlchemy.SetDBWithNameBackend(dbconn, sqlchemy.DBName("mysqldb"), sqlchemy.MySQLBackend)
+```
+### Setup database of SQLite
+
+```go
+dbconn := sql.Open("sqlite3", "file:mydb.s3db?cache=shared&mode=rwc")
+
+sqlchemy.SetDBWithNameBackend(dbconn, sqlchemy.DBName("sqlitedb"), sqlchemy.SQLiteBackend)
+```
+
+### Setup database of ClickHouse
+
+```go
+dbconn := sql.Open("clickhouse", "tcp://host1:9000?username=user&password=qwerty&database=clicks")
+
+sqlchemy.SetDBWithNameBackend(dbconn, sqlchemy.DBName("clickhousedb"), sqlchemy.ClickhouseBackend)
+```
 
 ## Table Schema
 
@@ -36,7 +71,7 @@ type TestTable struct {
     Deleted   bool                 `nullable:"false" default:"false"`
     Notes     string               `default:"default notes"`
 }
-````
+```
 
 ## Table initialization
 
@@ -44,6 +79,10 @@ Create a table from a struct schema
 
 ```go
 tablespec := sqlchemy.NewTableSpecFromStruct(TestTable{}, "testtable")
+```
+
+```go
+tablespec := sqlchemy.NewTableSpecFromStructWithDBName(TestTable{}, "testtable", sqlchemy.DBName("mydb"))
 ```
 
 Check whether table schema definition is consistent with schema in database.
