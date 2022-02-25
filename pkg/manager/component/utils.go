@@ -31,8 +31,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
-	"k8s.io/kubernetes/cmd/kubeadm/app/util/apiclient"
-	deploymentutil "k8s.io/kubernetes/pkg/kubectl/util/deployment"
 
 	"yunion.io/x/pkg/util/reflectutils"
 	"yunion.io/x/structarg"
@@ -40,6 +38,8 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
+	"yunion.io/x/onecloud-operator/pkg/util/apiclient"
+	deploymentutil "yunion.io/x/onecloud-operator/pkg/util/deployment"
 	"yunion.io/x/onecloud-operator/pkg/util/mysql"
 	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 	"yunion.io/x/onecloud/pkg/cloudcommon/options"

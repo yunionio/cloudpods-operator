@@ -2,8 +2,11 @@ package pkiutil
 
 import (
 	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	cryptorand "crypto/rand"
+	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"fmt"
@@ -15,7 +18,6 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/validation"
 	certutil "k8s.io/client-go/util/cert"
-	"k8s.io/kubernetes/cmd/kubeadm/app/util/pkiutil"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -26,12 +28,38 @@ const (
 	duration365d = oneday * 365
 )
 
-var (
-	NewPrivateKey       = pkiutil.NewPrivateKey
-	EncodeCertPEM       = pkiutil.EncodeCertPEM
-	TryLoadCertFromDisk = pkiutil.TryLoadCertFromDisk
-	TryLoadKeyFromDisk  = pkiutil.TryLoadKeyFromDisk
+const (
+	// PrivateKeyBlockType is a possible value for pem.Block.Type.
+	PrivateKeyBlockType = "PRIVATE KEY"
+	// PublicKeyBlockType is a possible value for pem.Block.Type.
+	PublicKeyBlockType = "PUBLIC KEY"
+	// CertificateBlockType is a possible value for pem.Block.Type.
+	CertificateBlockType = "CERTIFICATE"
+	// RSAPrivateKeyBlockType is a possible value for pem.Block.Type.
+	RSAPrivateKeyBlockType = "RSA PRIVATE KEY"
+	rsaKeySize             = 2048
 )
+
+var (
+	NewPrivateKey = GeneratePrivateKey
+)
+
+// EncodeCertPEM returns PEM-endcoded certificate data
+func EncodeCertPEM(cert *x509.Certificate) []byte {
+	block := pem.Block{
+		Type:  CertificateBlockType,
+		Bytes: cert.Raw,
+	}
+	return pem.EncodeToMemory(&block)
+}
+
+func GeneratePrivateKey(keyType x509.PublicKeyAlgorithm) (crypto.Signer, error) {
+	if keyType == x509.ECDSA {
+		return ecdsa.GenerateKey(elliptic.P256(), cryptorand.Reader)
+	}
+
+	return rsa.GenerateKey(cryptorand.Reader, rsaKeySize)
+}
 
 // NewCertificateAuthority creates new certificate and private key for the certificate authority
 func NewCertificateAuthority(config *certutil.Config) (*x509.Certificate, crypto.Signer, error) {
