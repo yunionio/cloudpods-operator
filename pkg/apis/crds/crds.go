@@ -23,6 +23,7 @@ import (
 )
 
 var (
+	trueObj            = true
 	OnecloudClusterCRD = &apiextensionsv1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: api.OnecloudClusterCRDName,
@@ -39,22 +40,10 @@ var (
 							Type: "object",
 							Properties: map[string]apiextensionsv1.JSONSchemaProps{
 								"spec": {
-									Type: "object",
-									Properties: map[string]apiextensionsv1.JSONSchemaProps{
-										"mysql": {
-											Type: "object",
-											Properties: map[string]apiextensionsv1.JSONSchemaProps{
-												"host": {
-													Type:     "string",
-													Nullable: false,
-												},
-												"password": {
-													Type:     "string",
-													Nullable: false,
-												},
-											},
-										},
-									},
+									XPreserveUnknownFields: &trueObj,
+								},
+								"status": {
+									XPreserveUnknownFields: &trueObj,
 								},
 							},
 						},
@@ -77,6 +66,63 @@ var (
 			},
 		},
 	}
+
+	/*
+	 * OnecloudClusterCRD = &apiextensionsv1.CustomResourceDefinition{
+	 * 	ObjectMeta: metav1.ObjectMeta{
+	 * 		Name: api.OnecloudClusterCRDName,
+	 * 	},
+	 * 	Spec: apiextensionsv1.CustomResourceDefinitionSpec{
+	 * 		Group: api.SchemeGroupVersion.Group,
+	 * 		Versions: []apiextensionsv1.CustomResourceDefinitionVersion{
+	 * 			{
+	 * 				Name:    api.SchemeGroupVersion.Version,
+	 * 				Served:  true,
+	 * 				Storage: true,
+	 * 				Schema: &apiextensionsv1.CustomResourceValidation{
+	 * 					OpenAPIV3Schema: &apiextensionsv1.JSONSchemaProps{
+	 * 						Type: "object",
+	 * 						Properties: map[string]apiextensionsv1.JSONSchemaProps{
+	 * 							"spec": {
+	 * 								Type: "object",
+	 * 								Properties: map[string]apiextensionsv1.JSONSchemaProps{
+	 * 									"mysql": {
+	 * 										Type: "object",
+	 * 										Properties: map[string]apiextensionsv1.JSONSchemaProps{
+	 * 											"host": {
+	 * 												Type:     "string",
+	 * 												Nullable: false,
+	 * 											},
+	 * 											"password": {
+	 * 												Type:     "string",
+	 * 												Nullable: false,
+	 * 											},
+	 * 										},
+	 * 									},
+	 * 								},
+	 * 							},
+	 * 						},
+	 * 					},
+	 * 				},
+	 * 				AdditionalPrinterColumns: []apiextensionsv1.CustomResourceColumnDefinition{
+	 * 					{
+	 * 						Name:        api.KeystoneComponentType.String(),
+	 * 						Type:        "string",
+	 * 						Description: "The image for keystone service",
+	 * 						JSONPath:    ".spec.keystone.image",
+	 * 					},
+	 * 				},
+	 * 			},
+	 * 		},
+	 * 		Scope: apiextensionsv1.NamespaceScoped,
+	 * 		Names: apiextensionsv1.CustomResourceDefinitionNames{
+	 * 			Plural:     api.OnecloudClusterResourcePlural,
+	 * 			Kind:       api.OnecloudClusterResourceKind,
+	 * 			ShortNames: []string{"onecloud", "oc"},
+	 * 		},
+	 * 	},
+	 * }
+	 */
 
 	OnecloudClusterCRDV1Beta1 = &apiextensionsv1beta1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
