@@ -15,13 +15,14 @@
 package k8s
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
 	"time"
 
 	"github.com/pkg/errors"
-	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,19 +53,19 @@ func InClusterConfig() (*rest.Config, error) {
 
 func CreateOrUpdateCRD(
 	clientset apiextensionsclient.Interface,
-	crd *apiextensionsv1beta1.CustomResourceDefinition,
+	crd *apiextensionsv1.CustomResourceDefinition,
 ) error {
-	if _, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Create(crd); err != nil {
+	if _, err := clientset.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), crd, metav1.CreateOptions{}); err != nil {
 		if !IsKubernetesResourceAlreadyExistError(err) {
 			return errors.Wrapf(err, "unable to create crd %s", crd.GetName())
 		}
-		oldCrd, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Get(crd.GetName(), metav1.GetOptions{})
+		oldCrd, err := clientset.ApiextensionsV1().CustomResourceDefinitions().Get(context.Background(), crd.GetName(), metav1.GetOptions{})
 		if err != nil {
 			return errors.Wrapf(err, "unable to get crd %s", crd.GetName())
 		}
 		newCrd := oldCrd.DeepCopy()
 		newCrd.Spec = crd.Spec
-		if _, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Update(newCrd); err != nil {
+		if _, err := clientset.ApiextensionsV1().CustomResourceDefinitions().Update(context.Background(), newCrd, metav1.UpdateOptions{}); err != nil {
 			return errors.Wrapf(err, "unable to update crd %s", newCrd.GetName())
 		}
 	}
@@ -73,18 +74,18 @@ func CreateOrUpdateCRD(
 
 func WaitCRDReady(clientset apiextensionsclient.Interface, crdName string) error {
 	err := retryutil.Retry(5*time.Second, 20, func() (bool, error) {
-		crd, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Get(crdName, metav1.GetOptions{})
+		crd, err := clientset.ApiextensionsV1().CustomResourceDefinitions().Get(context.Background(), crdName, metav1.GetOptions{})
 		if err != nil {
 			return false, err
 		}
 		for _, cond := range crd.Status.Conditions {
 			switch cond.Type {
-			case apiextensionsv1beta1.Established:
-				if cond.Status == apiextensionsv1beta1.ConditionTrue {
+			case apiextensionsv1.Established:
+				if cond.Status == apiextensionsv1.ConditionTrue {
 					return true, nil
 				}
-			case apiextensionsv1beta1.NamesAccepted:
-				if cond.Status == apiextensionsv1beta1.ConditionFalse {
+			case apiextensionsv1.NamesAccepted:
+				if cond.Status == apiextensionsv1.ConditionFalse {
 					return false, fmt.Errorf("name conflict: %v", cond.Reason)
 				}
 			}

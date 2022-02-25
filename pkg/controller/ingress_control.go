@@ -15,9 +15,12 @@
 package controller
 
 import (
+	"context"
 	"fmt"
+
 	extensions "k8s.io/api/extensions/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	listers "k8s.io/client-go/listers/extensions/v1beta1"
@@ -46,7 +49,7 @@ func NewIngressControl(kubeCli kubernetes.Interface, ingressLister listers.Ingre
 }
 
 func (c *realIngressControl) CreateIngress(oc *v1alpha1.OnecloudCluster, ing *extensions.Ingress) error {
-	_, err := c.kubeCli.ExtensionsV1beta1().Ingresses(oc.Namespace).Create(ing)
+	_, err := c.kubeCli.ExtensionsV1beta1().Ingresses(oc.Namespace).Create(context.Background(), ing, metav1.CreateOptions{})
 	if apierrors.IsAlreadyExists(err) {
 		return err
 	}
@@ -62,7 +65,7 @@ func (c *realIngressControl) UpdateIngress(oc *v1alpha1.OnecloudCluster, ing *ex
 	var updatedIng *extensions.Ingress
 	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		var updateErr error
-		updatedIng, updateErr = c.kubeCli.ExtensionsV1beta1().Ingresses(ns).Update(ing)
+		updatedIng, updateErr = c.kubeCli.ExtensionsV1beta1().Ingresses(ns).Update(context.Background(), ing, metav1.UpdateOptions{})
 		if updateErr == nil {
 			klog.Infof("OnecloudCluster: [%s/%s]'s Ingress: [%s/%s] updated successfully", ns, ocName, ns, ingName)
 			return nil
@@ -83,7 +86,7 @@ func (c *realIngressControl) UpdateIngress(oc *v1alpha1.OnecloudCluster, ing *ex
 }
 
 func (c *realIngressControl) DeleteIngress(oc *v1alpha1.OnecloudCluster, ing *extensions.Ingress) error {
-	err := c.kubeCli.ExtensionsV1beta1().Ingresses(oc.GetNamespace()).Delete(ing.Name, nil)
+	err := c.kubeCli.ExtensionsV1beta1().Ingresses(oc.GetNamespace()).Delete(context.Background(), ing.Name, metav1.DeleteOptions{})
 	c.RecordDeleteEvent(oc, ing, err)
 	return err
 }

@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"crypto/x509"
 	"fmt"
 	"net"
@@ -132,7 +133,7 @@ func getClientAltNames(oc *v1alpha1.OnecloudCluster, serviceName string, certNam
 
 func (c *realOnecloudCertControl) CreateEtcdCert(oc *v1alpha1.OnecloudCluster) error {
 	for _, secretName := range []string{constants.EtcdServerSecret, constants.EtcdClientSecret, constants.EtcdPeerSecret} {
-		err := c.kubeCli.CoreV1().Secrets(oc.GetNamespace()).Delete(secretName, new(metav1.DeleteOptions))
+		err := c.kubeCli.CoreV1().Secrets(oc.GetNamespace()).Delete(context.Background(), secretName, metav1.DeleteOptions{})
 		if err != nil {
 			log.Errorf("Delete secret %s failed: %s", secretName, err)
 		}
@@ -161,7 +162,7 @@ func (c *realOnecloudCertControl) CreateEtcdCert(oc *v1alpha1.OnecloudCluster) e
 		return err
 	}
 	certSecret := newEtcdSecretFromStore(oc, constants.EtcdServerSecret, store)
-	_, err = c.kubeCli.CoreV1().Secrets(oc.GetNamespace()).Create(certSecret)
+	_, err = c.kubeCli.CoreV1().Secrets(oc.GetNamespace()).Create(context.Background(), certSecret, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -180,7 +181,7 @@ func (c *realOnecloudCertControl) CreateEtcdCert(oc *v1alpha1.OnecloudCluster) e
 		return err
 	}
 	certSecret = newEtcdSecretFromStore(oc, constants.EtcdClientSecret, store)
-	_, err = c.kubeCli.CoreV1().Secrets(oc.GetNamespace()).Create(certSecret)
+	_, err = c.kubeCli.CoreV1().Secrets(oc.GetNamespace()).Create(context.Background(), certSecret, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -199,7 +200,7 @@ func (c *realOnecloudCertControl) CreateEtcdCert(oc *v1alpha1.OnecloudCluster) e
 		return err
 	}
 	certSecret = newEtcdSecretFromStore(oc, constants.EtcdPeerSecret, store)
-	_, err = c.kubeCli.CoreV1().Secrets(oc.GetNamespace()).Create(certSecret)
+	_, err = c.kubeCli.CoreV1().Secrets(oc.GetNamespace()).Create(context.Background(), certSecret, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}

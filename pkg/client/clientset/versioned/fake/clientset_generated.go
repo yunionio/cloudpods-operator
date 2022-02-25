@@ -74,7 +74,10 @@ func (c *Clientset) Tracker() testing.ObjectTracker {
 	return c.tracker
 }
 
-var _ clientset.Interface = &Clientset{}
+var (
+	_ clientset.Interface = &Clientset{}
+	_ testing.FakeClient  = &Clientset{}
+)
 
 // OnecloudV1alpha1 retrieves the OnecloudV1alpha1Client
 func (c *Clientset) OnecloudV1alpha1() onecloudv1alpha1.OnecloudV1alpha1Interface {

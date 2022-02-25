@@ -15,10 +15,12 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	corelisters "k8s.io/client-go/listers/core/v1"
@@ -52,7 +54,7 @@ func NewServiceControl(kubeCli kubernetes.Interface, svcLister corelisters.Servi
 }
 
 func (c *realServiceControl) CreateService(oc *v1alpha1.OnecloudCluster, svc *corev1.Service) error {
-	_, err := c.kubeCli.CoreV1().Services(oc.Namespace).Create(svc)
+	_, err := c.kubeCli.CoreV1().Services(oc.Namespace).Create(context.Background(), svc, metav1.CreateOptions{})
 	if apierrors.IsAlreadyExists(err) {
 		return err
 	}
@@ -69,7 +71,7 @@ func (c *realServiceControl) UpdateService(oc *v1alpha1.OnecloudCluster, svc *co
 	var updateSvc *corev1.Service
 	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		var updateErr error
-		updateSvc, updateErr = c.kubeCli.CoreV1().Services(ns).Update(svc)
+		updateSvc, updateErr = c.kubeCli.CoreV1().Services(ns).Update(context.Background(), svc, metav1.UpdateOptions{})
 		if updateErr == nil {
 			klog.Infof("update Service: [%s/%s] successfully, cluster: %s", ns, svcName, ocName)
 			return nil
@@ -89,7 +91,7 @@ func (c *realServiceControl) UpdateService(oc *v1alpha1.OnecloudCluster, svc *co
 }
 
 func (c *realServiceControl) DeleteService(oc *v1alpha1.OnecloudCluster, svc *corev1.Service) error {
-	err := c.kubeCli.CoreV1().Services(oc.Namespace).Delete(svc.Name, nil)
+	err := c.kubeCli.CoreV1().Services(oc.Namespace).Delete(context.Background(), svc.Name, metav1.DeleteOptions{})
 	c.RecordDeleteEvent(oc, svc, err)
 	return err
 }

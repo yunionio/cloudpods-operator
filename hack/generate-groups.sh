@@ -46,11 +46,11 @@ APIS_PKG="$3"
 GROUPS_WITH_VERSIONS="$4"
 shift 4
 
-GO111MODULE=on go get k8s.io/code-generator/cmd/defaulter-gen@kubernetes-1.15.1
-GO111MODULE=on go get k8s.io/code-generator/cmd/client-gen@kubernetes-1.15.1
-GO111MODULE=on go get k8s.io/code-generator/cmd/lister-gen@kubernetes-1.15.1
-GO111MODULE=on go get k8s.io/code-generator/cmd/informer-gen@kubernetes-1.15.1
-GO111MODULE=on go get k8s.io/code-generator/cmd/deepcopy-gen@kubernetes-1.15.1
+GO111MODULE=on go get k8s.io/code-generator/cmd/defaulter-gen@v0.23.4
+GO111MODULE=on go get k8s.io/code-generator/cmd/client-gen@v0.23.4
+GO111MODULE=on go get k8s.io/code-generator/cmd/lister-gen@v0.23.4
+GO111MODULE=on go get k8s.io/code-generator/cmd/informer-gen@v0.23.4
+GO111MODULE=on go get k8s.io/code-generator/cmd/deepcopy-gen@v0.23.4
 
 # (
 #   # To support running this script from anywhere, we have to first cd into this directory

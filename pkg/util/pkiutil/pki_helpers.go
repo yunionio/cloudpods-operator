@@ -9,6 +9,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/pem"
 	"fmt"
 	"math"
 	"math/big"
@@ -63,7 +64,7 @@ func GeneratePrivateKey(keyType x509.PublicKeyAlgorithm) (crypto.Signer, error) 
 
 // NewCertificateAuthority creates new certificate and private key for the certificate authority
 func NewCertificateAuthority(config *certutil.Config) (*x509.Certificate, crypto.Signer, error) {
-	key, err := NewPrivateKey()
+	key, err := NewPrivateKey(x509.RSA)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "unable to create private key")
 	}
@@ -78,7 +79,7 @@ func NewCertificateAuthority(config *certutil.Config) (*x509.Certificate, crypto
 
 // NewCertAndKey creates new certificate and key by passing the certificate authority certificate and key
 func NewCertAndKey(caCert *x509.Certificate, caKey crypto.Signer, config *certutil.Config) (*x509.Certificate, crypto.Signer, error) {
-	key, err := NewPrivateKey()
+	key, err := NewPrivateKey(x509.RSA)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "unable to create private key")
 	}

@@ -95,6 +95,9 @@ const (
 	VM_SNAPSHOT_RESET_FAILED     = "snapshot_reset_failed"
 	VM_SNAPSHOT_AND_CLONE_FAILED = "clone_from_snapshot_failed"
 
+	VM_START_INSTANCE_BACKUP  = "start_instance_backup"
+	VM_INSTANCE_BACKUP_FAILED = "instance_backup_failed"
+
 	VM_SYNC_CONFIG = "sync_config"
 	VM_SYNC_FAIL   = "sync_fail"
 
@@ -175,6 +178,7 @@ const (
 	HYPERVISOR_ECLOUD    = "ecloud"
 	HYPERVISOR_JDCLOUD   = "jdcloud"
 	HYPERVISOR_CLOUDPODS = "cloudpods"
+	HYPERVISOR_NUTANIX   = "nutanix"
 
 	//	HYPERVISOR_DEFAULT = HYPERVISOR_KVM
 	HYPERVISOR_DEFAULT = HYPERVISOR_KVM
@@ -222,6 +226,7 @@ var HYPERVISORS = []string{
 	HYPERVISOR_ECLOUD,
 	HYPERVISOR_JDCLOUD,
 	HYPERVISOR_CLOUDPODS,
+	HYPERVISOR_NUTANIX,
 }
 
 var ONECLOUD_HYPERVISORS = []string{
@@ -249,6 +254,7 @@ var PRIVATE_CLOUD_HYPERVISORS = []string{
 	HYPERVISOR_APSARA,
 	HYPERVISOR_CLOUDPODS,
 	HYPERVISOR_HCSO,
+	HYPERVISOR_NUTANIX,
 }
 
 // var HYPERVISORS = []string{HYPERVISOR_ALIYUN}
@@ -273,6 +279,7 @@ var HYPERVISOR_HOSTTYPE = map[string]string{
 	HYPERVISOR_ECLOUD:    HOST_TYPE_ECLOUD,
 	HYPERVISOR_JDCLOUD:   HOST_TYPE_JDCLOUD,
 	HYPERVISOR_CLOUDPODS: HOST_TYPE_CLOUDPODS,
+	HYPERVISOR_NUTANIX:   HOST_TYPE_NUTANIX,
 }
 
 var HOSTTYPE_HYPERVISOR = map[string]string{
@@ -295,6 +302,7 @@ var HOSTTYPE_HYPERVISOR = map[string]string{
 	HOST_TYPE_ECLOUD:     HYPERVISOR_ECLOUD,
 	HOST_TYPE_JDCLOUD:    HYPERVISOR_JDCLOUD,
 	HOST_TYPE_CLOUDPODS:  HYPERVISOR_CLOUDPODS,
+	HOST_TYPE_NUTANIX:    HYPERVISOR_NUTANIX,
 }
 
 const (
@@ -325,3 +333,7 @@ func Hypervisors2HostTypes(hypervisors []string) []string {
 	}
 	return hostTypes
 }
+
+// windows allow a maximal length of 15
+// http://support.microsoft.com/kb/909264
+const MAX_WINDOWS_COMPUTER_NAME_LENGTH = 15

@@ -15,6 +15,7 @@
 package crds
 
 import (
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -22,7 +23,53 @@ import (
 )
 
 var (
-	OnecloudClusterCRD = &apiextensionsv1beta1.CustomResourceDefinition{
+	OnecloudClusterCRD = &apiextensionsv1.CustomResourceDefinition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: api.OnecloudClusterCRDName,
+		},
+		Spec: apiextensionsv1.CustomResourceDefinitionSpec{
+			Group: api.SchemeGroupVersion.Group,
+			Versions: []apiextensionsv1.CustomResourceDefinitionVersion{
+				{
+					Name:    api.SchemeGroupVersion.Version,
+					Served:  true,
+					Storage: true,
+					Schema: &apiextensionsv1.CustomResourceValidation{
+						OpenAPIV3Schema: &apiextensionsv1.JSONSchemaProps{
+							Properties: map[string]apiextensionsv1.JSONSchemaProps{
+								"spec": {
+									Properties: map[string]apiextensionsv1.JSONSchemaProps{
+										"mysql": {
+											Properties: map[string]apiextensionsv1.JSONSchemaProps{
+												"host":     {Type: "string", Nullable: false},
+												"password": {Type: "string", Nullable: false},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+					AdditionalPrinterColumns: []apiextensionsv1.CustomResourceColumnDefinition{
+						{
+							Name:        api.KeystoneComponentType.String(),
+							Type:        "string",
+							Description: "The image for keystone service",
+							JSONPath:    ".spec.keystone.image",
+						},
+					},
+				},
+			},
+			Scope: apiextensionsv1.NamespaceScoped,
+			Names: apiextensionsv1.CustomResourceDefinitionNames{
+				Plural:     api.OnecloudClusterResourcePlural,
+				Kind:       api.OnecloudClusterResourceKind,
+				ShortNames: []string{"onecloud", "oc"},
+			},
+		},
+	}
+
+	OnecloudClusterCRDV1Beta1 = &apiextensionsv1beta1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: api.OnecloudClusterCRDName,
 		},

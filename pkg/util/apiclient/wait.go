@@ -51,12 +51,8 @@ type Waiter interface {
 	// WaitForStaticPodHashChange waits for the given static pod component's static pod hash to get updated.
 	// By doing that we can be sure that the kubelet has restarted the given Static Pod
 	WaitForStaticPodHashChange(nodeName, component, previousHash string) error
-	// WaitForStaticPodControlPlaneHashes fetches sha256 hashes for the control plane static pods
-	WaitForStaticPodControlPlaneHashes(nodeName string) (map[string]string, error)
 	// WaitForHealthyKubelet blocks until the kubelet /healthz endpoint returns 'ok'
 	WaitForHealthyKubelet(initialTimeout time.Duration, healthzEndpoint string) error
-	// WaitForKubeletAndFunc is a wrapper for WaitForHealthyKubelet that also blocks for a function
-	WaitForKubeletAndFunc(f func() error) error
 	// SetTimeout adjusts the timeout to the specified duration
 	SetTimeout(timeout time.Duration)
 }
@@ -158,53 +154,9 @@ func (w *KubeWaiter) WaitForHealthyKubelet(initialTimeout time.Duration, healthz
 	}, 5) // a failureThreshold of five means waiting for a total of 155 seconds
 }
 
-// WaitForKubeletAndFunc waits primarily for the function f to execute, even though it might take some time. If that takes a long time, and the kubelet
-// /healthz continuously are unhealthy, kubeadm will error out after a period of exponential backoff
-func (w *KubeWaiter) WaitForKubeletAndFunc(f func() error) error {
-	errorChan := make(chan error, 1)
-
-	go func(errC chan error, waiter Waiter) {
-		if err := waiter.WaitForHealthyKubelet(40*time.Second, fmt.Sprintf("http://localhost:%d/healthz", kubeadmconstants.KubeletHealthzPort)); err != nil {
-			errC <- err
-		}
-	}(errorChan, w)
-
-	go func(errC chan error, waiter Waiter) {
-		// This main goroutine sends whatever the f function returns (error or not) to the channel
-		// This in order to continue on success (nil error), or just fail if the function returns an error
-		errC <- f()
-	}(errorChan, w)
-
-	// This call is blocking until one of the goroutines sends to errorChan
-	return <-errorChan
-}
-
 // SetTimeout adjusts the timeout to the specified duration
 func (w *KubeWaiter) SetTimeout(timeout time.Duration) {
 	w.timeout = timeout
-}
-
-// WaitForStaticPodControlPlaneHashes blocks until it timeouts or gets a hash map for all components and their Static Pods
-func (w *KubeWaiter) WaitForStaticPodControlPlaneHashes(nodeName string) (map[string]string, error) {
-
-	componentHash := ""
-	var err error
-	mirrorPodHashes := map[string]string{}
-	for _, component := range kubeadmconstants.ControlPlaneComponents {
-		err = wait.PollImmediate(APICallRetryInterval, w.timeout, func() (bool, error) {
-			componentHash, err = getStaticPodSingleHash(w.client, nodeName, component)
-			if err != nil {
-				return false, nil
-			}
-			return true, nil
-		})
-		if err != nil {
-			return nil, err
-		}
-		mirrorPodHashes[component] = componentHash
-	}
-
-	return mirrorPodHashes, nil
 }
 
 // WaitForStaticPodSingleHash blocks until it timeouts or gets a hash for a single component and its Static Pod

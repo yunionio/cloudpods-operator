@@ -1,10 +1,12 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 
 	apps "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	appslisters "k8s.io/client-go/listers/apps/v1"
@@ -34,7 +36,7 @@ func NewDaemonSetControl(
 }
 
 func (c *daemonSetControl) CreateDaemonSet(oc *v1alpha1.OnecloudCluster, ds *apps.DaemonSet) error {
-	_, err := c.kubeCli.AppsV1().DaemonSets(oc.Namespace).Create(ds)
+	_, err := c.kubeCli.AppsV1().DaemonSets(oc.Namespace).Create(context.Background(), ds, metav1.CreateOptions{})
 	if apierrors.IsAlreadyExists(err) {
 		return err
 	}
@@ -43,7 +45,7 @@ func (c *daemonSetControl) CreateDaemonSet(oc *v1alpha1.OnecloudCluster, ds *app
 }
 
 func (c *daemonSetControl) DeleteDaemonSet(oc *v1alpha1.OnecloudCluster, ds *apps.DaemonSet) error {
-	err := c.kubeCli.AppsV1().DaemonSets(oc.Namespace).Delete(ds.Name, nil)
+	err := c.kubeCli.AppsV1().DaemonSets(oc.Namespace).Delete(context.Background(), ds.Name, metav1.DeleteOptions{})
 	c.RecordDeleteEvent(oc, ds, err)
 	return err
 }
@@ -58,7 +60,7 @@ func (c *daemonSetControl) UpdateDaemonSet(oc *v1alpha1.OnecloudCluster, ds *app
 	)
 	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		var updateErr error
-		updateDs, updateErr = c.kubeCli.AppsV1().DaemonSets(ns).Update(ds)
+		updateDs, updateErr = c.kubeCli.AppsV1().DaemonSets(ns).Update(context.Background(), ds, metav1.UpdateOptions{})
 		if updateErr == nil {
 			klog.Infof("OnecloudCluster: [%s/%s]'s DaemonSet: [%s/%s] updated successfully", ns, ocName, ns, dsName)
 			return nil

@@ -5,7 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 
-	"go.etcd.io/etcd/clientv3"
+	clientv3 "go.etcd.io/etcd/client/v3"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 )

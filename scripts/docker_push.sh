@@ -49,7 +49,7 @@ build_bin() {
         -v $SRC_DIR:/root/go/src/yunion.io/x/$PROJ \
         -v $SRC_DIR/_output/alpine-build:/root/go/src/yunion.io/x/$PROJ/_output \
         -v $SRC_DIR/_output/alpine-build/_cache:/root/.cache \
-        registry.cn-beijing.aliyuncs.com/yunionio/alpine-build:1.1-5 \
+        registry.cn-beijing.aliyuncs.com/yunionio/alpine-build:1.1-5-lzx \
         /bin/sh -c "set -ex; cd /root/go/src/yunion.io/x/$PROJ;
         $BUILD_ARCH $BUILD_CC $BUILD_CGO SHELL='sh -x' GOOS=linux make $component;
         chown -R $(id -u):$(id -g) _output;

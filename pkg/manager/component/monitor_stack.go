@@ -127,7 +127,7 @@ func (m *monitorStackManager) syncStandaloneMinio(
 	}
 
 	// get minio deployment status
-	ret, err := m.kubeCli.AppsV1().Deployments(constants.MonitorStackNamespace).Get(constants.MonitorMinioName, metav1.GetOptions{})
+	ret, err := m.kubeCli.AppsV1().Deployments(constants.MonitorStackNamespace).Get(context.Background(), constants.MonitorMinioName, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "get monitor-minio deployment")
 	}
@@ -157,7 +157,7 @@ func (m *monitorStackManager) syncDistributedMinio(
 
 	// get minio statefulset status
 	ssCli := m.kubeCli.AppsV1().StatefulSets(constants.MonitorStackNamespace)
-	ss, err := ssCli.Get(constants.MonitorMinioName, metav1.GetOptions{})
+	ss, err := ssCli.Get(context.Background(), constants.MonitorMinioName, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "get monitor-minio statefulset")
 	}
@@ -256,7 +256,7 @@ func (m *monitorStackManager) syncStack(
 
 	ssCli := m.kubeCli.AppsV1().StatefulSets(ns)
 	if !stackSpec.Loki.Disable {
-		lokiSs, err := ssCli.Get(constants.MonitorLoki, metav1.GetOptions{})
+		lokiSs, err := ssCli.Get(context.Background(), constants.MonitorLoki, metav1.GetOptions{})
 		if err != nil {
 			return errors.Wrap(err, "get loki statefulset")
 		}
@@ -265,7 +265,7 @@ func (m *monitorStackManager) syncStack(
 
 	if stackSpec.Prometheus.Disable != nil && !*stackSpec.Prometheus.Disable {
 		promthuesAppName := constants.MonitorPrometheus
-		promthues, err := ssCli.Get(promthuesAppName, metav1.GetOptions{})
+		promthues, err := ssCli.Get(context.Background(), promthuesAppName, metav1.GetOptions{})
 		if err != nil {
 			return errors.Wrapf(err, "get %s statefulset", promthuesAppName)
 		}

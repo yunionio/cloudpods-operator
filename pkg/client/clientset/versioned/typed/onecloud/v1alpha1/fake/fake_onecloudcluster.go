@@ -19,6 +19,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -39,7 +41,7 @@ var onecloudclustersResource = schema.GroupVersionResource{Group: "onecloud.yuni
 var onecloudclustersKind = schema.GroupVersionKind{Group: "onecloud.yunion.io", Version: "v1alpha1", Kind: "OnecloudCluster"}
 
 // Get takes name of the onecloudCluster, and returns the corresponding onecloudCluster object, and an error if there is any.
-func (c *FakeOnecloudClusters) Get(name string, options v1.GetOptions) (result *v1alpha1.OnecloudCluster, err error) {
+func (c *FakeOnecloudClusters) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.OnecloudCluster, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(onecloudclustersResource, c.ns, name), &v1alpha1.OnecloudCluster{})
 
@@ -50,7 +52,7 @@ func (c *FakeOnecloudClusters) Get(name string, options v1.GetOptions) (result *
 }
 
 // List takes label and field selectors, and returns the list of OnecloudClusters that match those selectors.
-func (c *FakeOnecloudClusters) List(opts v1.ListOptions) (result *v1alpha1.OnecloudClusterList, err error) {
+func (c *FakeOnecloudClusters) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.OnecloudClusterList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(onecloudclustersResource, onecloudclustersKind, c.ns, opts), &v1alpha1.OnecloudClusterList{})
 
@@ -72,14 +74,14 @@ func (c *FakeOnecloudClusters) List(opts v1.ListOptions) (result *v1alpha1.Onecl
 }
 
 // Watch returns a watch.Interface that watches the requested onecloudClusters.
-func (c *FakeOnecloudClusters) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeOnecloudClusters) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(onecloudclustersResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a onecloudCluster and creates it.  Returns the server's representation of the onecloudCluster, and an error, if there is any.
-func (c *FakeOnecloudClusters) Create(onecloudCluster *v1alpha1.OnecloudCluster) (result *v1alpha1.OnecloudCluster, err error) {
+func (c *FakeOnecloudClusters) Create(ctx context.Context, onecloudCluster *v1alpha1.OnecloudCluster, opts v1.CreateOptions) (result *v1alpha1.OnecloudCluster, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(onecloudclustersResource, c.ns, onecloudCluster), &v1alpha1.OnecloudCluster{})
 
@@ -90,7 +92,7 @@ func (c *FakeOnecloudClusters) Create(onecloudCluster *v1alpha1.OnecloudCluster)
 }
 
 // Update takes the representation of a onecloudCluster and updates it. Returns the server's representation of the onecloudCluster, and an error, if there is any.
-func (c *FakeOnecloudClusters) Update(onecloudCluster *v1alpha1.OnecloudCluster) (result *v1alpha1.OnecloudCluster, err error) {
+func (c *FakeOnecloudClusters) Update(ctx context.Context, onecloudCluster *v1alpha1.OnecloudCluster, opts v1.UpdateOptions) (result *v1alpha1.OnecloudCluster, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(onecloudclustersResource, c.ns, onecloudCluster), &v1alpha1.OnecloudCluster{})
 
@@ -102,7 +104,7 @@ func (c *FakeOnecloudClusters) Update(onecloudCluster *v1alpha1.OnecloudCluster)
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeOnecloudClusters) UpdateStatus(onecloudCluster *v1alpha1.OnecloudCluster) (*v1alpha1.OnecloudCluster, error) {
+func (c *FakeOnecloudClusters) UpdateStatus(ctx context.Context, onecloudCluster *v1alpha1.OnecloudCluster, opts v1.UpdateOptions) (*v1alpha1.OnecloudCluster, error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateSubresourceAction(onecloudclustersResource, "status", c.ns, onecloudCluster), &v1alpha1.OnecloudCluster{})
 
@@ -113,23 +115,23 @@ func (c *FakeOnecloudClusters) UpdateStatus(onecloudCluster *v1alpha1.OnecloudCl
 }
 
 // Delete takes name of the onecloudCluster and deletes it. Returns an error if one occurs.
-func (c *FakeOnecloudClusters) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeOnecloudClusters) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(onecloudclustersResource, c.ns, name), &v1alpha1.OnecloudCluster{})
+		Invokes(testing.NewDeleteActionWithOptions(onecloudclustersResource, c.ns, name, opts), &v1alpha1.OnecloudCluster{})
 
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeOnecloudClusters) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(onecloudclustersResource, c.ns, listOptions)
+func (c *FakeOnecloudClusters) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(onecloudclustersResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.OnecloudClusterList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched onecloudCluster.
-func (c *FakeOnecloudClusters) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.OnecloudCluster, err error) {
+func (c *FakeOnecloudClusters) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.OnecloudCluster, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(onecloudclustersResource, c.ns, name, pt, data, subresources...), &v1alpha1.OnecloudCluster{})
 

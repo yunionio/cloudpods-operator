@@ -26,8 +26,10 @@ import (
 )
 
 // OnecloudClusterLister helps list OnecloudClusters.
+// All objects returned here must be treated as read-only.
 type OnecloudClusterLister interface {
 	// List lists all OnecloudClusters in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.OnecloudCluster, err error)
 	// OnecloudClusters returns an object that can list and get OnecloudClusters.
 	OnecloudClusters(namespace string) OnecloudClusterNamespaceLister
@@ -58,10 +60,13 @@ func (s *onecloudClusterLister) OnecloudClusters(namespace string) OnecloudClust
 }
 
 // OnecloudClusterNamespaceLister helps list and get OnecloudClusters.
+// All objects returned here must be treated as read-only.
 type OnecloudClusterNamespaceLister interface {
 	// List lists all OnecloudClusters in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.OnecloudCluster, err error)
 	// Get retrieves the OnecloudCluster from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1alpha1.OnecloudCluster, error)
 	OnecloudClusterNamespaceListerExpansion
 }
