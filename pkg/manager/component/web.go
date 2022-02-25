@@ -305,6 +305,7 @@ func (m *webManager) getIngress(oc *v1alpha1.OnecloudCluster, zone string) *exte
 	svcName := controller.NewClusterComponentName(ocName, v1alpha1.WebComponentType)
 	appLabel := m.getComponentLabel(oc, v1alpha1.WebComponentType)
 	secretName := controller.ClustercertSecretName(oc)
+	pt := extensions.PathTypePrefix
 	ing := &extensions.Ingress{
 		ObjectMeta: m.getObjectMeta(oc, svcName, appLabel),
 		Spec: extensions.IngressSpec{
@@ -319,7 +320,8 @@ func (m *webManager) getIngress(oc *v1alpha1.OnecloudCluster, zone string) *exte
 						HTTP: &extensions.HTTPIngressRuleValue{
 							Paths: []extensions.HTTPIngressPath{
 								{
-									Path: "/",
+									Path:     "/",
+									PathType: &pt,
 									Backend: extensions.IngressBackend{
 										Service: &extensions.IngressServiceBackend{
 											Name: svcName,
