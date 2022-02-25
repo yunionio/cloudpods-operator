@@ -22,7 +22,7 @@ import (
 	jobbatchv1 "k8s.io/api/batch/v1"
 	batchv1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
+	extensions "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,7 +31,7 @@ import (
 	appv1 "k8s.io/client-go/listers/apps/v1"
 	batchlisters "k8s.io/client-go/listers/batch/v1beta1"
 	corelisters "k8s.io/client-go/listers/core/v1"
-	extensionlisters "k8s.io/client-go/listers/extensions/v1beta1"
+	extensionlisters "k8s.io/client-go/listers/networking/v1"
 	"k8s.io/klog"
 
 	"yunion.io/x/jsonutils"

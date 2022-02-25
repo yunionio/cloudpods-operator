@@ -36,13 +36,22 @@ var (
 					Storage: true,
 					Schema: &apiextensionsv1.CustomResourceValidation{
 						OpenAPIV3Schema: &apiextensionsv1.JSONSchemaProps{
+							Type: "object",
 							Properties: map[string]apiextensionsv1.JSONSchemaProps{
 								"spec": {
+									Type: "object",
 									Properties: map[string]apiextensionsv1.JSONSchemaProps{
 										"mysql": {
+											Type: "object",
 											Properties: map[string]apiextensionsv1.JSONSchemaProps{
-												"host":     {Type: "string", Nullable: false},
-												"password": {Type: "string", Nullable: false},
+												"host": {
+													Type:     "string",
+													Nullable: false,
+												},
+												"password": {
+													Type:     "string",
+													Nullable: false,
+												},
 											},
 										},
 									},

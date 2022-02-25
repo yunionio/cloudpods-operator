@@ -95,7 +95,7 @@ func NewController(
 	nodeInformer := kubeInformerFactory.Core().V1().Nodes()
 	cfgInformer := kubeInformerFactory.Core().V1().ConfigMaps()
 	pvcInformer := kubeInformerFactory.Core().V1().PersistentVolumeClaims()
-	ingInformer := kubeInformerFactory.Extensions().V1beta1().Ingresses()
+	ingInformer := kubeInformerFactory.Networking().V1().Ingresses()
 	dsInformer := kubeInformerFactory.Apps().V1().DaemonSets()
 	cronInformer := kubeInformerFactory.Batch().V1beta1().CronJobs()
 

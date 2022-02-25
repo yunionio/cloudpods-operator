@@ -18,12 +18,12 @@ import (
 	"context"
 	"fmt"
 
-	extensions "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
-	listers "k8s.io/client-go/listers/extensions/v1beta1"
+	listers "k8s.io/client-go/listers/networking/v1"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
@@ -33,9 +33,9 @@ import (
 
 // IngressControlInterface defines the interface that uses to create, update and delete Ingress
 type IngressControlInterface interface {
-	CreateIngress(*v1alpha1.OnecloudCluster, *extensions.Ingress) error
-	UpdateIngress(*v1alpha1.OnecloudCluster, *extensions.Ingress) (*extensions.Ingress, error)
-	DeleteIngress(*v1alpha1.OnecloudCluster, *extensions.Ingress) error
+	CreateIngress(*v1alpha1.OnecloudCluster, *networkingv1.Ingress) error
+	UpdateIngress(*v1alpha1.OnecloudCluster, *networkingv1.Ingress) (*networkingv1.Ingress, error)
+	DeleteIngress(*v1alpha1.OnecloudCluster, *networkingv1.Ingress) error
 }
 
 type realIngressControl struct {
@@ -48,8 +48,8 @@ func NewIngressControl(kubeCli kubernetes.Interface, ingressLister listers.Ingre
 	return &realIngressControl{newBaseControl("Ingress", recorder), kubeCli, ingressLister}
 }
 
-func (c *realIngressControl) CreateIngress(oc *v1alpha1.OnecloudCluster, ing *extensions.Ingress) error {
-	_, err := c.kubeCli.ExtensionsV1beta1().Ingresses(oc.Namespace).Create(context.Background(), ing, metav1.CreateOptions{})
+func (c *realIngressControl) CreateIngress(oc *v1alpha1.OnecloudCluster, ing *networkingv1.Ingress) error {
+	_, err := c.kubeCli.NetworkingV1().Ingresses(oc.Namespace).Create(context.Background(), ing, metav1.CreateOptions{})
 	if apierrors.IsAlreadyExists(err) {
 		return err
 	}
@@ -57,15 +57,15 @@ func (c *realIngressControl) CreateIngress(oc *v1alpha1.OnecloudCluster, ing *ex
 	return err
 }
 
-func (c *realIngressControl) UpdateIngress(oc *v1alpha1.OnecloudCluster, ing *extensions.Ingress) (*extensions.Ingress, error) {
+func (c *realIngressControl) UpdateIngress(oc *v1alpha1.OnecloudCluster, ing *networkingv1.Ingress) (*networkingv1.Ingress, error) {
 	ns := oc.GetNamespace()
 	ocName := oc.GetName()
 	ingName := ing.GetName()
 	ingSpec := ing.Spec.DeepCopy()
-	var updatedIng *extensions.Ingress
+	var updatedIng *networkingv1.Ingress
 	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		var updateErr error
-		updatedIng, updateErr = c.kubeCli.ExtensionsV1beta1().Ingresses(ns).Update(context.Background(), ing, metav1.UpdateOptions{})
+		updatedIng, updateErr = c.kubeCli.NetworkingV1().Ingresses(ns).Update(context.Background(), ing, metav1.UpdateOptions{})
 		if updateErr == nil {
 			klog.Infof("OnecloudCluster: [%s/%s]'s Ingress: [%s/%s] updated successfully", ns, ocName, ns, ingName)
 			return nil
@@ -85,8 +85,8 @@ func (c *realIngressControl) UpdateIngress(oc *v1alpha1.OnecloudCluster, ing *ex
 	return updatedIng, err
 }
 
-func (c *realIngressControl) DeleteIngress(oc *v1alpha1.OnecloudCluster, ing *extensions.Ingress) error {
-	err := c.kubeCli.ExtensionsV1beta1().Ingresses(oc.GetNamespace()).Delete(context.Background(), ing.Name, metav1.DeleteOptions{})
+func (c *realIngressControl) DeleteIngress(oc *v1alpha1.OnecloudCluster, ing *networkingv1.Ingress) error {
+	err := c.kubeCli.NetworkingV1().Ingresses(oc.GetNamespace()).Delete(context.Background(), ing.Name, metav1.DeleteOptions{})
 	c.RecordDeleteEvent(oc, ing, err)
 	return err
 }

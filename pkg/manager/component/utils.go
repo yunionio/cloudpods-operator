@@ -26,7 +26,7 @@ import (
 	apps "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
+	extensions "k8s.io/api/networking/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	clientset "k8s.io/client-go/kubernetes"

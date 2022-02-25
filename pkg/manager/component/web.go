@@ -19,7 +19,7 @@ import (
 
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
+	extensions "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
@@ -321,8 +321,12 @@ func (m *webManager) getIngress(oc *v1alpha1.OnecloudCluster, zone string) *exte
 								{
 									Path: "/",
 									Backend: extensions.IngressBackend{
-										ServiceName: svcName,
-										ServicePort: intstr.FromInt(443),
+										Service: &extensions.IngressServiceBackend{
+											Name: svcName,
+											Port: extensions.ServiceBackendPort{
+												Number: 443,
+											},
+										},
 									},
 								},
 							},

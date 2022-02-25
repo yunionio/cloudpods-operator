@@ -19,7 +19,7 @@ import (
 	apps "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
+	extensions "k8s.io/api/networking/v1"
 	"k8s.io/klog"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
