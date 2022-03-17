@@ -36,6 +36,13 @@ func newEsxiManager(m *ComponentManager) manager.Manager {
 	return &esxiManager{m}
 }
 
+func (m *esxiManager) getProductVersions() []v1alpha1.ProductVersion {
+	return []v1alpha1.ProductVersion{
+		v1alpha1.ProductVersionFullStack,
+		v1alpha1.ProductVersionEdge,
+	}
+}
+
 func (m *esxiManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return m.multiZoneSync(oc, oc.Spec.EsxiAgent.Zones, m, oc.Spec.EsxiAgent.Disable)
 }

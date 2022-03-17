@@ -25,6 +25,13 @@ func newBaremetalManager(m *ComponentManager) manager.Manager {
 	return &baremetalManager{m}
 }
 
+func (m *baremetalManager) getProductVersions() []v1alpha1.ProductVersion {
+	return []v1alpha1.ProductVersion{
+		v1alpha1.ProductVersionFullStack,
+		v1alpha1.ProductVersionEdge,
+	}
+}
+
 func (m *baremetalManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return m.multiZoneSync(oc, oc.Spec.BaremetalAgent.Zones, m, oc.Spec.BaremetalAgent.Disable)
 }

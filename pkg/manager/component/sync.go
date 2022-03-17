@@ -28,6 +28,7 @@ import (
 )
 
 type syncManager interface {
+	getProductVersions() []v1alpha1.ProductVersion
 	getComponentManager() *ComponentManager
 	getDBConfig(*v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig
 	getCloudUser(*v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser
@@ -75,34 +76,62 @@ type cloudComponentFactory interface {
 	cronJobFactory
 }
 
+func isInProductVersion(factory cloudComponentFactory, oc *v1alpha1.OnecloudCluster) bool {
+	expected := oc.Spec.ProductVersion
+	vs := factory.getProductVersions()
+	for _, v := range vs {
+		if v == expected {
+			return true
+		}
+	}
+	return false
+}
+
+func isValidProductVersion(oc *v1alpha1.OnecloudCluster) error {
+	v := oc.Spec.ProductVersion
+	for _, pv := range []v1alpha1.ProductVersion{
+		v1alpha1.ProductVersionFullStack,
+		v1alpha1.ProductVersionCMP,
+		v1alpha1.ProductVersionEdge,
+	} {
+		if v == pv {
+			return nil
+		}
+	}
+	return errors.Errorf("Invalid productVersion %q", v)
+}
+
 func syncComponent(factory cloudComponentFactory, oc *v1alpha1.OnecloudCluster, isDisable bool, zone string) error {
 	if isDisable {
 		klog.Infof("component %#v is disable, skip sync", factory)
 		return nil
 	}
+	if err := isValidProductVersion(oc); err != nil {
+		return errors.Wrap(err, "check productVersion")
+	}
 	m := factory.getComponentManager()
-	if err := m.syncService(oc, factory.getService, zone); err != nil {
+	if err := m.syncService(oc, factory, zone); err != nil {
 		return errors.Wrap(err, "sync service")
 	}
-	if err := m.syncIngress(oc, factory.(ingressFactory), zone); err != nil {
+	if err := m.syncIngress(oc, factory, zone); err != nil {
 		return errors.Wrap(err, "sync ingress")
 	}
-	if err := m.syncConfigMap(oc, factory.getDBConfig, factory.getCloudUser, factory.getConfigMap, zone); err != nil {
+	if err := m.syncConfigMap(oc, factory, zone); err != nil {
 		return errors.Wrap(err, "sync configmap")
 	}
-	if err := m.syncPVC(oc, factory.getPVC, zone); err != nil {
+	if err := m.syncPVC(oc, factory, zone); err != nil {
 		return errors.Wrapf(err, "sync pvc")
 	}
-	if err := m.syncDeployment(oc, factory.getDeployment, newPostSyncComponent(factory), zone); err != nil {
+	if err := m.syncDeployment(oc, factory, newPostSyncComponent(factory), zone); err != nil {
 		return errors.Wrapf(err, "sync deployment")
 	}
-	if err := m.syncDaemonSet(oc, factory.getDaemonSet, zone); err != nil {
+	if err := m.syncDaemonSet(oc, factory, zone); err != nil {
 		return errors.Wrapf(err, "sync daemonset")
 	}
-	if err := m.syncCronJob(oc, factory.getCronJob, zone); err != nil {
+	if err := m.syncCronJob(oc, factory, zone); err != nil {
 		return errors.Wrapf(err, "sync cronjob")
 	}
-	if err := m.syncPhase(oc, factory.getPhaseControl, zone); err != nil {
+	if err := m.syncPhase(oc, factory, zone); err != nil {
 		return errors.Wrapf(err, "sync phase control")
 	}
 	return nil

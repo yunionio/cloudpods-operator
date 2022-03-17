@@ -33,6 +33,14 @@ func newClimcComponentManager(base *ComponentManager) manager.Manager {
 	}
 }
 
+func (m *climcManager) getProductVersions() []v1alpha1.ProductVersion {
+	return []v1alpha1.ProductVersion{
+		v1alpha1.ProductVersionFullStack,
+		v1alpha1.ProductVersionCMP,
+		v1alpha1.ProductVersionEdge,
+	}
+}
+
 func (m *climcManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.Climc.Disable, "")
 }

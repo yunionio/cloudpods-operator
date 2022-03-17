@@ -90,6 +90,9 @@ func IsEnterpriseEdition(oc *OnecloudCluster) bool {
 
 func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	setDefaults_Mysql(&obj.Mysql)
+	if obj.ProductVersion == "" {
+		obj.ProductVersion = ProductVersionFullStack
+	}
 	if obj.Region == "" {
 		obj.Region = DefaultOnecloudRegion
 	}

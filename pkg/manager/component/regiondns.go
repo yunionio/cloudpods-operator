@@ -80,6 +80,13 @@ func newRegionDNSManager(man *ComponentManager) manager.Manager {
 	return &regionDNSManager{ComponentManager: man}
 }
 
+func (m *regionDNSManager) getProductVersions() []v1alpha1.ProductVersion {
+	return []v1alpha1.ProductVersion{
+		v1alpha1.ProductVersionFullStack,
+		v1alpha1.ProductVersionEdge,
+	}
+}
+
 func (m *regionDNSManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.RegionDNS.Disable, "")
 }

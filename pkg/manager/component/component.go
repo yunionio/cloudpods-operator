@@ -112,25 +112,34 @@ func NewComponentManager(
 
 func (m *ComponentManager) syncService(
 	oc *v1alpha1.OnecloudCluster,
-	svcFactory func(*v1alpha1.OnecloudCluster, string) []*corev1.Service,
+	factory cloudComponentFactory,
 	zone string,
 ) error {
 	ns := oc.GetNamespace()
+	svcFactory := factory.getService
 	newSvcs := svcFactory(oc, zone)
 	if len(newSvcs) == 0 {
 		return nil
 	}
+	inPV := isInProductVersion(factory, oc)
 	for _, newSvc := range newSvcs {
 		oldSvcTmp, err := m.svcLister.Services(ns).Get(newSvc.GetName())
-		if errors.IsNotFound(err) {
-			err = SetServiceLastAppliedConfigAnnotation(newSvc)
-			if err != nil {
+		if err != nil {
+			if errors.IsNotFound(err) {
+				if !inPV {
+					return nil
+				}
+				if err := SetServiceLastAppliedConfigAnnotation(newSvc); err != nil {
+					return err
+				}
+				return m.svcControl.CreateService(oc, newSvc)
+			} else {
 				return err
 			}
-			return m.svcControl.CreateService(oc, newSvc)
 		}
-		if err != nil {
-			return err
+
+		if !inPV {
+			return m.svcControl.DeleteService(oc, oldSvcTmp)
 		}
 
 		oldSvc := oldSvcTmp.DeepCopy()
@@ -156,7 +165,7 @@ func (m *ComponentManager) syncService(
 
 func (m *ComponentManager) syncIngress(
 	oc *v1alpha1.OnecloudCluster,
-	ingFactory ingressFactory,
+	ingFactory cloudComponentFactory,
 	zone string,
 ) error {
 	ns := oc.GetNamespace()
@@ -166,16 +175,22 @@ func (m *ComponentManager) syncIngress(
 	if newIng == nil {
 		return nil
 	}
+	inPV := isInProductVersion(ingFactory, oc)
 	oldIngTmp, err := m.ingLister.Ingresses(ns).Get(newIng.GetName())
-	if errors.IsNotFound(err) {
-		err = SetIngressLastAppliedConfigAnnotation(newIng)
-		if err != nil {
-			return err
-		}
-		return m.ingControl.CreateIngress(oc, newIng)
-	}
 	if err != nil {
-		return err
+		if errors.IsNotFound(err) {
+			if !inPV {
+				return nil
+			}
+			if err := SetIngressLastAppliedConfigAnnotation(newIng); err != nil {
+				return err
+			}
+			return m.ingControl.CreateIngress(oc, newIng)
+		}
+	}
+
+	if !inPV {
+		return m.ingControl.DeleteIngress(oc, oldIngTmp)
 	}
 
 	// update old ingress
@@ -199,11 +214,16 @@ func (m *ComponentManager) syncIngress(
 
 func (m *ComponentManager) syncConfigMap(
 	oc *v1alpha1.OnecloudCluster,
-	dbConfigFactory func(*v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig,
-	svcAccountFactory func(*v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser,
-	cfgMapFactory func(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig, string) (*corev1.ConfigMap, bool, error),
+	f cloudComponentFactory,
 	zone string,
 ) error {
+	inPV := isInProductVersion(f, oc)
+	if !inPV {
+		return nil
+	}
+	dbConfigFactory := f.getDBConfig
+	svcAccountFactory := f.getCloudUser
+	cfgMapFactory := f.getConfigMap
 	clustercfg, err := m.configer.GetClusterConfig(oc)
 	if err != nil {
 		return errorswrap.Wrap(err, "get cluster config")
@@ -258,7 +278,7 @@ func (m *ComponentManager) syncConfigMap(
 
 func (m *ComponentManager) syncDaemonSet(
 	oc *v1alpha1.OnecloudCluster,
-	dsFactory func(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig, string) (*apps.DaemonSet, error),
+	f cloudComponentFactory,
 	zone string,
 ) error {
 	ns := oc.GetNamespace()
@@ -266,6 +286,7 @@ func (m *ComponentManager) syncDaemonSet(
 	if err != nil {
 		return err
 	}
+	dsFactory := f.getDaemonSet
 	newDs, err := dsFactory(oc, cfg, zone)
 	if err != nil {
 		return err
@@ -273,12 +294,23 @@ func (m *ComponentManager) syncDaemonSet(
 	if newDs == nil {
 		return nil
 	}
+
+	inPV := isInProductVersion(f, oc)
+
 	oldDsTmp, err := m.dsLister.DaemonSets(ns).Get(newDs.GetName())
-	if err != nil && !errors.IsNotFound(err) {
-		return err
+	if err != nil {
+		if errors.IsNotFound(err) {
+			if !inPV {
+				return nil
+			}
+			return m.dsControl.CreateDaemonSet(oc, newDs)
+		} else {
+			return err
+		}
 	}
-	if errors.IsNotFound(err) {
-		return m.dsControl.CreateDaemonSet(oc, newDs)
+
+	if !inPV {
+		return m.dsControl.DeleteDaemonSet(oc, oldDsTmp)
 	}
 	oldDs := oldDsTmp.DeepCopy()
 	if err = m.updateDaemonSet(oc, newDs, oldDs); err != nil {
@@ -304,9 +336,10 @@ func (m *ComponentManager) updateDaemonSet(oc *v1alpha1.OnecloudCluster, newDs, 
 
 func (m *ComponentManager) syncCronJob(
 	oc *v1alpha1.OnecloudCluster,
-	cronFactory func(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig, string) (*batchv1.CronJob, error),
+	f cloudComponentFactory,
 	zone string,
 ) error {
+	cronFactory := f.getCronJob
 	cfg, err := m.configer.GetClusterConfig(oc)
 	if err != nil {
 		return err
@@ -318,13 +351,24 @@ func (m *ComponentManager) syncCronJob(
 	if newCronJob == nil {
 		return nil
 	}
+
+	inPV := isInProductVersion(f, oc)
+
 	oldCronJob, err := m.cronLister.CronJobs(oc.GetNamespace()).Get(newCronJob.GetName())
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil {
+		if errors.IsNotFound(err) {
+			if !inPV {
+				return nil
+			}
+			return m.cronControl.CreateCronJob(oc, newCronJob)
+		}
 		return errorswrap.Wrap(err, "sync cronjob on list")
 	}
-	if errors.IsNotFound(err) {
-		return m.cronControl.CreateCronJob(oc, newCronJob)
+
+	if !inPV {
+		return m.cronControl.DeleteCronJob(oc, oldCronJob.GetName())
 	}
+
 	_oldCronJob := oldCronJob.DeepCopy()
 	if err = m.updateCronJob(oc, newCronJob, _oldCronJob); err != nil {
 		return err
@@ -352,7 +396,7 @@ func (m *ComponentManager) updateCronJob(oc *v1alpha1.OnecloudCluster, newCronJo
 
 func (m *ComponentManager) syncDeployment(
 	oc *v1alpha1.OnecloudCluster,
-	deploymentFactory func(*v1alpha1.OnecloudCluster, *v1alpha1.OnecloudClusterConfig, string) (*apps.Deployment, error),
+	f cloudComponentFactory,
 	postSyncFunc func(*v1alpha1.OnecloudCluster, *apps.Deployment, string) error,
 	zone string,
 ) error {
@@ -361,6 +405,7 @@ func (m *ComponentManager) syncDeployment(
 	if err != nil {
 		return err
 	}
+	deploymentFactory := f.getDeployment
 	newDeploy, err := deploymentFactory(oc, cfg, zone)
 	if err != nil {
 		return err
@@ -369,10 +414,7 @@ func (m *ComponentManager) syncDeployment(
 		return nil
 	}
 
-	oldDeployTmp, err := m.deployLister.Deployments(ns).Get(newDeploy.GetName())
-	if err != nil && !errors.IsNotFound(err) {
-		return err
-	}
+	inPV := isInProductVersion(f, oc)
 
 	postFunc := func(deploy *apps.Deployment) error {
 		if postSyncFunc != nil {
@@ -385,20 +427,32 @@ func (m *ComponentManager) syncDeployment(
 		return nil
 	}
 
-	if errors.IsNotFound(err) {
-		if err = SetDeploymentLastAppliedConfigAnnotation(newDeploy); err != nil {
+	oldDeployTmp, err := m.deployLister.Deployments(ns).Get(newDeploy.GetName())
+	if err != nil {
+		if errors.IsNotFound(err) {
+			if !inPV {
+				return nil
+			}
+			if err := SetDeploymentLastAppliedConfigAnnotation(newDeploy); err != nil {
+				return err
+			}
+			if err = m.deployControl.CreateDeployment(oc, newDeploy); err != nil {
+				return err
+			}
+			if err := postFunc(newDeploy); err != nil {
+				return errorswrap.Wrapf(err, "post create deployment %s", newDeploy.GetName())
+			}
+			return controller.RequeueErrorf("OnecloudCluster: [%s/%s], waiting for %s deployment running", ns, oc.GetName(), newDeploy.GetName())
+
+		} else {
 			return err
 		}
-		if err = m.deployControl.CreateDeployment(oc, newDeploy); err != nil {
-			return err
-		}
-		if err := postFunc(newDeploy); err != nil {
-			return errorswrap.Wrapf(err, "post create deployment %s", newDeploy.GetName())
-		}
-		return controller.RequeueErrorf("OnecloudCluster: [%s/%s], waiting for %s deployment running", ns, oc.GetName(), newDeploy.GetName())
 	}
 
 	oldDeploy := oldDeployTmp.DeepCopy()
+	if !inPV {
+		return m.deployControl.DeleteDeployment(oc, oldDeploy.Name)
+	}
 
 	if err = m.updateDeployment(oc, newDeploy, oldDeploy); err != nil {
 		return err
@@ -1123,10 +1177,12 @@ func (m *ComponentManager) newPVC(cType v1alpha1.ComponentType, oc *v1alpha1.One
 	return pvc, nil
 }
 
-func (m *ComponentManager) syncPVC(oc *v1alpha1.OnecloudCluster,
-	pvcFactory func(*v1alpha1.OnecloudCluster, string) (*corev1.PersistentVolumeClaim, error),
-	zone string,
-) error {
+func (m *ComponentManager) syncPVC(oc *v1alpha1.OnecloudCluster, f cloudComponentFactory, zone string) error {
+	inPV := isInProductVersion(f, oc)
+	if !inPV {
+		return nil
+	}
+	pvcFactory := f.getPVC
 	ns := oc.GetNamespace()
 	newPvc, err := pvcFactory(oc, zone)
 	if err != nil {
@@ -1148,11 +1204,16 @@ func (m *ComponentManager) syncPVC(oc *v1alpha1.OnecloudCluster,
 
 func (m *ComponentManager) syncPhase(
 	oc *v1alpha1.OnecloudCluster,
-	phaseFactory func(controller.ComponentManager, string) controller.PhaseControl,
+	f cloudComponentFactory,
 	zone string,
 ) error {
+	phaseFactory := f.getPhaseControl
 	phase := phaseFactory(m.onecloudControl.Components(oc), zone)
 	if phase == nil {
+		return nil
+	}
+	inPV := isInProductVersion(f, oc)
+	if !inPV {
 		return nil
 	}
 	if err := phase.Setup(); err != nil {

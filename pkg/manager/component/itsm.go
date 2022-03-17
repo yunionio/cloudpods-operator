@@ -146,6 +146,12 @@ func newItsmManager(man *ComponentManager) manager.Manager {
 	return &itsmManager{man}
 }
 
+func (m *itsmManager) getProductVersions() []v1alpha1.ProductVersion {
+	return []v1alpha1.ProductVersion{
+		v1alpha1.ProductVersionFullStack,
+	}
+}
+
 func (m *itsmManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	//isEE create itsm DeploymentSpec
 	if !IsEnterpriseEdition(oc) {
