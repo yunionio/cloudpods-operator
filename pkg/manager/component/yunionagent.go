@@ -41,6 +41,14 @@ type yunionagentOptions struct {
 	options.DBOptions
 }
 
+func (m *yunionagentManager) getProductVersions() []v1alpha1.ProductVersion {
+	return []v1alpha1.ProductVersion{
+		v1alpha1.ProductVersionFullStack,
+		v1alpha1.ProductVersionCMP,
+		v1alpha1.ProductVersionEdge,
+	}
+}
+
 func (m *yunionagentManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if !IsEnterpriseEdition(oc) {
 		return nil

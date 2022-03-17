@@ -35,6 +35,13 @@ func newCloudeventManager(man *ComponentManager) manager.Manager {
 	return &cloudeventManager{man}
 }
 
+func (m *cloudeventManager) getProductVersions() []v1alpha1.ProductVersion {
+	return []v1alpha1.ProductVersion{
+		v1alpha1.ProductVersionFullStack,
+		v1alpha1.ProductVersionCMP,
+	}
+}
+
 func (m *cloudeventManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.Cloudevent.Disable, "")
 }

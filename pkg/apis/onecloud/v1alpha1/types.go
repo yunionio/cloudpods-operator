@@ -142,6 +142,17 @@ const (
 	UpgradePhase ComponentPhase = "Upgrade"
 )
 
+type ProductVersion string
+
+const (
+	// ProductVersionFullStack: All kinds of product
+	ProductVersionFullStack ProductVersion = "FullStack"
+	// ProductVersionCMP: Cloud Management Platform product
+	ProductVersionCMP ProductVersion = "CMP"
+	// ProductVersionEdge: Private Cloud Edge product
+	ProductVersionEdge ProductVersion = "Edge"
+)
+
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
@@ -170,6 +181,8 @@ type OnecloudClusterList struct {
 type OnecloudClusterSpec struct {
 	// DisableResourceManagement disable container cgroup resource limits and requests
 	DisableResourceManagement bool `json:"disableResourceMangement"`
+	// ProductVersion defines which product version used
+	ProductVersion ProductVersion `json:"productVersion"`
 	// Etcd holds configuration for etcd
 	Etcd Etcd `json:"etcd,omitempty"`
 	// Mysql holds configuration for mysql

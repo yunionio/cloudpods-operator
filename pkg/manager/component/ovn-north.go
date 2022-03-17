@@ -32,6 +32,13 @@ func newOvnNorthManager(man *ComponentManager) manager.Manager {
 	return &ovnNorthManager{man}
 }
 
+func (m *ovnNorthManager) getProductVersions() []v1alpha1.ProductVersion {
+	return []v1alpha1.ProductVersion{
+		v1alpha1.ProductVersionFullStack,
+		v1alpha1.ProductVersionEdge,
+	}
+}
+
 func (m *ovnNorthManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.OvnNorth.Disable, "")
 }

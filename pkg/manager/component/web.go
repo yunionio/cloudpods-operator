@@ -264,7 +264,20 @@ type webManager struct {
 }
 
 func newWebManager(man *ComponentManager) manager.Manager {
-	return &webManager{man}
+	m := &webManager{man}
+	return m
+}
+
+func (m *webManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.WebComponentType
+}
+
+func (m *webManager) getProductVersions() []v1alpha1.ProductVersion {
+	return []v1alpha1.ProductVersion{
+		v1alpha1.ProductVersionFullStack,
+		v1alpha1.ProductVersionCMP,
+		v1alpha1.ProductVersionEdge,
+	}
 }
 
 func (m *webManager) Sync(oc *v1alpha1.OnecloudCluster) error {

@@ -35,6 +35,13 @@ func newCloudIdManager(man *ComponentManager) manager.Manager {
 	return &cloudidManager{man}
 }
 
+func (m *cloudidManager) getProductVersions() []v1alpha1.ProductVersion {
+	return []v1alpha1.ProductVersion{
+		v1alpha1.ProductVersionFullStack,
+		v1alpha1.ProductVersionCMP,
+	}
+}
+
 func (m *cloudidManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.CloudId.Disable, "")
 }

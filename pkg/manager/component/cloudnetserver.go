@@ -36,6 +36,13 @@ func newCloudnetManager(man *ComponentManager) manager.Manager {
 	return &cloudnetManager{man}
 }
 
+func (m *cloudnetManager) getProductVersions() []v1alpha1.ProductVersion {
+	return []v1alpha1.ProductVersion{
+		v1alpha1.ProductVersionFullStack,
+		v1alpha1.ProductVersionEdge,
+	}
+}
+
 func (m *cloudnetManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.Cloudnet.Disable, "")
 }
