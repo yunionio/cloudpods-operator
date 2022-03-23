@@ -12,6 +12,7 @@ spec:
     username: "root"
     password: "password"
   region: "region0"
+  loadBalancerEndpoint: 192.168.121.21
   imageRepository: "registry.cn-beijing.aliyuncs.com/yunionio"
   version: v3.8.6
   baremetalagent:
