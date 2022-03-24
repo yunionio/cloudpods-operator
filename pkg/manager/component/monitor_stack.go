@@ -41,6 +41,14 @@ func newMonitorStackManager(man *ComponentManager) manager.Manager {
 	return &monitorStackManager{man}
 }
 
+func (m *monitorStackManager) getProductVersions() []v1alpha1.ProductVersion {
+	return []v1alpha1.ProductVersion{
+		v1alpha1.ProductVersionFullStack,
+		v1alpha1.ProductVersionCMP,
+		v1alpha1.ProductVersionEdge,
+	}
+}
+
 func (m *monitorStackManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if oc.Spec.MonitorStack.Disable {
 		return nil

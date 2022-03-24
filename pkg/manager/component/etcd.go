@@ -88,6 +88,14 @@ func newEtcdComponentManager(baseMan *ComponentManager) manager.Manager {
 	return etcdMan
 }
 
+func (m *etcdManager) getProductVersions() []v1alpha1.ProductVersion {
+	return []v1alpha1.ProductVersion{
+		v1alpha1.ProductVersionFullStack,
+		v1alpha1.ProductVersionCMP,
+		v1alpha1.ProductVersionEdge,
+	}
+}
+
 func (m *etcdManager) isSyncing() bool {
 	m.lock.Lock()
 	defer m.lock.Unlock()

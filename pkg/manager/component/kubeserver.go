@@ -45,6 +45,14 @@ type kubeOptions struct {
 	TlsPrivateKeyFile string
 }
 
+func (m *kubeManager) getProductVersions() []v1alpha1.ProductVersion {
+	return []v1alpha1.ProductVersion{
+		v1alpha1.ProductVersionFullStack,
+		v1alpha1.ProductVersionCMP,
+		v1alpha1.ProductVersionEdge,
+	}
+}
+
 func (m *kubeManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.KubeServer.Disable, "")
 }

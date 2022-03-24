@@ -34,6 +34,14 @@ func newSchedulerManager(man *ComponentManager) manager.Manager {
 	return &schedulerManager{man}
 }
 
+func (m *schedulerManager) getProductVersions() []v1alpha1.ProductVersion {
+	return []v1alpha1.ProductVersion{
+		v1alpha1.ProductVersionFullStack,
+		v1alpha1.ProductVersionCMP,
+		v1alpha1.ProductVersionEdge,
+	}
+}
+
 func (m *schedulerManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.Scheduler.Disable, "")
 }

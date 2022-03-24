@@ -29,6 +29,14 @@ func newCloudMonManager(man *ComponentManager) manager.Manager {
 	return &cloudmonManager{man}
 }
 
+func (m *cloudmonManager) getProductVersions() []v1alpha1.ProductVersion {
+	return []v1alpha1.ProductVersion{
+		v1alpha1.ProductVersionFullStack,
+		v1alpha1.ProductVersionCMP,
+		v1alpha1.ProductVersionEdge,
+	}
+}
+
 func (m *cloudmonManager) ensureOldCronjobsDeleted(oc *v1alpha1.OnecloudCluster) error {
 	for _, componentType := range []v1alpha1.ComponentType{
 		v1alpha1.CloudmonPingComponentType, v1alpha1.CloudmonReportHostComponentType,
