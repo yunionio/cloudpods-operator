@@ -36,6 +36,13 @@ func newVpcAgentManager(man *ComponentManager) manager.Manager {
 	return &vpcAgentManager{man}
 }
 
+func (m *vpcAgentManager) getProductVersions() []v1alpha1.ProductVersion {
+	return []v1alpha1.ProductVersion{
+		v1alpha1.ProductVersionFullStack,
+		v1alpha1.ProductVersionEdge,
+	}
+}
+
 func (m *vpcAgentManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.VpcAgent.Disable, "")
 }

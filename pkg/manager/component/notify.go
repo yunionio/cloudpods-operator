@@ -54,6 +54,14 @@ func newNotifyManager(man *ComponentManager) manager.Manager {
 	return &notifyManager{man}
 }
 
+func (m *notifyManager) getProductVersions() []v1alpha1.ProductVersion {
+	return []v1alpha1.ProductVersion{
+		v1alpha1.ProductVersionFullStack,
+		v1alpha1.ProductVersionCMP,
+		v1alpha1.ProductVersionEdge,
+	}
+}
+
 func (m *notifyManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.Notify.Disable, "")
 }
