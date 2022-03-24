@@ -102,7 +102,7 @@ func (m *baremetalManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1al
 
 	cType := v1alpha1.BaremetalAgentComponentType
 	zoneComponentType := m.getZoneComponent(cType, zone)
-	dmSpec := oc.Spec.BaremetalAgent.DeploymentSpec
+	dmSpec := &oc.Spec.BaremetalAgent.DeploymentSpec
 	privileged := true
 	containersF := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		return []corev1.Container{
