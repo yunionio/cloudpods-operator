@@ -118,5 +118,6 @@ func (m *yunionagentManager) getDaemonSet(oc *v1alpha1.OnecloudCluster, cfg *v1a
 	if err != nil {
 		return nil, err
 	}
+	ds.Spec.Template.Spec.ServiceAccountName = constants.ServiceAccountOnecloudOperator
 	return ds, nil
 }
