@@ -20,14 +20,14 @@ import (
 )
 
 var (
-	InstanceGroup modulebase.ResourceManager
+	InstanceGroups modulebase.ResourceManager
 )
 
 func init() {
-	InstanceGroup = modules.NewComputeManager("instancegroup", "instancegroups",
+	InstanceGroups = modules.NewComputeManager("instancegroup", "instancegroups",
 		[]string{"ID", "Name", "Service_Type", "Parent_Id", "Zone_Id", "Sched_Strategy", "Domain_Id", "Project_Id",
-			"Granularity", "Is_Froced_Sep"},
+			"Granularity", "Is_Froced_Sep", "ips", "eip"},
 		[]string{})
 
-	modules.RegisterCompute(&InstanceGroup)
+	modules.RegisterCompute(&InstanceGroups)
 }

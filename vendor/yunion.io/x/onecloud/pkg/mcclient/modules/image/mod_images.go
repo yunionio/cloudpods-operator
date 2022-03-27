@@ -42,6 +42,8 @@ const (
 	IMAGE_META          = "X-Image-Meta-"
 	IMAGE_META_PROPERTY = "X-Image-Meta-Property-"
 
+	IMAGE_METADATA = "X-Image-Meta-Metadata"
+
 	IMAGE_META_COPY_FROM = "x-glance-api-copy-from"
 )
 
@@ -58,7 +60,12 @@ func FetchImageMeta(h http.Header) jsonutils.JSONObject {
 	meta := jsonutils.NewDict()
 	meta.Add(jsonutils.NewDict(), "properties")
 	for k, v := range h {
-		if strings.HasPrefix(k, IMAGE_META_PROPERTY) {
+		if k == IMAGE_METADATA && len(v) == 1 {
+			metadata, _ := jsonutils.Parse([]byte(v[0]))
+			if metadata != nil {
+				meta.Add(metadata, "metadata")
+			}
+		} else if strings.HasPrefix(k, IMAGE_META_PROPERTY) {
 			k := strings.ToLower(k[len(IMAGE_META_PROPERTY):])
 			meta.Add(jsonutils.NewString(decodeMeta(v[0])), "properties", k)
 			if strings.IndexByte(k, '-') > 0 {
@@ -98,7 +105,7 @@ func (this *ImageManager) Get(session *mcclient.ClientSession, id string, params
 	// hack: some GetPropertiesMethod must use HTTP GET action like:
 	// - GET /images/distinct-field
 	// hard code this id currently, should found a better solution
-	if ok, _ := utils.InStringArray(id, []string{"distinct-field"}); ok {
+	if ok, _ := utils.InStringArray(id, []string{"distinct-field", "statistics"}); ok {
 		return this.ResourceManager.Get(session, id, params)
 	}
 	r, e := this.GetById(session, id, params)
@@ -586,7 +593,7 @@ func init() {
 		[]string{"ID", "Name", "Tags", "Disk_format",
 			"Size", "Is_public", "Protected", "Is_Standard",
 			"OS_Type", "OS_Distribution", "OS_version",
-			"Min_disk", "Min_ram", "Status",
+			"Min_disk", "Min_ram", "Status", "Encrypt_Status",
 			"Notes", "OS_arch", "Preference",
 			"OS_Codename", "Description",
 			"Checksum", "Tenant_Id", "Tenant",
@@ -613,7 +620,6 @@ func (this *SImageUsageManager) GetUsage(session *mcclient.ClientSession, params
 
 var (
 	ImageUsages SImageUsageManager
-	ImageLogs   modulebase.ResourceManager
 )
 
 func init() {
@@ -621,8 +627,5 @@ func init() {
 		[]string{},
 		[]string{})}
 
-	ImageLogs = modules.NewImageManager("event", "events",
-		[]string{"id", "ops_time", "obj_id", "obj_type", "obj_name", "user", "user_id", "tenant", "tenant_id", "owner_tenant_id", "action", "notes"},
-		[]string{})
 	// register(&ImageUsages)
 }

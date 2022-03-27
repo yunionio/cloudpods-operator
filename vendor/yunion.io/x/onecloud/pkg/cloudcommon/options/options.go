@@ -110,6 +110,8 @@ type BaseOptions struct {
 
 	PlatformName  string            `help:"identity name of this platform" default:"Cloudpods"`
 	PlatformNames map[string]string `help:"identity name of this platform by language"`
+
+	EnableTlsMigration bool `help:"Enable TLS migration" default:"false"`
 }
 
 const (
@@ -145,7 +147,9 @@ type DBOptions struct {
 
 	Clickhouse string `help:"Connection string for click house"`
 
-	OpsLogWithClickhouse bool `help:"store operation logs with clickhouse" default:"false"`
+	OpsLogWithClickhouse   bool `help:"store operation logs with clickhouse" default:"false"`
+	EnableDBChecksumTables bool `help:"Enable DB tables with record checksum for consistency"`
+	DBChecksumSkipInit     bool `help:"Skip DB tables with record checksum calculation when init" default:"false"`
 
 	AutoSyncTable   bool `help:"Automatically synchronize table changes if differences are detected"`
 	ExitAfterDBInit bool `help:"Exit program after db initialization" default:"false"`
