@@ -31,8 +31,8 @@ type ComputeOptions struct {
 	DefaultMemoryOvercommitBound  float32 `default:"1.0" help:"Default memory overcommit bound for host, default to 1"`
 	DefaultStorageOvercommitBound float32 `default:"1.0" help:"Default storage overcommit bound for storage, default to 1"`
 
-	DefaultSecurityRules      string `help:"Default security rules" default:"allow any"`
-	DefaultAdminSecurityRules string `help:"Default admin security rules" default:""`
+	DefaultSecurityGroupId      string `help:"Default security rules" default:"default"`
+	DefaultAdminSecurityGroupId string `help:"Default admin security rules" default:""`
 
 	DefaultDiskSizeMB int `default:"10240" help:"Default disk size in MB if not specified, default to 10GiB" json:"default_disk_size"`
 
@@ -53,6 +53,7 @@ type ComputeOptions struct {
 
 	DefaultBandwidth int `default:"1000" help:"Default bandwidth"`
 	DefaultMtu       int `default:"1500" help:"Default network mtu"`
+	OvnUnderlayMtu   int `help:"mtu of ovn underlay network" default:"1500"`
 
 	DefaultServerQuota           int `default:"50" help:"Common Server quota per tenant, default 50"`
 	DefaultCpuQuota              int `default:"200" help:"Common CPU quota per tenant, default 200"`
@@ -113,8 +114,7 @@ type ComputeOptions struct {
 	ConvertKubeletDockerVolumeSize   string `default:"256g" help:"Docker volume size"`
 
 	// cloud image sync
-	SyncCloudImagesDay  int `default:"1" help:"Days auto sync public cloud images data, default 1 day"`
-	SyncCloudImagesHour int `default:"3" help:"What hour start sync public cloud images, default 03:00"`
+	CloudImagesSyncIntervalHours int `default:"3" help:"Interval to sync public cloud image, defualt is 3 hour"`
 
 	EnablePreAllocateIpAddr bool `help:"Enable private and public cloud private ip pre allocate, default false" default:"false"`
 
@@ -179,6 +179,9 @@ type ComputeOptions struct {
 	GlobalMacPrefix string `help:"Global prefix of MAC address, default to 00:22" default:"00:22"`
 
 	DefaultIPAllocationDirection string `help:"default IP allocation direction" default:"stepdown"`
+
+	// 弹性伸缩中的ecs一般会有特殊的系统标签，通过指定这些标签可以忽略这部分ecs的同步, 指定多个key需要以 ',' 分隔
+	SkipServerBySysTagKeys string `help:"skip server sync and create with system tags" default:"acs:autoscaling:scalingGroupId"`
 
 	esxi.EsxiOptions
 }

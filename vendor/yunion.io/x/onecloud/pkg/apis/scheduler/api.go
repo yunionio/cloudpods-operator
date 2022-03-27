@@ -64,6 +64,9 @@ type ServerConfig struct {
 	GroupRelations []*GroupRelation  `json:"group_releations"`
 	Groups         interface{}       `json:"groups"`
 	Id             string            `json:"id"`
+
+	InstanceSnapshotId string `json:"instance_snapshot_id"`
+	InstanceBackupId   string `json:"instance_backup_id"`
 }
 
 // ScheduleInput used by scheduler sync-schedule/test/forecast api
@@ -77,12 +80,14 @@ type ScheduleInput struct {
 	// HostId used by migrate
 	HostId       string `json:"host_id"`
 	LiveMigrate  bool   `json:"live_migrate"`
+	SkipCpuCheck *bool  `json:"skip_cpu_check"`
 	CpuDesc      string `json:"cpu_desc"`
 	CpuMicrocode string `json:"cpu_microcode"`
 	CpuMode      string `json:"cpu_mode"`
 	OsArch       string `json:"os_arch"`
 
-	SkipCpuCheck *bool `json:"skip_cpu_check"`
+	SkipKernelCheck  *bool  `json:"skip_kernel_check"`
+	TargetHostKernel string `json:"target_host_kernel"`
 
 	// In the migrate and create backup cases
 	// we don't need reallocate network

@@ -33,14 +33,17 @@ type SHostOptions struct {
 	Slots           string   `help:"Slots of host (optional)"`
 	Hostname        string   `help:"Customized host name"`
 
-	ServersPath    string `help:"Path for virtual server configuration files" default:"/opt/cloud/workspace/servers"`
-	ImageCachePath string `help:"Path for storing image caches" default:"/opt/cloud/workspace/disks/image_cache"`
+	ServersPath         string `help:"Path for virtual server configuration files" default:"/opt/cloud/workspace/servers"`
+	ImageCachePath      string `help:"Path for storing image caches" default:"/opt/cloud/workspace/disks/image_cache"`
+	MemorySnapshotsPath string `help:"Path for memory snapshot stat files" default:"/opt/cloud/workspace/memory_snapshots"`
 	// ImageCacheLimit int    `help:"Maximal storage space for image caching, in GB" default:"20"`
 	AgentTempPath  string `help:"Path for ESXi agent"`
 	AgentTempLimit int    `help:"Maximal storage space for ESXi agent, in GB" default:"10"`
 
 	RecycleDiskfile         bool `help:"Recycle instead of remove deleted disk file" default:"true"`
 	RecycleDiskfileKeepDays int  `help:"How long recycled files kept, default 28 days" default:"28"`
+
+	ZeroCleanDiskData bool `help:"Clean disk data by writing zeros" default:"false"`
 
 	EnableTemplateBacking    bool `help:"Use template as backing file"`
 	AutoMergeBackingTemplate bool `help:"Automatically stream merging backing file"`
@@ -159,7 +162,9 @@ type SHostOptions struct {
 
 	EnableVmUuid bool `help:"enable vm UUID" default:"true" json:"enable_vm_uuid"`
 
-	EnableVirtioRngDevice bool `help:"enable qemu virtio-rng device" default:"false"`
+	EnableVirtioRngDevice bool `help:"enable qemu virtio-rng device" default:"true"`
+
+	RestrictQemuImgConvertWorker bool `help:"restrict qemu-img convert worker" default:"false"`
 }
 
 var (

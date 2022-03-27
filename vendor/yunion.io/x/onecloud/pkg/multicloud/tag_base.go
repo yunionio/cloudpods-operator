@@ -49,6 +49,8 @@ type QcloudTags struct {
 	Tags []STag
 	// Cdn
 	Tag []STag
+	// TDSQL
+	ResourceTags []STag
 }
 
 func (self *QcloudTags) GetTags() (map[string]string, error) {
@@ -83,7 +85,12 @@ func (self *QcloudTags) GetTags() (map[string]string, error) {
 		}
 		ret[tag.TagKey] = tag.TagValue
 	}
-
+	for _, tag := range self.ResourceTags {
+		if tag.TagValue == "null" {
+			tag.TagValue = ""
+		}
+		ret[tag.TagKey] = tag.TagValue
+	}
 	return ret, nil
 }
 
@@ -226,8 +233,15 @@ type SAwsTag struct {
 	Value string `xml:"value"`
 }
 
+type SAwsRdsTag struct {
+	Key   string `xml:"Key"`
+	Value string `xml:"Value"`
+}
+
 type AwsTags struct {
 	TagSet []SAwsTag `xml:"tagSet>item"`
+	// rds
+	TagList []SAwsRdsTag `xml:"TagList>Tag"`
 }
 
 func (self AwsTags) GetName() string {
@@ -243,6 +257,12 @@ func (self *AwsTags) GetTags() (map[string]string, error) {
 	ret := map[string]string{}
 	for _, tag := range self.TagSet {
 		if tag.Key == "Name" || tag.Key == "Description" {
+			continue
+		}
+		ret[tag.Key] = tag.Value
+	}
+	for _, tag := range self.TagList {
+		if strings.ToLower(tag.Key) == "name" || strings.ToLower(tag.Key) == "description" {
 			continue
 		}
 		ret[tag.Key] = tag.Value
@@ -407,5 +427,28 @@ func (self *CloudpodsTags) GetSysTags() map[string]string {
 }
 
 func (self *CloudpodsTags) SetTags(tags map[string]string, replace bool) error {
+	return errors.Wrap(cloudprovider.ErrNotImplemented, "SetTags")
+}
+
+type BingoTags struct {
+	TagSet []struct {
+		Key   string
+		Value string
+	}
+}
+
+func (self *BingoTags) GetTags() (map[string]string, error) {
+	tags := map[string]string{}
+	for _, tag := range self.TagSet {
+		tags[tag.Key] = tag.Value
+	}
+	return tags, nil
+}
+
+func (self *BingoTags) GetSysTags() map[string]string {
+	return nil
+}
+
+func (self *BingoTags) SetTags(tags map[string]string, replace bool) error {
 	return errors.Wrap(cloudprovider.ErrNotImplemented, "SetTags")
 }

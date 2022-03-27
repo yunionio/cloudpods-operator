@@ -3,6 +3,8 @@ module yunion.io/x/onecloud-operator
 go 1.12
 
 require (
+	github.com/coreos/go-systemd v0.0.0-20190620071333-e64a0ec8b42a // indirect
+	github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f // indirect
 	github.com/docker/distribution v0.0.0-20170726174610-edc3ab29cdff
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/googleapis/gnostic v0.3.0 // indirect
@@ -13,29 +15,29 @@ require (
 	github.com/pborman/uuid v1.2.0
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/pflag v1.0.3 // indirect
+	github.com/tmc/grpc-websocket-proxy v0.0.0-20190109142713-0ad062ec5ee5 // indirect
 	go.etcd.io/etcd v0.5.0-alpha.5.0.20200819165624-17cef6e3e9d5
-	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
-	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
+	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	k8s.io/api v0.19.3
 	k8s.io/apiextensions-apiserver v0.0.0
 	k8s.io/apimachinery v0.19.3
 	k8s.io/client-go v9.0.0+incompatible
-	k8s.io/code-generator v0.15.13-beta.0 // indirect
 	k8s.io/klog v0.3.3
 	k8s.io/kube-openapi v0.0.0-20190603182131-db7b694dc208 // indirect
 	k8s.io/kubernetes v0.0.0-00010101000000-000000000000
 	k8s.io/utils v0.0.0-20190607212802-c55fbcfc754a // indirect
 	yunion.io/x/jsonutils v0.0.0-20220106020632-953b71a4c3a8
 	yunion.io/x/log v0.0.0-20201210064738-43181789dc74
-	yunion.io/x/onecloud v0.0.0-20211230024524-5b23f4c1bfcb
-	yunion.io/x/pkg v0.0.0-20211116020154-6a76ba2f7e97
-	yunion.io/x/structarg v0.0.0-20200720093445-9f850fa222ce
+	yunion.io/x/onecloud v0.0.0-20220327144922-2553a85a0395
+	yunion.io/x/pkg v0.0.0-20220227083757-28690b33ce38
+	yunion.io/x/structarg v0.0.0-20220312084958-9c6c79c7d1c6
 )
 
 replace (
 	github.com/Sirupsen/logrus v1.4.2 => github.com/sirupsen/logrus v1.4.2
 	github.com/ugorji/go => github.com/ugorji/go v0.0.0-20181204163529-d75b2dcb6bc8
+	google.golang.org/grpc => google.golang.org/grpc v1.29.0
 	k8s.io/api => k8s.io/api v0.0.0-20190620084959-7cf5895f2711
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.0.0-20190620085554-14e95df34f1f
 	k8s.io/apimachinery => k8s.io/apimachinery v0.0.0-20190612205821-1799e75a0719
