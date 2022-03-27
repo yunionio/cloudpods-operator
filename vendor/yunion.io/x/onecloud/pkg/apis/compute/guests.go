@@ -23,6 +23,7 @@ import (
 
 	"yunion.io/x/onecloud/pkg/apis"
 	"yunion.io/x/onecloud/pkg/apis/billing"
+	imageapi "yunion.io/x/onecloud/pkg/apis/image"
 	"yunion.io/x/onecloud/pkg/httperrors"
 )
 
@@ -146,6 +147,7 @@ type ServerResumeInput struct {
 
 type ServerDetails struct {
 	apis.VirtualResourceDetails
+	apis.EncryptedResourceDetails
 
 	SGuest
 
@@ -196,6 +198,10 @@ type ServerDetails struct {
 	// IP地址列表字符串
 	// example: 10.165.2.1,172.16.8.1
 	IPs string `json:"ips"`
+	// VIP
+	Vip string `json:"vip"`
+	// VIP's eip
+	VipEip string `json:"vip_eip"`
 	// mac地址信息
 	Macs string `json:"macs"`
 	// 网卡信息
@@ -382,6 +388,10 @@ type GuestLiveMigrateInput struct {
 	PreferHost string `json:"prefer_host"`
 	// 是否跳过CPU检查，默认要做CPU检查
 	SkipCpuCheck *bool `json:"skip_cpu_check"`
+	// 是否跳过kernel检查
+	SkipKernelCheck *bool `json:"skip_kernel_check"`
+	// 是否启用 tls
+	EnableTLS *bool `json:"enable_tls"`
 }
 
 type GuestSetSecgroupInput struct {
@@ -445,6 +455,26 @@ type ServerAssociateEipInput struct {
 	Eip string `json:"eip" yunion-deprecated-by:"eip_id"`
 	// 弹性公网IP的ID
 	EipId string `json:"eip_id"`
+
+	// 弹性IP映射的内网IP地址，可选
+	IpAddr string `json:"ip_addr"`
+}
+
+type ServerCreateEipInput struct {
+	// 计费方式，traffic or bandwidth
+	ChargeType string `json:"charge_type"`
+
+	// Bandwidth
+	Bandwidth int64 `json:"bandwidth"`
+
+	// bgp_type
+	BgpType string `json:"bgp_type"`
+
+	// auto_dellocate
+	AutoDellocate *bool `json:"auto_dellocate"`
+
+	// 弹性IP映射的内网IP地址，可选
+	IpAddr string `json:"ip_addr"`
 }
 
 type ServerDissociateEipInput struct {
@@ -456,6 +486,8 @@ type ServerResetInput struct {
 	InstanceSnapshot string `json:"instance_snapshot"`
 	// 自动启动
 	AutoStart *bool `json:"auto_start"`
+	// 恢复内存
+	WithMemory bool `json:"with_memory"`
 }
 
 type ServerStopInput struct {
@@ -472,7 +504,7 @@ type ServerSaveImageInput struct {
 	Name         string
 	GenerateName string
 	Notes        string
-	IsPublic     bool
+	IsPublic     *bool
 	// 镜像格式
 	Format string
 
@@ -490,6 +522,13 @@ type ServerSaveImageInput struct {
 
 	// swagger: ignore
 	ImageId string
+}
+
+type ServerSaveGuestImageInput struct {
+	imageapi.GuestImageCreateInputBase
+
+	// 保存镜像后是否自动启动
+	AutoStart *bool `json:"auto_start"`
 }
 
 type ServerDeleteInput struct {
@@ -528,9 +567,10 @@ type ServerDetachnetworkInput struct {
 type ServerMigrateForecastInput struct {
 	PreferHostId string `json:"prefer_host_id"`
 	// Deprecated
-	PreferHost   string `json:"prefer_host" yunion-deprecated-by:"prefer_host_id"`
-	LiveMigrate  bool   `json:"live_migrate"`
-	SkipCpuCheck bool   `josn:"skip_cpu_check"`
+	PreferHost      string `json:"prefer_host" yunion-deprecated-by:"prefer_host_id"`
+	LiveMigrate     bool   `json:"live_migrate"`
+	SkipCpuCheck    bool   `json:"skip_cpu_check"`
+	SkipKernelCheck bool   `json:"skip_kernel_check"`
 }
 
 type ServerResizeDiskInput struct {
@@ -630,6 +670,9 @@ type ServerUpdateInput struct {
 	SrcMacCheck *bool `json:"src_mac_check"`
 
 	SshPort int `json:"ssh_port"`
+
+	// swagger: ignore
+	ProgressMbps float32 `json:"progress_mbps"`
 }
 
 type GuestJsonDesc struct {
@@ -697,6 +740,8 @@ type GuestJsonDesc struct {
 		InstanceSnapshotId string `json:"instance_snapshot_id"`
 		InstanceId         string `json:"instance_id"`
 	} `json:"instance_snapshot_info"`
+
+	EncryptKeyId string `json:"encrypt_key_id,omitempty"`
 }
 
 type ServerChangeDiskStorageInput struct {
@@ -736,4 +781,55 @@ func (o ServerDelExtraOptionInput) Validate() error {
 		return errors.Wrap(httperrors.ErrBadRequest, "empty key")
 	}
 	return nil
+}
+
+type ServerSnapshotAndCloneInput struct {
+	ServerCreateSnapshotParams
+
+	// number of cloned servers
+	// 数量
+	Count *int `json:"count"`
+
+	// Whether auto start the cloned server
+	// 是否自动启动
+	AutoStart *bool `json:"auto_start"`
+
+	// Whether delete instance snapshot automatically
+	// 是否自动删除主机快照
+	AutoDeleteInstanceSnapshot *bool `json:"auto_delete_instance_snapshot"`
+
+	// ignore
+	InstanceSnapshotId string `json:"instance_snapshot_id"`
+}
+
+type ServerInstanceSnapshot struct {
+	ServerCreateSnapshotParams
+	WithMemory bool `json:"with_memory"`
+}
+
+type ServerCreateSnapshotParams struct {
+	Name         string `json:"name"`
+	GenerateName string `json:"generate_name"`
+}
+
+type ServerCPUSetInput struct {
+	// Specifies the CPUs that tasks in this cgroup are permitted to access.
+	CPUS []int `json:"cpus"`
+}
+
+type ServerCPUSetResp struct{}
+
+type ServerCPUSetRemoveInput struct{}
+
+type ServerCPUSetRemoveResp struct {
+	Done  bool   `json:"done"`
+	Error string `json:"error"`
+}
+
+type ServerGetCPUSetCoresInput struct{}
+
+type ServerGetCPUSetCoresResp struct {
+	PinnedCores   []int `json:"pinned_cores"`
+	HostCores     []int `json:"host_cores"`
+	HostUsedCores []int `json:"host_used_cores"`
 }

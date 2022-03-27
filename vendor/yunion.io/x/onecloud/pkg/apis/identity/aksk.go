@@ -25,6 +25,7 @@ const (
 	TOTP_TYPE             = "totp"
 	RECOVERY_SECRETS_TYPE = "recovery_secret"
 	OIDC_CREDENTIAL_TYPE  = "oidc"
+	ENCRYPT_KEY_TYPE      = "enc_key"
 )
 
 type SAccessKeySecretBlob struct {
