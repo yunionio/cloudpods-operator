@@ -102,10 +102,15 @@ type DiskConfig struct {
 	// required: false
 	ImageId string `json:"image_id"`
 
+	// 镜像加密key ID
+	ImageEncryptKeyId string `json:"image_encrypt_key_id"`
+
 	// 快照ID,通过快照创建磁盘,此参数必须加上 'snapshot-' 前缀
 	// example: snapshot-3140cecb-ccc4-4865-abae-3a5ba8c69d9b
 	// requried: false
 	SnapshotId string `json:"snapshot_id"`
+
+	BackupId string `json:"backup_id"`
 
 	// 磁盘类型
 	// enum: sys, data, swap
@@ -297,6 +302,7 @@ type ServerConfigs struct {
 	// required: false
 	Backup bool `json:"backup"`
 
+	// swagger:ignore
 	// 创建虚拟机数量
 	// default: 1
 	Count int `json:"count"`
@@ -351,6 +357,8 @@ type ServerCreateInput struct {
 	HostnameInput
 
 	*ServerConfigs
+
+	apis.EncryptedResourceCreateInput
 
 	// 虚拟机内存大小,单位Mb,若未指定instance_type,此参数为必传项
 	VmemSize int `json:"vmem_size"`
@@ -495,6 +503,11 @@ type ServerCreateInput struct {
 	// required: false
 	InstanceSnapshotId string `json:"instance_snapshot_id,omitempty"`
 
+	// 使用主机备份创建虚拟机, 主机快照不会重置密码及秘钥信息
+	// 使用主机备份创建的虚拟机将沿用之前的密码秘钥及安全组信息
+	// required: false
+	InstanceBackupId string `json:"instance_backup_id,omitempty"`
+
 	// 安全组Id, 此参数会和secgroups参数合并
 	SecgroupId string `json:"secgrp_id"`
 	// 安全组Id列表
@@ -556,14 +569,20 @@ type GuestBatchMigrateRequest struct {
 	PreferHostId string `json:"prefer_host_id"`
 	// Deprecated
 	// swagger:ignore
-	PreferHost string `json:"prefer_host" yunion-deprecated-by:"prefer_host_id"`
+	PreferHost      string `json:"prefer_host" yunion-deprecated-by:"prefer_host_id"`
+	SkipCpuCheck    bool   `json:"skip_cpu_check"`
+	SkipKernelCheck bool   `json:"skip_kernel_check"`
+	EnableTLS       *bool  `json:"enable_tls"`
 }
 
 type GuestBatchMigrateParams struct {
-	Id          string
-	LiveMigrate bool
-	RescueMode  bool
-	OldStatus   string
+	Id              string
+	LiveMigrate     bool
+	SkipCpuCheck    bool
+	SkipKernelCheck bool
+	EnableTLS       *bool
+	RescueMode      bool
+	OldStatus       string
 }
 
 type HostLoginInfo struct {
