@@ -3,6 +3,7 @@ module yunion.io/x/onecloud-operator
 go 1.16
 
 require (
+	github.com/coreos/go-systemd v0.0.0-20190620071333-e64a0ec8b42a // indirect
 	github.com/docker/distribution v0.0.0-20170726174610-edc3ab29cdff
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/googleapis/gnostic v0.3.0 // indirect
@@ -14,8 +15,9 @@ require (
 	github.com/pborman/uuid v1.2.0
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/pflag v1.0.3 // indirect
-	go.etcd.io/etcd v0.5.0-alpha.5.0.20200819165624-17cef6e3e9d5
-	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
+	go.etcd.io/etcd/api/v3 v3.5.0
+	go.etcd.io/etcd/client/pkg/v3 v3.5.0
+	go.etcd.io/etcd/client/v3 v3.5.0
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
