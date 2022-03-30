@@ -57,7 +57,7 @@ const (
 	DefaultTelegrafInitImageName = "telegraf-init"
 	DefaultTelegrafInitImageTag  = "release-1.5.2"
 	DefaultTelegrafRaidImageName = "telegraf-raid-plugin"
-	DefaultTelegrafRaidImageTag  = "release-1.6.2"
+	DefaultTelegrafRaidImageTag  = "release-1.6.3"
 )
 
 func addDefaultingFuncs(scheme *runtime.Scheme) error {
