@@ -146,6 +146,7 @@ server {
         proxy_buffers   32 16k;
         proxy_busy_buffers_size 16k;
         proxy_temp_file_write_size 16k;
+        proxy_read_timeout 600;
     }
 
     location /api/v1/imageutils/upload {
