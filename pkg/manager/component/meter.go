@@ -108,10 +108,12 @@ func (m *meterManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	if err != nil {
 		return nil, err
 	}
-	if oc.Spec.Meter.StorageClassName == v1alpha1.DefaultStorageClass {
-		// if use local path storage, remove cloud affinity
-		deploy = m.removeDeploymentAffinity(deploy)
-	}
+	/*
+	 * if oc.Spec.Meter.StorageClassName == v1alpha1.DefaultStorageClass {
+	 * 	// if use local path storage, remove cloud affinity
+	 * 	deploy = m.removeDeploymentAffinity(deploy)
+	 * }
+	 */
 	podTemplate := &deploy.Spec.Template.Spec
 	podVols := podTemplate.Volumes
 	podVols = append(podVols, corev1.Volume{
