@@ -1076,8 +1076,8 @@ yunion.io/x/log v0.0.0-20190514041436-04ce53b17c6b/go.mod h1:+gauLs73omeJAPlsXce
 yunion.io/x/log v0.0.0-20190629062853-9f6483a7103d/go.mod h1:LC6f/4FozL0iaAbnFt2eDX9jlsyo3WiOUPm03d7+U4U=
 yunion.io/x/log v0.0.0-20201210064738-43181789dc74 h1:7D+sQ/XaUTUEm+NCrKXOhXBKlzEd0RyS2qZ4vBGjx2o=
 yunion.io/x/log v0.0.0-20201210064738-43181789dc74/go.mod h1:LC6f/4FozL0iaAbnFt2eDX9jlsyo3WiOUPm03d7+U4U=
-yunion.io/x/onecloud v0.0.0-20220405032205-5378e212319f h1:1cxkdSl+xbv0Kg/Do0jTS/P5uw1YoOj93nVUd0Jtikk=
-yunion.io/x/onecloud v0.0.0-20220405032205-5378e212319f/go.mod h1:qHAzwqFb0G5966wN3Kq7GbitP26PXvGws0ZGqKO8SQk=
+yunion.io/x/onecloud v0.0.0-20220405081537-dde16447dd85 h1:uJH6JI5h2dh/fWDAByVK/rCtUclOLBrYzOdQPdsknwo=
+yunion.io/x/onecloud v0.0.0-20220405081537-dde16447dd85/go.mod h1:VCA8155FMYFCkRxqwTfLur5ZiQJYaiaoI7l4oD5gAcw=
 yunion.io/x/ovsdb v0.0.0-20200526071744-27bf0940cbc7/go.mod h1:0vLkNEhlmA64HViPBAnSTUMrx5QP1CLsxXmxDKQ80tc=
 yunion.io/x/pkg v0.0.0-20190620104149-945c25821dbf/go.mod h1:t6rEGG2sQ4J7DhFxSZVOTjNd0YO/KlfWQyK1W4tog+E=
 yunion.io/x/pkg v0.0.0-20190628082551-f4033ba2ea30/go.mod h1:t6rEGG2sQ4J7DhFxSZVOTjNd0YO/KlfWQyK1W4tog+E=
@@ -1086,7 +1086,7 @@ yunion.io/x/pkg v0.0.0-20220227083757-28690b33ce38 h1:QV3gVskJfi1J0e5kTs4oTx8D+M
 yunion.io/x/pkg v0.0.0-20220227083757-28690b33ce38/go.mod h1:t6rEGG2sQ4J7DhFxSZVOTjNd0YO/KlfWQyK1W4tog+E=
 yunion.io/x/s3cli v0.0.0-20190917004522-13ac36d8687e h1:v+EzIadodSwkdZ/7bremd7J8J50Cise/HCylsOJngmo=
 yunion.io/x/s3cli v0.0.0-20190917004522-13ac36d8687e/go.mod h1:0iFKpOs1y4lbCxeOmq3Xx/0AcQoewVPwj62eRluioEo=
-yunion.io/x/sqlchemy v0.0.0-20220312043902-049823163880 h1:qkNHJaiwNS/UwOj2sLdnURytvAaHkILhK5ze6ofck+M=
-yunion.io/x/sqlchemy v0.0.0-20220312043902-049823163880/go.mod h1:FTdwPdGhMgh4E+UFXc9klI1Ok34fMuybTT+jLhOaIjI=
+yunion.io/x/sqlchemy v0.0.0-20220405074102-7b815a97eb67 h1:vZiiB5oc6wqEvr1UNmJPFCX3FmLznZbvoUZ90ONgAcE=
+yunion.io/x/sqlchemy v0.0.0-20220405074102-7b815a97eb67/go.mod h1:FTdwPdGhMgh4E+UFXc9klI1Ok34fMuybTT+jLhOaIjI=
 yunion.io/x/structarg v0.0.0-20220312084958-9c6c79c7d1c6 h1:WuWXhY3DvhdRTzWCJ/kwt3Ss6KIq7+KqJwb+esvNGwU=
 yunion.io/x/structarg v0.0.0-20220312084958-9c6c79c7d1c6/go.mod h1:EP6NSv2C0zzqBDTKumv8hPWLb3XvgMZDHQRfyuOrQng=
