@@ -125,8 +125,6 @@ github.com/modern-go/concurrent
 github.com/modern-go/reflect2
 # github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
 github.com/mohae/deepcopy
-# github.com/moul/http2curl v1.0.0
-github.com/moul/http2curl
 # github.com/opencontainers/go-digest v0.0.0-20170106003457-a6d0ee40d420
 github.com/opencontainers/go-digest
 # github.com/pborman/uuid v1.2.0
@@ -670,6 +668,8 @@ k8s.io/utils/exec
 k8s.io/utils/integer
 k8s.io/utils/pointer
 k8s.io/utils/trace
+# moul.io/http2curl/v2 v2.3.0
+moul.io/http2curl/v2
 # sigs.k8s.io/yaml v1.2.0
 sigs.k8s.io/yaml
 # yunion.io/x/executor v0.0.0-20211018100936-39a2cd966656
@@ -680,7 +680,7 @@ yunion.io/x/jsonutils
 # yunion.io/x/log v0.0.0-20201210064738-43181789dc74
 yunion.io/x/log
 yunion.io/x/log/hooks
-# yunion.io/x/onecloud v0.0.0-20220327144936-a93bf7aa587a
+# yunion.io/x/onecloud v0.0.0-20220405032205-5378e212319f
 yunion.io/x/onecloud/cmd/climc/shell
 yunion.io/x/onecloud/locales
 yunion.io/x/onecloud/pkg/ansibleserver/options
