@@ -45,18 +45,27 @@ func (m *hostImageManager) newHostPrivilegedDaemonSet(
 					Name:  cType.String(),
 					Image: oc.Spec.HostImage.Image,
 					Command: []string{
-						"sh", "-c", fmt.Sprintf(`
-							mount --bind -o ro /etc/hosts %s/etc/hosts
-							mount --bind -o ro /etc/resolv.conf %s/etc/resolv.conf
-							mkdir -p %s/etc/yunion/common
-							mount --bind /etc/yunion/common %s/etc/yunion/common
-							mkdir -p %s/etc/yunion/pki
-							mount --bind /etc/yunion/pki %s/etc/yunion/pki
-							mkdir -p %s/opt/yunion/bin
-							mount --bind /opt/yunion/bin %s/opt/yunion/bin
-							chroot %s /opt/yunion/bin/%s --config /etc/yunion/%s.conf --common-config-file /etc/yunion/common/common.conf`,
-							YUNION_HOST_ROOT, YUNION_HOST_ROOT, YUNION_HOST_ROOT, YUNION_HOST_ROOT,
-							YUNION_HOST_ROOT, YUNION_HOST_ROOT, YUNION_HOST_ROOT, YUNION_HOST_ROOT,
+						"sh", "-ce", fmt.Sprintf(`
+mkdir -p /etc/resolvconf/run && cp /etc/resolv.conf /etc/resolvconf/run
+mount --bind -o ro /etc/hosts %s/etc/hosts
+mount --bind -o ro /etc/resolv.conf %s/etc/resolv.conf
+test -d %s/etc/resolvconf && mount --rbind /etc/resolvconf %s/etc/resolvconf
+mkdir -p %s/etc/yunion/common
+mount --bind /etc/yunion/common %s/etc/yunion/common
+mkdir -p %s/etc/yunion/pki
+mount --bind /etc/yunion/pki %s/etc/yunion/pki
+mkdir -p %s/opt/yunion/bin
+mount --bind /opt/yunion/bin %s/opt/yunion/bin
+chroot %s /opt/yunion/bin/%s --config /etc/yunion/%s.conf --common-config-file /etc/yunion/common/common.conf`,
+							YUNION_HOST_ROOT,
+							YUNION_HOST_ROOT,
+							YUNION_HOST_ROOT, YUNION_HOST_ROOT,
+							YUNION_HOST_ROOT,
+							YUNION_HOST_ROOT,
+							YUNION_HOST_ROOT,
+							YUNION_HOST_ROOT,
+							YUNION_HOST_ROOT,
+							YUNION_HOST_ROOT,
 							YUNION_HOST_ROOT, cType.String(), v1alpha1.HostComponentType.String()),
 					},
 					ImagePullPolicy: dsSpec.ImagePullPolicy,
