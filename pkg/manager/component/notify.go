@@ -216,13 +216,16 @@ func (m *notifyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 		newPluginC(NotifyPluginDingtalk),
 		newPluginC(NotifyPluginEmail),
 		newPluginC(NotifyPluginSmsAliyun),
-		newPluginC(NotifyPluginWebsocket),
 		newPluginC(NotifyPluginFeishu),
 		newPluginC(NotifyPluginFeishuRobot),
 		newPluginC(NotifyPluginDingtalkRobot),
 		newPluginCWithoutConf(NotifyPluginWorkwx),
 		newPluginCWithoutConf(NotifyPluginWorkwxRobot),
 		newPluginCWithoutConf(NotifyPluginWebhook),
+	}
+	isEE := IsEnterpriseEdition(oc)
+	if isEE {
+		pluginCs = append(pluginCs, newPluginC(NotifyPluginWebsocket))
 	}
 	spec := &deploy.Spec.Template.Spec
 	cs := spec.Containers
