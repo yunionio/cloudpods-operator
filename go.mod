@@ -4,7 +4,7 @@ go 1.12
 
 require (
 	github.com/docker/distribution v0.0.0-20170726174610-edc3ab29cdff
-	github.com/go-sql-driver/mysql v1.5.0
+	github.com/go-sql-driver/mysql v1.6.0
 	github.com/googleapis/gnostic v0.3.0 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/minio/minio-go/v7 v7.0.6
@@ -26,10 +26,10 @@ require (
 	k8s.io/kube-openapi v0.0.0-20190603182131-db7b694dc208 // indirect
 	k8s.io/kubernetes v0.0.0-00010101000000-000000000000
 	k8s.io/utils v0.0.0-20190607212802-c55fbcfc754a // indirect
-	yunion.io/x/jsonutils v0.0.0-20220106020632-953b71a4c3a8
-	yunion.io/x/log v0.0.0-20201210064738-43181789dc74
-	yunion.io/x/onecloud v0.0.0-20220412165644-6d8c3261033e
-	yunion.io/x/pkg v0.0.0-20220406030238-39fbc60d5d4e
+	yunion.io/x/jsonutils v1.0.0
+	yunion.io/x/log v1.0.0
+	yunion.io/x/onecloud v0.0.0-20220416013433-16c74db9c8fd
+	yunion.io/x/pkg v1.0.0
 	yunion.io/x/structarg v0.0.0-20220312084958-9c6c79c7d1c6
 )
 

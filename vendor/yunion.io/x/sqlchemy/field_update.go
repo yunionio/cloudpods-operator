@@ -21,10 +21,35 @@ import (
 
 	"yunion.io/x/log"
 	"yunion.io/x/pkg/errors"
-	"yunion.io/x/pkg/gotypes"
 	"yunion.io/x/pkg/util/reflectutils"
-	"yunion.io/x/pkg/util/timeutils"
 )
+
+/*
+func (ts *STableSpec) GetUpdateColumnValue(dataType reflect.Type, dataValue reflect.Value, cv map[string]interface{}, fields map[string]interface{}) error {
+	for i := 0; i < dataType.NumField(); i++ {
+		fieldType := dataType.Field(i)
+		if gotypes.IsFieldExportable(fieldType.Name) {
+			fieldValue := dataValue.Field(i)
+			newValue, ok := fields[fieldType.Name]
+			if ok && fieldType.Anonymous {
+				return errors.New("Unsupported update anonymous field")
+			}
+			if ok {
+				columnName := reflectutils.GetStructFieldName(&fieldType)
+				cv[columnName] = newValue
+				continue
+			}
+			if fieldType.Anonymous {
+				err := ts.GetUpdateColumnValue(fieldType.Type, fieldValue, cv, fields)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+*/
 
 // UpdateFields update a record with the values provided by fields stringmap
 // params dt: model struct, fileds: {struct-field-name-string: update-value}
@@ -36,65 +61,55 @@ func (ts *STableSpec) UpdateFields(dt interface{}, fields map[string]interface{}
 // find primary key and index key
 // find fields correlatively columns
 // joint sql and executed
-func (ts *STableSpec) updateFieldSql(dt interface{}, fields map[string]interface{}, debug bool) (*sUpdateSQLResult, error) {
+func (ts *STableSpec) updateFields(dt interface{}, fields map[string]interface{}, debug bool) error {
 	dataValue := reflect.Indirect(reflect.ValueOf(dt))
 
+	// cv: {"column name": "update value"}
 	cv := make(map[string]interface{})
-	// use field to store field order
-	cnames := make([]string, 0)
-
-	now := timeutils.UtcNow()
+	// dataType := dataValue.Type()
+	// ts.GetUpdateColumnValue(dataType, dataValue, cv, fields)
+	// if len(cv) == 0 {
+	// 	log.Infof("Nothing update")
+	// 	return nil
+	// }
 
 	fullFields := reflectutils.FetchStructFieldValueSet(dataValue)
 	versionFields := make([]string, 0)
 	updatedFields := make([]string, 0)
-	primaryCols := make([]sPrimaryKeyValue, 0)
+	primaryCols := make(map[string]interface{}, 0)
 	for _, col := range ts.Columns() {
 		name := col.Name()
 		colValue, ok := fullFields.GetInterface(name)
 		if !ok {
 			continue
 		}
-		if col.IsPrimary() {
-			if !gotypes.IsNil(colValue) && !col.IsZero(colValue) {
-				primaryCols = append(primaryCols, sPrimaryKeyValue{
-					key:   name,
-					value: colValue,
-				})
-			} else if col.IsText() {
-				primaryCols = append(primaryCols, sPrimaryKeyValue{
-					key:   name,
-					value: "",
-				})
-			} else {
-				return nil, ErrEmptyPrimaryKey
-			}
+		if col.IsPrimary() && !col.IsZero(colValue) {
+			primaryCols[name] = colValue
 			continue
 		}
-		if col.IsAutoVersion() {
+		intCol, ok := col.(*SIntegerColumn)
+		if ok && intCol.IsAutoVersion {
 			versionFields = append(versionFields, name)
 			continue
 		}
-		if col.IsUpdatedAt() {
+		dateCol, ok := col.(*SDateTimeColumn)
+		if ok && dateCol.IsUpdatedAt {
 			updatedFields = append(updatedFields, name)
 			continue
 		}
 		if _, exist := fields[name]; exist {
 			cv[name] = col.ConvertFromValue(fields[name])
-			cnames = append(cnames, name)
 		}
-	}
-
-	if len(primaryCols) == 0 {
-		return nil, ErrEmptyPrimaryKey
 	}
 
 	vars := make([]interface{}, 0)
 	var buf bytes.Buffer
 	buf.WriteString(fmt.Sprintf("UPDATE `%s` SET ", ts.name))
-	for i, k := range cnames {
-		v := cv[k]
-		if i > 0 {
+	first := true
+	for k, v := range cv {
+		if first {
+			first = false
+		} else {
 			buf.WriteString(", ")
 		}
 		buf.WriteString(fmt.Sprintf("`%s` = ?", k))
@@ -104,39 +119,37 @@ func (ts *STableSpec) updateFieldSql(dt interface{}, fields map[string]interface
 		buf.WriteString(fmt.Sprintf(", `%s` = `%s` + 1", versionField, versionField))
 	}
 	for _, updatedField := range updatedFields {
-		buf.WriteString(fmt.Sprintf(", `%s` = ?", updatedField))
-		vars = append(vars, now)
+		buf.WriteString(fmt.Sprintf(", `%s` = UTC_TIMESTAMP()", updatedField))
 	}
 	buf.WriteString(" WHERE ")
-	for i, pkv := range primaryCols {
-		if i > 0 {
+	first = true
+	if len(primaryCols) == 0 {
+		return ErrEmptyPrimaryKey
+	}
+
+	for k, v := range primaryCols {
+		if first {
+			first = false
+		} else {
 			buf.WriteString(" AND ")
 		}
-		buf.WriteString(fmt.Sprintf("`%s` = ?", pkv.key))
-		vars = append(vars, pkv.value)
+		buf.WriteString(fmt.Sprintf("`%s` = ?", k))
+		vars = append(vars, v)
 	}
 
 	if DEBUG_SQLCHEMY || debug {
 		log.Infof("Update: %s", buf.String())
 	}
-
-	return &sUpdateSQLResult{
-		sql:       buf.String(),
-		vars:      vars,
-		primaries: primaryCols,
-	}, nil
-}
-
-func (ts *STableSpec) updateFields(dt interface{}, fields map[string]interface{}, debug bool) error {
-	results, err := ts.updateFieldSql(dt, fields, debug)
+	results, err := _db.Exec(buf.String(), vars...)
 	if err != nil {
-		return errors.Wrap(err, "updateFieldSql")
+		return err
 	}
-
-	err = ts.execUpdateSql(dt, results)
+	aCnt, err := results.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "execUpdateSql")
+		return err
 	}
-
+	if aCnt > 1 {
+		return errors.Wrapf(ErrUnexpectRowCount, "affected rows %d != 1", aCnt)
+	}
 	return nil
 }
