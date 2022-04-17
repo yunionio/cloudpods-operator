@@ -62,8 +62,9 @@ policy:
       '*': deny
   log:
     actions:
-      list: deny
-      get: deny
+      list:
+        '*': allow
+        splitable: deny
 `
 
 var secAdminPolicy = `
@@ -113,6 +114,11 @@ policy:
       '*': deny
     '*':
       '*': allow
+  notify:
+    events:
+      '*': deny
+    '*':
+      '*': allow
   identity:
     events:
       '*': deny
@@ -132,8 +138,9 @@ policy:
         purge: allow
   log:
     actions:
-      list: deny
-      get: deny
+      list:
+        '*': allow
+        splitable: deny
   yunionconf:
     '*':
       '*': allow
@@ -154,8 +161,6 @@ policy:
   identity:
     '*':
       '*': deny
-      get: allow
-      list: allow
 `
 
 var normalUserPolicy = `

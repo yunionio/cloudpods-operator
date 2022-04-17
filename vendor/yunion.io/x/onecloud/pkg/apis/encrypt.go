@@ -33,8 +33,11 @@ type EncryptedResourceCreateInput struct {
 	// 新建密钥算法
 	EncryptKeyAlg *string `json:"encrypt_key_alg"`
 
-	// 加密秘钥的ID
+	// 加密密钥的ID
 	EncryptKeyId *string `json:"encrypt_key_id"`
+
+	// 加密密钥的用户ID
+	EncryptKeyUserId *string `json:"encrypt_key_user_id"`
 }
 
 type EncryptedResourceDetails struct {
@@ -43,4 +46,13 @@ type EncryptedResourceDetails struct {
 
 	// 加密算法，aes-256 or sm4
 	EncryptAlg string `json:"encrypt_alg"`
+
+	// 密钥用户
+	EncryptKeyUser string `json:"encrypt_key_user"`
+	// 密钥用户ID
+	EncryptKeyUserId string `json:"encrypt_key_user_id"`
+	// 密钥用户域
+	EncryptKeyUserDomain string `json:"encrypt_key_user_domain"`
+	// 密钥用户域ID
+	EncryptKeyUserDomainId string `json:"encrypt_key_user_domain_id"`
 }
