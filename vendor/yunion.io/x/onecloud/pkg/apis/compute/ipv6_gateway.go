@@ -12,21 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package multicloud
+package compute
 
-import "time"
+import "yunion.io/x/onecloud/pkg/apis"
 
-type SResourceBase struct {
+type IPv6GatewayCreateInput struct {
+	apis.VirtualResourceCreateInput
 }
 
-func (self *SResourceBase) IsEmulated() bool {
-	return false
+type IPv6GatewayUpdateInput struct {
+	apis.SharableVirtualResourceBaseUpdateInput
 }
 
-func (self *SResourceBase) Refresh() error {
-	return nil
+type IPv6GatewayListInput struct {
+	apis.SharableVirtualResourceListInput
+	apis.ExternalizedResourceBaseListInput
+	VpcFilterListInput
 }
 
-func (self *SResourceBase) GetCreatedAt() time.Time {
-	return time.Time{}
+type IPv6GatewayDetails struct {
+	apis.SharableVirtualResourceDetails
+	VpcResourceInfo
 }
