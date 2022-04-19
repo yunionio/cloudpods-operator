@@ -12,21 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package multicloud
+package compute
 
-import "time"
+import (
+	"yunion.io/x/onecloud/pkg/mcclient/modulebase"
+	"yunion.io/x/onecloud/pkg/mcclient/modules"
+)
 
-type SResourceBase struct {
-}
+var (
+	IPv6Gateways modulebase.ResourceManager
+)
 
-func (self *SResourceBase) IsEmulated() bool {
-	return false
-}
-
-func (self *SResourceBase) Refresh() error {
-	return nil
-}
-
-func (self *SResourceBase) GetCreatedAt() time.Time {
-	return time.Time{}
+func init() {
+	IPv6Gateways = modules.NewComputeManager("ipv6_gateway", "ipv6_gateways",
+		[]string{},
+		[]string{})
+	modules.RegisterCompute(&IPv6Gateways)
 }
