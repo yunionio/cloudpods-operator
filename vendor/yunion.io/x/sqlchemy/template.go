@@ -15,24 +15,20 @@
 package sqlchemy
 
 import (
-	"fmt"
-	"sync"
+	"bytes"
+	"text/template"
 )
 
 var (
-	tableID                 = 0
-	tableIDLock *sync.Mutex = &sync.Mutex{}
+	templateTbl = make(map[string]*template.Template)
 )
 
-func getTableAliasName() string {
-	tableIDLock.Lock()
-	defer tableIDLock.Unlock()
-	tableID++
-	return fmt.Sprintf("t%d", tableID)
-}
-
-func ResetTableID() {
-	tableIDLock.Lock()
-	defer tableIDLock.Unlock()
-	tableID = 0
+func templateEval(temp string, variables interface{}) string {
+	if eval, ok := templateTbl[temp]; !ok {
+		eval = template.Must(template.New(temp).Parse(temp))
+		templateTbl[temp] = eval
+	}
+	buf := new(bytes.Buffer)
+	templateTbl[temp].Execute(buf, variables)
+	return buf.String()
 }

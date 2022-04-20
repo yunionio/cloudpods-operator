@@ -157,7 +157,12 @@ type SConstField struct {
 
 // Expression implementation of SConstField for IQueryField
 func (s *SConstField) Expression() string {
-	return fmt.Sprintf("%s AS `%s`", s.Reference(), s.Name())
+	name := s.Name()
+	if len(name) == 0 {
+		return s.Reference()
+	} else {
+		return fmt.Sprintf("%s AS `%s`", s.Reference(), name)
+	}
 }
 
 // Name implementation of SConstField for IQueryField
@@ -196,7 +201,12 @@ type SStringField struct {
 
 // Expression implementation of SStringField for IQueryField
 func (s *SStringField) Expression() string {
-	return fmt.Sprintf("%s AS `%s`", s.Reference(), s.Name())
+	name := s.Name()
+	if len(name) == 0 {
+		return s.Reference()
+	} else {
+		return fmt.Sprintf("%s AS `%s`", s.Reference(), name)
+	}
 }
 
 // Name implementation of SStringField for IQueryField
@@ -237,7 +247,12 @@ func CONCAT(name string, fields ...IQueryField) IQueryField {
 }
 
 // SubStr represents a SQL function SUBSTR
+// Deprecated
 func SubStr(name string, field IQueryField, pos, length int) IQueryField {
+	return SUBSTR(name, field, pos, length)
+}
+
+func SUBSTR(name string, field IQueryField, pos, length int) IQueryField {
 	var rightStr string
 	if length <= 0 {
 		rightStr = fmt.Sprintf("%d)", pos)
@@ -267,4 +282,32 @@ func INET_ATON(field IQueryField) IQueryField {
 // TimestampAdd represents a SQL function TimestampAdd
 func TimestampAdd(name string, field IQueryField, offsetSeconds int) IQueryField {
 	return NewFunctionField(name, `TIMESTAMPADD(SECOND, `+fmt.Sprintf("%d", offsetSeconds)+`, %s)`, field)
+}
+
+func CAST(field IQueryField, typeStr string, fieldname string) IQueryField {
+	return NewFunctionField(fieldname, `CAST(%s AS `+typeStr+`)`, field)
+}
+
+func bc(name, op string, fields ...IQueryField) IQueryField {
+	exps := []string{}
+	for i := 0; i < len(fields); i++ {
+		exps = append(exps, "%s")
+	}
+	return NewFunctionField(name, strings.Join(exps, fmt.Sprintf(" %s ", op)), fields...)
+}
+
+func ADD(name string, fields ...IQueryField) IQueryField {
+	return bc(name, "+", fields...)
+}
+
+func SUB(name string, fields ...IQueryField) IQueryField {
+	return bc(name, "-", fields...)
+}
+
+func MUL(name string, fields ...IQueryField) IQueryField {
+	return bc(name, "*", fields...)
+}
+
+func DIV(name string, fields ...IQueryField) IQueryField {
+	return bc(name, "/", fields...)
 }
