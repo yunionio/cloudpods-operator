@@ -183,6 +183,8 @@ type OnecloudClusterSpec struct {
 	DisableResourceManagement bool `json:"disableResourceMangement"`
 	// ProductVersion defines which product version used
 	ProductVersion ProductVersion `json:"productVersion"`
+	// UseHyperImage uses the cloudpods packed image to run components
+	UseHyperImage bool `json:"useHyperImage"`
 	// Etcd holds configuration for etcd
 	Etcd Etcd `json:"etcd,omitempty"`
 	// Mysql holds configuration for mysql
