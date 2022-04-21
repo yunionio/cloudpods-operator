@@ -88,6 +88,18 @@ func IsEnterpriseEdition(oc *OnecloudCluster) bool {
 	return GetEdition(oc) == constants.OnecloudEnterpriseEdition
 }
 
+type hyperImagePair struct {
+	*DeploymentSpec
+	Supported bool
+}
+
+func newHyperImagePair(ds *DeploymentSpec, supported bool) *hyperImagePair {
+	return &hyperImagePair{
+		DeploymentSpec: ds,
+		Supported:      supported,
+	}
+}
+
 func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	setDefaults_Mysql(&obj.Mysql)
 	if obj.ProductVersion == "" {
@@ -106,35 +118,39 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		obj.ImageRepository = DefaultImageRepository
 	}
 
-	SetDefaults_KeystoneSpec(&obj.Keystone, obj.ImageRepository, obj.Version)
-	SetDefaults_RegionSpec(&obj.RegionServer, obj.ImageRepository, obj.Version)
+	useHyperImage := obj.UseHyperImage
+
+	SetDefaults_KeystoneSpec(&obj.Keystone, obj.ImageRepository, obj.Version, useHyperImage, isEE)
+	SetDefaults_RegionSpec(&obj.RegionServer, obj.ImageRepository, obj.Version, useHyperImage, isEE)
 	SetDefaults_RegionDNSSpec(&obj.RegionDNS, obj.ImageRepository, obj.Version)
 
-	for cType, spec := range map[ComponentType]*DeploymentSpec{
-		ClimcComponentType:           &obj.Climc,
-		WebconsoleComponentType:      &obj.Webconsole,
-		SchedulerComponentType:       &obj.Scheduler,
-		LoggerComponentType:          &obj.Logger,
-		YunionconfComponentType:      &obj.Yunionconf,
-		KubeServerComponentType:      &obj.KubeServer,
-		AnsibleServerComponentType:   &obj.AnsibleServer,
-		CloudnetComponentType:        &obj.Cloudnet,
-		CloudproxyComponentType:      &obj.Cloudproxy,
-		CloudeventComponentType:      &obj.Cloudevent,
-		S3gatewayComponentType:       &obj.S3gateway,
-		DevtoolComponentType:         &obj.Devtool,
-		AutoUpdateComponentType:      &obj.AutoUpdate,
-		OvnNorthComponentType:        &obj.OvnNorth,
-		VpcAgentComponentType:        &obj.VpcAgent,
-		MonitorComponentType:         &obj.Monitor,
-		ServiceOperatorComponentType: &obj.ServiceOperator,
-		ItsmComponentType:            &obj.Itsm,
-		CloudIdComponentType:         &obj.CloudId,
-		SuggestionComponentType:      &obj.Suggestion,
-		CloudmonComponentType:        &obj.Cloudmon.DeploymentSpec,
-		ScheduledtaskComponentType:   &obj.Scheduledtask,
+	nHP := newHyperImagePair
+
+	for cType, spec := range map[ComponentType]*hyperImagePair{
+		ClimcComponentType:           nHP(&obj.Climc, false),
+		WebconsoleComponentType:      nHP(&obj.Webconsole, useHyperImage),
+		SchedulerComponentType:       nHP(&obj.Scheduler, useHyperImage),
+		LoggerComponentType:          nHP(&obj.Logger, useHyperImage),
+		YunionconfComponentType:      nHP(&obj.Yunionconf, useHyperImage),
+		KubeServerComponentType:      nHP(&obj.KubeServer, false),
+		AnsibleServerComponentType:   nHP(&obj.AnsibleServer, useHyperImage),
+		CloudnetComponentType:        nHP(&obj.Cloudnet, false),
+		CloudproxyComponentType:      nHP(&obj.Cloudproxy, false),
+		CloudeventComponentType:      nHP(&obj.Cloudevent, useHyperImage),
+		S3gatewayComponentType:       nHP(&obj.S3gateway, false),
+		DevtoolComponentType:         nHP(&obj.Devtool, useHyperImage),
+		AutoUpdateComponentType:      nHP(&obj.AutoUpdate, false),
+		OvnNorthComponentType:        nHP(&obj.OvnNorth, false),
+		VpcAgentComponentType:        nHP(&obj.VpcAgent, false),
+		MonitorComponentType:         nHP(&obj.Monitor, useHyperImage),
+		ServiceOperatorComponentType: nHP(&obj.ServiceOperator, false),
+		ItsmComponentType:            nHP(&obj.Itsm, false),
+		CloudIdComponentType:         nHP(&obj.CloudId, useHyperImage),
+		SuggestionComponentType:      nHP(&obj.Suggestion, false),
+		CloudmonComponentType:        nHP(&obj.Cloudmon.DeploymentSpec, useHyperImage),
+		ScheduledtaskComponentType:   nHP(&obj.Scheduledtask, useHyperImage),
 	} {
-		SetDefaults_DeploymentSpec(spec, getImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag))
+		SetDefaults_DeploymentSpec(spec.DeploymentSpec, getImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag, spec.Supported, isEE))
 	}
 
 	// CE or EE parts
@@ -152,21 +168,23 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		YunionagentComponentType:  &obj.Yunionagent,
 		HostImageComponentType:    &obj.HostImage,
 	} {
-		SetDefaults_DaemonSetSpec(spec, getImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag))
+		SetDefaults_DaemonSetSpec(spec, getImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag, false, isEE))
 	}
-	obj.HostAgent.SdnAgent.Image = getImage(obj.ImageRepository, obj.HostAgent.Repository, "sdnagent", obj.HostAgent.ImageName, obj.Version, obj.HostAgent.Tag)
+	obj.HostAgent.SdnAgent.Image = getImage(obj.ImageRepository, obj.HostAgent.Repository, "sdnagent", obj.HostAgent.ImageName, obj.Version, obj.HostAgent.Tag, false, isEE)
 
 	// setting ovn image
 	obj.HostAgent.OvnController.Image = getImage(
 		obj.ImageRepository, obj.HostAgent.OvnController.Repository,
 		DefaultOvnImageName, obj.HostAgent.OvnController.ImageName,
 		DefaultOvnImageTag, obj.HostAgent.OvnController.Tag,
+		false, isEE,
 	)
 	obj.HostAgent.OvnController.ImagePullPolicy = corev1.PullIfNotPresent
 	obj.OvnNorth.Image = getImage(
 		obj.ImageRepository, obj.OvnNorth.Repository,
 		DefaultOvnImageName, obj.OvnNorth.ImageName,
 		DefaultOvnImageTag, obj.OvnNorth.Tag,
+		false, isEE,
 	)
 	obj.OvnNorth.ImagePullPolicy = corev1.PullIfNotPresent
 	// host-image
@@ -174,6 +192,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		obj.ImageRepository, obj.HostImage.Repository,
 		DefaultHostImageName, obj.HostImage.ImageName,
 		DefaultHostImageTag, obj.HostImage.Tag,
+		false, isEE,
 	)
 
 	// telegraf spec
@@ -181,34 +200,38 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		obj.ImageRepository, obj.Telegraf.Repository,
 		DefaultTelegrafInitImageName, "",
 		DefaultTelegrafInitImageTag, "",
+		false, isEE,
 	)
 	obj.Telegraf.TelegrafRaidImage = getImage(
 		obj.ImageRepository, obj.Telegraf.Repository,
 		DefaultTelegrafRaidImageName, "",
 		DefaultTelegrafRaidImageTag, "",
+		false, isEE,
 	)
 	SetDefaults_DaemonSetSpec(
 		&obj.Telegraf.DaemonSetSpec,
 		getImage(obj.ImageRepository, obj.Telegraf.Repository,
 			DefaultTelegrafImageName, obj.Telegraf.ImageName,
 			DefaultTelegrafImageTag, obj.Telegraf.Tag,
+			false, isEE,
 		),
 	)
 
 	type stateDeploy struct {
-		obj     *StatefulDeploymentSpec
-		size    string
-		version string
+		obj           *StatefulDeploymentSpec
+		size          string
+		version       string
+		useHyperImage bool
 	}
 	for cType, spec := range map[ComponentType]*stateDeploy{
-		GlanceComponentType:         {&obj.Glance.StatefulDeploymentSpec, DefaultGlanceStorageSize, obj.Version},
-		InfluxdbComponentType:       {&obj.Influxdb, DefaultInfluxdbStorageSize, DefaultInfluxdbImageVersion},
-		NotifyComponentType:         {&obj.Notify, DefaultNotifyStorageSize, obj.Version},
-		BaremetalAgentComponentType: {&obj.BaremetalAgent.StatefulDeploymentSpec, DefaultBaremetalStorageSize, obj.Version},
-		MeterComponentType:          {&obj.Meter, DefaultMeterStorageSize, obj.Version},
-		EsxiAgentComponentType:      {&obj.EsxiAgent.StatefulDeploymentSpec, DefaultEsxiAgentStorageSize, obj.Version},
+		GlanceComponentType:         {&obj.Glance.StatefulDeploymentSpec, DefaultGlanceStorageSize, obj.Version, useHyperImage},
+		InfluxdbComponentType:       {&obj.Influxdb, DefaultInfluxdbStorageSize, DefaultInfluxdbImageVersion, false},
+		NotifyComponentType:         {&obj.Notify, DefaultNotifyStorageSize, obj.Version, useHyperImage},
+		BaremetalAgentComponentType: {&obj.BaremetalAgent.StatefulDeploymentSpec, DefaultBaremetalStorageSize, obj.Version, false},
+		MeterComponentType:          {&obj.Meter, DefaultMeterStorageSize, obj.Version, false},
+		EsxiAgentComponentType:      {&obj.EsxiAgent.StatefulDeploymentSpec, DefaultEsxiAgentStorageSize, obj.Version, useHyperImage},
 	} {
-		SetDefaults_StatefulDeploymentSpec(cType, spec.obj, spec.size, obj.ImageRepository, spec.version)
+		SetDefaults_StatefulDeploymentSpec(cType, spec.obj, spec.size, obj.ImageRepository, spec.version, spec.useHyperImage, isEE)
 	}
 
 	// cloudmon spec
@@ -246,7 +269,18 @@ func setDefaults_Mysql(obj *Mysql) {
 	}
 }
 
-func getImage(globalRepo, specRepo string, componentType ComponentType, componentName string, globalVersion, tag string) string {
+func getHyperImageName(isEE bool) string {
+	if isEE {
+		return "cloudpods-ee"
+	}
+	return "cloudpods"
+}
+
+func getImage(
+	globalRepo, specRepo string,
+	componentType ComponentType, componentName string,
+	globalVersion, tag string,
+	useHyperImage bool, isEE bool) string {
 	repo := specRepo
 	if specRepo == "" {
 		repo = globalRepo
@@ -256,7 +290,11 @@ func getImage(globalRepo, specRepo string, componentType ComponentType, componen
 		version = globalVersion
 	}
 	if componentName == "" {
-		componentName = componentType.String()
+		if useHyperImage {
+			componentName = getHyperImageName(isEE)
+		} else {
+			componentName = componentType.String()
+		}
 	}
 	return fmt.Sprintf("%s/%s:%s", repo, componentName, version)
 }
@@ -268,25 +306,32 @@ func getEditionImage(globalRepo, specRepo string, componentType ComponentType, c
 			componentName = fmt.Sprintf("%s-ee", componentName)
 		}
 	}
-	return getImage(globalRepo, specRepo, componentType, componentName, globalVersion, tag)
+	return getImage(globalRepo, specRepo, componentType, componentName, globalVersion, tag, false, isEE)
 }
 
-func SetDefaults_KeystoneSpec(obj *KeystoneSpec, imageRepo, version string) {
-	SetDefaults_DeploymentSpec(&obj.DeploymentSpec, getImage(imageRepo, obj.Repository, KeystoneComponentType, obj.ImageName, version, obj.Tag))
+func SetDefaults_KeystoneSpec(
+	obj *KeystoneSpec,
+	imageRepo, version string,
+	useHyperImage, isEE bool) {
+	SetDefaults_DeploymentSpec(&obj.DeploymentSpec, getImage(imageRepo, obj.Repository, KeystoneComponentType, obj.ImageName, version, obj.Tag, useHyperImage, isEE))
 	if obj.BootstrapPassword == "" {
 		obj.BootstrapPassword = passwd.GeneratePassword()
 	}
 }
 
-func SetDefaults_RegionSpec(obj *RegionSpec, imageRepo, version string) {
-	SetDefaults_DeploymentSpec(&obj.DeploymentSpec, getImage(imageRepo, obj.Repository, RegionComponentType, obj.ImageName, version, obj.Tag))
+func SetDefaults_RegionSpec(
+	obj *RegionSpec,
+	imageRepo, version string,
+	useHyperImage, isEE bool,
+) {
+	SetDefaults_DeploymentSpec(&obj.DeploymentSpec, getImage(imageRepo, obj.Repository, RegionComponentType, obj.ImageName, version, obj.Tag, useHyperImage, isEE))
 	if obj.DNSDomain == "" {
 		obj.DNSDomain = DefaultOnecloudRegionDNSDomain
 	}
 }
 
 func SetDefaults_RegionDNSSpec(obj *RegionDNSSpec, imageRepo, version string) {
-	SetDefaults_DaemonSetSpec(&obj.DaemonSetSpec, getImage(imageRepo, obj.Repository, RegionDNSComponentType, obj.ImageName, version, obj.Tag))
+	SetDefaults_DaemonSetSpec(&obj.DaemonSetSpec, getImage(imageRepo, obj.Repository, RegionDNSComponentType, obj.ImageName, version, obj.Tag, false, false))
 }
 
 func setPVCStoreage(obj *ContainerSpec, size string) {
@@ -298,8 +343,12 @@ func setPVCStoreage(obj *ContainerSpec, size string) {
 	}
 }
 
-func SetDefaults_StatefulDeploymentSpec(ctype ComponentType, obj *StatefulDeploymentSpec, defaultSize string, imageRepo, version string) {
-	SetDefaults_DeploymentSpec(&obj.DeploymentSpec, getImage(imageRepo, obj.Repository, ctype, obj.ImageName, version, obj.Tag))
+func SetDefaults_StatefulDeploymentSpec(
+	ctype ComponentType,
+	obj *StatefulDeploymentSpec, defaultSize string,
+	imageRepo, version string,
+	useHyperImage bool, isEE bool) {
+	SetDefaults_DeploymentSpec(&obj.DeploymentSpec, getImage(imageRepo, obj.Repository, ctype, obj.ImageName, version, obj.Tag, useHyperImage, isEE))
 	if obj.StorageClassName == "" {
 		obj.StorageClassName = DefaultStorageClass
 	}
