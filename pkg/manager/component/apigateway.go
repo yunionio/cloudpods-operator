@@ -43,11 +43,6 @@ func (m *apiGatewayManager) getProductVersions() []v1alpha1.ProductVersion {
 }
 
 func (m *apiGatewayManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if IsEnterpriseEdition(oc) {
-		oc.Spec.APIGateway.ImageName = constants.APIGatewayEEImageName
-	} else {
-		oc.Spec.APIGateway.ImageName = constants.APIGatewayCEImageName
-	}
 	return syncComponent(m, oc, oc.Spec.APIGateway.Disable, "")
 }
 
