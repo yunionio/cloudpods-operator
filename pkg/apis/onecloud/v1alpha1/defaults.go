@@ -139,14 +139,14 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		CloudeventComponentType:      nHP(&obj.Cloudevent, useHyperImage),
 		S3gatewayComponentType:       nHP(&obj.S3gateway, false),
 		DevtoolComponentType:         nHP(&obj.Devtool, useHyperImage),
-		AutoUpdateComponentType:      nHP(&obj.AutoUpdate, false),
+		AutoUpdateComponentType:      nHP(&obj.AutoUpdate, useHyperImage),
 		OvnNorthComponentType:        nHP(&obj.OvnNorth, false),
 		VpcAgentComponentType:        nHP(&obj.VpcAgent, false),
 		MonitorComponentType:         nHP(&obj.Monitor, useHyperImage),
 		ServiceOperatorComponentType: nHP(&obj.ServiceOperator, false),
 		ItsmComponentType:            nHP(&obj.Itsm, false),
 		CloudIdComponentType:         nHP(&obj.CloudId, useHyperImage),
-		SuggestionComponentType:      nHP(&obj.Suggestion, false),
+		SuggestionComponentType:      nHP(&obj.Suggestion, useHyperImage),
 		CloudmonComponentType:        nHP(&obj.Cloudmon.DeploymentSpec, useHyperImage),
 		ScheduledtaskComponentType:   nHP(&obj.Scheduledtask, useHyperImage),
 	} {
@@ -154,12 +154,12 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	}
 
 	// CE or EE parts
-	for cType, spec := range map[ComponentType]*DeploymentSpec{
-		APIGatewayComponentType: &obj.APIGateway.DeploymentSpec,
-		WebComponentType:        &obj.Web,
+	for cType, spec := range map[ComponentType]*hyperImagePair{
+		APIGatewayComponentType: nHP(&obj.APIGateway.DeploymentSpec, useHyperImage),
+		WebComponentType:        nHP(&obj.Web, false),
 	} {
-		SetDefaults_DeploymentSpec(spec,
-			getEditionImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag, isEE))
+		SetDefaults_DeploymentSpec(spec.DeploymentSpec,
+			getEditionImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag, spec.Supported, isEE))
 	}
 
 	for cType, spec := range map[ComponentType]*DaemonSetSpec{
@@ -168,7 +168,11 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		YunionagentComponentType:  &obj.Yunionagent,
 		HostImageComponentType:    &obj.HostImage,
 	} {
-		SetDefaults_DaemonSetSpec(spec, getImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag, false, isEE))
+		useHI := false
+		if cType == YunionagentComponentType {
+			useHI = useHyperImage
+		}
+		SetDefaults_DaemonSetSpec(spec, getImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag, useHI, isEE))
 	}
 	obj.HostAgent.SdnAgent.Image = getImage(obj.ImageRepository, obj.HostAgent.Repository, "sdnagent", obj.HostAgent.ImageName, obj.Version, obj.HostAgent.Tag, false, isEE)
 
@@ -228,7 +232,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		InfluxdbComponentType:       {&obj.Influxdb, DefaultInfluxdbStorageSize, DefaultInfluxdbImageVersion, false},
 		NotifyComponentType:         {&obj.Notify, DefaultNotifyStorageSize, obj.Version, useHyperImage},
 		BaremetalAgentComponentType: {&obj.BaremetalAgent.StatefulDeploymentSpec, DefaultBaremetalStorageSize, obj.Version, false},
-		MeterComponentType:          {&obj.Meter, DefaultMeterStorageSize, obj.Version, false},
+		MeterComponentType:          {&obj.Meter, DefaultMeterStorageSize, obj.Version, useHyperImage},
 		EsxiAgentComponentType:      {&obj.EsxiAgent.StatefulDeploymentSpec, DefaultEsxiAgentStorageSize, obj.Version, useHyperImage},
 	} {
 		SetDefaults_StatefulDeploymentSpec(cType, spec.obj, spec.size, obj.ImageRepository, spec.version, spec.useHyperImage, isEE)
@@ -299,14 +303,17 @@ func getImage(
 	return fmt.Sprintf("%s/%s:%s", repo, componentName, version)
 }
 
-func getEditionImage(globalRepo, specRepo string, componentType ComponentType, componentName string, globalVersion, tag string, isEE bool) string {
+func getEditionImage(globalRepo, specRepo string, componentType ComponentType, componentName string, globalVersion, tag string, useHyperImage bool, isEE bool) string {
 	if componentName == "" {
 		componentName = componentType.String()
 		if isEE {
 			componentName = fmt.Sprintf("%s-ee", componentName)
 		}
+		if useHyperImage {
+			componentName = getHyperImageName(isEE)
+		}
 	}
-	return getImage(globalRepo, specRepo, componentType, componentName, globalVersion, tag, false, isEE)
+	return getImage(globalRepo, specRepo, componentType, componentName, globalVersion, tag, useHyperImage, isEE)
 }
 
 func SetDefaults_KeystoneSpec(
