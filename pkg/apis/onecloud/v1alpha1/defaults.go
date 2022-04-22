@@ -487,7 +487,6 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 	}
 
 	for opt, userPort := range map[*ServiceCommonOptions]userPort{
-		&obj.Webconsole:                          {constants.WebconsoleAdminUser, constants.WebconsolePort},
 		&obj.APIGateway:                          {constants.APIGatewayAdminUser, constants.APIGatewayPort},
 		&obj.HostAgent.ServiceCommonOptions:      {constants.HostAdminUser, constants.HostPort},
 		&obj.BaremetalAgent.ServiceCommonOptions: {constants.BaremetalAdminUser, constants.BaremetalPort},
@@ -526,6 +525,7 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		&obj.Monitor:                             {constants.MonitorAdminUser, constants.MonitorPort, constants.MonitorDB, constants.MonitorDBUser},
 		&obj.Itsm.ServiceDBCommonOptions:         {constants.ItsmAdminUser, constants.ItsmPort, constants.ItsmDB, constants.ItsmDBUser},
 		&obj.CloudId:                             {constants.CloudIdAdminUser, constants.CloudIdPort, constants.CloudIdDB, constants.CloudIdDBUser},
+		&obj.Webconsole:                          {constants.WebconsoleAdminUser, constants.WebconsolePort, constants.WebconsoleDB, constants.WebconsoleDBUser},
 	} {
 		if user, ok := registryPorts[tmp.port]; ok {
 			log.Fatalf("port %d has been registered by %s", tmp.port, user)

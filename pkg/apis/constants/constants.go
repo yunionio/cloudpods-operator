@@ -138,6 +138,8 @@ const (
 	WebconsoleAdminUser    = "webconsole"
 	WebconsoleAdminProject = SysAdminProject
 	WebconsolePort         = 30899
+	WebconsoleDB           = "webconsole"
+	WebconsoleDBUser       = "webconsole"
 
 	LoggerAdminUser = "loggeradmin"
 	LoggerPort      = 30999

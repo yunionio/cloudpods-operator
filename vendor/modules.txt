@@ -680,7 +680,7 @@ yunion.io/x/jsonutils
 # yunion.io/x/log v1.0.0
 yunion.io/x/log
 yunion.io/x/log/hooks
-# yunion.io/x/onecloud v0.0.0-20220420082930-38bd88aa2675
+# yunion.io/x/onecloud v0.0.0-20220422063335-c86ffe705505
 yunion.io/x/onecloud/cmd/climc/shell
 yunion.io/x/onecloud/locales
 yunion.io/x/onecloud/pkg/ansibleserver/options
