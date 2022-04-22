@@ -16,9 +16,11 @@ package component
 
 import (
 	"fmt"
+	"strings"
 
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"yunion.io/x/onecloud/pkg/webconsole/options"
 
@@ -48,6 +50,10 @@ func (m *webconsoleManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.Webconsole.Disable, "")
 }
 
+func (m *webconsoleManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
+	return &cfg.Webconsole.DB
+}
+
 func (m *webconsoleManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
 	return &cfg.Webconsole.CloudUser
 }
@@ -65,8 +71,10 @@ func (m *webconsoleManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 		return nil, false, err
 	}
 	config := cfg.Webconsole
+	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
+	opt.AutoSyncTable = true
 	SetOptionsServiceTLS(&opt.BaseOptions, false)
-	SetServiceCommonOptions(&opt.CommonOptions, oc, config)
+	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 
 	opt.IpmitoolPath = "/usr/sbin/ipmitool"
 	opt.EnableAutoLogin = true
@@ -75,7 +83,21 @@ func (m *webconsoleManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	// opt.ApiServer = fmt.Sprintf("https://%s:%d", address, constants.WebconsolePort)
 	opt.ApiServer = fmt.Sprintf("https://%s", address)
 
-	return m.newServiceConfigMap(v1alpha1.WebconsoleComponentType, "", oc, opt), false, nil
+	cfgMap := m.newServiceConfigMap(v1alpha1.WebconsoleComponentType, "", oc, opt)
+	cfgCli := m.kubeCli.CoreV1().ConfigMaps(oc.GetNamespace())
+
+	oldCfgMap, _ := cfgCli.Get(cfgMap.GetName(), metav1.GetOptions{})
+	if oldCfgMap != nil {
+		optStr, ok := oldCfgMap.Data["config"]
+		if ok {
+			if !strings.Contains(optStr, "sql_connection") {
+				// hack: force update old configmap if not contains sql_connection option
+				return cfgMap, true, nil
+			}
+		}
+	}
+
+	return cfgMap, false, nil
 }
 
 func (m *webconsoleManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {

@@ -934,7 +934,7 @@ type OnecloudClusterConfig struct {
 	Keystone        KeystoneConfig         `json:"keystone"`
 	RegionServer    RegionConfig           `json:"region"`
 	Glance          GlanceConfig           `json:"glance"`
-	Webconsole      ServiceCommonOptions   `json:"webconsole"`
+	Webconsole      ServiceDBCommonOptions `json:"webconsole"`
 	Logger          ServiceDBCommonOptions `json:"logger"`
 	Yunionconf      ServiceDBCommonOptions `json:"yunionconf"`
 	Yunionagent     ServiceDBCommonOptions `json:"yunionagent"`
