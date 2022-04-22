@@ -127,7 +127,6 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	nHP := newHyperImagePair
 
 	for cType, spec := range map[ComponentType]*hyperImagePair{
-		ClimcComponentType:           nHP(&obj.Climc, false),
 		WebconsoleComponentType:      nHP(&obj.Webconsole, useHyperImage),
 		SchedulerComponentType:       nHP(&obj.Scheduler, useHyperImage),
 		LoggerComponentType:          nHP(&obj.Logger, useHyperImage),
@@ -156,6 +155,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	// CE or EE parts
 	for cType, spec := range map[ComponentType]*hyperImagePair{
 		APIGatewayComponentType: nHP(&obj.APIGateway.DeploymentSpec, useHyperImage),
+		ClimcComponentType:      nHP(&obj.Climc, false),
 		WebComponentType:        nHP(&obj.Web, false),
 	} {
 		SetDefaults_DeploymentSpec(spec.DeploymentSpec,
