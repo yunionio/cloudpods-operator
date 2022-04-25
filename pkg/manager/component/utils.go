@@ -338,8 +338,14 @@ func EnsureDBUser(conn *mysql.Connection, dbName string, username string, passwo
 			return errors.Wrapf(err, "create database %q", dbName)
 		}
 	}
-	if err := conn.CreateUser(username, password, dbName); err != nil {
-		return errors.Wrapf(err, "create user %q for database %q", username, dbName)
+	userExists, err := conn.IsUserExists(username, mysql.AllHosts[0])
+	if err != nil {
+		return errors.Wrap(err, "check user exists")
+	}
+	if !userExists || controller.SyncUser {
+		if err := conn.CreateUser(username, password, dbName); err != nil {
+			return errors.Wrapf(err, "create user %q for database %q", username, dbName)
+		}
 	}
 	return nil
 }
