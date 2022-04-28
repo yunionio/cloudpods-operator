@@ -90,6 +90,7 @@ func (m *glanceManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	opt.AutoSyncTable = true
 	opt.Port = constants.GlanceAPIPort
 
+	opt.EnableRemoteExecutor = true
 	if oc.Spec.Glance.SwitchToS3 {
 		if err := m.setS3Config(oc); err != nil {
 			return nil, false, err
@@ -236,27 +237,28 @@ func (m *glanceManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 
 	// if we are not use local path, propagation mount '/opt/cloud' to glance
 	// and persistent volume will propagate to host, then host deployer can find it
-	if oc.Spec.Glance.StorageClassName != v1alpha1.DefaultStorageClass {
-		var (
-			hostPathDirOrCreate = corev1.HostPathDirectoryOrCreate
-			mountMode           = corev1.MountPropagationBidirectional
-		)
-		podVols = append(podVols, corev1.Volume{
-			Name: "opt-cloud",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/opt/cloud",
-					Type: &hostPathDirOrCreate,
-				},
+	// FIX: QIUJIAN always mount /opt/cloud
+	// if oc.Spec.Glance.StorageClassName != v1alpha1.DefaultStorageClass {
+	var (
+		hostPathDirOrCreate = corev1.HostPathDirectoryOrCreate
+		mountMode           = corev1.MountPropagationBidirectional
+	)
+	podVols = append(podVols, corev1.Volume{
+		Name: "opt-cloud",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: "/opt/cloud",
+				Type: &hostPathDirOrCreate,
 			},
-		})
-		volMounts = append(volMounts, corev1.VolumeMount{
-			Name:             "opt-cloud",
-			MountPath:        "/opt/cloud",
-			MountPropagation: &mountMode,
-		})
-		deploy.Spec.Strategy.Type = apps.RecreateDeploymentStrategyType
-	}
+		},
+	})
+	volMounts = append(volMounts, corev1.VolumeMount{
+		Name:             "opt-cloud",
+		MountPath:        "/opt/cloud",
+		MountPropagation: &mountMode,
+	})
+	// deploy.Spec.Strategy.Type = apps.RecreateDeploymentStrategyType
+	// }
 
 	if !oc.Spec.Glance.SwitchToS3 { // use pvc as data store
 		if oc.Spec.Glance.StorageClassName == v1alpha1.DefaultStorageClass {
@@ -274,9 +276,10 @@ func (m *glanceManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 				},
 			},
 		})
+		// mount PVC to /data to bind glance to node
 		volMounts = append(volMounts, corev1.VolumeMount{
 			Name:      "data",
-			MountPath: constants.GlanceDataStore,
+			MountPath: "/data", // constants.GlanceDataStore,
 		})
 	}
 

@@ -53,6 +53,8 @@ func (m *hostManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 	SetServiceCommonOptions(&commonOpt.CommonOptions, oc, config.ServiceCommonOptions)
 	commonOpt.Port = constants.HostPort
 
+	commonOpt.EnableRemoteExecutor = true
+
 	return m.newServiceConfigMap(v1alpha1.HostComponentType, "", oc, commonOpt), false, nil
 }
 
