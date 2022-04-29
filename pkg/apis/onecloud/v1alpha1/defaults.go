@@ -47,6 +47,8 @@ const (
 	DefaultOvnImageName = "openvswitch"
 	DefaultOvnImageTag  = DefaultOvnVersion + "-1"
 
+	DefaultSdnAgentImageName = "sdnagent"
+
 	DefaultHostImageName = "host-image"
 	DefaultHostImageTag  = "v1.0.3"
 
@@ -149,7 +151,12 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		CloudmonComponentType:        nHP(&obj.Cloudmon.DeploymentSpec, useHyperImage),
 		ScheduledtaskComponentType:   nHP(&obj.Scheduledtask, useHyperImage),
 	} {
-		SetDefaults_DeploymentSpec(spec.DeploymentSpec, getImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag, spec.Supported, isEE))
+		SetDefaults_DeploymentSpec(spec.DeploymentSpec, getImage(
+			obj.ImageRepository, spec.Repository,
+			cType, spec.ImageName,
+			obj.Version, spec.Tag,
+			spec.Supported, isEE,
+		))
 	}
 
 	// CE or EE parts
@@ -159,7 +166,12 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		WebComponentType:        nHP(&obj.Web, false),
 	} {
 		SetDefaults_DeploymentSpec(spec.DeploymentSpec,
-			getEditionImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag, spec.Supported, isEE))
+			getEditionImage(
+				obj.ImageRepository, spec.Repository,
+				cType, spec.ImageName,
+				obj.Version, spec.Tag,
+				spec.Supported, isEE,
+			))
 	}
 
 	for cType, spec := range map[ComponentType]*DaemonSetSpec{
@@ -172,9 +184,19 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		if cType == YunionagentComponentType {
 			useHI = useHyperImage
 		}
-		SetDefaults_DaemonSetSpec(spec, getImage(obj.ImageRepository, spec.Repository, cType, spec.ImageName, obj.Version, spec.Tag, useHI, isEE))
+		SetDefaults_DaemonSetSpec(spec, getImage(
+			obj.ImageRepository, spec.Repository,
+			cType, spec.ImageName,
+			obj.Version, spec.Tag,
+			useHI, isEE,
+		))
 	}
-	obj.HostAgent.SdnAgent.Image = getImage(obj.ImageRepository, obj.HostAgent.Repository, "sdnagent", obj.HostAgent.ImageName, obj.Version, obj.HostAgent.Tag, false, isEE)
+	obj.HostAgent.SdnAgent.Image = getImage(
+		obj.ImageRepository, obj.HostAgent.SdnAgent.Repository,
+		DefaultSdnAgentImageName, obj.HostAgent.SdnAgent.ImageName,
+		obj.Version, obj.HostAgent.SdnAgent.Tag,
+		false, isEE,
+	)
 
 	// setting ovn image
 	obj.HostAgent.OvnController.Image = getImage(
@@ -320,7 +342,12 @@ func SetDefaults_KeystoneSpec(
 	obj *KeystoneSpec,
 	imageRepo, version string,
 	useHyperImage, isEE bool) {
-	SetDefaults_DeploymentSpec(&obj.DeploymentSpec, getImage(imageRepo, obj.Repository, KeystoneComponentType, obj.ImageName, version, obj.Tag, useHyperImage, isEE))
+	SetDefaults_DeploymentSpec(&obj.DeploymentSpec, getImage(
+		imageRepo, obj.Repository,
+		KeystoneComponentType, obj.ImageName,
+		version, obj.Tag,
+		useHyperImage, isEE,
+	))
 	if obj.BootstrapPassword == "" {
 		obj.BootstrapPassword = passwd.GeneratePassword()
 	}
@@ -331,14 +358,24 @@ func SetDefaults_RegionSpec(
 	imageRepo, version string,
 	useHyperImage, isEE bool,
 ) {
-	SetDefaults_DeploymentSpec(&obj.DeploymentSpec, getImage(imageRepo, obj.Repository, RegionComponentType, obj.ImageName, version, obj.Tag, useHyperImage, isEE))
+	SetDefaults_DeploymentSpec(&obj.DeploymentSpec, getImage(
+		imageRepo, obj.Repository,
+		RegionComponentType, obj.ImageName,
+		version, obj.Tag,
+		useHyperImage, isEE,
+	))
 	if obj.DNSDomain == "" {
 		obj.DNSDomain = DefaultOnecloudRegionDNSDomain
 	}
 }
 
 func SetDefaults_RegionDNSSpec(obj *RegionDNSSpec, imageRepo, version string) {
-	SetDefaults_DaemonSetSpec(&obj.DaemonSetSpec, getImage(imageRepo, obj.Repository, RegionDNSComponentType, obj.ImageName, version, obj.Tag, false, false))
+	SetDefaults_DaemonSetSpec(&obj.DaemonSetSpec, getImage(
+		imageRepo, obj.Repository,
+		RegionDNSComponentType, obj.ImageName,
+		version, obj.Tag,
+		false, false,
+	))
 }
 
 func setPVCStoreage(obj *ContainerSpec, size string) {
