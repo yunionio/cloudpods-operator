@@ -180,7 +180,7 @@ type OnecloudClusterList struct {
 // OnecloudClusterSpec describes the attributes that a user creates on a onecloud cluster
 type OnecloudClusterSpec struct {
 	// DisableResourceManagement disable container cgroup resource limits and requests
-	DisableResourceManagement bool `json:"disableResourceMangement"`
+	DisableResourceManagement bool `json:"disableResourceManagement"`
 	// ProductVersion defines which product version used
 	ProductVersion ProductVersion `json:"productVersion"`
 	// UseHyperImage uses the cloudpods packed image to run components
