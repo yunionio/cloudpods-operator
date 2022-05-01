@@ -49,6 +49,9 @@ const (
 
 	DefaultSdnAgentImageName = "sdnagent"
 
+	DefaultWebOverviewImageName = "dashboard-overview"
+	DefaultWebDocsImageName     = "docs-ee"
+
 	DefaultHostImageName = "host-image"
 	DefaultHostImageTag  = "v1.0.3"
 
@@ -163,7 +166,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	for cType, spec := range map[ComponentType]*hyperImagePair{
 		APIGatewayComponentType: nHP(&obj.APIGateway.DeploymentSpec, useHyperImage),
 		ClimcComponentType:      nHP(&obj.Climc, false),
-		WebComponentType:        nHP(&obj.Web, false),
+		WebComponentType:        nHP(&obj.Web.DeploymentSpec, false),
 	} {
 		SetDefaults_DeploymentSpec(spec.DeploymentSpec,
 			getEditionImage(
@@ -173,6 +176,23 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 				spec.Supported, isEE,
 			))
 	}
+
+	// setting web overview image
+	obj.Web.Overview.Image = getImage(
+		obj.ImageRepository, obj.Web.Overview.Repository,
+		DefaultWebOverviewImageName, obj.Web.Overview.ImageName,
+		obj.Version, obj.Web.Overview.Tag,
+		false, isEE,
+	)
+	obj.Web.Overview.ImagePullPolicy = corev1.PullIfNotPresent
+	// setting web docs image
+	obj.Web.Docs.Image = getImage(
+		obj.ImageRepository, obj.Web.Docs.Repository,
+		DefaultWebDocsImageName, obj.Web.Docs.ImageName,
+		obj.Version, obj.Web.Docs.Tag,
+		false, isEE,
+	)
+	obj.Web.Docs.ImagePullPolicy = corev1.PullIfNotPresent
 
 	for cType, spec := range map[ComponentType]*DaemonSetSpec{
 		HostComponentType:         &obj.HostAgent.DaemonSetSpec,
@@ -191,12 +211,15 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 			useHI, isEE,
 		))
 	}
+
+	// setting sdnagent image
 	obj.HostAgent.SdnAgent.Image = getImage(
 		obj.ImageRepository, obj.HostAgent.SdnAgent.Repository,
 		DefaultSdnAgentImageName, obj.HostAgent.SdnAgent.ImageName,
 		obj.Version, obj.HostAgent.SdnAgent.Tag,
 		false, isEE,
 	)
+	obj.HostAgent.SdnAgent.ImagePullPolicy = corev1.PullIfNotPresent
 
 	// setting ovn image
 	obj.HostAgent.OvnController.Image = getImage(
@@ -206,6 +229,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		false, isEE,
 	)
 	obj.HostAgent.OvnController.ImagePullPolicy = corev1.PullIfNotPresent
+
 	obj.OvnNorth.Image = getImage(
 		obj.ImageRepository, obj.OvnNorth.Repository,
 		DefaultOvnImageName, obj.OvnNorth.ImageName,

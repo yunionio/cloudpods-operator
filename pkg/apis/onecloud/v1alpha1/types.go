@@ -236,7 +236,7 @@ type OnecloudClusterSpec struct {
 	// APIGateway holds configuration for yunoinapi
 	APIGateway APIGatewaySpec `json:"apiGateway"`
 	// Web holds configuration for web
-	Web DeploymentSpec `json:"web"`
+	Web WebSpec `json:"web"`
 	// KubeServer holds configuration for kube-server service
 	KubeServer DeploymentSpec `json:"kubeserver"`
 	// AnsibleServer holds configuration for ansibleserver service
@@ -791,6 +791,13 @@ type RegionSpec struct {
 	DNSServer string `json:"dnsServer"`
 	// DNSDomain is the global default dns domain suffix for virtual servers
 	DNSDomain string `json:"dnsDomain"`
+}
+
+type WebSpec struct {
+	DeploymentSpec
+
+	Overview ContainerSpec
+	Docs     ContainerSpec
 }
 
 type CloudmonSpec struct {
