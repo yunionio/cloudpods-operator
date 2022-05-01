@@ -444,7 +444,6 @@ func (m *webManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.On
 }
 
 func (m *webManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
-	repo, _, tag := getRepoImageName(oc.Spec.Web.Image)
 	cf := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		confVol := volMounts[len(volMounts)-1]
 		confVol.MountPath = "/etc/nginx/conf.d"
@@ -470,13 +469,11 @@ func (m *webManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 			},
 		}
 		if IsEnterpriseEdition(oc) {
-			overviewImg := fmt.Sprintf("%s/dashboard-overview:%s", repo, tag)
-			docsImg := fmt.Sprintf("%s/docs-ee:%s", repo, tag)
 			containers = append(containers,
 				corev1.Container{
 					Name:            "overview",
-					Image:           overviewImg,
-					ImagePullPolicy: oc.Spec.Web.ImagePullPolicy,
+					Image:           oc.Spec.Web.Overview.Image,
+					ImagePullPolicy: oc.Spec.Web.Overview.ImagePullPolicy,
 					Ports: []corev1.ContainerPort{
 						{
 							Name:          "overview",
@@ -488,8 +485,8 @@ func (m *webManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 				},
 				corev1.Container{
 					Name:            "docs",
-					Image:           docsImg,
-					ImagePullPolicy: oc.Spec.Web.ImagePullPolicy,
+					Image:           oc.Spec.Web.Docs.Image,
+					ImagePullPolicy: oc.Spec.Web.Docs.ImagePullPolicy,
 					Ports: []corev1.ContainerPort{
 						{
 							Name:          "docs",
@@ -503,7 +500,7 @@ func (m *webManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 		}
 		return containers
 	}
-	deploy, err := m.newDefaultDeploymentNoInit(v1alpha1.WebComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.WebComponentType), v1alpha1.WebComponentType), &oc.Spec.Web, cf)
+	deploy, err := m.newDefaultDeploymentNoInit(v1alpha1.WebComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.WebComponentType), v1alpha1.WebComponentType), &oc.Spec.Web.DeploymentSpec, cf)
 	if err != nil {
 		return nil, err
 	}
