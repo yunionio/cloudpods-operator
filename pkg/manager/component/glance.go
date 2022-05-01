@@ -238,7 +238,6 @@ func (m *glanceManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 	// if we are not use local path, propagation mount '/opt/cloud' to glance
 	// and persistent volume will propagate to host, then host deployer can find it
 	// FIX: QIUJIAN always mount /opt/cloud
-	// if oc.Spec.Glance.StorageClassName != v1alpha1.DefaultStorageClass {
 	var (
 		hostPathDirOrCreate = corev1.HostPathDirectoryOrCreate
 		mountMode           = corev1.MountPropagationBidirectional
@@ -257,8 +256,9 @@ func (m *glanceManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 		MountPath:        "/opt/cloud",
 		MountPropagation: &mountMode,
 	})
-	// deploy.Spec.Strategy.Type = apps.RecreateDeploymentStrategyType
-	// }
+	if oc.Spec.Glance.StorageClassName != v1alpha1.DefaultStorageClass {
+		deploy.Spec.Strategy.Type = apps.RecreateDeploymentStrategyType
+	}
 
 	if !oc.Spec.Glance.SwitchToS3 { // use pvc as data store
 		if oc.Spec.Glance.StorageClassName == v1alpha1.DefaultStorageClass {
