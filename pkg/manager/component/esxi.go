@@ -137,19 +137,29 @@ func (m *esxiManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 	// workspace
 	podTemplate := &dm.Spec.Template.Spec
 	podVols := podTemplate.Volumes
+	volMounts := podTemplate.Containers[0].VolumeMounts
+	var privileged = true
+	podTemplate.Containers[0].SecurityContext = &corev1.SecurityContext{
+		Privileged: &privileged,
+	}
+
+	var (
+		hostPathDirOrCreate = corev1.HostPathDirectoryOrCreate
+		mountMode           = corev1.MountPropagationBidirectional
+	)
 	podVols = append(podVols, corev1.Volume{
-		Name: "opt",
+		Name: "opt-cloud",
 		VolumeSource: corev1.VolumeSource{
-			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-				ClaimName: m.newPvcName(oc.GetName(), oc.Spec.EsxiAgent.StorageClassName, v1alpha1.EsxiAgentComponentType),
-				ReadOnly:  false,
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: "/opt/cloud",
+				Type: &hostPathDirOrCreate,
 			},
 		},
 	})
-	volMounts := podTemplate.Containers[0].VolumeMounts
 	volMounts = append(volMounts, corev1.VolumeMount{
-		Name:      "opt",
-		MountPath: constants.EsxiAgentDataStore,
+		Name:             "opt-cloud",
+		MountPath:        "/opt/cloud",
+		MountPropagation: &mountMode,
 	})
 
 	if oc.Spec.EsxiAgent.StorageClassName != v1alpha1.DefaultStorageClass {
