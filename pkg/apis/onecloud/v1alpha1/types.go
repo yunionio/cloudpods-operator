@@ -248,7 +248,7 @@ type OnecloudClusterSpec struct {
 	// Cloudevent holds configuration for cloudevent service
 	Cloudevent DeploymentSpec `json:"cloudevent"`
 	// Notify holds configuration for notify service
-	Notify StatefulDeploymentSpec `json:"notify"`
+	Notify NotifySpec `json:"notify"`
 	// HostAgent holds configuration for host
 	HostAgent HostAgentSpec `json:"hostagent"`
 	// HostDeployer holds configuration for host-deployer
@@ -798,6 +798,12 @@ type WebSpec struct {
 
 	Overview ContainerSpec
 	Docs     ContainerSpec
+}
+
+type NotifySpec struct {
+	StatefulDeploymentSpec
+
+	Plugins ContainerSpec
 }
 
 type CloudmonSpec struct {

@@ -16,7 +16,6 @@ package component
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/pkg/errors"
 	apps "k8s.io/api/apps/v1"
@@ -150,8 +149,6 @@ func (m *notifyManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []
 }
 
 func (m *notifyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
-	img := oc.Spec.Notify.Image
-	pluginImg := strings.ReplaceAll(img, "notify", "notify-plugins")
 	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.NotifyComponentType, "", oc, &oc.Spec.Notify.DeploymentSpec, constants.NotifyPort, true, false)
 	if err != nil {
 		return nil, err
@@ -189,8 +186,8 @@ func (m *notifyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 	newPluginC := func(name string) corev1.Container {
 		return corev1.Container{
 			Name:            name,
-			Image:           pluginImg,
-			ImagePullPolicy: oc.Spec.Notify.ImagePullPolicy,
+			Image:           oc.Spec.Notify.Plugins.Image,
+			ImagePullPolicy: oc.Spec.Notify.Plugins.ImagePullPolicy,
 			Command:         []string{fmt.Sprintf("/opt/yunion/bin/%s", name), "--config", fmt.Sprintf("/etc/yunion/%s.conf", name)},
 			VolumeMounts: []corev1.VolumeMount{
 				socketVolMount,
@@ -204,8 +201,8 @@ func (m *notifyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 	newPluginCWithoutConf := func(name string) corev1.Container {
 		return corev1.Container{
 			Name:            name,
-			Image:           pluginImg,
-			ImagePullPolicy: oc.Spec.Notify.ImagePullPolicy,
+			Image:           oc.Spec.Notify.Plugins.Image,
+			ImagePullPolicy: oc.Spec.Notify.Plugins.ImagePullPolicy,
 			Command:         []string{fmt.Sprintf("/opt/yunion/bin/%s", name), "--log-level", "info", "--sock-file-dir", NotifySocketFileDir},
 			VolumeMounts: []corev1.VolumeMount{
 				socketVolMount,
