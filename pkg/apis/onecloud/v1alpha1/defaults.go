@@ -52,6 +52,8 @@ const (
 	DefaultWebOverviewImageName = "dashboard-overview"
 	DefaultWebDocsImageName     = "docs-ee"
 
+	DefaultNotifyPluginsImageName = "notify-plugins"
+
 	DefaultHostImageName = "host-image"
 	DefaultHostImageTag  = "v1.0.3"
 
@@ -276,13 +278,22 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	for cType, spec := range map[ComponentType]*stateDeploy{
 		GlanceComponentType:         {&obj.Glance.StatefulDeploymentSpec, DefaultGlanceStorageSize, obj.Version, useHyperImage},
 		InfluxdbComponentType:       {&obj.Influxdb, DefaultInfluxdbStorageSize, DefaultInfluxdbImageVersion, false},
-		NotifyComponentType:         {&obj.Notify, DefaultNotifyStorageSize, obj.Version, useHyperImage},
+		NotifyComponentType:         {&obj.Notify.StatefulDeploymentSpec, DefaultNotifyStorageSize, obj.Version, useHyperImage},
 		BaremetalAgentComponentType: {&obj.BaremetalAgent.StatefulDeploymentSpec, DefaultBaremetalStorageSize, obj.Version, false},
 		MeterComponentType:          {&obj.Meter, DefaultMeterStorageSize, obj.Version, useHyperImage},
 		EsxiAgentComponentType:      {&obj.EsxiAgent.StatefulDeploymentSpec, DefaultEsxiAgentStorageSize, obj.Version, useHyperImage},
 	} {
 		SetDefaults_StatefulDeploymentSpec(cType, spec.obj, spec.size, obj.ImageRepository, spec.version, spec.useHyperImage, isEE)
 	}
+
+	// setting web overview image
+	obj.Notify.Plugins.Image = getImage(
+		obj.ImageRepository, obj.Notify.Plugins.Repository,
+		DefaultNotifyPluginsImageName, obj.Notify.Plugins.ImageName,
+		obj.Version, obj.Notify.Plugins.Tag,
+		useHyperImage, isEE,
+	)
+	obj.Notify.Plugins.ImagePullPolicy = corev1.PullIfNotPresent
 
 	// cloudmon spec
 	//SetDefaults_DeploymentSpec(&obj.Cloudmon.DeploymentSpec,
