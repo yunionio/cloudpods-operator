@@ -22,14 +22,13 @@ require (
 	k8s.io/apiextensions-apiserver v0.0.0
 	k8s.io/apimachinery v0.19.3
 	k8s.io/client-go v9.0.0+incompatible
-	k8s.io/code-generator v0.15.13-beta.0 // indirect
 	k8s.io/klog v0.3.3
 	k8s.io/kube-openapi v0.0.0-20190603182131-db7b694dc208 // indirect
 	k8s.io/kubernetes v0.0.0-00010101000000-000000000000
 	k8s.io/utils v0.0.0-20190607212802-c55fbcfc754a // indirect
 	yunion.io/x/jsonutils v1.0.0
 	yunion.io/x/log v1.0.0
-	yunion.io/x/onecloud v0.0.0-20220428012645-2dd1aeb8aae1
+	yunion.io/x/onecloud v0.0.0-20220506171926-2289dca0664e
 	yunion.io/x/pkg v1.0.0
 	yunion.io/x/structarg v0.0.0-20220312084958-9c6c79c7d1c6
 )
