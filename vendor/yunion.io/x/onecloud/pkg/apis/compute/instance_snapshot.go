@@ -14,7 +14,11 @@
 
 package compute
 
-import "yunion.io/x/onecloud/pkg/apis"
+import (
+	"time"
+
+	"yunion.io/x/onecloud/pkg/apis"
+)
 
 type SimpleSnapshot struct {
 	// 快照Id
@@ -33,12 +37,17 @@ type SimpleSnapshot struct {
 	Status string `json:"status"`
 	// 存储类型
 	StorageType string `json:"storage_type"`
+	// 密钥
+	EncryptKeyId string `json:"encrypt_key_id"`
+	// 创建时间
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type InstanceSnapshotDetails struct {
 	apis.VirtualResourceDetails
 	ManagedResourceInfo
 	SInstanceSnapshot
+	apis.EncryptedResourceDetails
 
 	// 云主机状态
 	GuestStatus string `json:"guest_status"`
