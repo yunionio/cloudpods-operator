@@ -803,7 +803,7 @@ type WebSpec struct {
 type NotifySpec struct {
 	StatefulDeploymentSpec
 
-	Plugins ContainerSpec
+	Plugins ContainerSpec `json:"plugins"`
 }
 
 type CloudmonSpec struct {
