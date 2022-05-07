@@ -2,6 +2,7 @@ package component
 
 import (
 	"fmt"
+	"strings"
 
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -55,7 +56,13 @@ func (m *hostManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 
 	commonOpt.EnableRemoteExecutor = true
 
-	return m.newServiceConfigMap(v1alpha1.HostComponentType, "", oc, commonOpt), false, nil
+	return m.shouldSyncConfigmap(oc, v1alpha1.HostComponentType, commonOpt, func(oldOpt string) bool {
+		if !strings.Contains(oldOpt, "enable_remote_executor") {
+			// hack: force update old configmap if not contains enable_remote_executor option
+			return true
+		}
+		return false
+	})
 }
 
 func (m *hostManager) getDaemonSet(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.DaemonSet, error) {
