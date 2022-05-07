@@ -150,7 +150,7 @@ github.com/ugorji/go/codec
 # github.com/vishvananda/netlink v1.0.0
 github.com/vishvananda/netlink
 github.com/vishvananda/netlink/nl
-# github.com/vishvananda/netns v0.0.0-20191106174202-0a2b9b5464df
+# github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74
 github.com/vishvananda/netns
 # github.com/vmware/govmomi v0.20.1
 github.com/vmware/govmomi
@@ -680,7 +680,7 @@ yunion.io/x/jsonutils
 # yunion.io/x/log v1.0.0
 yunion.io/x/log
 yunion.io/x/log/hooks
-# yunion.io/x/onecloud v0.0.0-20220428012645-2dd1aeb8aae1
+# yunion.io/x/onecloud v0.0.0-20220506171926-2289dca0664e
 yunion.io/x/onecloud/cmd/climc/shell
 yunion.io/x/onecloud/locales
 yunion.io/x/onecloud/pkg/ansibleserver/options
