@@ -20,7 +20,6 @@ import (
 
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"yunion.io/x/onecloud/pkg/webconsole/options"
 
@@ -83,21 +82,13 @@ func (m *webconsoleManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	// opt.ApiServer = fmt.Sprintf("https://%s:%d", address, constants.WebconsolePort)
 	opt.ApiServer = fmt.Sprintf("https://%s", address)
 
-	cfgMap := m.newServiceConfigMap(v1alpha1.WebconsoleComponentType, "", oc, opt)
-	cfgCli := m.kubeCli.CoreV1().ConfigMaps(oc.GetNamespace())
-
-	oldCfgMap, _ := cfgCli.Get(cfgMap.GetName(), metav1.GetOptions{})
-	if oldCfgMap != nil {
-		optStr, ok := oldCfgMap.Data["config"]
-		if ok {
-			if !strings.Contains(optStr, "sql_connection") {
-				// hack: force update old configmap if not contains sql_connection option
-				return cfgMap, true, nil
-			}
+	return m.shouldSyncConfigmap(oc, v1alpha1.WebconsoleComponentType, opt, func(optStr string) bool {
+		if !strings.Contains(optStr, "sql_connection") {
+			// hack: force update old configmap if not contains sql_connection option
+			return true
 		}
-	}
-
-	return cfgMap, false, nil
+		return false
+	})
 }
 
 func (m *webconsoleManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {

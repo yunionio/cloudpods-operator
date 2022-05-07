@@ -21,6 +21,7 @@ import (
 	jobbatchv1 "k8s.io/api/batch/v1"
 	batchv1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -1483,4 +1484,25 @@ func setSelfAntiAffnity(deploy *apps.Deployment, component v1alpha1.ComponentTyp
 		},
 	}
 	return deploy
+}
+
+func (m *ComponentManager) shouldSyncConfigmap(
+	oc *v1alpha1.OnecloudCluster,
+	ct v1alpha1.ComponentType,
+	opt interface{},
+	cond func(string) bool,
+) (*v1.ConfigMap, bool, error) {
+	cfgMap := m.newServiceConfigMap(ct, "", oc, opt)
+	cfgCli := m.kubeCli.CoreV1().ConfigMaps(oc.GetNamespace())
+
+	oldCfgMap, _ := cfgCli.Get(cfgMap.GetName(), metav1.GetOptions{})
+	if oldCfgMap != nil {
+		optStr, ok := oldCfgMap.Data["config"]
+		if ok {
+			if cond(optStr) {
+				return cfgMap, true, nil
+			}
+		}
+	}
+	return cfgMap, false, nil
 }
