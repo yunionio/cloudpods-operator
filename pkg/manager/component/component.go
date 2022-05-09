@@ -529,19 +529,19 @@ func (m *ComponentManager) newDefaultDeploymentWithCloudAffinity(
 	}
 	if spec.Affinity.NodeAffinity == nil {
 		spec.Affinity.NodeAffinity = &corev1.NodeAffinity{}
-	}
-	spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &corev1.NodeSelector{
-		NodeSelectorTerms: []corev1.NodeSelectorTerm{
-			{
-				MatchExpressions: []corev1.NodeSelectorRequirement{
-					{
-						Key:      constants.OnecloudControllerLabelKey,
-						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{"enable"},
+		spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &corev1.NodeSelector{
+			NodeSelectorTerms: []corev1.NodeSelectorTerm{
+				{
+					MatchExpressions: []corev1.NodeSelectorRequirement{
+						{
+							Key:      constants.OnecloudControllerLabelKey,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{"enable"},
+						},
 					},
 				},
 			},
-		},
+		}
 	}
 	return m.newDeployment(componentType, zoneComponentType, oc, volHelper, spec, initContainersFactory, containersFactory, false, corev1.DNSClusterFirst)
 }
