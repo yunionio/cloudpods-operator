@@ -109,7 +109,11 @@ func (m *glanceManager) setS3Config(oc *v1alpha1.OnecloudCluster) error {
 	// fetch s3 config
 	s := auth.GetAdminSession(context.Background(), oc.Spec.Region, "")
 	conf, err := identity_modules.ServicesV3.GetSpecific(s, "glance", "config", nil)
-	if err != nil && !strings.Contains(err.Error(), "not found") {
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			log.Warningf("Glance service config not found yet")
+			return nil
+		}
 		return err
 	}
 	confJson, err := conf.Get("config", "default")
