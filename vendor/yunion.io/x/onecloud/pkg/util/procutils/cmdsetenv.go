@@ -12,16 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package compute
+// +build !windows
 
-const (
-	MIRROR_JOB        = "__mirror_job_status"
-	MIRROR_JOB_READY  = "ready"
-	MIRROR_JOB_FAILED = "failed"
+package procutils
 
-	DISK_CLONE_TASK_ID = "__disk_clone_task_id"
+import (
+	"os"
+	"os/exec"
 
-	SSH_PORT = "__ssh_port"
+	"yunion.io/x/executor/client"
 )
 
-const BASE_INSTANCE_SNAPSHOT_ID = "__base_instance_snapshot_id"
+var (
+	presetEnv = []string{
+		"LANG=en_US.UTF8",
+	}
+)
+
+func cmdSetEnv(cmd *exec.Cmd) {
+	cmd.Env = append(
+		os.Environ(),
+		presetEnv...,
+	)
+}
+
+func remoteCmdSetEnv(cmd *client.Cmd) {
+	cmd.Env = append(
+		os.Environ(),
+		presetEnv...,
+	)
+}
