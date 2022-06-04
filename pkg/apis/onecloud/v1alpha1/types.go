@@ -181,6 +181,12 @@ type OnecloudClusterList struct {
 type OnecloudClusterSpec struct {
 	// DisableResourceManagement disable container cgroup resource limits and requests
 	DisableResourceManagement bool `json:"disableResourceManagement"`
+	// DisableLocalVpc disables vpc components
+	DisableLocalVpc bool `json:"disableLocalVpc"`
+	// EnableCloudNet
+	EnableCloudNet bool `json:"enableCloudNet"`
+	// EnableS3Gateway
+	EnableS3Gateway bool `json:"enableS3Gateway"`
 	// ProductVersion defines which product version used
 	ProductVersion ProductVersion `json:"productVersion"`
 	// UseHyperImage uses the cloudpods packed image to run components
@@ -838,6 +844,9 @@ type HostAgentSpec struct {
 	OvnController ContainerSpec
 
 	OvnEncapIpDetectionMethod string `json:"OvnEncapIpDetectionMethod"`
+
+	DisableSecurityGroup   bool `json:"disableSecurityGroup"`
+	ManageNtpConfiguration bool `json:"manageNtpConfiguration"`
 }
 
 type TelegrafSpec struct {
