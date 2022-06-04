@@ -12,16 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package compute
+package modulebase
 
-const (
-	MIRROR_JOB        = "__mirror_job_status"
-	MIRROR_JOB_READY  = "ready"
-	MIRROR_JOB_FAILED = "failed"
+import (
+	"yunion.io/x/jsonutils"
+	"yunion.io/x/pkg/errors"
 
-	DISK_CLONE_TASK_ID = "__disk_clone_task_id"
-
-	SSH_PORT = "__ssh_port"
+	"yunion.io/x/onecloud/pkg/mcclient"
 )
 
-const BASE_INSTANCE_SNAPSHOT_ID = "__base_instance_snapshot_id"
+func GetAppOptions(s *mcclient.ClientSession, serviceType string) (jsonutils.JSONObject, error) {
+	man := NewBaseManager(serviceType, "", "", nil, nil)
+	_, resp, err := man.jsonRequest(s, "GET", "/app-options", nil, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "rawBaseUrlRequest")
+	}
+	return resp, nil
+}
