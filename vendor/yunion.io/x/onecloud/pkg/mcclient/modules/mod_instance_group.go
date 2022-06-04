@@ -17,14 +17,14 @@ package modules
 import "yunion.io/x/onecloud/pkg/mcclient/modulebase"
 
 var (
-	InstanceGroup modulebase.ResourceManager
+	InstanceGroups modulebase.ResourceManager
 )
 
 func init() {
-	InstanceGroup = NewComputeManager("instancegroup", "instancegroups",
+	InstanceGroups = NewComputeManager("instancegroup", "instancegroups",
 		[]string{"ID", "Name", "Service_Type", "Parent_Id", "Zone_Id", "Sched_Strategy", "Domain_Id", "Project_Id",
-			"Granularity", "Is_Froced_Sep"},
+			"Granularity", "Is_Froced_Sep", "ips", "eip"},
 		[]string{})
 
-	registerCompute(&InstanceGroup)
+	registerCompute(&InstanceGroups)
 }
