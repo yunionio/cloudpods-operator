@@ -35,6 +35,9 @@ func newS3gatewayManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *s3gatewayManager) Sync(oc *v1alpha1.OnecloudCluster) error {
+	if !oc.Spec.EnableS3Gateway {
+		return nil
+	}
 	return syncComponent(m, oc, oc.Spec.S3gateway.Disable, "")
 }
 

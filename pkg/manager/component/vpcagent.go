@@ -37,6 +37,9 @@ func newVpcAgentManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *vpcAgentManager) Sync(oc *v1alpha1.OnecloudCluster) error {
+	if oc.Spec.DisableLocalVpc {
+		return nil
+	}
 	return syncComponent(m, oc, oc.Spec.VpcAgent.Disable, "")
 }
 

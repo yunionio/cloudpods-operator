@@ -37,6 +37,9 @@ func newCloudnetManager(man *ComponentManager) manager.Manager {
 }
 
 func (m *cloudnetManager) Sync(oc *v1alpha1.OnecloudCluster) error {
+	if !oc.Spec.EnableCloudNet {
+		return nil
+	}
 	return syncComponent(m, oc, oc.Spec.Cloudnet.Disable, "")
 }
 

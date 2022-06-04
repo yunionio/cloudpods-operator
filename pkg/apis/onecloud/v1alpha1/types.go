@@ -167,7 +167,13 @@ type OnecloudClusterList struct {
 // OnecloudClusterSpec describes the attributes that a user creates on a onecloud cluster
 type OnecloudClusterSpec struct {
 	// DisableResourceManagement disable container cgroup resource limits and requests
-	DisableResourceManagement bool `json:"disableResourceMangement"`
+	DisableResourceManagement bool `json:"disableResourceManagement"`
+	// DisableLocalVpc disables vpc components
+	DisableLocalVpc bool `json:"disableLocalVpc"`
+	// EnableCloudNet
+	EnableCloudNet bool `json:"enableCloudNet"`
+	// EnableS3Gateway
+	EnableS3Gateway bool `json:"enableS3Gateway"`
 	// Etcd holds configuration for etcd
 	Etcd Etcd `json:"etcd,omitempty"`
 	// Mysql holds configuration for mysql
@@ -800,6 +806,9 @@ type HostAgentSpec struct {
 	OvnController ContainerSpec
 
 	OvnEncapIpDetectionMethod string `json:"OvnEncapIpDetectionMethod"`
+
+	DisableSecurityGroup   bool `json:"disableSecurityGroup"`
+	ManageNtpConfiguration bool `json:"manageNtpConfiguration"`
 }
 
 type TelegrafSpec struct {

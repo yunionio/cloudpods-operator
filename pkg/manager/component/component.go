@@ -1419,3 +1419,24 @@ func setSelfAntiAffnity(deploy *apps.Deployment, component v1alpha1.ComponentTyp
 	}
 	return deploy
 }
+
+func (m *ComponentManager) shouldSyncConfigmap(
+	oc *v1alpha1.OnecloudCluster,
+	ct v1alpha1.ComponentType,
+	opt interface{},
+	cond func(string) bool,
+) (*corev1.ConfigMap, bool, error) {
+	cfgMap := m.newServiceConfigMap(ct, "", oc, opt)
+	cfgCli := m.kubeCli.CoreV1().ConfigMaps(oc.GetNamespace())
+
+	oldCfgMap, _ := cfgCli.Get(cfgMap.GetName(), metav1.GetOptions{})
+	if oldCfgMap != nil {
+		optStr, ok := oldCfgMap.Data["config"]
+		if ok {
+			if cond(optStr) {
+				return cfgMap, true, nil
+			}
+		}
+	}
+	return cfgMap, false, nil
+}
