@@ -17,6 +17,7 @@ package compute
 import (
 	"time"
 
+	"yunion.io/x/jsonutils"
 	"yunion.io/x/pkg/util/fileutils"
 
 	"yunion.io/x/onecloud/pkg/apis"
@@ -181,9 +182,18 @@ type DiskFilterListInput struct {
 }
 
 type SimpleGuest struct {
-	Name   string `json:"name"`
-	Id     string `json:"id"`
+	// 主机名称
+	Name string `json:"name"`
+	// 主机ID
+	Id string `json:"id"`
+	// 主机状态
 	Status string `json:"status"`
+	// 磁盘序号
+	Index int `json:"index"`
+	// 磁盘驱动
+	Driver string `json:"driver"`
+	// 缓存模式
+	CacheMode string `json:"cache_mode"`
 }
 
 type SimpleSnapshotPolicy struct {
@@ -277,6 +287,9 @@ type DiskAllocateInput struct {
 	BackingDiskId string
 	SnapshotId    string
 
+	BackupId string
+	Backup   *DiskAllocateFromBackupInput
+
 	SnapshotUrl        string
 	SnapshotOutOfChain bool
 	Protocol           string
@@ -286,4 +299,14 @@ type DiskAllocateInput struct {
 	// vmware
 	HostIp    string
 	Datastore vcenter.SVCenterAccessInfo
+}
+
+type DiskAllocateFromBackupInput struct {
+	BackupId                string
+	BackupStorageId         string
+	BackupStorageAccessInfo *jsonutils.JSONDict
+}
+
+type DiskDeleteInput struct {
+	SkipRecycle *bool
 }

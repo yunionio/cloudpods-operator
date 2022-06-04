@@ -123,12 +123,27 @@ type HostListInput struct {
 	// 虚拟机所在的二层网络
 	ServerIdForNetwork string `json:"server_id_for_network"`
 	// 宿主机 cpu 架构
-	CpuArchitecture string `json:"cpu_architecture"`
-	OsArch          string `json:"os_arch"`
+	CpuArchitecture []string `json:"cpu_architecture"`
+	OsArch          string   `json:"os_arch"`
 
 	// 按虚拟机数量排序
 	// enum: asc,desc
 	OrderByServerCount string `json:"order_by_server_count"`
+	// 按存储大小排序
+	// enmu: asc,desc
+	OrderByStorage string `json:"order_by_storage"`
+
+	// 按存储超分率排序
+	// enmu: asc,desc
+	OrderByStorageCommitRate string `json:"order_by_storage_commit_rate"`
+
+	// 按cpu超分率排序
+	// enmu: asc,desc
+	OrderByCpuCommitRate string `json:"order_by_cpu_commit_rate"`
+
+	// 按内存超分率排序
+	// enmu: asc,desc
+	OrderByMemCommitRate string `json:"order_by_mem_commit_rate"`
 }
 
 type HostDetails struct {
@@ -429,4 +444,9 @@ type HostUpdateInput struct {
 
 	// 主机启动模式, 可能值位PXE和ISO
 	BootMode string `json:"boot_mode"`
+}
+
+type HostOfflineInput struct {
+	UpdateHealthStatus *bool `json:"update_health_status"`
+	Reason             string
 }
