@@ -92,6 +92,12 @@ type LoadbalancerListInput struct {
 	ChargeType []string `json:"charge_type"`
 	// 套餐名称
 	LoadbalancerSpec []string `json:"loadbalancer_spec"`
+
+	// filter for EIP
+	WithEip                  *bool  `json:"with_eip"`
+	WithoutEip               *bool  `json:"without_eip"`
+	EipAssociable            *bool  `json:"eip_associable"`
+	UsableLoadbalancerForEip string `json:"usable_loadbalancer_for_eip"`
 }
 
 type LoadbalancerAgentListInput struct {
@@ -183,6 +189,8 @@ type LoadbalancerDetails struct {
 	// 公网IP地址
 	Eip string `json:"eip"`
 
+	EipId string `json:"eip_id"`
+
 	// 公网IP地址类型: 弹性、非弹性
 	// example: public_ip
 	EipMode string `json:"eip_mode"`
@@ -251,6 +259,16 @@ type LoadbalancerCreateInput struct {
 	// 套餐名称
 	LoadbalancerSpec string `json:"loadbalancer_spec"`
 
+	// 弹性公网IP带宽
+	// 指定此参数后会创建新的弹性公网IP并绑定到新建的负载均衡
+	EipBw int `json:"eip_bw,omitzero"`
+	// 弹性公网IP线路类型
+	EipBgpType string `json:"eip_bgp_type,omitzero"`
+	// 弹性公网IP计费类型
+	EipChargeType string `json:"eip_charge_type,omitempty"`
+	// 是否跟随主机删除而自动释放
+	EipAutoDellocate bool `json:"eip_auto_dellocate,omitempty"`
+
 	// EIP ID
 	Eip string `json:"eip"`
 
@@ -278,4 +296,34 @@ type LoadbalancerCreateInput struct {
 type LoadbalancerRemoteUpdateInput struct {
 	// 是否覆盖替换所有标签
 	ReplaceTags *bool `json:"replace_tags" help:"replace all remote tags"`
+}
+
+type LoadbalancerAssociateEipInput struct {
+	// 弹性公网IP的ID
+	EipId string `json:"eip_id"`
+
+	// 弹性IP映射的内网IP地址，可选
+	IpAddr string `json:"ip_addr"`
+}
+
+type LoadbalancerCreateEipInput struct {
+	// 计费方式，traffic or bandwidth
+	ChargeType string `json:"charge_type"`
+
+	// Bandwidth
+	Bandwidth int64 `json:"bandwidth"`
+
+	// bgp_type
+	BgpType string `json:"bgp_type"`
+
+	// auto_dellocate
+	AutoDellocate *bool `json:"auto_dellocate"`
+
+	// 弹性IP映射的内网IP地址，可选
+	// IpAddr string `json:"ip_addr"`
+}
+
+type LoadbalancerDissociateEipInput struct {
+	// 是否自动释放
+	AudoDelete *bool `json:"auto_delete"`
 }

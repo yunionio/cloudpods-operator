@@ -14,7 +14,6 @@ import (
 	"google.golang.org/grpc"
 
 	"yunion.io/x/executor/apis"
-	"yunion.io/x/log"
 )
 
 var exec *Executor
@@ -163,7 +162,6 @@ func (c *Cmd) Start() error {
 	if err := c.Connect(context.Background()); err != nil {
 		return err
 	}
-	log.Errorf("---Connect Success")
 
 	sn, err := c.client.ExecCommand(context.Background(), &apis.Command{
 		Path: []byte(c.Path),

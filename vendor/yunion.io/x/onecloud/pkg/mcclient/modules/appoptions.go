@@ -12,32 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package options
+package modules
 
-type LoadbalancerClusterCreateOptions struct {
-	NAME string
+import (
+	"yunion.io/x/jsonutils"
 
-	Zone string `required:"true"`
-	Wire string
-}
+	"yunion.io/x/onecloud/pkg/mcclient"
+	"yunion.io/x/onecloud/pkg/mcclient/modulebase"
+)
 
-type LoadbalancerClusterUpdateOptions struct {
-	ID string `json:"-"`
-
-	Wire string
-}
-
-type LoadbalancerClusterListOptions struct {
-	BaseListOptions
-
-	Zone string
-	Wire string
-}
-
-type LoadbalancerClusterGetOptions struct {
-	ID string `json:"-"`
-}
-
-type LoadbalancerClusterDeleteOptions struct {
-	ID string `json:"-"`
+func GetAppOptions(s *mcclient.ClientSession, serviceType string) (jsonutils.JSONObject, error) {
+	return modulebase.GetAppOptions(s, serviceType)
 }
