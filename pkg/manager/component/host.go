@@ -13,7 +13,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
-	"yunion.io/x/onecloud/pkg/cloudcommon/options"
+	"yunion.io/x/onecloud/pkg/hostman/options"
 )
 
 type hostManager struct {
@@ -44,7 +44,7 @@ func (m *hostManager) getPhaseControl(man controller.ComponentManager, zone stri
 }
 
 func (m *hostManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
-	commonOpt := new(options.HostCommonOptions)
+	commonOpt := new(options.SHostBaseOptions)
 	// opt := &options.HostOptions
 	if err := SetOptionsDefault(commonOpt, ""); err != nil {
 		return nil, false, err
@@ -56,10 +56,19 @@ func (m *hostManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 
 	commonOpt.EnableRemoteExecutor = true
 
+	commonOpt.DisableSecurityGroup = oc.Spec.HostAgent.DisableSecurityGroup
+	commonOpt.ManageNtpConfiguration = oc.Spec.HostAgent.ManageNtpConfiguration
+
 	return m.shouldSyncConfigmap(oc, v1alpha1.HostComponentType, commonOpt, func(oldOpt string) bool {
-		if !strings.Contains(oldOpt, "enable_remote_executor") {
-			// hack: force update old configmap if not contains enable_remote_executor option
-			return true
+		for _, k := range []string{
+			"enable_remote_executor",
+			"disable_security_group",
+			"manage_ntp_configuration",
+		} {
+			if !strings.Contains(oldOpt, k) {
+				// hack: force update old configmap if not contains enable_remote_executor option
+				return true
+			}
 		}
 		return false
 	})
@@ -75,82 +84,86 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 	cfg *v1alpha1.OnecloudClusterConfig,
 ) (*apps.DaemonSet, error) {
 	var (
-		privileged  = true
-		dsSpec      = oc.Spec.HostAgent
-		configMap   = controller.ComponentConfigMapName(oc, cType)
-		containersF = func(volMounts []corev1.VolumeMount) []corev1.Container {
-			return []corev1.Container{
-				{
-					Name:            cType.String(),
-					Image:           dsSpec.Image,
-					ImagePullPolicy: dsSpec.ImagePullPolicy,
-					Env: []corev1.EnvVar{
-						{
-							Name:  "HOST_OVN_ENCAP_IP_DETECTION_METHOD",
-							Value: oc.Spec.HostAgent.OvnEncapIpDetectionMethod,
-						},
-						{
-							Name: "HOST_OVN_SOUTH_DATABASE",
-							Value: fmt.Sprintf("tcp:%s:%d",
-								controller.NewClusterComponentName(
-									oc.GetName(),
-									v1alpha1.OvnNorthComponentType,
-								),
-								constants.OvnSouthDbPort,
-							),
-						},
-						{
-							Name:  "HOST_SYSTEM_SERVICES_OFF",
-							Value: "host-deployer,host_sdnagent,telegraf",
-						},
-						{
-							Name:  "OVN_CONTAINER_IMAGE_TAG",
-							Value: v1alpha1.DefaultOvnImageTag,
-						},
-					},
-					Command: []string{
-						fmt.Sprintf("/opt/yunion/bin/%s", cType.String()),
-						"--common-config-file",
-						"/etc/yunion/common/common.conf",
-					},
-					VolumeMounts: volMounts,
-					SecurityContext: &corev1.SecurityContext{
-						Privileged: &privileged,
-					},
-					WorkingDir: "/opt/cloud",
-				},
-				{
-					Name:            "ovn-controller",
-					Image:           dsSpec.OvnController.Image,
-					ImagePullPolicy: dsSpec.OvnController.ImagePullPolicy,
-					Command:         []string{"/start.sh", "controller"},
-					VolumeMounts:    NewOvsVolumeHelper(cType, oc, configMap).GetVolumeMounts(),
-					SecurityContext: &corev1.SecurityContext{
-						Privileged: &privileged,
-						Capabilities: &corev1.Capabilities{
-							Add: []corev1.Capability{
-								corev1.Capability("SYS_NICE"),
-							},
-						},
-					},
-				},
-				{
-					Name:            "sdnagent",
-					Image:           dsSpec.SdnAgent.Image,
-					ImagePullPolicy: dsSpec.SdnAgent.ImagePullPolicy,
-					Command: []string{
-						"/opt/yunion/bin/sdnagent",
-						"--common-config-file",
-						"/etc/yunion/common/common.conf",
-					},
-					VolumeMounts: volMounts,
-					SecurityContext: &corev1.SecurityContext{
-						Privileged: &privileged,
-					},
-				},
-			}
-		}
+		privileged = true
+		dsSpec     = oc.Spec.HostAgent
+		configMap  = controller.ComponentConfigMapName(oc, cType)
 	)
+	containersF := func(volMounts []corev1.VolumeMount) []corev1.Container {
+		containers := []corev1.Container{
+			{
+				Name:            cType.String(),
+				Image:           dsSpec.Image,
+				ImagePullPolicy: dsSpec.ImagePullPolicy,
+				Env: []corev1.EnvVar{
+					{
+						Name:  "HOST_OVN_ENCAP_IP_DETECTION_METHOD",
+						Value: oc.Spec.HostAgent.OvnEncapIpDetectionMethod,
+					},
+					{
+						Name: "HOST_OVN_SOUTH_DATABASE",
+						Value: fmt.Sprintf("tcp:%s:%d",
+							controller.NewClusterComponentName(
+								oc.GetName(),
+								v1alpha1.OvnNorthComponentType,
+							),
+							constants.OvnSouthDbPort,
+						),
+					},
+					{
+						Name:  "HOST_SYSTEM_SERVICES_OFF",
+						Value: "host-deployer,host_sdnagent,telegraf",
+					},
+					{
+						Name:  "OVN_CONTAINER_IMAGE_TAG",
+						Value: v1alpha1.DefaultOvnImageTag,
+					},
+				},
+				Command: []string{
+					fmt.Sprintf("/opt/yunion/bin/%s", cType.String()),
+					"--common-config-file",
+					"/etc/yunion/common/common.conf",
+				},
+				VolumeMounts: volMounts,
+				SecurityContext: &corev1.SecurityContext{
+					Privileged: &privileged,
+				},
+				WorkingDir: "/opt/cloud",
+			},
+		}
+		if !oc.Spec.DisableLocalVpc {
+			containers = append(containers, corev1.Container{
+				Name:            "ovn-controller",
+				Image:           dsSpec.OvnController.Image,
+				ImagePullPolicy: dsSpec.OvnController.ImagePullPolicy,
+				Command:         []string{"/start.sh", "controller"},
+				VolumeMounts:    NewOvsVolumeHelper(cType, oc, configMap).GetVolumeMounts(),
+				SecurityContext: &corev1.SecurityContext{
+					Privileged: &privileged,
+					Capabilities: &corev1.Capabilities{
+						Add: []corev1.Capability{
+							corev1.Capability("SYS_NICE"),
+						},
+					},
+				},
+			})
+		}
+		containers = append(containers, corev1.Container{
+			Name:            "sdnagent",
+			Image:           dsSpec.SdnAgent.Image,
+			ImagePullPolicy: dsSpec.SdnAgent.ImagePullPolicy,
+			Command: []string{
+				"/opt/yunion/bin/sdnagent",
+				"--common-config-file",
+				"/etc/yunion/common/common.conf",
+			},
+			VolumeMounts: volMounts,
+			SecurityContext: &corev1.SecurityContext{
+				Privileged: &privileged,
+			},
+		})
+		return containers
+	}
+
 	if dsSpec.NodeSelector == nil {
 		dsSpec.NodeSelector = make(map[string]string)
 	}

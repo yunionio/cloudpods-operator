@@ -42,6 +42,9 @@ func (m *s3gatewayManager) getProductVersions() []v1alpha1.ProductVersion {
 }
 
 func (m *s3gatewayManager) Sync(oc *v1alpha1.OnecloudCluster) error {
+	if !oc.Spec.EnableS3Gateway {
+		return nil
+	}
 	return syncComponent(m, oc, oc.Spec.S3gateway.Disable, "")
 }
 
