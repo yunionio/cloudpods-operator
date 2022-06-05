@@ -19,7 +19,6 @@ require (
 	go.etcd.io/etcd/client/pkg/v3 v3.5.0
 	go.etcd.io/etcd/client/v3 v3.5.0
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	k8s.io/api v0.19.3
 	k8s.io/apiextensions-apiserver v0.0.0
@@ -31,7 +30,7 @@ require (
 	k8s.io/utils v0.0.0-20190607212802-c55fbcfc754a // indirect
 	yunion.io/x/jsonutils v1.0.0
 	yunion.io/x/log v1.0.0
-	yunion.io/x/onecloud v0.0.0-20220604154156-56b1d9e7fb5a
+	yunion.io/x/onecloud v0.0.0-20220605101056-1d8009083acd
 	yunion.io/x/pkg v1.0.0
 	yunion.io/x/structarg v0.0.0-20220312084958-9c6c79c7d1c6
 )
