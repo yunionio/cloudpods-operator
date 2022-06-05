@@ -3,7 +3,6 @@ module yunion.io/x/onecloud-operator
 go 1.16
 
 require (
-	github.com/coreos/go-systemd v0.0.0-20190620071333-e64a0ec8b42a // indirect
 	github.com/docker/distribution v0.0.0-20170726174610-edc3ab29cdff
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/googleapis/gnostic v0.3.0 // indirect
