@@ -35,9 +35,9 @@ fmt:
 
 RELEASE_BRANCH:=release/3.8
 mod:
-	GOPROCY=direct go get yunion.io/x/onecloud@$(RELEASE_BRANCH)
-	GOPROCY=direct go get $(patsubst %,%@master,$(shell GO111MODULE=on go mod edit -print | sed -n -e 's|.*\(yunion.io/x/[a-z].*\) v.*|\1|p' | grep -v '/onecloud$$' | grep -v sqlchemy))
-	GOPROCY=direct go get yunion.io/x/sqlchemy@v1.0.2
+	go get yunion.io/x/onecloud@$(RELEASE_BRANCH)
+	go get $(patsubst %,%@master,$(shell GO111MODULE=on go mod edit -print | sed -n -e 's|.*\(yunion.io/x/[a-z].*\) v.*|\1|p' | grep -v '/onecloud$$' | grep -v sqlchemy))
+	go get yunion.io/x/sqlchemy@v1.0.2
 	go mod tidy
 	go mod vendor -v
 
