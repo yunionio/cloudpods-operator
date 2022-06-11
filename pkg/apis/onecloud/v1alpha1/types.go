@@ -845,8 +845,10 @@ type HostAgentSpec struct {
 
 	OvnEncapIpDetectionMethod string `json:"OvnEncapIpDetectionMethod"`
 
-	DisableSecurityGroup   bool `json:"disableSecurityGroup"`
-	ManageNtpConfiguration bool `json:"manageNtpConfiguration"`
+	DisableSecurityGroup   bool   `json:"disableSecurityGroup"`
+	ManageNtpConfiguration bool   `json:"manageNtpConfiguration"`
+	HostCpuPassthrough     bool   `json:"hostCpuPassthrough"`
+	DefaultQemuVersion     string `json:"defaultQemuVersion"`
 }
 
 type TelegrafSpec struct {
