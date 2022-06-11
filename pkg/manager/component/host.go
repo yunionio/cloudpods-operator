@@ -58,12 +58,16 @@ func (m *hostManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 
 	commonOpt.DisableSecurityGroup = oc.Spec.HostAgent.DisableSecurityGroup
 	commonOpt.ManageNtpConfiguration = oc.Spec.HostAgent.ManageNtpConfiguration
+	commonOpt.HostCpuPassthrough = oc.Spec.HostAgent.HostCpuPassthrough
+	commonOpt.DefaultQemuVersion = oc.Spec.HostAgent.DefaultQemuVersion
 
 	return m.shouldSyncConfigmap(oc, v1alpha1.HostComponentType, commonOpt, func(oldOpt string) bool {
 		for _, k := range []string{
 			"enable_remote_executor",
 			"disable_security_group",
 			"manage_ntp_configuration",
+			"host_cpu_passthrough",
+			"default_qemu_version",
 		} {
 			if !strings.Contains(oldOpt, k) {
 				// hack: force update old configmap if not contains enable_remote_executor option
