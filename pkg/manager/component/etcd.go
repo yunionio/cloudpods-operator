@@ -155,10 +155,11 @@ func (m *etcdManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if oc.Spec.Etcd.Disable {
 		return nil
 	}
-	changed, err := m.fixEtcdSize(oc)
-	if err != nil {
-		return nil
-	}
+	var changed = false
+	// changed, err := m.fixEtcdSize(oc)
+	// if err != nil {
+	// 	return nil
+	// }
 	if len(oc.Spec.Etcd.Version) == 0 {
 		changed = true
 		oc.Spec.Etcd.Version = constants.EtcdImageVersion
@@ -401,15 +402,12 @@ func (m *etcdManager) customPodSpec(pod *corev1.Pod, mb *etcdutil.Member, state,
 		pod.Spec.Affinity = new(corev1.Affinity)
 	}
 	pod.Spec.Affinity.PodAntiAffinity = &corev1.PodAntiAffinity{
-		PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+		RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
 			{
-				Weight: 100,
-				PodAffinityTerm: corev1.PodAffinityTerm{
-					LabelSelector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{"app": "etcd"},
-					},
-					TopologyKey: "kubernetes.io/hostname",
+				LabelSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{"app": "etcd"},
 				},
+				TopologyKey: "kubernetes.io/hostname",
 			},
 		},
 	}
@@ -732,6 +730,7 @@ Loop:
 				log.Warningf("failed poll pods %s", err)
 				continue
 			}
+
 			if len(pending) > 0 {
 				// Pod startup might take long
 				// e.g. pulling image. It would deterministically become running or succeeded/failed later.
