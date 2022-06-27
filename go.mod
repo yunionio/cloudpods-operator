@@ -7,12 +7,14 @@ require (
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/googleapis/gnostic v0.3.0 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
+	github.com/kr/pretty v0.3.0 // indirect
 	github.com/minio/minio-go/v7 v7.0.6
 	github.com/onsi/ginkgo v1.8.0 // indirect
 	github.com/onsi/gomega v1.5.0 // indirect
 	github.com/pborman/uuid v1.2.0
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/pflag v1.0.3 // indirect
+	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
 	go.etcd.io/etcd/api/v3 v3.5.0
 	go.etcd.io/etcd/client/pkg/v3 v3.5.0
 	go.etcd.io/etcd/client/v3 v3.5.0
@@ -28,7 +30,7 @@ require (
 	k8s.io/utils v0.0.0-20190607212802-c55fbcfc754a // indirect
 	yunion.io/x/jsonutils v1.0.0
 	yunion.io/x/log v1.0.0
-	yunion.io/x/onecloud v0.0.0-20220611113526-99b67375784d
+	yunion.io/x/onecloud v0.0.0-20220625075332-b28cca180903
 	yunion.io/x/pkg v1.0.0
 	yunion.io/x/structarg v0.0.0-20220312084958-9c6c79c7d1c6
 )

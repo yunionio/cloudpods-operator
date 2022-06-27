@@ -42,6 +42,10 @@ func (m *cloudeventManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
+func (m *cloudeventManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.CloudeventComponentType
+}
+
 func (m *cloudeventManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.Cloudevent.Disable, "")
 }

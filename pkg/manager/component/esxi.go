@@ -43,6 +43,10 @@ func (m *esxiManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
+func (m *esxiManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.EsxiAgentComponentType
+}
+
 func (m *esxiManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return m.multiZoneSync(oc, oc.Spec.EsxiAgent.Zones, m, oc.Spec.EsxiAgent.Disable)
 }

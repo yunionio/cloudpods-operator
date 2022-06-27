@@ -49,6 +49,10 @@ func (m *monitorStackManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
+func (m *monitorStackManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.MonitorStackComponentType
+}
+
 func (m *monitorStackManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if oc.Spec.MonitorStack.Disable {
 		return nil

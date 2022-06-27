@@ -45,6 +45,10 @@ func (m *meterManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
+func (m *meterManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.MeterComponentType
+}
+
 func (m *meterManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if !IsEnterpriseEdition(oc) {
 		return nil

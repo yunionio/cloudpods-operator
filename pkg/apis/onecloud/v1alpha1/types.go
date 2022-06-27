@@ -130,6 +130,8 @@ const (
 	SuggestionComponentType ComponentType = "suggestion"
 
 	ScheduledtaskComponentType ComponentType = "scheduledtask"
+
+	MonitorStackComponentType ComponentType = "monitor-stack"
 )
 
 // ComponentPhase is the current state of component
@@ -853,8 +855,8 @@ type HostAgentSpec struct {
 
 type TelegrafSpec struct {
 	DaemonSetSpec
-	InitContainerImage string
-	TelegrafRaidImage  string
+	InitContainerImage string `json:"initContainerImage"`
+	TelegrafRaidImage  string `json:"telegrafRaidImage"`
 }
 
 // ContainerSpec is the container spec of a pod
