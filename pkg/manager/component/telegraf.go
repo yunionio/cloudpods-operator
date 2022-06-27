@@ -28,6 +28,10 @@ func (m *telegrafManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
+func (m *telegrafManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.TelegrafComponentType
+}
+
 func (m *telegrafManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.Telegraf.Disable, "")
 }

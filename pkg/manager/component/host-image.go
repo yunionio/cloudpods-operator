@@ -29,6 +29,10 @@ func (m *hostImageManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
+func (m *hostImageManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.HostImageComponentType
+}
+
 func (m *hostImageManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.HostImage.Disable, "")
 }

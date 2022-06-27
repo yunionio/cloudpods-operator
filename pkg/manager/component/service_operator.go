@@ -43,6 +43,10 @@ func (m *serviceOperatorManager) getProductVersions() []v1alpha1.ProductVersion 
 	}
 }
 
+func (m *serviceOperatorManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.ServiceOperatorComponentType
+}
+
 func (m *serviceOperatorManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.ServiceOperator.Disable, "")
 }

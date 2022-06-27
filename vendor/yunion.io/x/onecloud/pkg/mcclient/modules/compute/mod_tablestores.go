@@ -12,19 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package hostconsts
+package compute
 
-const (
-	TELEGRAF_TAG_KEY_BRAND      = "brand"
-	TELEGRAF_TAG_KEY_PLATFORM   = "platform"
-	TELEGRAF_TAG_KEY_HYPERVISOR = "hypervisor"
-	TELEGRAF_TAG_KEY_RES_TYPE   = "res_type"
-	TELEGRAF_TAG_KEY_HOST_TYPE  = "host_type"
-
-	TELEGRAF_TAG_ONECLOUD_BRAND                = "OneCloud"
-	TELEGRAF_TAG_ONECLOUD_RES_TYPE             = "host"
-	TELEGRAF_TAG_ONECLOUD_HOST_TYPE_HOST       = "host"
-	TELEGRAF_TAG_ONECLOUD_HOST_TYPE_CONTROLLER = "controller"
-
-	SHUTDOWN_SERVERS = "shutdown-servers"
+import (
+	"yunion.io/x/onecloud/pkg/mcclient/modulebase"
+	"yunion.io/x/onecloud/pkg/mcclient/modules"
 )
+
+var (
+	Tablestores modulebase.ResourceManager
+)
+
+func init() {
+	Tablestores = modules.NewComputeManager("tablestore", "tablestores",
+		[]string{},
+		[]string{})
+
+	modules.RegisterCompute(&Tablestores)
+}

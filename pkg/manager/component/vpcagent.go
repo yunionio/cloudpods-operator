@@ -43,6 +43,10 @@ func (m *vpcAgentManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
+func (m *vpcAgentManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.VpcAgentComponentType
+}
+
 func (m *vpcAgentManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if oc.Spec.DisableLocalVpc {
 		return nil
