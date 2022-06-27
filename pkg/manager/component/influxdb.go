@@ -77,6 +77,10 @@ func newInfluxdbManager(man *ComponentManager) manager.Manager {
 	return &influxdbManager{man}
 }
 
+func (m *influxdbManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.InfluxdbComponentType
+}
+
 func (m *influxdbManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.Influxdb.Disable, "")
 }

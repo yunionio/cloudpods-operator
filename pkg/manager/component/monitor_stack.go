@@ -41,6 +41,10 @@ func newMonitorStackManager(man *ComponentManager) manager.Manager {
 	return &monitorStackManager{man}
 }
 
+func (m *monitorStackManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.MonitorStackComponentType
+}
+
 func (m *monitorStackManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if oc.Spec.MonitorStack.Disable {
 		return nil

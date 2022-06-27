@@ -34,6 +34,10 @@ func newAPIGatewayManager(man *ComponentManager) manager.Manager {
 	return &apiGatewayManager{man}
 }
 
+func (m *apiGatewayManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.APIGatewayComponentType
+}
+
 func (m *apiGatewayManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if IsEnterpriseEdition(oc) {
 		oc.Spec.APIGateway.ImageName = constants.APIGatewayEEImageName

@@ -25,6 +25,10 @@ func newBaremetalManager(m *ComponentManager) manager.Manager {
 	return &baremetalManager{m}
 }
 
+func (m *baremetalManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.BaremetalAgentComponentType
+}
+
 func (m *baremetalManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return m.multiZoneSync(oc, oc.Spec.BaremetalAgent.Zones, m, oc.Spec.BaremetalAgent.Disable)
 }

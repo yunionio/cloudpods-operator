@@ -45,6 +45,10 @@ type kubeOptions struct {
 	TlsPrivateKeyFile string
 }
 
+func (m *kubeManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.KubeServerComponentType
+}
+
 func (m *kubeManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.KubeServer.Disable, "")
 }

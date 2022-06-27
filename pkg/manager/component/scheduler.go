@@ -19,6 +19,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"yunion.io/x/onecloud/pkg/scheduler/options"
+	"yunion.io/x/pkg/errors"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -34,6 +35,10 @@ func newSchedulerManager(man *ComponentManager) manager.Manager {
 	return &schedulerManager{man}
 }
 
+func (m *schedulerManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.SchedulerComponentType
+}
+
 func (m *schedulerManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.Scheduler.Disable, "")
 }
@@ -44,9 +49,9 @@ func (m *schedulerManager) getPhaseControl(man controller.ComponentManager, zone
 }
 
 func (m *schedulerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
-	opt := options.GetOptions()
+	opt := &options.Options
 	if err := SetOptionsDefault(opt, constants.ServiceTypeScheduler); err != nil {
-		return nil, false, err
+		return nil, false, errors.Wrap(err, "scheduler: SetOptionsDefault")
 	}
 	// scheduler use region config directly
 	config := cfg.RegionServer

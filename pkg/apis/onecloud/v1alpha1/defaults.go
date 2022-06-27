@@ -55,7 +55,7 @@ const (
 	DefaultTelegrafImageName     = "telegraf"
 	DefaultTelegrafImageTag      = "release-1.19.2-0"
 	DefaultTelegrafInitImageName = "telegraf-init"
-	DefaultTelegrafInitImageTag  = "release-1.5.2"
+	DefaultTelegrafInitImageTag  = "release-1.19.2-0"
 	DefaultTelegrafRaidImageName = "telegraf-raid-plugin"
 	DefaultTelegrafRaidImageTag  = "release-1.6.4"
 )

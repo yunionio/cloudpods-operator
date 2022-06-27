@@ -32,6 +32,10 @@ func newOvnNorthManager(man *ComponentManager) manager.Manager {
 	return &ovnNorthManager{man}
 }
 
+func (m *ovnNorthManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.OvnNorthComponentType
+}
+
 func (m *ovnNorthManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if oc.Spec.DisableLocalVpc {
 		return nil

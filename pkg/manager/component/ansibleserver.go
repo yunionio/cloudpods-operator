@@ -36,6 +36,10 @@ func newAnsibleManager(man *ComponentManager) manager.Manager {
 	return &ansibleManager{man}
 }
 
+func (m *ansibleManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.AnsibleServerComponentType
+}
+
 func (m *ansibleManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.AnsibleServer.Disable, "")
 }

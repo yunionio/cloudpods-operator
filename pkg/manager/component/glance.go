@@ -45,6 +45,10 @@ func newGlanceManager(man *ComponentManager) manager.Manager {
 	return &glanceManager{man}
 }
 
+func (m *glanceManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.GlanceComponentType
+}
+
 func (m *glanceManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.Glance.Disable, "")
 }
