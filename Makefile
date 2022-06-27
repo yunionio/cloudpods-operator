@@ -26,8 +26,10 @@ telegraf-init:
 image:
 	DOCKER_DIR=${CURDIR}/images/onecloud-operator IMAGE_KEYWORD=onecloud-operator PUSH=true DEBUG=${DEBUG} REGISTRY=${REGISTRY} TAG=${VERSION} ARCH=${ARCH} ${CURDIR}/scripts/docker_push.sh onecloud-operator
 
+TELEGRAF_INIT_VERSION=release-1.19.2-0
+
 telegraf-init-image: telegraf-init
-	DOCKER_DIR=${CURDIR}/images/telegraf-init IMAGE_KEYWORD=telegraf-init PUSH=true DEBUG=${DEBUG} REGISTRY=${REGISTRY} TAG=${VERSION} ARCH=${ARCH} ${CURDIR}/scripts/docker_push.sh telegraf-init
+	DOCKER_DIR=${CURDIR}/images/telegraf-init IMAGE_KEYWORD=telegraf-init PUSH=true DEBUG=${DEBUG} REGISTRY=${REGISTRY} TAG=${TELEGRAF_INIT_VERSION} ARCH=all ${CURDIR}/scripts/docker_push.sh telegraf-init
 
 fmt:
 	find . -type f -name "*.go" -not -path "./_output/*" \

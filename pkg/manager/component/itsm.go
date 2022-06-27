@@ -146,6 +146,10 @@ func newItsmManager(man *ComponentManager) manager.Manager {
 	return &itsmManager{man}
 }
 
+func (m *itsmManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.ItsmComponentType
+}
+
 func (m *itsmManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	//isEE create itsm DeploymentSpec
 	if !IsEnterpriseEdition(oc) {

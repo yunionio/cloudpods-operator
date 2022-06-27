@@ -80,6 +80,10 @@ func newRegionDNSManager(man *ComponentManager) manager.Manager {
 	return &regionDNSManager{ComponentManager: man}
 }
 
+func (m *regionDNSManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.RegionDNSComponentType
+}
+
 func (m *regionDNSManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.RegionDNS.Disable, "")
 }

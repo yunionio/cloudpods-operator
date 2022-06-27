@@ -36,6 +36,10 @@ func newWebconsoleManager(man *ComponentManager) manager.Manager {
 	return &webconsoleManager{man}
 }
 
+func (m *webconsoleManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.WebconsoleComponentType
+}
+
 func (m *webconsoleManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.Webconsole.Disable, "")
 }

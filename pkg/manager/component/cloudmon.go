@@ -22,6 +22,10 @@ func newCloudMonManager(man *ComponentManager) manager.Manager {
 	return &cloudmonManager{man}
 }
 
+func (m *cloudmonManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.CloudmonComponentType
+}
+
 func (m *cloudmonManager) ensureOldCronjobsDeleted(oc *v1alpha1.OnecloudCluster) error {
 	for _, componentType := range []v1alpha1.ComponentType{
 		v1alpha1.CloudmonPingComponentType, v1alpha1.CloudmonReportHostComponentType,

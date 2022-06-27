@@ -73,37 +73,40 @@ type cloudComponentFactory interface {
 	pvcFactory
 	daemonSetFactory
 	cronJobFactory
+
+	getComponentType() v1alpha1.ComponentType
 }
 
 func syncComponent(factory cloudComponentFactory, oc *v1alpha1.OnecloudCluster, isDisable bool, zone string) error {
+	cType := factory.getComponentType()
 	if isDisable {
-		klog.Infof("component %#v is disable, skip sync", factory)
+		klog.Infof("component %q is disable, skip sync", cType)
 		return nil
 	}
 	m := factory.getComponentManager()
 	if err := m.syncService(oc, factory.getService, zone); err != nil {
-		return errors.Wrap(err, "sync service")
+		return errors.Wrapf(err, "sync service of %q", cType)
 	}
-	if err := m.syncIngress(oc, factory.(ingressFactory), zone); err != nil {
-		return errors.Wrap(err, "sync ingress")
+	if err := m.syncIngress(oc, factory, zone); err != nil {
+		return errors.Wrapf(err, "sync ingress of %q", cType)
 	}
 	if err := m.syncConfigMap(oc, factory.getDBConfig, factory.getCloudUser, factory.getConfigMap, zone); err != nil {
-		return errors.Wrap(err, "sync configmap")
+		return errors.Wrapf(err, "sync configmap of %q", cType)
 	}
 	if err := m.syncPVC(oc, factory.getPVC, zone); err != nil {
-		return errors.Wrapf(err, "sync pvc")
+		return errors.Wrapf(err, "sync pvc of %q", cType)
 	}
 	if err := m.syncDeployment(oc, factory.getDeployment, newPostSyncComponent(factory), zone); err != nil {
-		return errors.Wrapf(err, "sync deployment")
+		return errors.Wrapf(err, "sync deployment %q", cType)
 	}
 	if err := m.syncDaemonSet(oc, factory.getDaemonSet, zone); err != nil {
-		return errors.Wrapf(err, "sync daemonset")
+		return errors.Wrapf(err, "sync daemonset %q", cType)
 	}
 	if err := m.syncCronJob(oc, factory.getCronJob, zone); err != nil {
-		return errors.Wrapf(err, "sync cronjob")
+		return errors.Wrapf(err, "sync cronjob %q", cType)
 	}
 	if err := m.syncPhase(oc, factory.getPhaseControl, zone); err != nil {
-		return errors.Wrapf(err, "sync phase control")
+		return errors.Wrapf(err, "sync phase control %q", cType)
 	}
 	return nil
 }

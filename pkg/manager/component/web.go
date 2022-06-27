@@ -268,6 +268,10 @@ func newWebManager(man *ComponentManager) manager.Manager {
 	return &webManager{man}
 }
 
+func (m *webManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.WebComponentType
+}
+
 func (m *webManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if IsEnterpriseEdition(oc) {
 		oc.Spec.Web.ImageName = constants.WebEEImageName

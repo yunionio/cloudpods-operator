@@ -37,6 +37,10 @@ func newMeterManager(man *ComponentManager) manager.Manager {
 	return &meterManager{man}
 }
 
+func (m *meterManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.MeterComponentType
+}
+
 func (m *meterManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if !IsEnterpriseEdition(oc) {
 		return nil

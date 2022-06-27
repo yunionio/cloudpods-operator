@@ -36,6 +36,10 @@ func newMonitorManager(man *ComponentManager) manager.Manager {
 	return &monitorManager{man}
 }
 
+func (m *monitorManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.MonitorComponentType
+}
+
 func (m *monitorManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.Monitor.Disable, "")
 }

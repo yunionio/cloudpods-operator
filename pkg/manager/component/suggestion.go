@@ -21,6 +21,10 @@ func newSuggestionManager(man *ComponentManager) manager.Manager {
 	return &suggestionManager{man}
 }
 
+func (m *suggestionManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.SuggestionComponentType
+}
+
 func (m *suggestionManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if !IsEnterpriseEdition(oc) {
 		return nil

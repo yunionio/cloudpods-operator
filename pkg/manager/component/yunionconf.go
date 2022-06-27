@@ -34,6 +34,10 @@ func newYunionconfManager(man *ComponentManager) manager.Manager {
 	return &yunoinconfManager{man}
 }
 
+func (m *yunoinconfManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.YunionconfComponentType
+}
+
 func (m *yunoinconfManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.Yunionconf.Disable, "")
 }
