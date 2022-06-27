@@ -49,6 +49,10 @@ func (m *cloudproxyManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
+func (m *cloudproxyManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.CloudproxyComponentType
+}
+
 func (m *cloudproxyManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.Cloudproxy.Disable, "")
 }

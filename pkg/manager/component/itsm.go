@@ -152,6 +152,10 @@ func (m *itsmManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
+func (m *itsmManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.ItsmComponentType
+}
+
 func (m *itsmManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	//isEE create itsm DeploymentSpec
 	if !IsEnterpriseEdition(oc) {

@@ -43,6 +43,10 @@ func (m *cloudnetManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
+func (m *cloudnetManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.CloudnetComponentType
+}
+
 func (m *cloudnetManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if !oc.Spec.EnableCloudNet {
 		return nil

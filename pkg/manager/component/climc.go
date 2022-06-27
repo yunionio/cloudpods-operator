@@ -41,6 +41,10 @@ func (m *climcManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
+func (m *climcManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.ClimcComponentType
+}
+
 func (m *climcManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.Climc.Disable, "")
 }

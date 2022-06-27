@@ -42,6 +42,10 @@ func (m *loggerManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
+func (m *loggerManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.LoggerComponentType
+}
+
 func (m *loggerManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.Logger.Disable, "")
 }
