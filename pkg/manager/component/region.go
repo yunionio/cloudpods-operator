@@ -45,6 +45,10 @@ func (m *regionManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
+func (m *regionManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.RegionComponentType
+}
+
 func (m *regionManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.RegionServer.Disable, "")
 }

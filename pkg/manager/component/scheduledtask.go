@@ -29,6 +29,10 @@ func (m *scheduledtaskManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
+func (m *scheduledtaskManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.ScheduledtaskComponentType
+}
+
 func (m *scheduledtaskManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.Scheduledtask.Disable, "")
 }

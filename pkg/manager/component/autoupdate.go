@@ -42,6 +42,10 @@ func (m *autoUpdateManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
+func (m *autoUpdateManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.AutoUpdateComponentType
+}
+
 func (m *autoUpdateManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if !IsEnterpriseEdition(oc) {
 		return nil

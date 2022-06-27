@@ -47,6 +47,7 @@ const (
 	CLOUD_CAPABILITY_PROJECT         = "project"
 	CLOUD_CAPABILITY_COMPUTE         = "compute"
 	CLOUD_CAPABILITY_NETWORK         = "network"
+	CLOUD_CAPABILITY_EIP             = "eip"
 	CLOUD_CAPABILITY_LOADBALANCER    = "loadbalancer"
 	CLOUD_CAPABILITY_OBJECTSTORE     = "objectstore"
 	CLOUD_CAPABILITY_RDS             = "rds"
@@ -68,6 +69,7 @@ const (
 	CLOUD_CAPABILITY_CDN             = "cdn"          // CDN
 	CLOUD_CAPABILITY_CONTAINER       = "container"    // 容器
 	CLOUD_CAPABILITY_IPV6_GATEWAY    = "ipv6_gateway" // IPv6网关
+	CLOUD_CAPABILITY_TABLESTORE      = "tablestore"   // 表格存储
 )
 
 const (

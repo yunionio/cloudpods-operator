@@ -12,19 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package hostconsts
+package compute
+
+import "yunion.io/x/onecloud/pkg/apis"
 
 const (
-	TELEGRAF_TAG_KEY_BRAND      = "brand"
-	TELEGRAF_TAG_KEY_PLATFORM   = "platform"
-	TELEGRAF_TAG_KEY_HYPERVISOR = "hypervisor"
-	TELEGRAF_TAG_KEY_RES_TYPE   = "res_type"
-	TELEGRAF_TAG_KEY_HOST_TYPE  = "host_type"
-
-	TELEGRAF_TAG_ONECLOUD_BRAND                = "OneCloud"
-	TELEGRAF_TAG_ONECLOUD_RES_TYPE             = "host"
-	TELEGRAF_TAG_ONECLOUD_HOST_TYPE_HOST       = "host"
-	TELEGRAF_TAG_ONECLOUD_HOST_TYPE_CONTROLLER = "controller"
-
-	SHUTDOWN_SERVERS = "shutdown-servers"
+	TABLESTORE_STATUS_RUNNING = "running"
+	TABLESTORE_STATUS_UNKNOWN = "unknown"
 )
+
+type TablestoreCreateInput struct {
+	apis.VirtualResourceCreateInput
+}
+
+type TablestoreUpdateInput struct {
+	apis.VirtualResourceBaseUpdateInput
+}
+
+type TablestoreListInput struct {
+	apis.VirtualResourceListInput
+	apis.ExternalizedResourceBaseListInput
+	RegionalFilterListInput
+	ManagedResourceListInput
+}
+
+type TablestoreDetails struct {
+	apis.VirtualResourceDetails
+	CloudregionResourceInfo
+	ManagedResourceInfo
+}
