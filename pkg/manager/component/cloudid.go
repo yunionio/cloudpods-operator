@@ -90,7 +90,7 @@ func (m *cloudidManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 			{
 				Name:            "server",
 				Image:           oc.Spec.CloudId.Image,
-				ImagePullPolicy: oc.Spec.Cloudnet.ImagePullPolicy,
+				ImagePullPolicy: oc.Spec.CloudId.ImagePullPolicy,
 				Command:         []string{"/opt/yunion/bin/cloudid", "--config", "/etc/yunion/cloudid.conf"},
 				VolumeMounts:    volMounts,
 			},
