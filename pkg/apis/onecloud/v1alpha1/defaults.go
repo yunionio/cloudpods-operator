@@ -155,6 +155,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		SuggestionComponentType:      nHP(&obj.Suggestion, useHyperImage),
 		CloudmonComponentType:        nHP(&obj.Cloudmon.DeploymentSpec, useHyperImage),
 		ScheduledtaskComponentType:   nHP(&obj.Scheduledtask, useHyperImage),
+		ReportComponentType:          nHP(&obj.Report, useHyperImage),
 	} {
 		SetDefaults_DeploymentSpec(spec.DeploymentSpec, getImage(
 			obj.ImageRepository, spec.Repository,
@@ -598,6 +599,7 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		&obj.Itsm.ServiceDBCommonOptions:         {constants.ItsmAdminUser, constants.ItsmPort, constants.ItsmDB, constants.ItsmDBUser},
 		&obj.CloudId:                             {constants.CloudIdAdminUser, constants.CloudIdPort, constants.CloudIdDB, constants.CloudIdDBUser},
 		&obj.Webconsole:                          {constants.WebconsoleAdminUser, constants.WebconsolePort, constants.WebconsoleDB, constants.WebconsoleDBUser},
+		&obj.Report:                              {constants.ReportAdminUser, constants.ReportPort, constants.ReportDB, constants.ReportDBUser},
 	} {
 		if user, ok := registryPorts[tmp.port]; ok {
 			log.Fatalf("port %d has been registered by %s", tmp.port, user)
