@@ -132,6 +132,8 @@ const (
 	ScheduledtaskComponentType ComponentType = "scheduledtask"
 
 	MonitorStackComponentType ComponentType = "monitor-stack"
+
+	ReportComponentType ComponentType = "report"
 )
 
 // ComponentPhase is the current state of component
@@ -295,6 +297,8 @@ type OnecloudClusterSpec struct {
 	MonitorStack MonitorStackSpec `json:"monitorStack"`
 
 	Scheduledtask DeploymentSpec `json:"scheduledtask"`
+
+	Report DeploymentSpec `json:"report"`
 }
 
 // OnecloudClusterStatus describes cluster status
@@ -330,6 +334,7 @@ type OnecloudClusterStatus struct {
 	CloudId        DeploymentStatus     `json:"cloudid,omitempty"`
 	MonitorStack   MonitorStackStatus   `json:"monitorStack,omitempty"`
 	Scheduledtask  DeploymentStatus     `json:"scheduledtask,omitempty"`
+	Report         DeploymentStatus     `json:"report,omitempty"`
 }
 
 type EtcdClusterSpec struct {
@@ -985,4 +990,5 @@ type OnecloudClusterConfig struct {
 	CloudId         ServiceDBCommonOptions `json:"cloudid"`
 	Suggestion      ServiceDBCommonOptions `json:"suggestion"`
 	Scheduledtask   ServiceDBCommonOptions `json:"scheduledtask"`
+	Report          ServiceDBCommonOptions `json:"report"`
 }

@@ -1466,6 +1466,10 @@ func (m *ComponentManager) MonitorStack() manager.Manager {
 	return newMonitorStackManager(m)
 }
 
+func (m *ComponentManager) Report() manager.Manager {
+	return newReportManager(m)
+}
+
 func setSelfAntiAffnity(deploy *apps.Deployment, component v1alpha1.ComponentType) *apps.Deployment {
 	if deploy.Spec.Template.Spec.Affinity == nil {
 		deploy.Spec.Template.Spec.Affinity = new(corev1.Affinity)
