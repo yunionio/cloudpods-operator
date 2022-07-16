@@ -19,12 +19,13 @@ import (
 
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
-	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/pkg/errors"
 
-	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
+	"yunion.io/x/onecloud/pkg/mcclient"
 	k8smod "yunion.io/x/onecloud/pkg/mcclient/modules/k8s"
 	"yunion.io/x/onecloud/pkg/mcclient/options/k8s"
+
+	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 )
 
 type ClusterComponentType string

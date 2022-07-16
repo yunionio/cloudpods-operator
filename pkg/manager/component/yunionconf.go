@@ -19,12 +19,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"yunion.io/x/jsonutils"
-	"yunion.io/x/onecloud-operator/pkg/apis/constants"
+	"yunion.io/x/pkg/errors"
+
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/mcclient/modules/yunionconf"
 	"yunion.io/x/onecloud/pkg/yunionconf/options"
-	"yunion.io/x/pkg/errors"
 
+	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"

@@ -23,8 +23,10 @@ import (
 	"github.com/minio/minio-go/v7/pkg/lifecycle"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"yunion.io/x/onecloud/pkg/mcclient"
+
 	"yunion.io/x/pkg/errors"
+
+	"yunion.io/x/onecloud/pkg/mcclient"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"

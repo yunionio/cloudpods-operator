@@ -8,10 +8,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 
 	"yunion.io/x/onecloud/pkg/hostman/hostinfo/hostconsts"
 	"yunion.io/x/onecloud/pkg/hostman/system_service"
+
+	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 )
 
 func main() {
