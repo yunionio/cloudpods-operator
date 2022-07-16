@@ -19,11 +19,10 @@ import (
 	"fmt"
 	"strings"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
 
 	apis "yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
-
-	_ "github.com/go-sql-driver/mysql"
 )
 
 var (
