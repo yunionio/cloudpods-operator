@@ -957,6 +957,10 @@ type ItsmConfig struct {
 	EncryptionKey  string `json:"encryptionKey"`
 }
 
+type GrafanaConfig struct {
+	DB DBConfig `json:"db"`
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type OnecloudClusterConfig struct {
@@ -991,4 +995,5 @@ type OnecloudClusterConfig struct {
 	Suggestion      ServiceDBCommonOptions `json:"suggestion"`
 	Scheduledtask   ServiceDBCommonOptions `json:"scheduledtask"`
 	Report          ServiceDBCommonOptions `json:"report"`
+	Grafana         GrafanaConfig          `json:"grafana"`
 }
