@@ -32,8 +32,32 @@ telegraf-init-image: telegraf-init
 	DOCKER_DIR=${CURDIR}/images/telegraf-init IMAGE_KEYWORD=telegraf-init PUSH=true DEBUG=${DEBUG} REGISTRY=${REGISTRY} TAG=${TELEGRAF_INIT_VERSION} ARCH=all ${CURDIR}/scripts/docker_push.sh telegraf-init
 
 fmt:
-	find . -type f -name "*.go" -not -path "./_output/*" \
+	@find . -type f -name "*.go" -not -path "./_output/*" \
 		-not -path "./vendor/*" | xargs gofmt -s -w
+
+fmt-check: fmt
+	@if git status --short | grep -E '^.M .*/[^.]+.go'; then \
+		git diff | cat; \
+		echo "$@: working tree modified (possibly by gofmt)" >&2 ; \
+		false ; \
+	fi
+.PHONY: fmt-check
+
+goimports-check:
+	@goimports -w -local "yunion.io/x/:yunion.io/x/onecloud:yunion.io/x/onecloud-operator" pkg cmd; \
+    if git status --short | grep -E '^.M .*/[^.]+.go'; then \
+        git diff | cat; \
+        echo "$@: working tree modified (possibly by goimports)" >&2 ; \
+        echo "$@: " >&2 ; \
+        echo "$@: import spec should be grouped in order: std, 3rd-party, yunion.io/x, yunion.io/x/onecloud, yunion.io/x/onecloud-operator" >&2 ; \
+        echo "$@: see \"yun\" branch at https://github.com/yousong/tools" >&2 ; \
+        false ; \
+    fi
+.PHONY: goimports-check
+
+check: fmt-check
+check: goimports-check
+.PHONY: check
 
 RELEASE_BRANCH:=release/3.9
 mod:

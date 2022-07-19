@@ -21,6 +21,7 @@ package fake
 import (
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
+
 	v1alpha1 "yunion.io/x/onecloud-operator/pkg/client/clientset/versioned/typed/onecloud/v1alpha1"
 )
 

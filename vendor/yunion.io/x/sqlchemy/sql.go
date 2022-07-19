@@ -184,9 +184,11 @@ func (db *SDatabase) TxBatchExec(sqlstr string, varsList [][]interface{}) ([]SSq
 }
 
 func (db *SDatabase) TxExec(sqlstr string, vars ...interface{}) (sql.Result, error) {
-	results, err := db.TxBatchExec(sqlstr, [][]interface{}{vars})
+	results, err := db.TxBatchExec(sqlstr, [][]interface{}{
+		vars,
+	})
 	if err != nil {
-		return nil, errors.Wrap(err, "TxBatchExec")
+		return nil, errors.Wrap(err, "db.TxBatchExec")
 	}
 	return results[0].Result, results[0].Error
 }

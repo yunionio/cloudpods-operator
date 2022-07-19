@@ -15,7 +15,7 @@
 package k8sutil
 
 import (
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	corelisters "k8s.io/client-go/listers/core/v1"
