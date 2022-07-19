@@ -608,6 +608,8 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		SetDefaults_ServiceDBCommonOptions(opt, tmp.db, tmp.dbUser, tmp.user, tmp.port)
 	}
 	setDefaults_ItsmConfig(&obj.Itsm)
+
+	setDefaults_DBConfig(&obj.Grafana.DB, constants.MonitorStackGrafanaDB, constants.MonitorStackGrafanaDBUer)
 }
 
 func SetDefaults_ServiceBaseConfig(obj *ServiceBaseConfig, port int) {

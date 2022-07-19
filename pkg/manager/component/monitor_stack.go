@@ -58,9 +58,20 @@ func (m *monitorStackManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 		return nil
 	}
 
+	clustercfg, err := m.configer.GetClusterConfig(oc)
+	if err != nil {
+		return errors.Wrap(err, "get cluster config for grafana")
+	}
+
 	if err := m.onecloudControl.RunWithSession(oc, func(s *mcclient.ClientSession) error {
 		spec := &oc.Spec.MonitorStack
 		status := &oc.Status.MonitorStack
+
+		if !spec.Grafana.Disable {
+			if err := EnsureClusterDBUser(oc, clustercfg.Grafana.DB); err != nil {
+				return errors.Wrap(err, "ensure grafana db config")
+			}
+		}
 
 		if err := m.syncMinio(s, &spec.Minio, &status.MinioStatus); err != nil {
 			return errors.Wrap(err, "sync monitor-stack minio component")
@@ -75,7 +86,7 @@ func (m *monitorStackManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 			return errors.Wrapf(err, "sync thanos component")
 		}
 
-		if err := m.syncStack(s, &oc.Spec, minioSvc, status); err != nil {
+		if err := m.syncStack(s, &oc.Spec, clustercfg, minioSvc, status); err != nil {
 			return errors.Wrapf(err, "sync monitor stack component")
 		}
 
@@ -238,6 +249,7 @@ func (m *monitorStackManager) syncThanos(
 func (m *monitorStackManager) syncStack(
 	s *mcclient.ClientSession,
 	spec *v1alpha1.OnecloudClusterSpec,
+	config *v1alpha1.OnecloudClusterConfig,
 	minioSvc *v1.Service,
 	status *v1alpha1.MonitorStackStatus) error {
 
@@ -254,7 +266,7 @@ func (m *monitorStackManager) syncStack(
 	promStore := &stackSpec.Prometheus.ThanosSidecarSpec.ObjectStoreConfig
 	m.setDefaultObjectStoreConfig(&stackSpec.Minio, minioSvc, promStore, constants.MonitorBucketThanos)
 
-	if err := onecloud.SyncMonitorStack(s, spec); err != nil {
+	if err := onecloud.SyncMonitorStack(s, spec, config); err != nil {
 		return errors.Wrap(err, "enable monitor stack component")
 	}
 

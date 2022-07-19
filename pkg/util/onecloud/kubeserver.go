@@ -358,10 +358,11 @@ func SyncMonitorThanos(s *mcclient.ClientSession, input *v1alpha1.MonitorStackTh
 	)
 }
 
-func getSyncMonitorParams(cId string, spec *v1alpha1.OnecloudClusterSpec) (jsonutils.JSONObject, error) {
+func getSyncMonitorParams(cId string, spec *v1alpha1.OnecloudClusterSpec, config *v1alpha1.OnecloudClusterConfig) (jsonutils.JSONObject, error) {
 	input := spec.MonitorStack
 	grafana := input.Grafana
 	grafanaOAuth := input.Grafana.OAuth
+	grafanaDB := config.Grafana.DB
 	loki := input.Loki
 	prometheus := input.Prometheus
 	thanosSidecar := prometheus.ThanosSidecarSpec
@@ -437,26 +438,43 @@ func getSyncMonitorParams(cId string, spec *v1alpha1.OnecloudClusterSpec) (jsonu
 	if err != nil {
 		return nil, errors.Wrap(err, "Generate monitor stack params")
 	}
+
+	dbConfig := map[string]interface{}{
+		"host":     spec.Mysql.Host,
+		"port":     spec.Mysql.Port,
+		"database": grafanaDB.Database,
+		"username": grafanaDB.Username,
+		"password": grafanaDB.Password,
+	}
+
+	if spec.DisableResourceManagement {
+		params.(*jsonutils.JSONDict).Add(jsonutils.JSONTrue, "disableResourceManagement")
+	} else {
+		params.(*jsonutils.JSONDict).Add(jsonutils.JSONFalse, "disableResourceManagement")
+	}
+
+	params.(*jsonutils.JSONDict).Add(jsonutils.Marshal(dbConfig), "monitor", "grafana", "db")
+
 	return params, nil
 }
 
-func enableMonitorStack(s *mcclient.ClientSession, cId string, spec *v1alpha1.OnecloudClusterSpec) error {
-	params, err := getSyncMonitorParams(cId, spec)
+func enableMonitorStack(s *mcclient.ClientSession, cId string, spec *v1alpha1.OnecloudClusterSpec, config *v1alpha1.OnecloudClusterConfig) error {
+	params, err := getSyncMonitorParams(cId, spec, config)
 	if err != nil {
 		return err
 	}
 	return doEnableClusterComponent(ClusterComponentTypeMonitor, s, cId, params)
 }
 
-func updateMonitorStack(s *mcclient.ClientSession, cId string, spec *v1alpha1.OnecloudClusterSpec) error {
-	params, err := getSyncMonitorParams(cId, spec)
+func updateMonitorStack(s *mcclient.ClientSession, cId string, spec *v1alpha1.OnecloudClusterSpec, config *v1alpha1.OnecloudClusterConfig) error {
+	params, err := getSyncMonitorParams(cId, spec, config)
 	if err != nil {
 		return err
 	}
 	return doUpdateClusterComponent(ClusterComponentTypeMonitor, s, cId, params)
 }
 
-func SyncMonitorStack(s *mcclient.ClientSession, input *v1alpha1.OnecloudClusterSpec) error {
+func SyncMonitorStack(s *mcclient.ClientSession, input *v1alpha1.OnecloudClusterSpec, config *v1alpha1.OnecloudClusterConfig) error {
 	cType := ClusterComponentTypeMonitor
 	return syncClusterComponent(cType, s,
 		func(ccs *ClusterComponentsStatus) (bool, string) {
@@ -466,10 +484,10 @@ func SyncMonitorStack(s *mcclient.ClientSession, input *v1alpha1.OnecloudCluster
 			return disableClusterComponent(cType, s, id)
 		},
 		func(s *mcclient.ClientSession, id string) error {
-			return enableMonitorStack(s, id, input)
+			return enableMonitorStack(s, id, input, config)
 		},
 		func(s *mcclient.ClientSession, id string) error {
-			return updateMonitorStack(s, id, input)
+			return updateMonitorStack(s, id, input, config)
 		},
 	)
 }
