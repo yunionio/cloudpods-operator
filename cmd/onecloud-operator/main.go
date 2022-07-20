@@ -43,13 +43,14 @@ import (
 )
 
 var (
-	printVersion   bool
-	workers        int
-	leaseDuration  = 15 * time.Second
-	renewDuration  = 5 * time.Second
-	retryPeriod    = 3 * time.Second
-	resyncDuration = 30 * time.Second
-	waitDuration   = 5 * time.Second
+	printVersion         bool
+	enableLeaderElection bool
+	workers              int
+	leaseDuration        = 15 * time.Second
+	renewDuration        = 5 * time.Second
+	retryPeriod          = 3 * time.Second
+	resyncDuration       = 30 * time.Second
+	waitDuration         = 5 * time.Second
 )
 
 func init() {
@@ -59,6 +60,7 @@ func init() {
 	flag.BoolVar(&controller.SessionDebug, "debug", false, "Onecloud session debug")
 	flag.BoolVar(&controller.SyncUser, "sync-user", false, "Operator sync onecloud user password if changed")
 	flag.BoolVar(&controller.EtcdKeepFailedPods, "etcd-keep-failed-pods", false, "Keep the failed etcd pods")
+	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false, "Enable leader election for multiple instances")
 
 	flag.Parse()
 }
@@ -137,26 +139,33 @@ func main() {
 	go informerFactory.Start(controllerCtx.Done())
 	go kubeInformerFactory.Start(controllerCtx.Done())
 
-	onStarted := func(ctx context.Context) {
-		ocController.Run(workers, ctx.Done())
-	}
-	onStopped := func() {
-		klog.Fatalf("leader election lost")
-	}
+	if enableLeaderElection {
+		// leader election for multiple onecloud-controller-manager
+		onStarted := func(ctx context.Context) {
+			ocController.Run(workers, ctx.Done())
+		}
+		onStopped := func() {
+			klog.Fatalf("leader election lost")
+		}
+		go wait.Forever(func() {
+			leaderelection.RunOrDie(controllerCtx, leaderelection.LeaderElectionConfig{
+				Lock:          &rl,
+				LeaseDuration: leaseDuration,
+				RenewDeadline: renewDuration,
+				RetryPeriod:   retryPeriod,
+				Callbacks: leaderelection.LeaderCallbacks{
+					OnStartedLeading: onStarted,
+					OnStoppedLeading: onStopped,
+				},
+			})
+		}, waitDuration)
 
-	// leader election for multiple onecloud-controller-manager
-	go wait.Forever(func() {
-		leaderelection.RunOrDie(controllerCtx, leaderelection.LeaderElectionConfig{
-			Lock:          &rl,
-			LeaseDuration: leaseDuration,
-			RenewDeadline: renewDuration,
-			RetryPeriod:   retryPeriod,
-			Callbacks: leaderelection.LeaderCallbacks{
-				OnStartedLeading: onStarted,
-				OnStoppedLeading: onStopped,
-			},
-		})
-	}, waitDuration)
+	} else {
+		go func() {
+			ch := make(chan struct{})
+			ocController.Run(workers, ch)
+		}()
+	}
 
 	klog.Fatal(http.ListenAndServe(":6060", nil))
 }
