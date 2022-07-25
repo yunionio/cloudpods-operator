@@ -144,8 +144,10 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 					"storage",
 					"default",
 				},
-				"setupOneStackInitialized": true,
 			},
+		}
+		if oc.Spec.ProductVersion == v1alpha1.ProductVersionCMP {
+			input["value"].(map[string]interface{})["setupOneStackInitialized"] = true
 		}
 		params := jsonutils.Marshal(input)
 		if _, err := yunionconf.Parameters.Create(s, params); err != nil {
