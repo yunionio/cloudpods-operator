@@ -159,7 +159,7 @@ hub pull-request -F "${prtext}" -h "${GITHUB_USER}:${NEWBRANCH}" -b "${MAIN_REPO
 function extract-subject {
   local patch="$1"
 
-  python -c '
+  python3 -c '
 import os
 import email.parser
 import email.header
