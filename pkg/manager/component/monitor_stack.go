@@ -65,15 +65,15 @@ func (m *monitorStackManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 		return errors.Wrap(err, "get cluster config for grafana")
 	}
 
-	if err := m.onecloudControl.RunWithSession(oc, func(s *mcclient.ClientSession) error {
-		spec := &oc.Spec.MonitorStack
-		status := &oc.Status.MonitorStack
-
-		if !spec.Grafana.Disable {
-			if err := EnsureClusterDBUser(oc, clustercfg.Grafana.DB); err != nil {
-				return errors.Wrap(err, "ensure grafana db config")
-			}
+	spec := &oc.Spec.MonitorStack
+	if !spec.Grafana.Disable {
+		if err := EnsureClusterDBUser(oc, clustercfg.Grafana.DB); err != nil {
+			return errors.Wrap(err, "ensure grafana db config")
 		}
+	}
+
+	if err := m.onecloudControl.RunWithSession(oc, func(s *mcclient.ClientSession) error {
+		status := &oc.Status.MonitorStack
 
 		if err := m.syncMinio(s, &spec.Minio, &status.MinioStatus); err != nil {
 			return errors.Wrap(err, "sync monitor-stack minio component")
