@@ -100,7 +100,7 @@ func (m *regionDNSManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 	regionDB := cfg.RegionServer.DB
 	spec := oc.Spec.RegionDNS
 	cType := v1alpha1.RegionDNSComponentType
-	defaultDNSTo := []string{"114.114.114.114", "8.8.8.8"}
+	defaultDNSTo := []string{"114.114.114.114", "223.5.5.5"}
 	if len(spec.Proxies) == 0 {
 		spec.Proxies = append(spec.Proxies, v1alpha1.RegionDNSProxy{
 			From: ".",
