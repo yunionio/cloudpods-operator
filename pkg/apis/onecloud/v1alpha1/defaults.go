@@ -66,6 +66,8 @@ const (
 	DefaultTelegrafInitImageTag  = "release-1.19.2-0"
 	DefaultTelegrafRaidImageName = "telegraf-raid-plugin"
 	DefaultTelegrafRaidImageTag  = "release-1.6.4"
+
+	DefaultHostQemuVersion = "4.2.0"
 )
 
 func addDefaultingFuncs(scheme *runtime.Scheme) error {
@@ -197,6 +199,11 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		false, isEE,
 	)
 	obj.Web.Docs.ImagePullPolicy = corev1.PullIfNotPresent
+
+	// setting host spec
+	if obj.HostAgent.DefaultQemuVersion == "" {
+		obj.HostAgent.DefaultQemuVersion = DefaultHostQemuVersion
+	}
 
 	for cType, spec := range map[ComponentType]*DaemonSetSpec{
 		HostComponentType:         &obj.HostAgent.DaemonSetSpec,
