@@ -96,6 +96,7 @@ func (pc *yunionconfPC) Setup() error {
 func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 	// register parameter of services
 	// 1. init global-settings parameter if not created
+	isEE := IsEnterpriseEdition(oc)
 	gsName := "global-settings"
 	if err := pc.man.RunWithSession(pc.man.GetCluster(), func(s *mcclient.ClientSession) error {
 		items, err := yunionconf.Parameters.List(s, jsonutils.Marshal(map[string]string{
@@ -107,47 +108,67 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 		if len(items.Data) != 0 {
 			return nil
 		}
+		var setupKeys []string
+		setupKeysCmp := []string{
+			"public",
+			"private",
+			"storage",
+			"aliyun",
+			"aws",
+			"azure",
+			"ctyun",
+			"google",
+			"huawei",
+			"qcloud",
+			"ucloud",
+			"ecloud",
+			"jdcloud",
+			"vmware",
+			"openstack",
+			"dstack",
+			"zstack",
+			"apsara",
+			"cloudpods",
+			"hcso",
+			"nutanix",
+			"bingocloud",
+			"incloudsphere",
+			"s3",
+			"ceph",
+			"xsky",
+		}
+		setupKeysEdge := []string{
+			"onecloud",
+			"onestack",
+			"baremetal",
+			"lb",
+		}
+		setupKeysFull := []string{}
+		setupKeysFull = append(setupKeysFull, setupKeysCmp...)
+		setupKeysFull = append(setupKeysFull, setupKeysEdge...)
+		oneStackInited := false
+		switch oc.Spec.ProductVersion {
+		case v1alpha1.ProductVersionCMP:
+			setupKeys = setupKeysCmp
+			oneStackInited = true
+		case v1alpha1.ProductVersionEdge:
+			setupKeys = setupKeysEdge
+		default:
+			setupKeys = setupKeysFull
+		}
+		setupKeys = append(setupKeys, "monitor", "auth")
+		if isEE {
+			setupKeys = append(setupKeys, "k8s", "bill")
+		}
+		setupKeys = append(setupKeys, "default")
 		input := map[string]interface{}{
 			"name":       gsName,
 			"service_id": constants.ServiceNameYunionAgent,
 			"value": map[string]interface{}{
-				"setupKeys": []string{
-					"onestack",
-					"baremetal",
-					"lb",
-					"aliyun",
-					"aws",
-					"azure",
-					"ctyun",
-					"google",
-					"huawei",
-					"qcloud",
-					// "ucloud",
-					// "ecloud",
-					// "jdcloud",
-					"vmware",
-					"openstack",
-					"dstack",
-					"zstack",
-					"apsara",
-					"cloudpods",
-					"hcso",
-					"nutanix",
-					"s3",
-					"ceph",
-					"xsky",
-					"bill",
-					"auth",
-					"onecloud",
-					"public",
-					"private",
-					"storage",
-					"default",
-				},
+				"setupKeys":                setupKeys,
+				"setupKeysVersion":         "3.0",
+				"setupOneStackInitialized": oneStackInited,
 			},
-		}
-		if oc.Spec.ProductVersion == v1alpha1.ProductVersionCMP {
-			input["value"].(map[string]interface{})["setupOneStackInitialized"] = true
 		}
 		params := jsonutils.Marshal(input)
 		if _, err := yunionconf.Parameters.Create(s, params); err != nil {
@@ -155,7 +176,7 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 		}
 		return nil
 	}); err != nil {
-		return err
+		return errors.Wrap(err, "pc.man.RunWithSession")
 	}
 	return nil
 }
