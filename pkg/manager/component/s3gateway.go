@@ -37,7 +37,7 @@ func newS3gatewayManager(man *ComponentManager) manager.Manager {
 func (m *s3gatewayManager) getProductVersions() []v1alpha1.ProductVersion {
 	return []v1alpha1.ProductVersion{
 		v1alpha1.ProductVersionFullStack,
-		v1alpha1.ProductVersionEdge,
+		v1alpha1.ProductVersionCMP,
 	}
 }
 
