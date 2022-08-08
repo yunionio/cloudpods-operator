@@ -39,7 +39,6 @@ func newCloudnetManager(man *ComponentManager) manager.Manager {
 func (m *cloudnetManager) getProductVersions() []v1alpha1.ProductVersion {
 	return []v1alpha1.ProductVersion{
 		v1alpha1.ProductVersionFullStack,
-		v1alpha1.ProductVersionEdge,
 	}
 }
 
