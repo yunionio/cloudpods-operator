@@ -41,7 +41,7 @@ func newEsxiManager(m *ComponentManager) manager.Manager {
 func (m *esxiManager) getProductVersions() []v1alpha1.ProductVersion {
 	return []v1alpha1.ProductVersion{
 		v1alpha1.ProductVersionFullStack,
-		v1alpha1.ProductVersionEdge,
+		v1alpha1.ProductVersionCMP,
 	}
 }
 

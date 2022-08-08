@@ -47,8 +47,9 @@ func (m *apiGatewayManager) getComponentType() v1alpha1.ComponentType {
 }
 
 func (m *apiGatewayManager) Sync(oc *v1alpha1.OnecloudCluster) error {
+	isEE := IsEnterpriseEdition(oc)
 	imageName := oc.Spec.APIGateway.ImageName
-	if imageName == constants.APIGatewayCEImageName || imageName == constants.APIGatewayEEImageName {
+	if (imageName == constants.APIGatewayCEImageName && isEE) || (imageName == constants.APIGatewayEEImageName && !isEE) {
 		oc.Spec.APIGateway.ImageName = ""
 	}
 	return syncComponent(m, oc, oc.Spec.APIGateway.Disable, "")
