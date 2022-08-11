@@ -128,16 +128,11 @@ func (m *etcdManager) fixEtcdSize(oc *v1alpha1.OnecloudCluster) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	readyMasterCount := 0
-	for _, node := range nodes {
-		if k8sutil.IsNodeReady(*node) {
-			readyMasterCount += 1
-		}
-	}
-	log.Infof("Ready master node count %d", readyMasterCount)
+	masterCount := len(nodes)
+	log.Infof("Master node count %d", masterCount)
 
 	oldSize := oc.Spec.Etcd.Size
-	if readyMasterCount < 3 {
+	if masterCount < 3 {
 		oc.Spec.Etcd.Size = 1
 	} else {
 		if oc.Spec.Etcd.Size < constants.EtcdDefaultClusterSize {
