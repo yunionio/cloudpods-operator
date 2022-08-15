@@ -45,9 +45,11 @@ import (
 )
 
 var (
-	SessionDebug       bool
-	SyncUser           bool
-	EtcdKeepFailedPods bool
+	SessionDebug                  bool
+	SyncUser                      bool
+	DisableInitCRD                bool
+	DisableNodeSelectorController bool
+	EtcdKeepFailedPods            bool
 
 	sessionLock sync.Mutex
 )

@@ -122,7 +122,9 @@ func (m *yunionagentManager) getDaemonSet(oc *v1alpha1.OnecloudCluster, cfg *v1a
 	if dsSpec.NodeSelector == nil {
 		dsSpec.NodeSelector = make(map[string]string)
 	}
-	dsSpec.NodeSelector[constants.OnecloudControllerLabelKey] = "enable"
+	if !controller.DisableNodeSelectorController {
+		dsSpec.NodeSelector[constants.OnecloudControllerLabelKey] = "enable"
+	}
 	ds, err := m.newDaemonSet(
 		cType, oc, cfg,
 		NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, cType), cType),
