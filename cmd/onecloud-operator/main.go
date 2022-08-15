@@ -59,6 +59,8 @@ func init() {
 	flag.BoolVar(&printVersion, "version", false, "Show version and quit")
 	flag.BoolVar(&controller.SessionDebug, "debug", false, "Onecloud session debug")
 	flag.BoolVar(&controller.SyncUser, "sync-user", false, "Operator sync onecloud user password if changed")
+	flag.BoolVar(&controller.DisableInitCRD, "disable-init-crd", false, "Disable CRD initialization")
+	flag.BoolVar(&controller.DisableNodeSelectorController, "disable-node-selector-controller", false, "Ignore onecloud.yunion.io/controller node selector")
 	flag.BoolVar(&controller.EtcdKeepFailedPods, "etcd-keep-failed-pods", false, "Keep the failed etcd pods")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false, "Enable leader election for multiple instances")
 
@@ -130,8 +132,10 @@ func main() {
 
 	ocController := occluster.NewController(kubeCli, kubeExtCli, cli, informerFactory, kubeInformerFactory)
 
-	if err := ocController.InitCRDResource(); err != nil {
-		klog.Fatalf("init CRD resources: %v", err)
+	if !controller.DisableInitCRD {
+		if err := ocController.InitCRDResource(); err != nil {
+			klog.Fatalf("init CRD resources: %v", err)
+		}
 	}
 
 	controllerCtx, cancel := context.WithCancel(context.Background())

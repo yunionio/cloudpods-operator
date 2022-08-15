@@ -174,7 +174,9 @@ func (m *regionDNSManager) getDaemonSet(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 	if spec.NodeSelector == nil {
 		spec.NodeSelector = make(map[string]string)
 	}
-	spec.NodeSelector[constants.OnecloudControllerLabelKey] = "enable"
+	if !controller.DisableNodeSelectorController {
+		spec.NodeSelector[constants.OnecloudControllerLabelKey] = "enable"
+	}
 	ds, err := m.newDaemonSet(cType, oc, cfg,
 		NewVolumeHelper(oc, configMap, cType),
 		spec.DaemonSetSpec, "", nil, cf)

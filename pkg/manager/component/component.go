@@ -501,18 +501,20 @@ func (m *ComponentManager) SetComponentAffinity(spec *v1alpha1.DeploymentSpec) {
 	if spec.Affinity.NodeAffinity == nil {
 		spec.Affinity.NodeAffinity = &corev1.NodeAffinity{}
 	}
-	spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &corev1.NodeSelector{
-		NodeSelectorTerms: []corev1.NodeSelectorTerm{
-			{
-				MatchExpressions: []corev1.NodeSelectorRequirement{
-					{
-						Key:      constants.OnecloudControllerLabelKey,
-						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{"enable"},
+	if !controller.DisableNodeSelectorController {
+		spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &corev1.NodeSelector{
+			NodeSelectorTerms: []corev1.NodeSelectorTerm{
+				{
+					MatchExpressions: []corev1.NodeSelectorRequirement{
+						{
+							Key:      constants.OnecloudControllerLabelKey,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{"enable"},
+						},
 					},
 				},
 			},
-		},
+		}
 	}
 }
 
@@ -528,7 +530,7 @@ func (m *ComponentManager) newDefaultDeploymentWithCloudAffinity(
 	if spec.Affinity == nil {
 		spec.Affinity = &corev1.Affinity{}
 	}
-	if spec.Affinity.NodeAffinity == nil {
+	if spec.Affinity.NodeAffinity == nil && !controller.DisableNodeSelectorController {
 		spec.Affinity.NodeAffinity = &corev1.NodeAffinity{}
 		spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &corev1.NodeSelector{
 			NodeSelectorTerms: []corev1.NodeSelectorTerm{
