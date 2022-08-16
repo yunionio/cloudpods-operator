@@ -19,7 +19,7 @@ import (
 	apps "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/klog"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -41,8 +41,8 @@ type serviceFactory interface {
 }
 
 type ingressFactory interface {
-	getIngress(oc *v1alpha1.OnecloudCluster, zone string) *extensions.Ingress
-	updateIngress(oc *v1alpha1.OnecloudCluster, oldIng *extensions.Ingress) *extensions.Ingress
+	getIngress(oc *v1alpha1.OnecloudCluster, zone string) *unstructured.Unstructured
+	updateIngress(oc *v1alpha1.OnecloudCluster, oldIng *unstructured.Unstructured) *unstructured.Unstructured
 }
 
 type configMapFactory interface {

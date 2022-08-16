@@ -329,6 +329,8 @@ type ICloudVM interface {
 
 	GetIEIP() (ICloudEIP, error)
 
+	GetInternetMaxBandwidthOut() int
+	GetThroughput() int
 	// GetStatus() string
 	// GetRemoteStatus() string
 
@@ -948,6 +950,7 @@ type ICloudDBInstance interface {
 	GetVcpuCount() int
 	GetVmemSizeMB() int //MB
 	GetDiskSizeGB() int
+	GetDiskSizeUsedMB() int
 	//基础版、高可用？
 	GetCategory() string
 	GetStorageType() string
@@ -960,6 +963,7 @@ type ICloudDBInstance interface {
 	GetZone2Id() string
 	GetZone3Id() string
 	GetIVpcId() string
+	GetIops() int
 
 	GetDBNetworks() ([]SDBInstanceNetwork, error)
 	GetIDBInstanceParameters() ([]ICloudDBInstanceParameter, error)
@@ -1431,6 +1435,11 @@ type ICloudMongoDB interface {
 	GetInstanceType() string
 	GetMaintainTime() string
 	GetPort() int
+	GetIops() int
+
+	GetMaxConnections() int
+
+	GetNetworkAddress() string
 
 	GetIBackups() ([]SMongoDBBackup, error)
 

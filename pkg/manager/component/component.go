@@ -22,16 +22,16 @@ import (
 	batchv1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	appv1 "k8s.io/client-go/listers/apps/v1"
 	batchlisters "k8s.io/client-go/listers/batch/v1beta1"
 	corelisters "k8s.io/client-go/listers/core/v1"
-	extensionlisters "k8s.io/client-go/listers/extensions/v1beta1"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
 
 	"yunion.io/x/jsonutils"
@@ -59,7 +59,7 @@ type ComponentManager struct {
 	pvcControl    controller.PVCControlInterface
 	pvcLister     corelisters.PersistentVolumeClaimLister
 	ingControl    controller.IngressControlInterface
-	ingLister     extensionlisters.IngressLister
+	ingLister     cache.GenericLister
 	dsControl     controller.DaemonSetControlInterface
 	dsLister      appv1.DaemonSetLister
 	cronControl   controller.CronJobControlInterface
@@ -69,6 +69,7 @@ type ComponentManager struct {
 	configer               Configer
 	onecloudControl        *controller.OnecloudControl
 	onecloudClusterControl controller.ClusterControlInterface
+	clusterVersion         k8sutil.ClusterVersion
 }
 
 // NewComponentManager return *BaseComponentManager
@@ -81,7 +82,7 @@ func NewComponentManager(
 	pvcControl controller.PVCControlInterface,
 	pvcLister corelisters.PersistentVolumeClaimLister,
 	ingControl controller.IngressControlInterface,
-	ingLister extensionlisters.IngressLister,
+	ingLister cache.GenericLister,
 	dsControl controller.DaemonSetControlInterface,
 	dsLister appv1.DaemonSetLister,
 	cronControl controller.CronJobControlInterface,
@@ -90,6 +91,7 @@ func NewComponentManager(
 	configer Configer,
 	onecloudControl *controller.OnecloudControl,
 	onecloudClusterControl controller.ClusterControlInterface,
+	clusterVersion k8sutil.ClusterVersion,
 ) *ComponentManager {
 	return &ComponentManager{
 		kubeCli:                kubeCli,
@@ -109,6 +111,7 @@ func NewComponentManager(
 		configer:               configer,
 		onecloudControl:        onecloudControl,
 		onecloudClusterControl: onecloudClusterControl,
+		clusterVersion:         clusterVersion,
 	}
 }
 
@@ -178,7 +181,7 @@ func (m *ComponentManager) syncIngress(
 		return nil
 	}
 	inPV := isInProductVersion(ingFactory, oc)
-	oldIngTmp, err := m.ingLister.Ingresses(ns).Get(newIng.GetName())
+	oldIngTmp, err := m.ingLister.ByNamespace(ns).Get(newIng.GetName())
 	if err != nil {
 		if errors.IsNotFound(err) {
 			if !inPV {
@@ -192,11 +195,11 @@ func (m *ComponentManager) syncIngress(
 	}
 
 	if !inPV {
-		return m.ingControl.DeleteIngress(oc, oldIngTmp)
+		return m.ingControl.DeleteIngress(oc, oldIngTmp.(*unstructured.Unstructured))
 	}
 
 	// update old ingress
-	oldIng := oldIngTmp.DeepCopy()
+	oldIng := oldIngTmp.(*unstructured.Unstructured).DeepCopy()
 
 	equal, err := ingressEqual(newIng, oldIng)
 	if err != nil {
@@ -1271,11 +1274,11 @@ func (m *ComponentManager) getService(oc *v1alpha1.OnecloudCluster, zone string)
 	return nil
 }
 
-func (m *ComponentManager) getIngress(oc *v1alpha1.OnecloudCluster, zone string) *extensions.Ingress {
+func (m *ComponentManager) getIngress(oc *v1alpha1.OnecloudCluster, zone string) *unstructured.Unstructured {
 	return nil
 }
 
-func (m *ComponentManager) updateIngress(_ *v1alpha1.OnecloudCluster, _ *extensions.Ingress) *extensions.Ingress {
+func (m *ComponentManager) updateIngress(_ *v1alpha1.OnecloudCluster, _ *unstructured.Unstructured) *unstructured.Unstructured {
 	return nil
 }
 

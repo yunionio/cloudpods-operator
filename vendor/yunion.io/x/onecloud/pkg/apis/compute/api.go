@@ -212,6 +212,9 @@ type DiskConfig struct {
 
 	//swagger:ignore
 	DiskId string `json:"disk_id"`
+
+	//swagger:ignore
+	ExistingPath string `json:"existing_path"`
 }
 
 type IsolatedDeviceConfig struct {
@@ -362,7 +365,8 @@ type ServerCreateInput struct {
 	apis.EncryptedResourceCreateInput
 
 	// 虚拟机内存大小,单位Mb,若未指定instance_type,此参数为必传项
-	VmemSize int `json:"vmem_size"`
+	VmemSize       int  `json:"vmem_size"`
+	EnableMemclean bool `json:"enable_memclean"`
 
 	// 虚拟机Cpu大小,若未指定instance_type,此参数为必传项
 	// default: 1

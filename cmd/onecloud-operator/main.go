@@ -26,6 +26,8 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/dynamic/dynamicinformer"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -39,6 +41,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	occluster "yunion.io/x/onecloud-operator/pkg/controller/cluster"
 	k8sutil "yunion.io/x/onecloud-operator/pkg/util/k8s"
+	k8sutil2 "yunion.io/x/onecloud-operator/pkg/util/k8sutil"
 	"yunion.io/x/onecloud-operator/pkg/version"
 )
 
@@ -101,6 +104,11 @@ func main() {
 	}
 	kubeExtCli := k8sutil.MustNewKubeExtClient()
 
+	dynamicCli, err := dynamic.NewForConfig(cfg)
+	if err != nil {
+		klog.Fatalf("failed to create kubernetes dynamic client: %v", err)
+	}
+
 	var informerFactory informers.SharedInformerFactory
 	var kubeInformerFactory kubeinformers.SharedInformerFactory
 
@@ -118,6 +126,8 @@ func main() {
 	}
 	kubeInformerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(kubeCli, resyncDuration, kubeOptions...)
 
+	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicCli, resyncDuration)
+
 	rl := resourcelock.EndpointsLock{
 		EndpointsMeta: metav1.ObjectMeta{
 			Namespace: ns,
@@ -130,7 +140,15 @@ func main() {
 		},
 	}
 
-	ocController := occluster.NewController(kubeCli, kubeExtCli, cli, informerFactory, kubeInformerFactory)
+	cv, err := k8sutil2.NewClusterVersion(kubeCli)
+	if err != nil {
+		klog.Fatalf("NewClusterVersion: %v", err)
+	}
+
+	ocController, err := occluster.NewController(kubeCli, kubeExtCli, dynamicCli, cli, informerFactory, kubeInformerFactory, dynamicInformerFactory, cv)
+	if err != nil {
+		klog.Fatalf("NewController: %v", err)
+	}
 
 	if !controller.DisableInitCRD {
 		if err := ocController.InitCRDResource(); err != nil {
@@ -142,6 +160,7 @@ func main() {
 	defer cancel()
 	go informerFactory.Start(controllerCtx.Done())
 	go kubeInformerFactory.Start(controllerCtx.Done())
+	go dynamicInformerFactory.Start(controllerCtx.Done())
 
 	if enableLeaderElection {
 		// leader election for multiple onecloud-controller-manager

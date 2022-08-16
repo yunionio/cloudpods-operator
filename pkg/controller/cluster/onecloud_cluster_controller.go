@@ -25,6 +25,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/dynamic/dynamicinformer"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	eventv1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -45,6 +47,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/manager/component"
 	"yunion.io/x/onecloud-operator/pkg/manager/config"
 	k8sutil "yunion.io/x/onecloud-operator/pkg/util/k8s"
+	k8sutil2 "yunion.io/x/onecloud-operator/pkg/util/k8sutil"
 )
 
 // controllerKind contains the schema.GroupVersionKind for this controller type.
@@ -76,10 +79,13 @@ type Controller struct {
 func NewController(
 	kubeCli kubernetes.Interface,
 	kubeExtCli apiextensionsclient.Interface,
+	dynamicCli dynamic.Interface,
 	cli versioned.Interface,
 	informerFactory informers.SharedInformerFactory,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
-) *Controller {
+	dynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
+	cv k8sutil2.ClusterVersion,
+) (*Controller, error) {
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(klog.Infof)
 	eventBroadcaster.StartRecordingToSink(&eventv1.EventSinkImpl{
@@ -95,7 +101,8 @@ func NewController(
 	nodeInformer := kubeInformerFactory.Core().V1().Nodes()
 	cfgInformer := kubeInformerFactory.Core().V1().ConfigMaps()
 	pvcInformer := kubeInformerFactory.Core().V1().PersistentVolumeClaims()
-	ingInformer := kubeInformerFactory.Extensions().V1beta1().Ingresses()
+	ingInformer := dynamicInformerFactory.ForResource(cv.GetIngressGVR())
+
 	dsInformer := kubeInformerFactory.Apps().V1().DaemonSets()
 	cronInformer := kubeInformerFactory.Batch().V1beta1().CronJobs()
 
@@ -103,7 +110,7 @@ func NewController(
 	deployControl := controller.NewDeploymentControl(kubeCli, deployInformer.Lister(), recorder)
 	svcControl := controller.NewServiceControl(kubeCli, svcInformer.Lister(), recorder)
 	cfgControl := controller.NewConfigMapControl(kubeCli, cfgInformer.Lister(), recorder)
-	ingControl := controller.NewIngressControl(kubeCli, ingInformer.Lister(), recorder)
+	ingControl := controller.NewIngressControl(dynamicCli, ingInformer.Lister(), recorder, cv)
 	dsControl := controller.NewDaemonSetControl(kubeCli, dsInformer.Lister(), recorder)
 	cronControl := controller.NewCronJobControl(kubeCli, cronInformer.Lister(), recorder)
 
@@ -123,6 +130,7 @@ func NewController(
 		nodeInformer.Lister(),
 		configer, onecloudControl,
 		ocControl,
+		cv,
 	)
 
 	c := &Controller{
@@ -162,7 +170,7 @@ func NewController(
 	c.deploymentLister = deployInformer.Lister()
 	c.deploymentListerSynced = deployInformer.Informer().HasSynced
 
-	return c
+	return c, nil
 }
 
 // Run runs the onecloud cluster controller.
