@@ -17,37 +17,54 @@ package controller
 import (
 	"fmt"
 
-	extensions "k8s.io/api/extensions/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/kubernetes"
-	listers "k8s.io/client-go/listers/extensions/v1beta1"
+	"k8s.io/client-go/dynamic"
+	cache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
+	"yunion.io/x/onecloud-operator/pkg/util/k8sutil"
 )
 
 // IngressControlInterface defines the interface that uses to create, update and delete Ingress
 type IngressControlInterface interface {
-	CreateIngress(*v1alpha1.OnecloudCluster, *extensions.Ingress) error
-	UpdateIngress(*v1alpha1.OnecloudCluster, *extensions.Ingress) (*extensions.Ingress, error)
-	DeleteIngress(*v1alpha1.OnecloudCluster, *extensions.Ingress) error
+	CreateIngress(*v1alpha1.OnecloudCluster, *unstructured.Unstructured) error
+	UpdateIngress(*v1alpha1.OnecloudCluster, *unstructured.Unstructured) (*unstructured.Unstructured, error)
+	DeleteIngress(*v1alpha1.OnecloudCluster, *unstructured.Unstructured) error
 }
 
 type realIngressControl struct {
 	*baseControl
-	kubeCli       kubernetes.Interface
-	ingressLister listers.IngressLister
+	dynamicCli     dynamic.Interface
+	ingressLister  cache.GenericLister
+	clusterVersion k8sutil.ClusterVersion
 }
 
-func NewIngressControl(kubeCli kubernetes.Interface, ingressLister listers.IngressLister, recorder record.EventRecorder) IngressControlInterface {
-	return &realIngressControl{newBaseControl("Ingress", recorder), kubeCli, ingressLister}
+func NewIngressControl(
+	dCli dynamic.Interface,
+	ingressLister cache.GenericLister,
+	recorder record.EventRecorder,
+	cv k8sutil.ClusterVersion,
+) IngressControlInterface {
+	return &realIngressControl{
+		newBaseControl("Ingress", recorder),
+		dCli,
+		ingressLister,
+		cv,
+	}
 }
 
-func (c *realIngressControl) CreateIngress(oc *v1alpha1.OnecloudCluster, ing *extensions.Ingress) error {
-	_, err := c.kubeCli.ExtensionsV1beta1().Ingresses(oc.Namespace).Create(ing)
+func (c *realIngressControl) Client() dynamic.NamespaceableResourceInterface {
+	return c.dynamicCli.Resource(c.clusterVersion.GetIngressGVR())
+}
+
+func (c *realIngressControl) CreateIngress(oc *v1alpha1.OnecloudCluster, ing *unstructured.Unstructured) error {
+	_, err := c.Client().Namespace(oc.GetNamespace()).Create(ing, metav1.CreateOptions{})
 	if apierrors.IsAlreadyExists(err) {
 		return err
 	}
@@ -55,24 +72,24 @@ func (c *realIngressControl) CreateIngress(oc *v1alpha1.OnecloudCluster, ing *ex
 	return err
 }
 
-func (c *realIngressControl) UpdateIngress(oc *v1alpha1.OnecloudCluster, ing *extensions.Ingress) (*extensions.Ingress, error) {
+func (c *realIngressControl) UpdateIngress(oc *v1alpha1.OnecloudCluster, ing *unstructured.Unstructured) (*unstructured.Unstructured, error) {
 	ns := oc.GetNamespace()
 	ocName := oc.GetName()
 	ingName := ing.GetName()
-	ingSpec := ing.Spec.DeepCopy()
-	var updatedIng *extensions.Ingress
+	ingSpec, _, _ := unstructured.NestedMap(ing.DeepCopy().Object, "spec")
+	var updatedIng *unstructured.Unstructured
 	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		var updateErr error
-		updatedIng, updateErr = c.kubeCli.ExtensionsV1beta1().Ingresses(ns).Update(ing)
+		updatedIng, updateErr = c.Client().Namespace(oc.GetNamespace()).Update(ing, metav1.UpdateOptions{})
 		if updateErr == nil {
 			klog.Infof("OnecloudCluster: [%s/%s]'s Ingress: [%s/%s] updated successfully", ns, ocName, ns, ingName)
 			return nil
 		}
 		klog.Errorf("failed to update OnecloudCluster: [%s/%s]'s Ingress: [%s/%s], error: %v", ns, ocName, ns, ingName, updateErr)
 
-		if updated, err := c.ingressLister.Ingresses(ns).Get(ingName); err == nil {
+		if updated, err := c.Client().Namespace(ns).Get(ingName, metav1.GetOptions{}); err == nil {
 			ing = updated.DeepCopy()
-			ing.Spec = *ingSpec
+			unstructured.SetNestedField(ing.Object, ingSpec, "spec")
 		} else {
 			utilruntime.HandleError(fmt.Errorf("error getting updated Ingress %s/%s from lister: %v", ns, ingName, err))
 		}
@@ -83,8 +100,8 @@ func (c *realIngressControl) UpdateIngress(oc *v1alpha1.OnecloudCluster, ing *ex
 	return updatedIng, err
 }
 
-func (c *realIngressControl) DeleteIngress(oc *v1alpha1.OnecloudCluster, ing *extensions.Ingress) error {
-	err := c.kubeCli.ExtensionsV1beta1().Ingresses(oc.GetNamespace()).Delete(ing.Name, nil)
+func (c *realIngressControl) DeleteIngress(oc *v1alpha1.OnecloudCluster, ing *unstructured.Unstructured) error {
+	err := c.Client().Namespace(oc.GetNamespace()).Delete(ing.GetName(), nil)
 	c.RecordDeleteEvent(oc, ing, err)
 	return err
 }

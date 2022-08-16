@@ -111,3 +111,11 @@ func (instance *SDBInstanceBase) CreateIBackup(conf *cloudprovider.SDBInstanceBa
 func (instance *SDBInstanceBase) RecoveryFromBackup(conf *cloudprovider.SDBInstanceRecoveryConfig) error {
 	return errors.Wrapf(cloudprovider.ErrNotImplemented, "RecoveryFromBackup")
 }
+
+func (instance *SDBInstanceBase) GetIops() int {
+	return 0
+}
+
+func (instance *SDBInstanceBase) GetDiskSizeUsedMB() int {
+	return 0
+}

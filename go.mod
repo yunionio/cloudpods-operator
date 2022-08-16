@@ -25,16 +25,17 @@ require (
 	k8s.io/kubernetes v0.0.0-00010101000000-000000000000
 	yunion.io/x/jsonutils v1.0.0
 	yunion.io/x/log v1.0.0
-	yunion.io/x/onecloud v0.0.0-20220715065932-666b54e4f66f
+	yunion.io/x/onecloud v0.0.0-20220812004839-32089b6a4612
 	yunion.io/x/pkg v1.0.1-0.20220630095420-9925accd7c5e
 	yunion.io/x/structarg v0.0.0-20220312084958-9c6c79c7d1c6
 )
+
+require github.com/coreos/go-semver v0.3.0
 
 require (
 	github.com/360EntSecGroup-Skylar/excelize v1.4.0 // indirect
 	github.com/beevik/etree v1.1.0 // indirect
 	github.com/coredns/coredns v1.3.0 // indirect
-	github.com/coreos/go-semver v0.3.0 // indirect
 	github.com/coreos/go-systemd/v22 v22.3.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/evanphx/json-patch v0.0.0-20190203023257-5858425f7550 // indirect
