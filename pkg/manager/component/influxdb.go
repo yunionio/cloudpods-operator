@@ -100,13 +100,13 @@ func (m *influxdbManager) getPhaseControl(man controller.ComponentManager, zone 
 		constants.InfluxdbPort, "")
 }
 
-func (m *influxdbManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.InfluxdbComponentType, oc, constants.InfluxdbPort)}
+func (m *influxdbManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.InfluxdbComponentType, oc, int32(oc.Spec.Influxdb.Service.NodePort), constants.InfluxdbPort)}
 }
 
 func (m *influxdbManager) getPVC(oc *v1alpha1.OnecloudCluster, zone string) (*corev1.PersistentVolumeClaim, error) {
 	cfg := oc.Spec.Influxdb
-	return m.ComponentManager.newPVC(v1alpha1.InfluxdbComponentType, oc, cfg)
+	return m.ComponentManager.newPVC(v1alpha1.InfluxdbComponentType, oc, cfg.StatefulDeploymentSpec)
 }
 
 func (m *influxdbManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {

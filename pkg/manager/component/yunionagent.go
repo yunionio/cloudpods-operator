@@ -82,12 +82,13 @@ func (m *yunionagentManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1a
 	SetOptionsServiceTLS(&opt.BaseOptions, false)
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 	opt.AutoSyncTable = true
-	opt.Port = constants.YunionAgentPort
+	// yunionagent use hostNetwork
+	opt.Port = oc.Spec.Yunionagent.Service.NodePort
 
 	return m.newServiceConfigMap(v1alpha1.YunionagentComponentType, "", oc, opt), false, nil
 }
 
-func (m *yunionagentManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
+func (m *yunionagentManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
 	// use headless service
 	svcName := controller.NewClusterComponentName(oc.GetName(), v1alpha1.YunionagentComponentType)
 	appLabel := m.getComponentLabel(oc, v1alpha1.YunionagentComponentType)
@@ -128,7 +129,7 @@ func (m *yunionagentManager) getDaemonSet(oc *v1alpha1.OnecloudCluster, cfg *v1a
 	ds, err := m.newDaemonSet(
 		cType, oc, cfg,
 		NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, cType), cType),
-		dsSpec, "", nil, cf)
+		dsSpec.DaemonSetSpec, "", nil, cf)
 	if err != nil {
 		return nil, err
 	}

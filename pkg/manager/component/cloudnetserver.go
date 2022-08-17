@@ -64,7 +64,7 @@ func (m *cloudnetManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1a
 func (m *cloudnetManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return controller.NewRegisterEndpointComponent(man, v1alpha1.CloudnetComponentType,
 		constants.ServiceNameCloudnet, constants.ServiceTypeCloudnet,
-		constants.CloudnetPort, "")
+		man.GetCluster().Spec.Cloudnet.Service.NodePort, "")
 }
 
 func (m *cloudnetManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
@@ -79,12 +79,12 @@ func (m *cloudnetManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 	opt.AutoSyncTable = true
 	opt.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
 	opt.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
-	opt.Port = constants.CloudnetPort
+	opt.Port = config.Port
 	return m.newServiceConfigMap(v1alpha1.CloudnetComponentType, "", oc, opt), false, nil
 }
 
-func (m *cloudnetManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.CloudnetComponentType, oc, constants.CloudnetPort)}
+func (m *cloudnetManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.CloudnetComponentType, oc, int32(oc.Spec.Cloudnet.Service.NodePort), int32(cfg.Cloudnet.Port))}
 }
 
 func (m *cloudnetManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -99,7 +99,7 @@ func (m *cloudnetManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 			},
 		}
 	}
-	return m.newDefaultDeploymentNoInit(v1alpha1.CloudnetComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.CloudnetComponentType), v1alpha1.CloudnetComponentType), &oc.Spec.Cloudnet, cf)
+	return m.newDefaultDeploymentNoInit(v1alpha1.CloudnetComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.CloudnetComponentType), v1alpha1.CloudnetComponentType), &oc.Spec.Cloudnet.DeploymentSpec, cf)
 }
 
 func (m *cloudnetManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {

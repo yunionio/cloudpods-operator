@@ -82,7 +82,7 @@ func (m *notifyManager) getPhaseControl(man controller.ComponentManager, zone st
 	return controller.NewRegisterEndpointComponent(
 		man, v1alpha1.NotifyComponentType,
 		constants.ServiceNameNotify, constants.ServiceTypeNotify,
-		constants.NotifyPort, "")
+		man.GetCluster().Spec.Notify.Service.NodePort, "")
 }
 
 type NotifyPluginBaseConfig struct {
@@ -114,7 +114,7 @@ func (m *notifyManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	opt.UpdateInterval = 30
 	//opt.VerifyEmailUrlPath = fmt.Sprintf("/v2/email-verification/id/{0}/token/{1}?region=%s", oc.Spec.Region)
 	opt.ReSendScope = 30
-	opt.Port = constants.NotifyPort
+	opt.Port = config.Port
 
 	cfgMap := m.newServiceConfigMap(v1alpha1.NotifyComponentType, "", oc, opt)
 	pluginBaseOpt := &NotifyPluginBaseConfig{
@@ -149,12 +149,12 @@ func (m *notifyManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	return cfgMap, false, nil
 }
 
-func (m *notifyManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.NotifyComponentType, oc, constants.NotifyPort)}
+func (m *notifyManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.NotifyComponentType, oc, int32(oc.Spec.Notify.Service.NodePort), int32(cfg.Notify.Port))}
 }
 
 func (m *notifyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
-	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.NotifyComponentType, "", oc, &oc.Spec.Notify.DeploymentSpec, constants.NotifyPort, true, false)
+	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.NotifyComponentType, "", oc, &oc.Spec.Notify.DeploymentSpec, int32(cfg.Notify.Port), true, false)
 	if err != nil {
 		return nil, err
 	}

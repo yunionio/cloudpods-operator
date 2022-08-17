@@ -1,12 +1,17 @@
 package cluster
 
 import (
+	"crypto/sha256"
+	"encoding/json"
+	"fmt"
+
 	"golang.org/x/sync/errgroup"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	errorutils "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/tools/record"
 
 	"yunion.io/x/log"
+	"yunion.io/x/pkg/errors"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
@@ -162,6 +167,12 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 			log.Warningf("Sync addons %v error: %v", c, err)
 		}
 	}
+
+	specJson, err := json.Marshal(oc.Spec)
+	if err != nil {
+		return errors.Wrap(err, "Marshal oc.Spec")
+	}
+	oc.Status.SpecChecksum = fmt.Sprintf("%x", sha256.Sum256(specJson))
 
 	return nil
 }

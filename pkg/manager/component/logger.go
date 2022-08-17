@@ -61,7 +61,7 @@ func (m *loggerManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alp
 func (m *loggerManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return controller.NewRegisterEndpointComponent(man, v1alpha1.LoggerComponentType,
 		constants.ServiceNameLogger, constants.ServiceTypeLogger,
-		constants.LoggerPort, "")
+		man.GetCluster().Spec.Logger.Service.NodePort, "")
 }
 
 func (m *loggerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
@@ -73,17 +73,17 @@ func (m *loggerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
 	SetOptionsServiceTLS(&opt.BaseOptions, false)
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
-	opt.Port = constants.LoggerPort
+	opt.Port = config.Port
 
 	return m.newServiceConfigMap(v1alpha1.LoggerComponentType, zone, oc, opt), false, nil
 }
 
-func (m *loggerManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.LoggerComponentType, oc, constants.LoggerPort)}
+func (m *loggerManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.LoggerComponentType, oc, int32(oc.Spec.Logger.Service.NodePort), int32(cfg.Logger.Port))}
 }
 
 func (m *loggerManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
-	return m.newCloudServiceSinglePortDeployment(v1alpha1.LoggerComponentType, "", oc, &oc.Spec.Logger, constants.LoggerPort, true, false)
+	return m.newCloudServiceSinglePortDeployment(v1alpha1.LoggerComponentType, "", oc, &oc.Spec.Logger.DeploymentSpec, constants.LoggerPort, true, false)
 }
 
 func (m *loggerManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {

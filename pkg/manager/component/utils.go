@@ -609,13 +609,13 @@ func (h *VolumeHelper) addOvsVolumes() *VolumeHelper {
 	return h
 }
 
-func NewServiceNodePort(name string, port int32) corev1.ServicePort {
+func NewServiceNodePort(name string, nodePort int32, targetPort int32) corev1.ServicePort {
 	return corev1.ServicePort{
 		Name:       name,
 		Protocol:   corev1.ProtocolTCP,
-		Port:       port,
-		TargetPort: intstr.FromInt(int(port)),
-		NodePort:   port,
+		Port:       nodePort,
+		TargetPort: intstr.FromInt(int(targetPort)),
+		NodePort:   nodePort,
 	}
 }
 

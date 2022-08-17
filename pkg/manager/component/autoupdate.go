@@ -58,10 +58,11 @@ func (m *autoUpdateManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v
 }
 
 func (m *autoUpdateManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
+	oc := man.GetCluster()
 	return controller.NewRegisterEndpointComponent(
 		man, v1alpha1.AutoUpdateComponentType,
 		constants.ServiceNameAutoUpdate, constants.ServiceTypeAutoUpdate,
-		constants.AutoUpdatePort, "")
+		oc.Spec.AutoUpdate.Service.NodePort, "")
 }
 
 type autoUpdateOptions struct {
@@ -85,6 +86,7 @@ func (m *autoUpdateManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	SetOptionsServiceTLS(&opt.BaseOptions, false)
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config)
 
+	opt.Port = config.Port
 	opt.UpdateServer = "https://iso.yunion.cn"
 	opt.UpdateCheckIntervalHours = 1.0
 	opt.HostUpdateStartHour = 2 // like 02:00 in the morning. 0200=> 2
@@ -95,12 +97,14 @@ func (m *autoUpdateManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	return m.newServiceConfigMap(v1alpha1.AutoUpdateComponentType, "", oc, opt), false, nil
 }
 
-func (m *autoUpdateManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.AutoUpdateComponentType, oc, constants.AutoUpdatePort)}
+func (m *autoUpdateManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
+	return []*corev1.Service{
+		m.newSingleNodePortService(v1alpha1.AutoUpdateComponentType, oc, int32(oc.Spec.AutoUpdate.Service.NodePort), int32(cfg.AutoUpdate.Port)),
+	}
 }
 
 func (m *autoUpdateManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
-	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.AutoUpdateComponentType, "", oc, &oc.Spec.AutoUpdate, constants.AutoUpdatePort, false, false)
+	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.AutoUpdateComponentType, "", oc, &oc.Spec.AutoUpdate.DeploymentSpec, int32(cfg.AutoUpdate.Port), false, false)
 	if err != nil {
 		return nil, err
 	}

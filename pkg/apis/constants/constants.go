@@ -100,13 +100,13 @@ const (
 	GlanceDBUser       = "glance"
 	GlanceAdminUser    = "glance"
 	GlanceAdminProject = SysAdminProject
-	GlanceRegistryPort = 30191
-	GlanceAPIPort      = 30292
-	ServiceNameGlance  = "glance"
-	ServiceTypeGlance  = "image"
-	GlanceDataStore    = "/opt/cloud/workspace/data/glance"
-	QemuPath           = "/usr/local/qemu-2.12.1"
-	KernelPath         = "/lib/modules"
+	// GlanceRegistryPort = 30191
+	GlanceAPIPort     = 30292
+	ServiceNameGlance = "glance"
+	ServiceTypeGlance = "image"
+	GlanceDataStore   = "/opt/cloud/workspace/data/glance"
+	QemuPath          = "/usr/local/qemu-2.12.1"
+	KernelPath        = "/lib/modules"
 
 	BaremetalsPath    = "/opt/cloud/workspace/baremetals"
 	BaremetalTFTPRoot = "/opt/cloud/yunion/baremetal"

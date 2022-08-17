@@ -75,8 +75,8 @@ func (m *glanceManager) getPhaseControl(man controller.ComponentManager, zone st
 	return man.Glance()
 }
 
-func (m *glanceManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.GlanceComponentType, oc, constants.GlanceAPIPort)}
+func (m *glanceManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.GlanceComponentType, oc, int32(oc.Spec.Glance.Service.NodePort), int32(cfg.Glance.Port))}
 }
 
 func (m *glanceManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
@@ -94,7 +94,7 @@ func (m *glanceManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	opt.EnableTorrentService = false
 	// TODO: fix this
 	opt.AutoSyncTable = true
-	opt.Port = constants.GlanceAPIPort
+	opt.Port = config.Port
 
 	opt.EnableRemoteExecutor = true
 	if oc.Spec.Glance.SwitchToS3 {

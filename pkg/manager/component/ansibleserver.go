@@ -61,9 +61,10 @@ func (m *ansibleManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1al
 }
 
 func (m *ansibleManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
+	cfg := man.GetCluster().Spec.AnsibleServer
 	return controller.NewRegisterEndpointComponent(man, v1alpha1.AnsibleServerComponentType,
 		constants.ServiceNameAnsibleServer, constants.ServiceTypeAnsibleServer,
-		constants.AnsibleServerPort, "")
+		cfg.Service.NodePort, "")
 }
 
 func (m *ansibleManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
@@ -78,12 +79,15 @@ func (m *ansibleManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 	opt.AutoSyncTable = true
 	opt.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
 	opt.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
-	opt.Port = constants.AnsibleServerPort
+	// opt.Port = constants.AnsibleServerPort
 	return m.newServiceConfigMap(v1alpha1.AnsibleServerComponentType, "", oc, opt), false, nil
 }
 
-func (m *ansibleManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.AnsibleServerComponentType, oc, constants.AnsibleServerPort)}
+func (m *ansibleManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
+	aCfg := cfg.AnsibleServer
+	return []*corev1.Service{
+		m.newSingleNodePortService(v1alpha1.AnsibleServerComponentType, oc, int32(oc.Spec.AnsibleServer.Service.NodePort), int32(aCfg.Port)),
+	}
 }
 
 func (m *ansibleManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -98,7 +102,7 @@ func (m *ansibleManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 			},
 		}
 	}
-	return m.newDefaultDeploymentNoInit(v1alpha1.AnsibleServerComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.AnsibleServerComponentType), v1alpha1.AnsibleServerComponentType), &oc.Spec.AnsibleServer, cf)
+	return m.newDefaultDeploymentNoInit(v1alpha1.AnsibleServerComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.AnsibleServerComponentType), v1alpha1.AnsibleServerComponentType), &oc.Spec.AnsibleServer.DeploymentSpec, cf)
 }
 
 func (m *ansibleManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
