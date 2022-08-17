@@ -290,7 +290,7 @@ func (m *webManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.Web.Disable, "")
 }
 
-func (m *webManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
+func (m *webManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
 	ports := []corev1.ServicePort{
 		{
 			Name:       "https",
@@ -481,7 +481,7 @@ func (m *webManager) updateIngress(oc *v1alpha1.OnecloudCluster, oldIng *unstruc
 		}
 	}
 	if doUpdate {
-		svcName := m.getService(oc, "")[0].GetName()
+		svcName := m.getService(oc, nil, "")[0].GetName()
 		newIng = m.addIngressPaths(IsEnterpriseEdition(oc), svcName, newIng)
 	}
 	return newIng

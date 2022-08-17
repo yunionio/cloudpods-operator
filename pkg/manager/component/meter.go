@@ -69,11 +69,11 @@ func (m *meterManager) getPhaseControl(man controller.ComponentManager, zone str
 		v1alpha1.MeterComponentType,
 		constants.ServiceNameMeter,
 		constants.ServiceTypeMeter,
-		constants.MeterPort, "")
+		man.GetCluster().Spec.Meter.Service.NodePort, "")
 }
 
-func (m *meterManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.MeterComponentType, oc, constants.MeterPort)}
+func (m *meterManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.MeterComponentType, oc, int32(oc.Spec.Meter.Service.NodePort), int32(cfg.Meter.Port))}
 }
 
 type meterOptions struct {
@@ -105,14 +105,14 @@ func (m *meterManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 
 	// TODO: fix this
 	opt.AutoSyncTable = true
-	opt.Port = constants.MeterPort
+	opt.Port = config.Port
 
 	return m.newServiceConfigMap(v1alpha1.MeterComponentType, "", oc, opt), false, nil
 }
 
 func (m *meterManager) getPVC(oc *v1alpha1.OnecloudCluster, zone string) (*corev1.PersistentVolumeClaim, error) {
 	cfg := oc.Spec.Meter
-	return m.ComponentManager.newPVC(v1alpha1.MeterComponentType, oc, cfg)
+	return m.ComponentManager.newPVC(v1alpha1.MeterComponentType, oc, cfg.StatefulDeploymentSpec)
 }
 
 func (m *meterManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {

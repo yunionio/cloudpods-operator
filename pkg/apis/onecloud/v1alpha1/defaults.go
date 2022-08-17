@@ -137,28 +137,28 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	nHP := newHyperImagePair
 
 	for cType, spec := range map[ComponentType]*hyperImagePair{
-		WebconsoleComponentType:      nHP(&obj.Webconsole, useHyperImage),
-		SchedulerComponentType:       nHP(&obj.Scheduler, useHyperImage),
-		LoggerComponentType:          nHP(&obj.Logger, useHyperImage),
-		YunionconfComponentType:      nHP(&obj.Yunionconf, useHyperImage),
-		KubeServerComponentType:      nHP(&obj.KubeServer, false),
-		AnsibleServerComponentType:   nHP(&obj.AnsibleServer, useHyperImage),
-		CloudnetComponentType:        nHP(&obj.Cloudnet, false),
-		CloudproxyComponentType:      nHP(&obj.Cloudproxy, false),
-		CloudeventComponentType:      nHP(&obj.Cloudevent, useHyperImage),
-		S3gatewayComponentType:       nHP(&obj.S3gateway, false),
-		DevtoolComponentType:         nHP(&obj.Devtool, useHyperImage),
-		AutoUpdateComponentType:      nHP(&obj.AutoUpdate, useHyperImage),
+		WebconsoleComponentType:      nHP(&obj.Webconsole.DeploymentSpec, useHyperImage),
+		SchedulerComponentType:       nHP(&obj.Scheduler.DeploymentSpec, useHyperImage),
+		LoggerComponentType:          nHP(&obj.Logger.DeploymentSpec, useHyperImage),
+		YunionconfComponentType:      nHP(&obj.Yunionconf.DeploymentSpec, useHyperImage),
+		KubeServerComponentType:      nHP(&obj.KubeServer.DeploymentSpec, false),
+		AnsibleServerComponentType:   nHP(&obj.AnsibleServer.DeploymentSpec, useHyperImage),
+		CloudnetComponentType:        nHP(&obj.Cloudnet.DeploymentSpec, false),
+		CloudproxyComponentType:      nHP(&obj.Cloudproxy.DeploymentSpec, false),
+		CloudeventComponentType:      nHP(&obj.Cloudevent.DeploymentSpec, useHyperImage),
+		S3gatewayComponentType:       nHP(&obj.S3gateway.DeploymentSpec, false),
+		DevtoolComponentType:         nHP(&obj.Devtool.DeploymentSpec, useHyperImage),
+		AutoUpdateComponentType:      nHP(&obj.AutoUpdate.DeploymentSpec, useHyperImage),
 		OvnNorthComponentType:        nHP(&obj.OvnNorth, false),
 		VpcAgentComponentType:        nHP(&obj.VpcAgent, false),
-		MonitorComponentType:         nHP(&obj.Monitor, useHyperImage),
-		ServiceOperatorComponentType: nHP(&obj.ServiceOperator, false),
-		ItsmComponentType:            nHP(&obj.Itsm, false),
-		CloudIdComponentType:         nHP(&obj.CloudId, useHyperImage),
-		SuggestionComponentType:      nHP(&obj.Suggestion, useHyperImage),
+		MonitorComponentType:         nHP(&obj.Monitor.DeploymentSpec, useHyperImage),
+		ServiceOperatorComponentType: nHP(&obj.ServiceOperator.DeploymentSpec, false),
+		ItsmComponentType:            nHP(&obj.Itsm.DeploymentSpec, false),
+		CloudIdComponentType:         nHP(&obj.CloudId.DeploymentSpec, useHyperImage),
+		SuggestionComponentType:      nHP(&obj.Suggestion.DeploymentSpec, useHyperImage),
 		CloudmonComponentType:        nHP(&obj.Cloudmon.DeploymentSpec, useHyperImage),
-		ScheduledtaskComponentType:   nHP(&obj.Scheduledtask, useHyperImage),
-		ReportComponentType:          nHP(&obj.Report, useHyperImage),
+		ScheduledtaskComponentType:   nHP(&obj.Scheduledtask.DeploymentSpec, useHyperImage),
+		ReportComponentType:          nHP(&obj.Report.DeploymentSpec, useHyperImage),
 	} {
 		SetDefaults_DeploymentSpec(spec.DeploymentSpec, getImage(
 			obj.ImageRepository, spec.Repository,
@@ -208,7 +208,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	for cType, spec := range map[ComponentType]*DaemonSetSpec{
 		HostComponentType:         &obj.HostAgent.DaemonSetSpec,
 		HostDeployerComponentType: &obj.HostDeployer,
-		YunionagentComponentType:  &obj.Yunionagent,
+		YunionagentComponentType:  &obj.Yunionagent.DaemonSetSpec,
 		HostImageComponentType:    &obj.HostImage,
 	} {
 		useHI := false
@@ -286,10 +286,10 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	}
 	for cType, spec := range map[ComponentType]*stateDeploy{
 		GlanceComponentType:         {&obj.Glance.StatefulDeploymentSpec, DefaultGlanceStorageSize, obj.Version, useHyperImage},
-		InfluxdbComponentType:       {&obj.Influxdb, DefaultInfluxdbStorageSize, DefaultInfluxdbImageVersion, false},
+		InfluxdbComponentType:       {&obj.Influxdb.StatefulDeploymentSpec, DefaultInfluxdbStorageSize, DefaultInfluxdbImageVersion, false},
 		NotifyComponentType:         {&obj.Notify.StatefulDeploymentSpec, DefaultNotifyStorageSize, obj.Version, useHyperImage},
 		BaremetalAgentComponentType: {&obj.BaremetalAgent.StatefulDeploymentSpec, DefaultBaremetalStorageSize, obj.Version, false},
-		MeterComponentType:          {&obj.Meter, DefaultMeterStorageSize, obj.Version, useHyperImage},
+		MeterComponentType:          {&obj.Meter.StatefulDeploymentSpec, DefaultMeterStorageSize, obj.Version, useHyperImage},
 		EsxiAgentComponentType:      {&obj.EsxiAgent.StatefulDeploymentSpec, DefaultEsxiAgentStorageSize, obj.Version, useHyperImage},
 	} {
 		SetDefaults_StatefulDeploymentSpec(cType, spec.obj, spec.size, obj.ImageRepository, spec.version, spec.useHyperImage, isEE)
@@ -328,6 +328,54 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	}
 
 	setDefaults_MonitorStackSpec(&obj.MonitorStack)
+
+	setDefaults_Components_ServicePort(obj)
+}
+
+type serviceSpecPair struct {
+	spec        *ServiceSpec
+	defaultPort int
+}
+
+func setDefaults_Components_ServicePort(obj *OnecloudClusterSpec) {
+	newSP := func(spec *ServiceSpec, defaultPort int) *serviceSpecPair {
+		return &serviceSpecPair{
+			spec:        spec,
+			defaultPort: defaultPort,
+		}
+	}
+	for _, spec := range []*serviceSpecPair{
+		newSP(&obj.Keystone.AdminService, constants.KeystoneAdminPort),
+		newSP(&obj.Keystone.PublicService, constants.KeystonePublicPort),
+		newSP(&obj.RegionServer.Service, constants.RegionPort),
+		newSP(&obj.Scheduler.Service, constants.SchedulerPort),
+		newSP(&obj.Glance.Service, constants.GlanceAPIPort),
+		newSP(&obj.Webconsole.Service, constants.WebconsolePort),
+		newSP(&obj.Logger.Service, constants.LoggerPort),
+		newSP(&obj.Yunionconf.Service, constants.YunionConfPort),
+		newSP(&obj.KubeServer.Service, constants.KubeServerPort),
+		newSP(&obj.AnsibleServer.Service, constants.AnsibleServerPort),
+		newSP(&obj.Cloudnet.Service, constants.CloudnetPort),
+		newSP(&obj.Cloudproxy.Service, constants.CloudproxyPort),
+		newSP(&obj.Cloudevent.Service, constants.CloudeventPort),
+		newSP(&obj.CloudId.Service, constants.CloudIdPort),
+		newSP(&obj.AutoUpdate.Service, constants.AutoUpdatePort),
+		newSP(&obj.S3gateway.Service, constants.S3gatewayPort),
+		newSP(&obj.Devtool.Service, constants.DevtoolPort),
+		newSP(&obj.Meter.Service, constants.MeterPort),
+		newSP(&obj.Itsm.Service, constants.ItsmPort),
+		newSP(&obj.Suggestion.Service, constants.SuggestionPort),
+		newSP(&obj.Notify.Service, constants.NotifyPort),
+		newSP(&obj.Influxdb.Service, constants.InfluxdbPort),
+		newSP(&obj.Monitor.Service, constants.MonitorPort),
+		newSP(&obj.Scheduledtask.Service, constants.ScheduledtaskPort),
+		newSP(&obj.Report.Service, constants.ReportPort),
+		newSP(&obj.APIGateway.APIService, constants.APIGatewayPort),
+		newSP(&obj.APIGateway.WSService, constants.APIWebsocketPort),
+		newSP(&obj.ServiceOperator.Service, constants.ServiceOperatorPort),
+	} {
+		SetDefaults_ServiceSpec(spec.spec, spec.defaultPort)
+	}
 }
 
 func setDefaults_Mysql(obj *Mysql) {
@@ -395,6 +443,13 @@ func SetDefaults_KeystoneSpec(
 	if obj.BootstrapPassword == "" {
 		obj.BootstrapPassword = passwd.GeneratePassword()
 	}
+}
+
+func SetDefaults_ServiceSpec(obj *ServiceSpec, port int) {
+	if obj.NodePort != 0 {
+		return
+	}
+	obj.NodePort = port
 }
 
 func SetDefaults_RegionSpec(

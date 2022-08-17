@@ -19,7 +19,6 @@ import (
 
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 
 	"yunion.io/x/onecloud/pkg/compute/options"
 
@@ -66,7 +65,7 @@ func (m *regionManager) getPhaseControl(man controller.ComponentManager, zone st
 	return man.Region()
 }
 
-func (m *regionManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*v1.ConfigMap, bool, error) {
+func (m *regionManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
 	opt := &options.Options
 	if err := SetOptionsDefault(opt, constants.ServiceTypeComputeV2); err != nil {
 		return nil, false, err
@@ -86,7 +85,7 @@ func (m *regionManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	oc.Spec.RegionServer = spec
 	opt.DNSServer = spec.DNSServer
 
-	opt.PortV2 = constants.RegionPort
+	opt.PortV2 = config.Port
 	err := m.setBaremetalPrepareConfigure(oc, cfg, opt)
 	if err != nil {
 		return nil, false, err
@@ -100,15 +99,15 @@ func (m *regionManager) setBaremetalPrepareConfigure(oc *v1alpha1.OnecloudCluste
 	return nil
 }
 
-func (m *regionManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*v1.Service {
+func (m *regionManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
 	ports := []corev1.ServicePort{
-		NewServiceNodePort("api", constants.RegionPort),
+		NewServiceNodePort("api", int32(oc.Spec.RegionServer.Service.NodePort), int32(cfg.RegionServer.Port)),
 	}
 	return []*corev1.Service{m.newNodePortService(v1alpha1.RegionComponentType, oc, ports)}
 }
 
 func (m *regionManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
-	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.RegionComponentType, "", oc, &oc.Spec.RegionServer.DeploymentSpec, constants.RegionPort, true, true)
+	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.RegionComponentType, "", oc, &oc.Spec.RegionServer.DeploymentSpec, int32(cfg.RegionServer.Port), true, true)
 	if err != nil {
 		return nil, err
 	}

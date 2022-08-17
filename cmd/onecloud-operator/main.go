@@ -64,6 +64,8 @@ func init() {
 	flag.BoolVar(&controller.SyncUser, "sync-user", false, "Operator sync onecloud user password if changed")
 	flag.BoolVar(&controller.DisableInitCRD, "disable-init-crd", false, "Disable CRD initialization")
 	flag.BoolVar(&controller.DisableNodeSelectorController, "disable-node-selector-controller", false, "Ignore onecloud.yunion.io/controller node selector")
+	flag.BoolVar(&controller.DisableSyncIngress, "disable-sync-ingress", false, "Disable ingress resource syncing")
+	flag.BoolVar(&controller.UseRandomServicePort, "use-random-service-port", false, "Use random service node port")
 	flag.BoolVar(&controller.EtcdKeepFailedPods, "etcd-keep-failed-pods", false, "Keep the failed etcd pods")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false, "Enable leader election for multiple instances")
 

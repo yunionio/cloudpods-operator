@@ -37,7 +37,7 @@ type syncManager interface {
 }
 
 type serviceFactory interface {
-	getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service
+	getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service
 }
 
 type ingressFactory interface {
@@ -113,12 +113,6 @@ func syncComponent(factory cloudComponentFactory, oc *v1alpha1.OnecloudCluster, 
 		return errors.Wrapf(err, "check productVersion of %q", cType)
 	}
 	m := factory.getComponentManager()
-	if err := m.syncService(oc, factory, zone); err != nil {
-		return errors.Wrapf(err, "sync service of %q", cType)
-	}
-	if err := m.syncIngress(oc, factory, zone); err != nil {
-		return errors.Wrapf(err, "sync ingress of %q", cType)
-	}
 	if err := m.syncConfigMap(oc, factory, zone); err != nil {
 		return errors.Wrapf(err, "sync configmap of %q", cType)
 	}
@@ -133,6 +127,14 @@ func syncComponent(factory cloudComponentFactory, oc *v1alpha1.OnecloudCluster, 
 	}
 	if err := m.syncCronJob(oc, factory, zone); err != nil {
 		return errors.Wrapf(err, "sync cronjob %q", cType)
+	}
+	if err := m.syncService(oc, factory, zone); err != nil {
+		return errors.Wrapf(err, "sync service of %q", cType)
+	}
+	if !controller.DisableSyncIngress {
+		if err := m.syncIngress(oc, factory, zone); err != nil {
+			return errors.Wrapf(err, "sync ingress of %q", cType)
+		}
 	}
 	if err := m.syncPhase(oc, factory, zone); err != nil {
 		return errors.Wrapf(err, "sync phase control %q", cType)

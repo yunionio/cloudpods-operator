@@ -121,8 +121,12 @@ func (m *ComponentManager) syncService(
 	zone string,
 ) error {
 	ns := oc.GetNamespace()
+	cfg, err := m.configer.GetClusterConfig(oc)
+	if err != nil {
+		return errorswrap.Wrap(err, "GetClusterConfig")
+	}
 	svcFactory := factory.getService
-	newSvcs := svcFactory(oc, zone)
+	newSvcs := svcFactory(oc, cfg, zone)
 	if len(newSvcs) == 0 {
 		return nil
 	}
@@ -655,9 +659,9 @@ func (m *ComponentManager) newNodePortService(cType v1alpha1.ComponentType, oc *
 	return m.newService(cType, oc, corev1.ServiceTypeNodePort, ports)
 }
 
-func (m *ComponentManager) newSingleNodePortService(cType v1alpha1.ComponentType, oc *v1alpha1.OnecloudCluster, port int32) *corev1.Service {
+func (m *ComponentManager) newSingleNodePortService(cType v1alpha1.ComponentType, oc *v1alpha1.OnecloudCluster, nodePort, targetPort int32) *corev1.Service {
 	ports := []corev1.ServicePort{
-		NewServiceNodePort("api", port),
+		NewServiceNodePort("api", nodePort, targetPort),
 	}
 	return m.newNodePortService(cType, oc, ports)
 }
@@ -1270,7 +1274,7 @@ func (m *ComponentManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zon
 	return nil
 }
 
-func (m *ComponentManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
+func (m *ComponentManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
 	return nil
 }
 

@@ -49,6 +49,8 @@ var (
 	SyncUser                      bool
 	DisableInitCRD                bool
 	DisableNodeSelectorController bool
+	DisableSyncIngress            bool
+	UseRandomServicePort          bool
 	EtcdKeepFailedPods            bool
 
 	sessionLock sync.Mutex
@@ -437,7 +439,7 @@ func (c keystoneComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 			oc.Status.RegionServer.RegionId = regionId
 		}
 		if err := c.doRegisterIdentity(s, region, oc.Spec.LoadBalancerEndpoint, KeystoneComponentName(oc.GetName()),
-			constants.KeystoneAdminPort, constants.KeystonePublicPort, !oc.Spec.Keystone.DisableTLS); err != nil {
+			oc.Spec.Keystone.AdminService.NodePort, oc.Spec.Keystone.PublicService.NodePort, !oc.Spec.Keystone.DisableTLS); err != nil {
 			return errors.Wrap(err, "register identity endpoint")
 		}
 		return nil
@@ -682,7 +684,7 @@ func (c *regionComponent) Setup() error {
 	return c.RegisterCloudServiceEndpoint(
 		v1alpha1.RegionComponentType,
 		constants.ServiceNameRegionV2, constants.ServiceTypeComputeV2,
-		constants.RegionPort, "", true)
+		c.GetCluster().Spec.RegionServer.Service.NodePort, "", true)
 }
 
 func (c *regionComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
@@ -846,7 +848,7 @@ func (c *glanceComponent) Setup() error {
 	return c.RegisterCloudServiceEndpoint(
 		v1alpha1.GlanceComponentType,
 		constants.ServiceNameGlance, constants.ServiceTypeGlance,
-		constants.GlanceAPIPort, "v1", true)
+		c.GetCluster().Spec.Glance.Service.NodePort, "v1", true)
 }
 
 type registerServiceComponent struct {
@@ -935,7 +937,7 @@ func (c yunionagentComponent) Setup() error {
 	return c.RegisterCloudServiceEndpoint(
 		v1alpha1.YunionagentComponentType,
 		constants.ServiceNameYunionAgent, constants.ServiceTypeYunionAgent,
-		constants.YunionAgentPort, "", true)
+		c.GetCluster().Spec.Yunionconf.Service.NodePort, "", true)
 }
 
 func (c yunionagentComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
@@ -969,9 +971,10 @@ type devtoolComponent struct {
 }
 
 func (c devtoolComponent) Setup() error {
+	oc := c.GetCluster()
 	return c.RegisterCloudServiceEndpoint(v1alpha1.DevtoolComponentType,
 		constants.ServiceNameDevtool, constants.ServiceTypeDevtool,
-		constants.DevtoolPort, "", true)
+		oc.Spec.Devtool.Service.NodePort, "", true)
 }
 
 func (c devtoolComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
@@ -1063,7 +1066,7 @@ type monitorComponent struct {
 }
 
 func (c monitorComponent) Setup() error {
-	return c.RegisterCloudServiceEndpoint(v1alpha1.MonitorComponentType, constants.ServiceNameMonitor, constants.ServiceTypeMonitor, constants.MonitorPort, "", true)
+	return c.RegisterCloudServiceEndpoint(v1alpha1.MonitorComponentType, constants.ServiceNameMonitor, constants.ServiceTypeMonitor, c.GetCluster().Spec.Monitor.Service.NodePort, "", true)
 }
 
 func (c monitorComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
@@ -1334,7 +1337,7 @@ func (c *kubeServerComponent) Setup() error {
 	return NewRegisterEndpointComponent(
 		c.manager, v1alpha1.KubeServerComponentType,
 		constants.ServiceNameKubeServer, constants.ServiceTypeKubeServer,
-		constants.KubeServerPort, "api").Setup()
+		c.GetCluster().Spec.KubeServer.Service.NodePort, "api").Setup()
 }
 
 func (c *kubeServerComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {

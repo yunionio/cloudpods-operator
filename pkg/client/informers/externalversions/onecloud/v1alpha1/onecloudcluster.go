@@ -25,7 +25,6 @@ import (
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
 	cache "k8s.io/client-go/tools/cache"
-
 	onecloudv1alpha1 "yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	versioned "yunion.io/x/onecloud-operator/pkg/client/clientset/versioned"
 	internalinterfaces "yunion.io/x/onecloud-operator/pkg/client/informers/externalversions/internalinterfaces"

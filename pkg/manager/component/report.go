@@ -66,7 +66,7 @@ func (m *reportManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alp
 func (m *reportManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return controller.NewRegisterEndpointComponent(man, v1alpha1.ReportComponentType,
 		constants.ServiceNameReport, constants.ServiceTypeReport,
-		constants.ReportPort, "")
+		man.GetCluster().Spec.Report.Service.NodePort, "")
 }
 
 func (m *reportManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
@@ -81,12 +81,12 @@ func (m *reportManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	opt.AutoSyncTable = true
 	opt.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
 	opt.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
-	opt.Port = constants.ReportPort
+	opt.Port = config.Port
 	return m.newServiceConfigMap(v1alpha1.ReportComponentType, "", oc, opt), false, nil
 }
 
-func (m *reportManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.ReportComponentType, oc, constants.ReportPort)}
+func (m *reportManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.ReportComponentType, oc, int32(oc.Spec.Report.Service.NodePort), int32(cfg.Report.Port))}
 }
 
 func (m *reportManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -101,7 +101,7 @@ func (m *reportManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 			},
 		}
 	}
-	return m.newDefaultDeploymentNoInit(v1alpha1.ReportComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.ReportComponentType), v1alpha1.ReportComponentType), &oc.Spec.Report, cf)
+	return m.newDefaultDeploymentNoInit(v1alpha1.ReportComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.ReportComponentType), v1alpha1.ReportComponentType), &oc.Spec.Report.DeploymentSpec, cf)
 }
 
 func (m *reportManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
