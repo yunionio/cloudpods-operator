@@ -11,11 +11,35 @@ import (
 	"yunion.io/x/pkg/errors"
 )
 
+var (
+	globalClusterVersion ClusterVersion
+)
+
+func InitClusterVersion(cli kubernetes.Interface) error {
+	if globalClusterVersion == nil {
+		cv, err := newClusterVersion(cli)
+		if err != nil {
+			return errors.Wrapf(err, "NewClusterVersion")
+		}
+		globalClusterVersion = cv
+		return nil
+	}
+	return errors.Errorf("Global ClusterVersion already initialized")
+}
+
+func GetClusterVersion() ClusterVersion {
+	if globalClusterVersion == nil {
+		panic("Global ClusterVersion not initialized")
+	}
+	return globalClusterVersion
+}
+
 type ClusterVersion interface {
 	GetRawVersion() string
 	GetSemVerion() *semver.Version
 	IsLessThan(iv string) bool
 	IsGreatOrEqualThan(iv string) bool
+	IsGreatOrEqualThanV120() bool
 	GetIngressGVR() schema.GroupVersionResource
 }
 
@@ -24,7 +48,7 @@ type clusterVersion struct {
 	version *version.Info
 }
 
-func NewClusterVersion(cli kubernetes.Interface) (ClusterVersion, error) {
+func newClusterVersion(cli kubernetes.Interface) (ClusterVersion, error) {
 	ver, err := cli.Discovery().ServerVersion()
 	if err != nil {
 		return nil, errors.Wrap(err, "Get ServerVersion")
@@ -51,6 +75,11 @@ func (cv clusterVersion) IsLessThan(iv string) bool {
 
 func (cv clusterVersion) IsGreatOrEqualThan(iv string) bool {
 	return !cv.IsLessThan(iv)
+}
+
+func (cv clusterVersion) IsGreatOrEqualThanV120() bool {
+	// ref issue: https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner/issues/25
+	return cv.IsGreatOrEqualThan("1.20.0")
 }
 
 func (cv clusterVersion) GetIngressGVR() schema.GroupVersionResource {
