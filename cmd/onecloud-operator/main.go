@@ -142,12 +142,11 @@ func main() {
 		},
 	}
 
-	cv, err := k8sutil2.NewClusterVersion(kubeCli)
-	if err != nil {
+	if err := k8sutil2.InitClusterVersion(kubeCli); err != nil {
 		klog.Fatalf("NewClusterVersion: %v", err)
 	}
 
-	ocController, err := occluster.NewController(kubeCli, kubeExtCli, dynamicCli, cli, informerFactory, kubeInformerFactory, dynamicInformerFactory, cv)
+	ocController, err := occluster.NewController(kubeCli, kubeExtCli, dynamicCli, cli, informerFactory, kubeInformerFactory, dynamicInformerFactory, k8sutil2.GetClusterVersion())
 	if err != nil {
 		klog.Fatalf("NewController: %v", err)
 	}
