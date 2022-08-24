@@ -76,12 +76,12 @@ func (m *monitorManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 	opt.AutoSyncTable = true
 	opt.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
 	opt.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
-	opt.Port = constants.MonitorPort
+	opt.Port = config.Port
 	return m.newServiceConfigMap(v1alpha1.MonitorComponentType, "", oc, opt), false, nil
 }
 
-func (m *monitorManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.MonitorComponentType, oc, constants.MonitorPort)}
+func (m *monitorManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.MonitorComponentType, oc, int32(oc.Spec.Monitor.Service.NodePort), int32(cfg.Monitor.Port))}
 }
 
 func (m *monitorManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -96,7 +96,7 @@ func (m *monitorManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 			},
 		}
 	}
-	return m.newDefaultDeploymentNoInit(v1alpha1.MonitorComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.MonitorComponentType), v1alpha1.MonitorComponentType), &oc.Spec.Monitor, cf)
+	return m.newDefaultDeploymentNoInit(v1alpha1.MonitorComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.MonitorComponentType), v1alpha1.MonitorComponentType), &oc.Spec.Monitor.DeploymentSpec, cf)
 }
 
 func (m *monitorManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {

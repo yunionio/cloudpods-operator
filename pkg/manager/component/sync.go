@@ -19,7 +19,7 @@ import (
 	apps "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/klog"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -37,12 +37,12 @@ type syncManager interface {
 }
 
 type serviceFactory interface {
-	getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service
+	getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service
 }
 
 type ingressFactory interface {
-	getIngress(oc *v1alpha1.OnecloudCluster, zone string) *extensions.Ingress
-	updateIngress(oc *v1alpha1.OnecloudCluster, oldIng *extensions.Ingress) *extensions.Ingress
+	getIngress(oc *v1alpha1.OnecloudCluster, zone string) *unstructured.Unstructured
+	updateIngress(oc *v1alpha1.OnecloudCluster, oldIng *unstructured.Unstructured) *unstructured.Unstructured
 }
 
 type configMapFactory interface {
@@ -113,12 +113,6 @@ func syncComponent(factory cloudComponentFactory, oc *v1alpha1.OnecloudCluster, 
 		return errors.Wrapf(err, "check productVersion of %q", cType)
 	}
 	m := factory.getComponentManager()
-	if err := m.syncService(oc, factory, zone); err != nil {
-		return errors.Wrapf(err, "sync service of %q", cType)
-	}
-	if err := m.syncIngress(oc, factory, zone); err != nil {
-		return errors.Wrapf(err, "sync ingress of %q", cType)
-	}
 	if err := m.syncConfigMap(oc, factory, zone); err != nil {
 		return errors.Wrapf(err, "sync configmap of %q", cType)
 	}
@@ -133,6 +127,14 @@ func syncComponent(factory cloudComponentFactory, oc *v1alpha1.OnecloudCluster, 
 	}
 	if err := m.syncCronJob(oc, factory, zone); err != nil {
 		return errors.Wrapf(err, "sync cronjob %q", cType)
+	}
+	if err := m.syncService(oc, factory, zone); err != nil {
+		return errors.Wrapf(err, "sync service of %q", cType)
+	}
+	if !controller.DisableSyncIngress {
+		if err := m.syncIngress(oc, factory, zone); err != nil {
+			return errors.Wrapf(err, "sync ingress of %q", cType)
+		}
 	}
 	if err := m.syncPhase(oc, factory, zone); err != nil {
 		return errors.Wrapf(err, "sync phase control %q", cType)

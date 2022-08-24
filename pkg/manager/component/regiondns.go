@@ -141,7 +141,7 @@ func (m *regionDNSManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 	return m.newConfigMap(cType, "", oc, content), false, nil
 }
 
-func (m *regionDNSManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
+func (m *regionDNSManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
 	// use headless service
 	cType := v1alpha1.RegionDNSComponentType
 	svcName := controller.NewClusterComponentName(oc.GetName(), cType)
@@ -174,7 +174,9 @@ func (m *regionDNSManager) getDaemonSet(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 	if spec.NodeSelector == nil {
 		spec.NodeSelector = make(map[string]string)
 	}
-	spec.NodeSelector[constants.OnecloudControllerLabelKey] = "enable"
+	if !controller.DisableNodeSelectorController {
+		spec.NodeSelector[constants.OnecloudControllerLabelKey] = "enable"
+	}
 	ds, err := m.newDaemonSet(cType, oc, cfg,
 		NewVolumeHelper(oc, configMap, cType),
 		spec.DaemonSetSpec, "", nil, cf)

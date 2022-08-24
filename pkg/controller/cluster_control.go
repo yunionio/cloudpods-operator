@@ -25,9 +25,11 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 
+	"yunion.io/x/log"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/client/clientset/versioned"
 	listers "yunion.io/x/onecloud-operator/pkg/client/listers/onecloud/v1alpha1"
+	"yunion.io/x/onecloud-operator/pkg/util/k8sutil"
 )
 
 // ClusterControlInterface manages Onecloud clusters
@@ -96,10 +98,16 @@ func (c *clusterControl) recordClusterEvent(verb string, oc *v1alpha1.OnecloudCl
 		reason := fmt.Sprintf("Successful%s", strings.Title(verb))
 		msg := fmt.Sprintf("%s OnecloudCluster %s sucessful",
 			strings.ToLower(verb), ocName)
-		c.recorder.Event(oc, corev1.EventTypeNormal, reason, msg)
+		if !k8sutil.GetClusterVersion().IsGreatOrEqualThanV120() {
+			c.recorder.Event(oc, corev1.EventTypeNormal, reason, msg)
+		}
+		log.Infof(msg)
 	} else {
 		reason := fmt.Sprintf("Failed%s", strings.Title(verb))
 		msg := fmt.Sprintf("%s OnecloudCluster %s failed error: %s", strings.ToLower(verb), ocName, err)
-		c.recorder.Event(oc, corev1.EventTypeWarning, reason, msg)
+		if !k8sutil.GetClusterVersion().IsGreatOrEqualThanV120() {
+			c.recorder.Event(oc, corev1.EventTypeWarning, reason, msg)
+		}
+		log.Errorf(msg)
 	}
 }

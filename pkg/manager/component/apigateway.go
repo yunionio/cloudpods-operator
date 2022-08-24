@@ -77,12 +77,13 @@ type apiGatewayPhaseControl struct {
 }
 
 func newAPIGatewaPhaseControl(man controller.ComponentManager) controller.PhaseControl {
+	oc := man.GetCluster()
 	return &apiGatewayPhaseControl{
 		man: man,
 		ac:  controller.NewRegisterServiceComponent(man, constants.ServiceNameAPIGateway, constants.ServiceTypeAPIGateway),
 		wc: controller.NewRegisterEndpointComponent(man, v1alpha1.APIGatewayComponentType,
 			constants.ServiceNameWebsocket, constants.ServiceTypeWebsocket,
-			constants.APIWebsocketPort, ""),
+			oc.Spec.APIGateway.WSService.NodePort, ""),
 	}
 }
 
@@ -107,16 +108,17 @@ func (m *apiGatewayManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	}
 	SetOptionsServiceTLS(&opt.BaseOptions, false)
 	SetServiceCommonOptions(&opt.CommonOptions, oc, cfg.APIGateway)
-	opt.Port = constants.APIGatewayPort
+	opt.Port = cfg.APIGateway.Port
 	opt.WsPort = constants.APIWebsocketPort
 	opt.CorsHosts = oc.Spec.APIGateway.CorsHosts
 	return m.newServiceConfigMap(v1alpha1.APIGatewayComponentType, "", oc, opt), false, nil
 }
 
-func (m *apiGatewayManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
+func (m *apiGatewayManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
+	aCfg := cfg.APIGateway
 	ports := []corev1.ServicePort{
-		NewServiceNodePort("api", constants.APIGatewayPort),
-		NewServiceNodePort("ws", constants.APIWebsocketPort),
+		NewServiceNodePort("api", int32(oc.Spec.APIGateway.APIService.NodePort), int32(aCfg.Port)),
+		NewServiceNodePort("ws", int32(oc.Spec.APIGateway.WSService.NodePort), constants.APIWebsocketPort),
 	}
 	return []*corev1.Service{m.newNodePortService(v1alpha1.APIGatewayComponentType, oc, ports)}
 }

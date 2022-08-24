@@ -71,18 +71,18 @@ func (m *devtoolManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
 	SetOptionsServiceTLS(&opt.BaseOptions, false)
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
+	opt.Port = config.Port
 	opt.AutoSyncTable = true
-	opt.Port = constants.DevtoolPort
 
 	return m.newServiceConfigMap(v1alpha1.DevtoolComponentType, "", oc, opt), false, nil
 }
 
-func (m *devtoolManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.DevtoolComponentType, oc, constants.DevtoolPort)}
+func (m *devtoolManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.DevtoolComponentType, oc, int32(oc.Spec.Devtool.Service.NodePort), int32(cfg.Devtool.Port))}
 }
 
 func (m *devtoolManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
-	return m.newCloudServiceSinglePortDeployment(v1alpha1.DevtoolComponentType, "", oc, &oc.Spec.Devtool, constants.DevtoolPort, false, false)
+	return m.newCloudServiceSinglePortDeployment(v1alpha1.DevtoolComponentType, "", oc, &oc.Spec.Devtool.DeploymentSpec, int32(cfg.Devtool.Port), false, false)
 }
 
 func (m *devtoolManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {

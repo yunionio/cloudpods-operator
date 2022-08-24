@@ -26,6 +26,8 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/dynamic/dynamicinformer"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -39,6 +41,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	occluster "yunion.io/x/onecloud-operator/pkg/controller/cluster"
 	k8sutil "yunion.io/x/onecloud-operator/pkg/util/k8s"
+	k8sutil2 "yunion.io/x/onecloud-operator/pkg/util/k8sutil"
 	"yunion.io/x/onecloud-operator/pkg/version"
 )
 
@@ -59,6 +62,10 @@ func init() {
 	flag.BoolVar(&printVersion, "version", false, "Show version and quit")
 	flag.BoolVar(&controller.SessionDebug, "debug", false, "Onecloud session debug")
 	flag.BoolVar(&controller.SyncUser, "sync-user", false, "Operator sync onecloud user password if changed")
+	flag.BoolVar(&controller.DisableInitCRD, "disable-init-crd", false, "Disable CRD initialization")
+	flag.BoolVar(&controller.DisableNodeSelectorController, "disable-node-selector-controller", false, "Ignore onecloud.yunion.io/controller node selector")
+	flag.BoolVar(&controller.DisableSyncIngress, "disable-sync-ingress", false, "Disable ingress resource syncing")
+	flag.BoolVar(&controller.UseRandomServicePort, "use-random-service-port", false, "Use random service node port")
 	flag.BoolVar(&controller.EtcdKeepFailedPods, "etcd-keep-failed-pods", false, "Keep the failed etcd pods")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false, "Enable leader election for multiple instances")
 
@@ -99,6 +106,11 @@ func main() {
 	}
 	kubeExtCli := k8sutil.MustNewKubeExtClient()
 
+	dynamicCli, err := dynamic.NewForConfig(cfg)
+	if err != nil {
+		klog.Fatalf("failed to create kubernetes dynamic client: %v", err)
+	}
+
 	var informerFactory informers.SharedInformerFactory
 	var kubeInformerFactory kubeinformers.SharedInformerFactory
 
@@ -116,6 +128,8 @@ func main() {
 	}
 	kubeInformerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(kubeCli, resyncDuration, kubeOptions...)
 
+	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicCli, resyncDuration)
+
 	rl := resourcelock.EndpointsLock{
 		EndpointsMeta: metav1.ObjectMeta{
 			Namespace: ns,
@@ -128,16 +142,26 @@ func main() {
 		},
 	}
 
-	ocController := occluster.NewController(kubeCli, kubeExtCli, cli, informerFactory, kubeInformerFactory)
+	if err := k8sutil2.InitClusterVersion(kubeCli); err != nil {
+		klog.Fatalf("NewClusterVersion: %v", err)
+	}
 
-	if err := ocController.InitCRDResource(); err != nil {
-		klog.Fatalf("init CRD resources: %v", err)
+	ocController, err := occluster.NewController(kubeCli, kubeExtCli, dynamicCli, cli, informerFactory, kubeInformerFactory, dynamicInformerFactory, k8sutil2.GetClusterVersion())
+	if err != nil {
+		klog.Fatalf("NewController: %v", err)
+	}
+
+	if !controller.DisableInitCRD {
+		if err := ocController.InitCRDResource(); err != nil {
+			klog.Fatalf("init CRD resources: %v", err)
+		}
 	}
 
 	controllerCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go informerFactory.Start(controllerCtx.Done())
 	go kubeInformerFactory.Start(controllerCtx.Done())
+	go dynamicInformerFactory.Start(controllerCtx.Done())
 
 	if enableLeaderElection {
 		// leader election for multiple onecloud-controller-manager

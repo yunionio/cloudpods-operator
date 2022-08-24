@@ -176,28 +176,30 @@ func (m *serviceOperatorManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg
 			},
 		},
 	}
-	deploy.Spec.Template.Spec.Affinity = &corev1.Affinity{
-		NodeAffinity: &corev1.NodeAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-				NodeSelectorTerms: []corev1.NodeSelectorTerm{
-					{
-						MatchExpressions: []corev1.NodeSelectorRequirement{
-							{
-								Key:      constants.OnecloudControllerLabelKey,
-								Operator: corev1.NodeSelectorOpIn,
-								Values:   []string{"enable"},
+	if !controller.DisableNodeSelectorController {
+		deploy.Spec.Template.Spec.Affinity = &corev1.Affinity{
+			NodeAffinity: &corev1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{
+						{
+							MatchExpressions: []corev1.NodeSelectorRequirement{
+								{
+									Key:      constants.OnecloudControllerLabelKey,
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   []string{"enable"},
+								},
 							},
 						},
 					},
 				},
 			},
-		},
+		}
 	}
 	return deploy, nil
 }
 
-func (n *serviceOperatorManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
-	service := n.newSingleNodePortService(v1alpha1.ServiceOperatorComponentType, oc, constants.ServiceOperatorPort)
+func (n *serviceOperatorManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
+	service := n.newSingleNodePortService(v1alpha1.ServiceOperatorComponentType, oc, int32(oc.Spec.ServiceOperator.Service.NodePort), int32(cfg.ServiceOperator.Port))
 	// diy
 	service.ObjectMeta.Labels["control-plane"] = "controller-manager"
 	service.Spec.Selector["control-plane"] = "controller-manager"

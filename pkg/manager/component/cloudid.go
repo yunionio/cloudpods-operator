@@ -60,9 +60,10 @@ func (m *cloudidManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1al
 }
 
 func (m *cloudidManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
+	oc := man.GetCluster()
 	return controller.NewRegisterEndpointComponent(man, v1alpha1.CloudIdComponentType,
 		constants.ServiceNameCloudId, constants.ServiceTypeCloudId,
-		constants.CloudIdPort, "")
+		oc.Spec.CloudId.Service.NodePort, "")
 }
 
 func (m *cloudidManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
@@ -77,12 +78,12 @@ func (m *cloudidManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 	opt.AutoSyncTable = true
 	opt.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
 	opt.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
-	opt.Port = constants.CloudIdPort
+	opt.Port = config.Port
 	return m.newServiceConfigMap(v1alpha1.CloudIdComponentType, "", oc, opt), false, nil
 }
 
-func (m *cloudidManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.CloudIdComponentType, oc, constants.CloudIdPort)}
+func (m *cloudidManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.CloudIdComponentType, oc, int32(oc.Spec.CloudId.Service.NodePort), int32(cfg.CloudId.Port))}
 }
 
 func (m *cloudidManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -97,7 +98,7 @@ func (m *cloudidManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 			},
 		}
 	}
-	return m.newDefaultDeploymentNoInit(v1alpha1.CloudIdComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.CloudIdComponentType), v1alpha1.CloudIdComponentType), &oc.Spec.CloudId, cf)
+	return m.newDefaultDeploymentNoInit(v1alpha1.CloudIdComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.CloudIdComponentType), v1alpha1.CloudIdComponentType), &oc.Spec.CloudId.DeploymentSpec, cf)
 }
 
 func (m *cloudidManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {

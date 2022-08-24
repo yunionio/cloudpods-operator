@@ -45,11 +45,11 @@ func (m *suggestionManager) getPhaseControl(man controller.ComponentManager, zon
 	return controller.NewRegisterEndpointComponent(
 		man, v1alpha1.SuggestionComponentType,
 		constants.ServiceNameSuggestion, constants.ServiceTypeSuggestion,
-		constants.SuggestionPort, "")
+		man.GetCluster().Spec.Suggestion.Service.NodePort, "")
 }
 
-func (m *suggestionManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.SuggestionComponentType, oc, constants.SuggestionPort)}
+func (m *suggestionManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.SuggestionComponentType, oc, int32(oc.Spec.Suggestion.Service.NodePort), int32(cfg.Suggestion.Port))}
 }
 
 func (m *suggestionManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
@@ -64,7 +64,7 @@ func (m *suggestionManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	opt.AutoSyncTable = true
 	opt.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
 	opt.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
-	opt.Port = constants.SuggestionPort
+	opt.Port = cfg.Suggestion.Port
 	return m.newServiceConfigMap(v1alpha1.SuggestionComponentType, "", oc, opt), false, nil
 }
 
@@ -80,5 +80,5 @@ func (m *suggestionManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1a
 			},
 		}
 	}
-	return m.newDefaultDeploymentNoInit(v1alpha1.SuggestionComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.SuggestionComponentType), v1alpha1.SuggestionComponentType), &oc.Spec.Suggestion, cf)
+	return m.newDefaultDeploymentNoInit(v1alpha1.SuggestionComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.SuggestionComponentType), v1alpha1.SuggestionComponentType), &oc.Spec.Suggestion.DeploymentSpec, cf)
 }

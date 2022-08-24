@@ -85,12 +85,12 @@ func (m *kubeManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 	opt.AutoSyncTable = true
 	opt.TlsCertFile = path.Join(constants.CertDir, constants.ServiceCertName)
 	opt.TlsPrivateKeyFile = path.Join(constants.CertDir, constants.ServiceKeyName)
-	opt.HttpsPort = constants.KubeServerPort
+	opt.HttpsPort = config.Port
 	return m.newServiceConfigMap(v1alpha1.KubeServerComponentType, "", oc, opt), false, nil
 }
 
-func (m *kubeManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.KubeServerComponentType, oc, constants.KubeServerPort)}
+func (m *kubeManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.KubeServerComponentType, oc, int32(oc.Spec.KubeServer.Service.NodePort), int32(cfg.KubeServer.Port))}
 }
 
 func (m *kubeManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -105,7 +105,7 @@ func (m *kubeManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 			},
 		}
 	}
-	deploy, err := m.newDefaultDeploymentNoInit(v1alpha1.KubeServerComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.KubeServerComponentType), v1alpha1.KubeServerComponentType), &oc.Spec.KubeServer, cf)
+	deploy, err := m.newDefaultDeploymentNoInit(v1alpha1.KubeServerComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.KubeServerComponentType), v1alpha1.KubeServerComponentType), &oc.Spec.KubeServer.DeploymentSpec, cf)
 	if err != nil {
 		return nil, err
 	}

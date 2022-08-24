@@ -65,7 +65,7 @@ func (m *webconsoleManager) getPhaseControl(man controller.ComponentManager, zon
 	return controller.NewRegisterEndpointComponent(
 		man, v1alpha1.WebconsoleComponentType,
 		constants.ServiceNameWebconsole, constants.ServiceTypeWebconsole,
-		constants.WebconsolePort, "")
+		man.GetCluster().Spec.Webconsole.Service.NodePort, "")
 }
 
 func (m *webconsoleManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
@@ -95,12 +95,12 @@ func (m *webconsoleManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	})
 }
 
-func (m *webconsoleManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.WebconsoleComponentType, oc, constants.WebconsolePort)}
+func (m *webconsoleManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.WebconsoleComponentType, oc, int32(oc.Spec.Webconsole.Service.NodePort), int32(cfg.Webconsole.Port))}
 }
 
 func (m *webconsoleManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
-	return m.newCloudServiceSinglePortDeployment(v1alpha1.WebconsoleComponentType, "", oc, &oc.Spec.Webconsole, constants.WebconsolePort, false, false)
+	return m.newCloudServiceSinglePortDeployment(v1alpha1.WebconsoleComponentType, "", oc, &oc.Spec.Webconsole.DeploymentSpec, constants.WebconsolePort, false, false)
 }
 
 func (m *webconsoleManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {

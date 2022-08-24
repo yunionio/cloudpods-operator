@@ -68,7 +68,7 @@ func (m *cloudproxyManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v
 func (m *cloudproxyManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return controller.NewRegisterEndpointComponent(man, v1alpha1.CloudproxyComponentType,
 		constants.ServiceNameCloudproxy, constants.ServiceTypeCloudproxy,
-		constants.CloudproxyPort, "")
+		man.GetCluster().Spec.Cloudproxy.Service.NodePort, "")
 }
 
 func (m *cloudproxyManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
@@ -83,11 +83,12 @@ func (m *cloudproxyManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	opt.AutoSyncTable = true
 	opt.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
 	opt.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
-	opt.Port = constants.CloudproxyPort
 
 	opt.EnableAPIServer = true
 	opt.EnableProxyAgent = true
 	opt.ProxyAgentId = m.theProxyAgentName()
+
+	opt.Port = config.Port
 	return m.newServiceConfigMap(v1alpha1.CloudproxyComponentType, "", oc, opt), false, nil
 }
 
@@ -112,8 +113,8 @@ func (m *cloudproxyManager) getOrCreateProxyAgent(oc *v1alpha1.OnecloudCluster) 
 	}
 }
 
-func (m *cloudproxyManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.CloudproxyComponentType, oc, constants.CloudproxyPort)}
+func (m *cloudproxyManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.CloudproxyComponentType, oc, int32(oc.Spec.Cloudproxy.Service.NodePort), int32(cfg.Cloudproxy.Port))}
 }
 
 func (m *cloudproxyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -128,7 +129,7 @@ func (m *cloudproxyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1a
 			},
 		}
 	}
-	return m.newDefaultDeploymentNoInit(v1alpha1.CloudproxyComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.CloudproxyComponentType), v1alpha1.CloudproxyComponentType), &oc.Spec.Cloudproxy, cf)
+	return m.newDefaultDeploymentNoInit(v1alpha1.CloudproxyComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.CloudproxyComponentType), v1alpha1.CloudproxyComponentType), &oc.Spec.Cloudproxy.DeploymentSpec, cf)
 }
 
 func (m *cloudproxyManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {

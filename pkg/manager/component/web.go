@@ -19,7 +19,7 @@ import (
 
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
@@ -290,7 +290,7 @@ func (m *webManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.Web.Disable, "")
 }
 
-func (m *webManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
+func (m *webManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
 	ports := []corev1.ServicePort{
 		{
 			Name:       "https",
@@ -314,29 +314,61 @@ func (m *webManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*co
 	return []*corev1.Service{m.newService(v1alpha1.WebComponentType, oc, corev1.ServiceTypeClusterIP, ports)}
 }
 
-func (m *webManager) getIngress(oc *v1alpha1.OnecloudCluster, zone string) *extensions.Ingress {
+func (m *webManager) getIngress(oc *v1alpha1.OnecloudCluster, zone string) *unstructured.Unstructured {
 	ocName := oc.GetName()
 	svcName := controller.NewClusterComponentName(ocName, v1alpha1.WebComponentType)
 	appLabel := m.getComponentLabel(oc, v1alpha1.WebComponentType)
 	secretName := controller.ClustercertSecretName(oc)
-	ing := &extensions.Ingress{
-		ObjectMeta: m.getObjectMeta(oc, svcName, appLabel),
-		Spec: extensions.IngressSpec{
-			TLS: []extensions.IngressTLS{
-				{
-					SecretName: secretName,
-				},
+
+	obj := new(unstructured.Unstructured)
+	objMeta := m.getObjectMeta(oc, svcName, appLabel)
+	obj.SetAnnotations(objMeta.Annotations)
+	obj.SetName(objMeta.Name)
+	obj.SetNamespace(objMeta.Namespace)
+	obj.SetLabels(objMeta.Labels)
+	obj.SetOwnerReferences(objMeta.OwnerReferences)
+
+	// unstructured.SetNestedSlice(obj.Object, []interface{}{
+	// 	map[string]interface{}{
+	// 		"secretName": secretName,
+	// 	},
+	// }, "spec", "tls")
+	// unstructured.SetNestedSlice(obj.Object, []interface{}{
+	// 	map[string]interface{}{
+	// 		"http": map[string]interface{}{
+	// 			"paths": []interface{}{
+	// 				map[string]interface{}{
+	// 					"path": "/",
+	// 					"backend": map[string]interface{}{
+	// 						"serviceName": svcName,
+	// 						"servicePort": int64(443),
+	// 					},
+	// 				},
+	// 			},
+	// 		},
+	// 	},
+	// }, "spec", "rules")
+
+	unstructured.SetNestedMap(obj.Object, map[string]interface{}{
+		"tls": []interface{}{
+			map[string]interface{}{
+				"secretName": secretName,
 			},
-			Rules: []extensions.IngressRule{
-				{
-					IngressRuleValue: extensions.IngressRuleValue{
-						HTTP: &extensions.HTTPIngressRuleValue{
-							Paths: []extensions.HTTPIngressPath{
-								{
-									Path: "/",
-									Backend: extensions.IngressBackend{
-										ServiceName: svcName,
-										ServicePort: intstr.FromInt(443),
+		},
+		"rules": []interface{}{
+			map[string]interface{}{
+				"http": map[string]interface{}{
+					"paths": []interface{}{
+						map[string]interface{}{
+							"pathType": "Exact",
+							"path":     "/",
+							"backend": map[string]interface{}{
+								"serviceName": svcName,
+								"servicePort": int64(443),
+								"service": map[string]interface{}{
+									"name": svcName,
+									"port": map[string]interface{}{
+										"number": int64(443),
 									},
 								},
 							},
@@ -345,18 +377,48 @@ func (m *webManager) getIngress(oc *v1alpha1.OnecloudCluster, zone string) *exte
 				},
 			},
 		},
-	}
+	}, "spec")
+
+	// ing := &extensions.Ingress{
+	// 	ObjectMeta: m.getObjectMeta(oc, svcName, appLabel),
+	// 	Spec: extensions.IngressSpec{
+	// 		TLS: []extensions.IngressTLS{
+	// 			{
+	// 				SecretName: secretName,
+	// 			},
+	// 		},
+	// 		Rules: []extensions.IngressRule{
+	// 			{
+	// 				IngressRuleValue: extensions.IngressRuleValue{
+	// 					HTTP: &extensions.HTTPIngressRuleValue{
+	// 						Paths: []extensions.HTTPIngressPath{
+	// 							{
+	// 								Path: "/",
+	// 								Backend: extensions.IngressBackend{
+	// 									ServiceName: svcName,
+	// 									ServicePort: intstr.FromInt(443),
+	// 								},
+	// 							},
+	// 						},
+	// 					},
+	// 				},
+	// 			},
+	// 		},
+	// 	},
+	// }
 
 	// for nginx ingress
-	if len(ing.Annotations) == 0 {
-		ing.Annotations = map[string]string{}
+	anno := obj.GetAnnotations()
+	if len(anno) == 0 {
+		anno = map[string]string{}
 	}
-	ing.Annotations["nginx.ingress.kubernetes.io/backend-protocol"] = "HTTPS"
+	anno["nginx.ingress.kubernetes.io/backend-protocol"] = "HTTPS"
+	obj.SetAnnotations(anno)
 
-	return m.addIngressPaths(IsEnterpriseEdition(oc), svcName, ing)
+	return m.addIngressPaths(IsEnterpriseEdition(oc), svcName, obj)
 }
 
-func (m *webManager) addIngressPaths(isEE bool, svcName string, ing *extensions.Ingress) *extensions.Ingress {
+func (m *webManager) addIngressPaths(isEE bool, svcName string, ing *unstructured.Unstructured) *unstructured.Unstructured {
 	if !isEE {
 		return ing
 	}
@@ -388,10 +450,11 @@ func (m *webManager) addIngressPaths(isEE bool, svcName string, ing *extensions.
 	return ing
 }
 
-func IsPathIngressRule(path string, paths []extensions.HTTPIngressPath) bool {
+func IsPathIngressRule(path string, paths []interface{}) bool {
 	exist := false
-	for _, ip := range paths {
-		if ip.Path == path {
+	for _, obj := range paths {
+		ip := obj.(map[string]interface{})
+		if ip["path"].(string) == path {
 			exist = true
 			break
 		}
@@ -399,23 +462,26 @@ func IsPathIngressRule(path string, paths []extensions.HTTPIngressPath) bool {
 	return exist
 }
 
-func (m *webManager) updateIngress(oc *v1alpha1.OnecloudCluster, oldIng *extensions.Ingress) *extensions.Ingress {
+func (m *webManager) updateIngress(oc *v1alpha1.OnecloudCluster, oldIng *unstructured.Unstructured) *unstructured.Unstructured {
 	newIng := oldIng.DeepCopy()
-	spec := &newIng.Spec
+	spec, _, _ := unstructured.NestedMap(newIng.Object, "spec")
 	doUpdate := false
-	for _, rule := range spec.Rules {
-		if rule.IngressRuleValue.HTTP == nil {
+	rules, _, _ := unstructured.NestedSlice(spec, "rules")
+	for _, rule := range rules {
+		http, _, _ := unstructured.NestedMap(rule.(map[string]interface{}), "http")
+		if http == nil {
 			continue
 		}
+		paths, _, _ := unstructured.NestedSlice(http, "paths")
 		for _, path := range []string{"/overview", "/docs"} {
-			if !IsPathIngressRule(path, rule.IngressRuleValue.HTTP.Paths) {
+			if !IsPathIngressRule(path, paths) {
 				doUpdate = true
 				break
 			}
 		}
 	}
 	if doUpdate {
-		svcName := m.getService(oc, "")[0].GetName()
+		svcName := m.getService(oc, nil, "")[0].GetName()
 		newIng = m.addIngressPaths(IsEnterpriseEdition(oc), svcName, newIng)
 	}
 	return newIng

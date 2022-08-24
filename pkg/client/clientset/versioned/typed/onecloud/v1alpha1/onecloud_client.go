@@ -20,7 +20,6 @@ package v1alpha1
 
 import (
 	rest "k8s.io/client-go/rest"
-
 	v1alpha1 "yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/client/clientset/versioned/scheme"
 )

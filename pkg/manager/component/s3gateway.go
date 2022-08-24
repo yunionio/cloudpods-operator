@@ -60,7 +60,7 @@ func (m *s3gatewayManager) getPhaseControl(man controller.ComponentManager, zone
 	return controller.NewRegisterEndpointComponent(
 		man, v1alpha1.S3gatewayComponentType,
 		constants.ServiceNameS3gateway, constants.ServiceTypeS3gateway,
-		constants.S3gatewayPort, "")
+		man.GetCluster().Spec.S3gateway.Service.NodePort, "")
 }
 
 func (m *s3gatewayManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
@@ -75,12 +75,12 @@ func (m *s3gatewayManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 	return m.newServiceConfigMap(v1alpha1.S3gatewayComponentType, "", oc, opt), false, nil
 }
 
-func (m *s3gatewayManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.S3gatewayComponentType, oc, constants.S3gatewayPort)}
+func (m *s3gatewayManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.S3gatewayComponentType, oc, int32(oc.Spec.S3gateway.Service.NodePort), int32(cfg.S3gateway.Port))}
 }
 
 func (m *s3gatewayManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
-	return m.newCloudServiceSinglePortDeployment(v1alpha1.S3gatewayComponentType, "", oc, &oc.Spec.S3gateway, constants.S3gatewayPort, false, false)
+	return m.newCloudServiceSinglePortDeployment(v1alpha1.S3gatewayComponentType, "", oc, &oc.Spec.S3gateway.DeploymentSpec, int32(cfg.S3gateway.Port), false, false)
 }
 
 func (m *s3gatewayManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {

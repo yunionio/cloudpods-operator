@@ -22,8 +22,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
 
+	"yunion.io/x/log"
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
+	"yunion.io/x/onecloud-operator/pkg/util/k8sutil"
 )
 
 var (
@@ -151,10 +153,16 @@ func recordResourceEvent(recorder record.EventRecorder, verb string, oc *v1alpha
 		reason := fmt.Sprintf("Successful%s", strings.Title(verb))
 		message := fmt.Sprintf("%s %s %s in OnecloudCluster %s successful",
 			strings.ToLower(verb), kind, resourceName, ocName)
-		recorder.Event(oc, corev1.EventTypeNormal, reason, message)
+		if !k8sutil.GetClusterVersion().IsGreatOrEqualThanV120() {
+			recorder.Event(oc, corev1.EventTypeNormal, reason, message)
+		}
+		log.Infof(message)
 	} else {
 		reason := fmt.Sprintf("Failed%s", strings.Title(verb))
 		message := fmt.Sprintf("%s %s %s in OnecloudCluster %s failed error: %s", strings.ToLower(verb), kind, resourceName, ocName, err)
-		recorder.Event(oc, corev1.EventTypeWarning, reason, message)
+		if !k8sutil.GetClusterVersion().IsGreatOrEqualThanV120() {
+			recorder.Event(oc, corev1.EventTypeWarning, reason, message)
+		}
+		log.Errorf(message)
 	}
 }
