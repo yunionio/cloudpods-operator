@@ -26,8 +26,8 @@ import (
 	apps "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
@@ -83,15 +83,21 @@ func SetServiceLastAppliedConfigAnnotation(svc *corev1.Service) error {
 	return nil
 }
 
-func SetIngressLastAppliedConfigAnnotation(ing *extensions.Ingress) error {
-	ingApply, err := encode(ing.Spec)
+func SetIngressLastAppliedConfigAnnotation(ing *unstructured.Unstructured) error {
+	spec, _, err := unstructured.NestedMap(ing.Object, "spec")
+	if err != nil {
+		return errors.Wrap(err, "get ingress spec")
+	}
+	ingApply, err := encode(spec)
 	if err != nil {
 		return err
 	}
-	if ing.Annotations == nil {
-		ing.Annotations = map[string]string{}
+	anno := ing.GetAnnotations()
+	if anno == nil {
+		anno = map[string]string{}
 	}
-	ing.Annotations[LastAppliedConfigAnnotation] = ingApply
+	anno[LastAppliedConfigAnnotation] = ingApply
+	ing.SetAnnotations(anno)
 	return nil
 }
 
@@ -182,14 +188,18 @@ func serviceEqual(new, old *corev1.Service) (bool, error) {
 	return false, nil
 }
 
-func ingressEqual(new, old *extensions.Ingress) (bool, error) {
-	oldSpec := extensions.IngressSpec{}
-	if lastAppliedConfig, ok := old.Annotations[LastAppliedConfigAnnotation]; ok {
+func ingressEqual(new, old *unstructured.Unstructured) (bool, error) {
+	oldSpec := make(map[string]interface{})
+	if lastAppliedConfig, ok := old.GetAnnotations()[LastAppliedConfigAnnotation]; ok {
 		err := json.Unmarshal([]byte(lastAppliedConfig), &oldSpec)
 		if err != nil {
 			return false, err
 		}
-		return apiequality.Semantic.DeepEqual(oldSpec, new.Spec), nil
+		newSpec, _, err := unstructured.NestedMap(new.Object, "spec")
+		if err != nil {
+			return false, errors.Wrap(err, "NestedMap of new ingress")
+		}
+		return apiequality.Semantic.DeepEqual(oldSpec, newSpec), nil
 	}
 	return false, nil
 }
@@ -599,13 +609,13 @@ func (h *VolumeHelper) addOvsVolumes() *VolumeHelper {
 	return h
 }
 
-func NewServiceNodePort(name string, port int32) corev1.ServicePort {
+func NewServiceNodePort(name string, nodePort int32, targetPort int32) corev1.ServicePort {
 	return corev1.ServicePort{
 		Name:       name,
 		Protocol:   corev1.ProtocolTCP,
-		Port:       port,
-		TargetPort: intstr.FromInt(int(port)),
-		NodePort:   port,
+		Port:       nodePort,
+		TargetPort: intstr.FromInt(int(targetPort)),
+		NodePort:   nodePort,
 	}
 }
 

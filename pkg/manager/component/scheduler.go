@@ -54,7 +54,7 @@ func (m *schedulerManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 
 func (m *schedulerManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return controller.NewRegisterEndpointComponent(man, v1alpha1.SchedulerComponentType,
-		constants.ServiceNameScheduler, constants.ServiceTypeScheduler, constants.SchedulerPort, "")
+		constants.ServiceNameScheduler, constants.ServiceTypeScheduler, man.GetCluster().Spec.Scheduler.Service.NodePort, "")
 }
 
 func (m *schedulerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
@@ -72,12 +72,12 @@ func (m *schedulerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 	return m.newServiceConfigMap(v1alpha1.SchedulerComponentType, "", oc, opt), false, nil
 }
 
-func (m *schedulerManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.SchedulerComponentType, oc, constants.SchedulerPort)}
+func (m *schedulerManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.SchedulerComponentType, oc, int32(oc.Spec.Scheduler.Service.NodePort), constants.SchedulerPort)}
 }
 
 func (m *schedulerManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
-	return m.newCloudServiceSinglePortDeployment(v1alpha1.SchedulerComponentType, "", oc, &oc.Spec.Scheduler, constants.SchedulerPort, false, false)
+	return m.newCloudServiceSinglePortDeployment(v1alpha1.SchedulerComponentType, "", oc, &oc.Spec.Scheduler.DeploymentSpec, constants.SchedulerPort, false, false)
 }
 
 func (m *schedulerManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {

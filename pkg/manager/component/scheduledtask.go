@@ -42,12 +42,12 @@ func (m *scheduledtaskManager) getPhaseControl(man controller.ComponentManager, 
 	return controller.NewRegisterEndpointComponent(
 		man, v1alpha1.ScheduledtaskComponentType,
 		constants.ServiceNameScheduledtask, constants.ServiceTypeScheduledtask,
-		constants.ScheduledtaskPort, "",
+		man.GetCluster().Spec.Scheduledtask.Service.NodePort, "",
 	)
 }
 
-func (m *scheduledtaskManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.ScheduledtaskComponentType, oc, constants.ScheduledtaskPort)}
+func (m *scheduledtaskManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.ScheduledtaskComponentType, oc, int32(oc.Spec.Scheduledtask.Service.NodePort), int32(cfg.Scheduledtask.Port))}
 }
 
 func (m *scheduledtaskManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
@@ -62,12 +62,12 @@ func (m *scheduledtaskManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v
 	opt.AutoSyncTable = true
 	opt.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
 	opt.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
-	opt.Port = constants.ScheduledtaskPort
+	opt.Port = cfg.Scheduledtask.Port
 	return m.newServiceConfigMap(v1alpha1.ScheduledtaskComponentType, "", oc, opt), false, nil
 }
 
 func (m *scheduledtaskManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
-	return m.newCloudServiceSinglePortDeployment(v1alpha1.ScheduledtaskComponentType, "", oc, &oc.Spec.Scheduledtask, constants.ScheduledtaskPort, true, false)
+	return m.newCloudServiceSinglePortDeployment(v1alpha1.ScheduledtaskComponentType, "", oc, &oc.Spec.Scheduledtask.DeploymentSpec, constants.ScheduledtaskPort, true, false)
 }
 
 func (m *scheduledtaskManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {

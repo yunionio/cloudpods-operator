@@ -222,25 +222,25 @@ type OnecloudClusterSpec struct {
 	// RegionDNS holds configuration for region-dns
 	RegionDNS RegionDNSSpec `json:"regionDNS"`
 	// Scheduler holds configuration for scheduler
-	Scheduler DeploymentSpec `json:"scheduler"`
+	Scheduler DeploymentServicePortSpec `json:"scheduler"`
 	// Glance holds configuration for glance
 	Glance GlanceSpec `json:"glance"`
 	// Climc holds configuration for climc
 	Climc DeploymentSpec `json:"climc"`
 	// Webconsole holds configuration for webconsole
-	Webconsole DeploymentSpec `json:"webconsole"`
+	Webconsole DeploymentServicePortSpec `json:"webconsole"`
 	// Logger holds configuration for log service
-	Logger DeploymentSpec `json:"logger"`
+	Logger DeploymentServicePortSpec `json:"logger"`
 	// Yunionconf holds configuration for yunionconf service
-	Yunionconf DeploymentSpec `json:"yunionconf"`
+	Yunionconf DeploymentServicePortSpec `json:"yunionconf"`
 	// Yunionagent holds configuration for yunionagent service
-	Yunionagent DaemonSetSpec `json:"yunionagent"`
+	Yunionagent YunionagentSpec `json:"yunionagent"`
 	// Influxdb holds configuration for influxdb
-	Influxdb StatefulDeploymentSpec `json:"influxdb"`
+	Influxdb InfluxdbSpec `json:"influxdb"`
 	// Telegraf holds configuration for telegraf
 	Telegraf TelegrafSpec `json:"telegraf"`
 	// Monitor holds configuration for monitor service
-	Monitor DeploymentSpec `json:"monitor"`
+	Monitor DeploymentServicePortSpec `json:"monitor"`
 	// LoadBalancerEndpoint is upstream loadbalancer virtual ip address or DNS domain
 	LoadBalancerEndpoint string `json:"loadBalancerEndpoint"`
 	// APIGateway holds configuration for yunoinapi
@@ -248,15 +248,15 @@ type OnecloudClusterSpec struct {
 	// Web holds configuration for web
 	Web WebSpec `json:"web"`
 	// KubeServer holds configuration for kube-server service
-	KubeServer DeploymentSpec `json:"kubeserver"`
+	KubeServer DeploymentServicePortSpec `json:"kubeserver"`
 	// AnsibleServer holds configuration for ansibleserver service
-	AnsibleServer DeploymentSpec `json:"ansibleserver"`
+	AnsibleServer DeploymentServicePortSpec `json:"ansibleserver"`
 	// Cloudnet holds configuration for cloudnet service
-	Cloudnet DeploymentSpec `json:"cloudnet"`
+	Cloudnet DeploymentServicePortSpec `json:"cloudnet"`
 	// Cloudproxy holds configuration for cloudproxy service
-	Cloudproxy DeploymentSpec `json:"cloudproxy"`
+	Cloudproxy DeploymentServicePortSpec `json:"cloudproxy"`
 	// Cloudevent holds configuration for cloudevent service
-	Cloudevent DeploymentSpec `json:"cloudevent"`
+	Cloudevent DeploymentServicePortSpec `json:"cloudevent"`
 	// Notify holds configuration for notify service
 	Notify NotifySpec `json:"notify"`
 	// HostAgent holds configuration for host
@@ -268,42 +268,43 @@ type OnecloudClusterSpec struct {
 	// BaremetalAgent holds configuration for baremetal agent
 	BaremetalAgent ZoneStatefulDeploymentSpec `json:"baremetalagent"`
 	// S3gateway holds configuration for s3gateway service
-	S3gateway DeploymentSpec `json:"s3gateway"`
+	S3gateway DeploymentServicePortSpec `json:"s3gateway"`
 	// Devtool holds configuration for devtool service
-	Devtool DeploymentSpec `json:"devtool"`
+	Devtool DeploymentServicePortSpec `json:"devtool"`
 	// Meter holds configuration for meter
-	Meter StatefulDeploymentSpec `json:"meter"`
+	Meter MeterSpec `json:"meter"`
 	// AutoUpdate holds configuration for autoupdate
-	AutoUpdate DeploymentSpec `json:"autoupdate"`
+	AutoUpdate DeploymentServicePortSpec `json:"autoupdate"`
 	// Cloudmon holds configuration for report monitor data
 	Cloudmon CloudmonSpec `json:"cloudmon"`
 	// EsxiAgent hols configuration for esxi agent
 	EsxiAgent ZoneStatefulDeploymentSpec `json:"esxiagent"`
 	// Itsm holds configuration for itsm service
-	Itsm DeploymentSpec `json:"itsm"`
+	Itsm DeploymentServicePortSpec `json:"itsm"`
 
 	// ServiceOperator hols configuration for service-operator
-	ServiceOperator DeploymentSpec `json:"onecloudServiceOperator"`
+	ServiceOperator DeploymentServicePortSpec `json:"onecloudServiceOperator"`
 
 	OvnNorth DeploymentSpec `json:"ovnNorth"`
 	VpcAgent DeploymentSpec `json:"vpcAgent"`
 
 	// Cloudid holds configuration for cloudid service
-	CloudId DeploymentSpec `json:"cloudid"`
+	CloudId DeploymentServicePortSpec `json:"cloudid"`
 
-	Suggestion DeploymentSpec `json:"suggestion"`
+	Suggestion DeploymentServicePortSpec `json:"suggestion"`
 
 	// MonitorStack holds configuration for grafana, loki, prometheus and thanos services
 	MonitorStack MonitorStackSpec `json:"monitorStack"`
 
-	Scheduledtask DeploymentSpec `json:"scheduledtask"`
+	Scheduledtask DeploymentServicePortSpec `json:"scheduledtask"`
 
-	Report DeploymentSpec `json:"report"`
+	Report DeploymentServicePortSpec `json:"report"`
 }
 
 // OnecloudClusterStatus describes cluster status
 type OnecloudClusterStatus struct {
 	ClusterID      string               `json:"clusterID,omitempty"`
+	SpecChecksum   string               `json:"specChecksum,omitempty"`
 	Keystone       KeystoneStatus       `json:"keystone,omitempty"`
 	RegionServer   RegionStatus         `json:"region,omitempty"`
 	Glance         GlanceStatus         `json:"glance,omitempty"`
@@ -525,6 +526,20 @@ type DeploymentSpec struct {
 	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 }
 
+// ServicePortSpec contains listening port definition
+type ServicePortSpec struct {
+	NodePort int `json:"nodePort"`
+}
+
+type ServiceSpec struct {
+	ServicePortSpec
+}
+
+type DeploymentServicePortSpec struct {
+	DeploymentSpec
+	Service ServiceSpec `json:"service"`
+}
+
 type CronJobSpec struct {
 	ContainerSpec
 	Disable          bool                          `json:"disable"`
@@ -546,9 +561,24 @@ type DaemonSetSpec struct {
 	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 }
 
+type YunionagentSpec struct {
+	DaemonSetSpec
+	Service ServicePortSpec `json:"service"`
+}
+
 type StatefulDeploymentSpec struct {
 	DeploymentSpec
 	StorageClassName string `json:"storageClassName,omitempty"`
+}
+
+type MeterSpec struct {
+	StatefulDeploymentSpec
+	Service ServiceSpec `json:"service"`
+}
+
+type InfluxdbSpec struct {
+	StatefulDeploymentSpec
+	Service ServiceSpec `json:"service"`
 }
 
 type ZoneStatefulDeploymentSpec struct {
@@ -566,12 +596,15 @@ type DeploymentServiceSpec struct {
 // KeystoneSpec contains details of keystone service
 type KeystoneSpec struct {
 	DeploymentServiceSpec
-	BootstrapPassword string `json:"bootstrapPassword"`
+	PublicService     ServiceSpec `json:"publicService"`
+	AdminService      ServiceSpec `json:"adminService"`
+	BootstrapPassword string      `json:"bootstrapPassword"`
 }
 
 type GlanceSpec struct {
 	StatefulDeploymentSpec
-	SwitchToS3 bool `json:"switchToS3"`
+	Service    ServiceSpec `json:"service"`
+	SwitchToS3 bool        `json:"switchToS3"`
 }
 
 type MinioMode string
@@ -794,12 +827,15 @@ type EtcdMembersStatus struct {
 type APIGatewaySpec struct {
 	DeploymentSpec
 
+	APIService ServiceSpec `json:"apiService"`
+	WSService  ServiceSpec `json:"wsService"`
+
 	// Allowed hostname in Origin header.  Default to allow all
 	CorsHosts []string `json:"corsHosts"`
 }
 
 type RegionSpec struct {
-	DeploymentSpec
+	DeploymentServicePortSpec
 	// DNSServer is the address of DNS server
 	DNSServer string `json:"dnsServer"`
 	// DNSDomain is the global default dns domain suffix for virtual servers
@@ -815,6 +851,7 @@ type WebSpec struct {
 
 type NotifySpec struct {
 	StatefulDeploymentSpec
+	Service ServiceSpec `json:"service"`
 
 	Plugins ContainerSpec `json:"plugins"`
 }

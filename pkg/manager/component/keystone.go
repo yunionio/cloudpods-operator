@@ -65,10 +65,12 @@ func (m *keystoneManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone
 	return &oc.Status.Keystone.DeploymentStatus
 }
 
-func (m *keystoneManager) getService(oc *v1alpha1.OnecloudCluster, zone string) []*corev1.Service {
+func (m *keystoneManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
+	spec := oc.Spec.Keystone
+	ksCfg := cfg.Keystone
 	ports := []corev1.ServicePort{
-		NewServiceNodePort("public", constants.KeystonePublicPort),
-		NewServiceNodePort("admin", constants.KeystoneAdminPort),
+		NewServiceNodePort("public", int32(spec.PublicService.NodePort), int32(ksCfg.Port)),
+		NewServiceNodePort("admin", int32(spec.AdminService.NodePort), constants.KeystoneAdminPort),
 	}
 
 	return []*corev1.Service{m.newNodePortService(v1alpha1.KeystoneComponentType, oc, ports)}
@@ -88,7 +90,6 @@ func (m *keystoneManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 	// always reset admin user password to ensure password is correct
 	opt.ResetAdminUserPassword = true
 	opt.AdminPort = constants.KeystoneAdminPort
-	opt.Port = constants.KeystonePublicPort
 
 	return m.newServiceConfigMap(v1alpha1.KeystoneComponentType, "", oc, opt), false, nil
 }

@@ -25,7 +25,6 @@ import (
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	rest "k8s.io/client-go/rest"
-
 	v1alpha1 "yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	scheme "yunion.io/x/onecloud-operator/pkg/client/clientset/versioned/scheme"
 )
