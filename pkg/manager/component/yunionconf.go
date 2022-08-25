@@ -120,19 +120,19 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 			"google",
 			"huawei",
 			"qcloud",
-			"ucloud",
-			"ecloud",
-			"jdcloud",
+			// "ucloud",
+			// "ecloud",
+			// "jdcloud",
 			"vmware",
 			"openstack",
-			"dstack",
-			"zstack",
+			// "dstack",
+			// "zstack",
 			"apsara",
 			"cloudpods",
-			"hcso",
+			// "hcso",
 			"nutanix",
-			"bingocloud",
-			"incloudsphere",
+			// "bingocloud",
+			// "incloudsphere",
 			"s3",
 			"ceph",
 			"xsky",
@@ -158,6 +158,19 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 		}
 		setupKeys = append(setupKeys, "monitor", "auth")
 		if isEE {
+			switch oc.Spec.ProductVersion {
+			case v1alpha1.ProductVersionEdge:
+			default:
+				setupKeys = append(setupKeys,
+					"ucloud",
+					"ecloud",
+					"jdcloud",
+					"zstack",
+					"hcso",
+					"bingocloud",
+					"incloudsphere",
+				)
+			}
 			setupKeys = append(setupKeys, "k8s", "bill")
 		}
 		setupKeys = append(setupKeys, "default")
