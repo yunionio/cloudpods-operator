@@ -99,7 +99,7 @@ func (m *cloudproxyManager) theProxyAgentName() string {
 func (m *cloudproxyManager) getOrCreateProxyAgent(oc *v1alpha1.OnecloudCluster) (string, error) {
 	proxyAgentName := m.theProxyAgentName()
 
-	s := auth.GetAdminSession(context.Background(), oc.Spec.Region, "")
+	s := auth.GetAdminSession(context.Background(), oc.Spec.Region)
 	if r, err := cloudproxy_modules.ProxyAgents.Get(s, proxyAgentName, nil); err == nil {
 		return r.GetString("id")
 	}
