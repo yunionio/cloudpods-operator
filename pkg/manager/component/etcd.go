@@ -154,11 +154,11 @@ func (m *etcdManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if oc.Spec.Etcd.Disable {
 		return nil
 	}
-	var changed = false
-	// changed, err := m.fixEtcdSize(oc)
-	// if err != nil {
-	// 	return nil
-	// }
+	changed, err := m.fixEtcdSize(oc)
+	if err != nil {
+		log.Errorf("fix etcd size failed %s", err)
+		return nil
+	}
 	if len(oc.Spec.Etcd.Version) == 0 {
 		changed = true
 		oc.Spec.Etcd.Version = constants.EtcdImageVersion
