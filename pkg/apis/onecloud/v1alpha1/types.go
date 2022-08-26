@@ -563,7 +563,7 @@ type DaemonSetSpec struct {
 
 type YunionagentSpec struct {
 	DaemonSetSpec
-	Service ServicePortSpec `json:"service"`
+	Service ServiceSpec `json:"service"`
 }
 
 type StatefulDeploymentSpec struct {
