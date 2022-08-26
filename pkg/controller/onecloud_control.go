@@ -136,7 +136,6 @@ func NewOnecloudSessionByToken(cli *mcclient.Client, region string, token mcclie
 		"",
 		constants.EndpointTypeInternal,
 		token,
-		"",
 	)
 	return session, nil
 }
@@ -188,12 +187,12 @@ func (w *OnecloudControl) RunWithSession(oc *v1alpha1.OnecloudCluster, f func(s 
 		}
 		auth.Init(config.ToAuthInfo(), false, true, "", "")
 	} else {
-		s = auth.GetAdminSession(context.Background(), oc.Spec.Region, "")
+		s = auth.GetAdminSession(context.Background(), oc.Spec.Region)
 	}
 	s.SetServiceUrl("identity", GetAuthURL(oc))
 	if err := f(s); err != nil {
 		auth.Init(config.ToAuthInfo(), false, true, "", "")
-		newSession := auth.GetAdminSession(context.Background(), oc.Spec.Region, "")
+		newSession := auth.GetAdminSession(context.Background(), oc.Spec.Region)
 		return f(newSession)
 	}
 	return nil
@@ -1072,7 +1071,7 @@ func (c monitorComponent) Setup() error {
 func (c monitorComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 	alertInfo := c.getInitInfo()
 	//c.manager.GetController().getSession(c.GetCluster())
-	session := auth.GetAdminSession(context.Background(), "", "")
+	session := auth.GetAdminSession(context.Background(), "")
 	rtnAlert, err := onecloud.GetCommonAlertOfSys(session)
 	if err != nil {
 		return errors.Wrap(err, "monitorComponent GetCommonAlertOfSys")
