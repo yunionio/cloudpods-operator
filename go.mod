@@ -18,10 +18,10 @@ require (
 	k8s.io/client-go v9.0.0+incompatible
 	k8s.io/klog v0.3.3
 	k8s.io/kubernetes v0.0.0-00010101000000-000000000000
-	yunion.io/x/jsonutils v1.0.0
+	yunion.io/x/jsonutils v1.0.1-0.20220819091305-3bab322ab4fd
 	yunion.io/x/log v1.0.0
-	yunion.io/x/onecloud v0.0.0-20220715065916-60d1fc2ca79b
-	yunion.io/x/pkg v1.0.1-0.20220630095420-9925accd7c5e
+	yunion.io/x/onecloud v0.0.0-20220825062712-7f244f9d36c7
+	yunion.io/x/pkg v1.0.1-0.20220819080140-55b265a8658e
 	yunion.io/x/structarg v0.0.0-20220312084958-9c6c79c7d1c6
 )
 
@@ -109,7 +109,7 @@ require (
 	sigs.k8s.io/yaml v1.2.0 // indirect
 	yunion.io/x/executor v0.0.0-20211018100936-39a2cd966656 // indirect
 	yunion.io/x/s3cli v0.0.0-20190917004522-13ac36d8687e // indirect
-	yunion.io/x/sqlchemy v1.1.2-0.20220704015412-b0c3988ceaa2 // indirect
+	yunion.io/x/sqlchemy v1.1.2-0.20220815121507-5d4f1362bdf7 // indirect
 )
 
 replace (
