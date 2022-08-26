@@ -113,7 +113,7 @@ func (m *glanceManager) setS3Config(oc *v1alpha1.OnecloudCluster) error {
 		return nil
 	}
 	// fetch s3 config
-	s := auth.GetAdminSession(context.Background(), oc.Spec.Region, "")
+	s := auth.GetAdminSession(context.Background(), oc.Spec.Region)
 	conf, err := identity_modules.ServicesV3.GetSpecific(s, "glance", "config", nil)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
