@@ -937,7 +937,7 @@ func (c yunionagentComponent) Setup() error {
 	return c.RegisterCloudServiceEndpoint(
 		v1alpha1.YunionagentComponentType,
 		constants.ServiceNameYunionAgent, constants.ServiceTypeYunionAgent,
-		c.GetCluster().Spec.Yunionconf.Service.NodePort, "", true)
+		c.GetCluster().Spec.Yunionagent.Service.NodePort, "", true)
 }
 
 func (c yunionagentComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {

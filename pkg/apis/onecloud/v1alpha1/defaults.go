@@ -373,6 +373,7 @@ func setDefaults_Components_ServicePort(obj *OnecloudClusterSpec) {
 		newSP(&obj.APIGateway.APIService, constants.APIGatewayPort),
 		newSP(&obj.APIGateway.WSService, constants.APIWebsocketPort),
 		newSP(&obj.ServiceOperator.Service, constants.ServiceOperatorPort),
+		newSP(&obj.Yunionagent.Service, constants.YunionAgentPort),
 	} {
 		SetDefaults_ServiceSpec(spec.spec, spec.defaultPort)
 	}
