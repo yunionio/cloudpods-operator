@@ -1192,8 +1192,6 @@ func (in *OnecloudClusterConfig) DeepCopyInto(out *OnecloudClusterConfig) {
 	out.ServiceOperator = in.ServiceOperator
 	out.Itsm = in.Itsm
 	out.CloudId = in.CloudId
-	out.Suggestion = in.Suggestion
-	out.Scheduledtask = in.Scheduledtask
 	out.Report = in.Report
 	out.Grafana = in.Grafana
 	return

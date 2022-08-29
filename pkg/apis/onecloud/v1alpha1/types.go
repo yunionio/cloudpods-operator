@@ -1029,8 +1029,6 @@ type OnecloudClusterConfig struct {
 	ServiceOperator ServiceCommonOptions   `json:"onecloudServiceOperator"`
 	Itsm            ItsmConfig             `json:"itsm"`
 	CloudId         ServiceDBCommonOptions `json:"cloudid"`
-	Suggestion      ServiceDBCommonOptions `json:"suggestion"`
-	Scheduledtask   ServiceDBCommonOptions `json:"scheduledtask"`
 	Report          ServiceDBCommonOptions `json:"report"`
 	Grafana         GrafanaConfig          `json:"grafana"`
 }
