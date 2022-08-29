@@ -49,7 +49,7 @@ func (m *suggestionManager) getPhaseControl(man controller.ComponentManager, zon
 }
 
 func (m *suggestionManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.SuggestionComponentType, oc, int32(oc.Spec.Suggestion.Service.NodePort), int32(cfg.Suggestion.Port))}
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.SuggestionComponentType, oc, int32(oc.Spec.Suggestion.Service.NodePort), int32(constants.SuggestionPort))}
 }
 
 func (m *suggestionManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
@@ -64,7 +64,7 @@ func (m *suggestionManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	opt.AutoSyncTable = true
 	opt.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
 	opt.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
-	opt.Port = cfg.Suggestion.Port
+	opt.Port = constants.SuggestionPort
 	return m.newServiceConfigMap(v1alpha1.SuggestionComponentType, "", oc, opt), false, nil
 }
 

@@ -47,7 +47,7 @@ func (m *scheduledtaskManager) getPhaseControl(man controller.ComponentManager, 
 }
 
 func (m *scheduledtaskManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.ScheduledtaskComponentType, oc, int32(oc.Spec.Scheduledtask.Service.NodePort), int32(cfg.Scheduledtask.Port))}
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.ScheduledtaskComponentType, oc, int32(oc.Spec.Scheduledtask.Service.NodePort), int32(constants.ScheduledtaskPort))}
 }
 
 func (m *scheduledtaskManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
@@ -62,7 +62,7 @@ func (m *scheduledtaskManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v
 	opt.AutoSyncTable = true
 	opt.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
 	opt.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
-	opt.Port = cfg.Scheduledtask.Port
+	opt.Port = constants.ScheduledtaskPort
 	return m.newServiceConfigMap(v1alpha1.ScheduledtaskComponentType, "", oc, opt), false, nil
 }
 
