@@ -609,6 +609,7 @@ type CommonAlertTem struct {
 	Interval      string `json:"interval"`
 	GroupBy       string `json:"group_by"`
 	Level         string `json:"level"`
+	NoDataState   string `json:"no_data_state"`
 }
 
 func GetCommonAlertOfSys(session *mcclient.ClientSession) ([]jsonutils.JSONObject, error) {
@@ -637,6 +638,9 @@ func CreateCommonAlert(s *mcclient.ClientSession, tem CommonAlertTem) (jsonutils
 		Recipients: []string{monitorapi.CommonAlertDefaultRecipient},
 		AlertType:  monitorapi.CommonAlertSystemAlertType,
 		Scope:      "system",
+	}
+	if tem.NoDataState != "" {
+		input.NoDataState = tem.NoDataState
 	}
 	if tem.Level != "" {
 		input.Level = tem.Level
@@ -680,6 +684,9 @@ func UpdateCommonAlert(s *mcclient.ClientSession, tem CommonAlertTem, id string,
 	if len(tem.Description) != 0 {
 		input.Description = tem.Description
 	}
+	if tem.NoDataState != "" {
+		input.NoDataState = tem.NoDataState
+	}
 	diff, err := containDiffsWithRtnAlert(input, alert)
 	if err != nil {
 		return nil, errors.Wrap(err, "containDiffsWithRtnAlert error")
@@ -702,6 +709,12 @@ func containDiffsWithRtnAlert(input monitorapi.CommonAlertUpdateInput, rtnAlert 
 	level, _ := rtnAlert.GetString("level")
 	if level != *(input.Level) {
 		return conDiff, nil
+	}
+	if input.NoDataState != "" {
+		noDS, _ := rtnAlert.GetString("no_data_state")
+		if input.NoDataState != noDS {
+			return conDiff, nil
+		}
 	}
 	alertSetting, err := rtnAlert.Get("settings")
 	if err != nil {
