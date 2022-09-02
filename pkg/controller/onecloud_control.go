@@ -1254,6 +1254,7 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		Reduce:      "last",
 		From:        "5m",
 		Description: "检查宿主机raid控制器状态",
+		NoDataState: "ok",
 	}
 	cloudaccountTem := onecloud.CommonAlertTem{
 		Database:    "meter_db",
