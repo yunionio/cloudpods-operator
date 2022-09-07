@@ -891,7 +891,7 @@ type HostAgentSpec struct {
 
 	DisableSecurityGroup   bool   `json:"disableSecurityGroup"`
 	ManageNtpConfiguration bool   `json:"manageNtpConfiguration"`
-	HostCpuPassthrough     bool   `json:"hostCpuPassthrough"`
+	HostCpuPassthrough     *bool  `json:"hostCpuPassthrough"`
 	DefaultQemuVersion     string `json:"defaultQemuVersion"`
 }
 

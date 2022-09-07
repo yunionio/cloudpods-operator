@@ -63,7 +63,11 @@ func (m *hostManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 
 	commonOpt.DisableSecurityGroup = oc.Spec.HostAgent.DisableSecurityGroup
 	commonOpt.ManageNtpConfiguration = oc.Spec.HostAgent.ManageNtpConfiguration
-	commonOpt.HostCpuPassthrough = oc.Spec.HostAgent.HostCpuPassthrough
+	hostCpuPassthrough := true
+	if oc.Spec.HostAgent.HostCpuPassthrough != nil {
+		hostCpuPassthrough = *oc.Spec.HostAgent.HostCpuPassthrough
+	}
+	commonOpt.HostCpuPassthrough = hostCpuPassthrough
 	commonOpt.DefaultQemuVersion = oc.Spec.HostAgent.DefaultQemuVersion
 
 	return m.shouldSyncConfigmap(oc, v1alpha1.HostComponentType, commonOpt, func(oldOpt string) bool {
