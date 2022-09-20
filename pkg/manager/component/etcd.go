@@ -397,7 +397,7 @@ func (m *etcdManager) customPodSpec(pod *corev1.Pod, mb *etcdutil.Member, state,
 		pod.Spec.NodeSelector = make(map[string]string)
 	}
 	if !controller.DisableNodeSelectorController {
-		pod.Spec.NodeSelector[constants.OnecloudControllerLabelKey] = "enable"
+		pod.Spec.NodeSelector[constants.LabelNodeRoleMaster] = ""
 	}
 	if pod.Spec.Affinity == nil {
 		pod.Spec.Affinity = new(corev1.Affinity)
