@@ -271,6 +271,12 @@ const (
 	ServiceNameCloudId = "cloudid"
 	ServiceTypeCloudId = "cloudid"
 
+	ServiceNameCloudmon  = "cloudmon"
+	ServiceTypeCloudmon  = "cloudmon"
+	CloudmonPort         = 30931
+	CloudmonAdminUser    = "cloudmon"
+	CloudmonAdminProject = SysAdminProject
+
 	ServiceNameNotify = "notify"
 	ServiceTypeNotify = "notify"
 
