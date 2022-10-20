@@ -308,24 +308,6 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	//SetDefaults_DeploymentSpec(&obj.Cloudmon.DeploymentSpec,
 	//	getImage(obj.ImageRepository, obj.Cloudmon.Repository, APIGatewayComponentTypeEE,
 	//		obj.Cloudmon.ImageName, obj.Version, obj.APIGateway.Tag))
-	if obj.Cloudmon.CloudmonReportUsageDuration == 0 {
-		obj.Cloudmon.CloudmonReportUsageDuration = 15
-	}
-	if obj.Cloudmon.CloudmonReportServerDuration == 0 {
-		obj.Cloudmon.CloudmonReportServerDuration = 4
-	}
-	if obj.Cloudmon.CloudmonReportHostDuration == 0 {
-		obj.Cloudmon.CloudmonReportHostDuration = 4
-	}
-	if obj.Cloudmon.CloudmonPingDuration == 0 {
-		obj.Cloudmon.CloudmonPingDuration = 60
-	}
-	if obj.Cloudmon.CloudmonReportCloudAccountDuration == 0 {
-		obj.Cloudmon.CloudmonReportCloudAccountDuration = 30
-	}
-	if obj.Cloudmon.CloudmonReportAlertRecordHistoryDuration == 0 {
-		obj.Cloudmon.CloudmonReportAlertRecordHistoryDuration = 1
-	}
 
 	setDefaults_MonitorStackSpec(&obj.MonitorStack)
 
@@ -359,6 +341,7 @@ func setDefaults_Components_ServicePort(obj *OnecloudClusterSpec) {
 		newSP(&obj.Cloudproxy.Service, constants.CloudproxyPort),
 		newSP(&obj.Cloudevent.Service, constants.CloudeventPort),
 		newSP(&obj.CloudId.Service, constants.CloudIdPort),
+		newSP(&obj.Cloudmon.Service, constants.CloudmonPort),
 		newSP(&obj.AutoUpdate.Service, constants.AutoUpdatePort),
 		newSP(&obj.S3gateway.Service, constants.S3gatewayPort),
 		newSP(&obj.Devtool.Service, constants.DevtoolPort),
@@ -671,6 +654,7 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		registryPorts[tmp.port] = tmp.user
 		SetDefaults_ServiceDBCommonOptions(opt, tmp.db, tmp.dbUser, tmp.user, tmp.port)
 	}
+	SetDefaults_ServiceCommonOptions(&obj.Cloudmon, constants.CloudmonAdminUser, constants.CloudmonPort)
 	setDefaults_ItsmConfig(&obj.Itsm)
 
 	setDefaults_DBConfig(&obj.Grafana.DB, constants.MonitorStackGrafanaDB, constants.MonitorStackGrafanaDBUer)

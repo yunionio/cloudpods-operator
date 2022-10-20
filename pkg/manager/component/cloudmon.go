@@ -1,7 +1,6 @@
 package component
 
 import (
-	"fmt"
 	"path"
 
 	apps "k8s.io/api/apps/v1"
@@ -15,10 +14,6 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
-)
-
-var (
-	CloudmonName = "cloudmon"
 )
 
 type cloudmonManager struct {
@@ -68,15 +63,20 @@ func (m *cloudmonManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 
 func (m *cloudmonManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
 	opt := &options.Options
-	if err := SetOptionsDefault(opt, CloudmonName); err != nil {
+	if err := SetOptionsDefault(opt, constants.ServiceTypeCloudmon); err != nil {
 		return nil, false, err
 	}
-	config := cfg.APIGateway
+	config := cfg.Cloudmon
 	SetOptionsServiceTLS(&opt.BaseOptions, false)
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config)
 	opt.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
 	opt.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
+	opt.Port = config.Port
 	return m.newServiceConfigMap(v1alpha1.CloudmonComponentType, "", oc, opt), false, nil
+}
+
+func (m *cloudmonManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.CloudmonComponentType, oc, int32(oc.Spec.Cloudmon.Service.NodePort), int32(cfg.Cloudmon.Port))}
 }
 
 func (m *cloudmonManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -102,27 +102,6 @@ func (m *cloudmonManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 	return deployment, err
 }
 
-func formateCloudmonProviderCommand(reportDur uint, timeout uint, reportInterval uint, command string,
-	provider string) string {
-	return fmt.Sprintf("\necho '*/%d * * * * /opt/yunion/bin/cloudmon --config /etc/yunion/apigateway.conf %s --interval %d --provider %s --timeout  %d 2>&1' >> /etc/crontabs/root",
-		reportDur, command, reportInterval, provider, timeout)
-
-}
-
-func formateCloudmonNoProviderCommand(reportDur uint, timeout uint, reportInterval uint, command string) string {
-	switch command {
-	case "ping-probe":
-		return fmt.Sprintf("\necho '*/%d * * * * /opt/yunion/bin/cloudmon --config /etc/yunion/apigateway.conf %s --timeout %d 2>&1' > /etc/crontabs/root",
-			reportDur, command, timeout)
-	case "report-usage":
-		return fmt.Sprintf("\necho '*/%d * * * *  /opt/yunion/bin/cloudmon --config /etc/yunion/apigateway.conf %s  --timeout  %d  2>&1' >> /etc/crontabs/root",
-			reportDur, command, timeout)
-	case "report-alertrecord":
-		return fmt.Sprintf("\necho '0 0 */%d * *  /opt/yunion/bin/cloudmon --config /etc/yunion/apigateway.conf %s --interval %d --timeout  %d 2>&1' >> /etc/crontabs/root",
-			reportDur, command, reportInterval, timeout)
-	default:
-		return fmt.Sprintf("\necho '*/%d * * * *  /opt/yunion/bin/cloudmon --config /etc/yunion/apigateway.conf %s --interval %d --timeout  %d 2>&1' >> /etc/crontabs/root",
-			reportDur, command, reportInterval, timeout)
-
-	}
+func (m *cloudmonManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
+	return &oc.Status.Cloudmon
 }
