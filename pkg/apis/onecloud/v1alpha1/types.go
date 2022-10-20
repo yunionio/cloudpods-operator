@@ -333,6 +333,7 @@ type OnecloudClusterStatus struct {
 	Etcd           EctdStatus           `json:"etcd,omitempty"`
 	Itsm           DeploymentStatus     `json:"itsm,omitempty"`
 	CloudId        DeploymentStatus     `json:"cloudid,omitempty"`
+	Cloudmon       DeploymentStatus     `json:"cloudmon,omitempty"`
 	MonitorStack   MonitorStackStatus   `json:"monitorStack,omitempty"`
 	Scheduledtask  DeploymentStatus     `json:"scheduledtask,omitempty"`
 	Report         DeploymentStatus     `json:"report,omitempty"`
@@ -858,12 +859,8 @@ type NotifySpec struct {
 
 type CloudmonSpec struct {
 	DeploymentSpec
-	CloudmonPingDuration                     uint
-	CloudmonReportHostDuration               uint
-	CloudmonReportServerDuration             uint
-	CloudmonReportUsageDuration              uint
-	CloudmonReportCloudAccountDuration       uint
-	CloudmonReportAlertRecordHistoryDuration uint
+	Service              ServiceSpec `json:"service"`
+	CloudmonPingDuration uint
 }
 
 type RegionDNSProxy struct {
@@ -1017,6 +1014,7 @@ type OnecloudClusterConfig struct {
 	Cloudproxy      ServiceDBCommonOptions `json:"cloudproxy"`
 	Cloudevent      ServiceDBCommonOptions `json:"cloudevent"`
 	APIGateway      ServiceCommonOptions   `json:"apiGateway"`
+	Cloudmon        ServiceCommonOptions   `json:"cloudmon"`
 	Notify          ServiceDBCommonOptions `json:"notify"`
 	HostAgent       HostConfig             `json:"host"`
 	BaremetalAgent  BaremetalConfig        `json:"baremetal"`
