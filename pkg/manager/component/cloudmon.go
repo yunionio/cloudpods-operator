@@ -79,6 +79,14 @@ func (m *cloudmonManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 	return m.newServiceConfigMap(v1alpha1.CloudmonComponentType, "", oc, opt), false, nil
 }
 
+func (m *cloudmonManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
+	return controller.NewRegisterEndpointComponent(man,
+		v1alpha1.CloudmonComponentType,
+		constants.ServiceNameCloudmon,
+		constants.ServiceTypeCloudmon,
+		man.GetCluster().Spec.Cloudmon.Service.NodePort, "")
+}
+
 func (m *cloudmonManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
 	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.CloudmonComponentType, oc, int32(oc.Spec.Cloudmon.Service.NodePort), int32(cfg.Cloudmon.Port))}
 }
