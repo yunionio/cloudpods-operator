@@ -56,6 +56,9 @@ const (
 	APIGatewayCEImageName = "apigateway"
 	WebEEImageName        = "web-ee"
 	APIGatewayEEImageName = "apigateway-ee"
+
+	RegionCEImageName = "region"
+	RegionEEImageName = "region-ee"
 )
 
 const (
