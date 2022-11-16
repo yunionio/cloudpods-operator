@@ -18,10 +18,10 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	"yunion.io/x/cloudmux/pkg/cloudprovider"
 	"yunion.io/x/jsonutils"
 
 	api "yunion.io/x/onecloud/pkg/apis/compute"
-	"yunion.io/x/onecloud/pkg/cloudprovider"
 )
 
 type CloudaccountListOptions struct {
@@ -53,6 +53,12 @@ type SNutanixCredentialWithEnvironment struct {
 
 	Host string `help:"Nutanix host" positional:"true"`
 	Port string `help:"Nutanix host port" default:"9440"`
+}
+
+type SProxmoxCredentialWithEnvironment struct {
+	SUserPasswordCredential
+	Host string `help:"Proxmox host" positional:"true"`
+	Port string `help:"Proxmox host port" default:"8006"`
 }
 
 type SAzureCredential struct {
@@ -115,6 +121,8 @@ type SCloudAccountCreateBaseOptions struct {
 	ProjectDomain string `help:"domain for this account"`
 
 	Disabled *bool `help:"create cloud account with disabled status"`
+
+	SkipDuplicateAccountCheck bool `help:"skip check duplicate account"`
 
 	SamlAuth string `help:"Enable or disable saml auth" choices:"true|false"`
 
@@ -295,6 +303,18 @@ type SHCSOAccountCreateOptions struct {
 func (opts *SHCSOAccountCreateOptions) Params() (jsonutils.JSONObject, error) {
 	params := jsonutils.Marshal(opts)
 	params.(*jsonutils.JSONDict).Add(jsonutils.NewString("HCSO"), "provider")
+	return params, nil
+}
+
+type SHCSAccountCreateOptions struct {
+	SCloudAccountCreateBaseOptions
+	AuthURL string `help:"Hcs auth_url" positional:"true" json:"auth_url"`
+	SAccessKeyCredential
+}
+
+func (opts *SHCSAccountCreateOptions) Params() (jsonutils.JSONObject, error) {
+	params := jsonutils.Marshal(opts)
+	params.(*jsonutils.JSONDict).Add(jsonutils.NewString("HCS"), "provider")
 	return params, nil
 }
 
@@ -494,6 +514,15 @@ type SHCSOAccountUpdateCredentialOptions struct {
 }
 
 func (opts *SHCSOAccountUpdateCredentialOptions) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.Marshal(opts), nil
+}
+
+type SHCSAccountUpdateCredentialOptions struct {
+	SCloudAccountIdOptions
+	SAccessKeyCredential
+}
+
+func (opts *SHCSAccountUpdateCredentialOptions) Params() (jsonutils.JSONObject, error) {
 	return jsonutils.Marshal(opts), nil
 }
 
@@ -846,6 +875,14 @@ func (opts *SHCSOAccountUpdateOptions) Params() (jsonutils.JSONObject, error) {
 	return jsonutils.Marshal(opts), nil
 }
 
+type SHCSAccountUpdateOptions struct {
+	SCloudAccountUpdateBaseOptions
+}
+
+func (opts *SHCSAccountUpdateOptions) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.Marshal(opts), nil
+}
+
 type SUcloudCloudAccountUpdateOptions struct {
 	SCloudAccountUpdateBaseOptions
 }
@@ -1133,4 +1170,39 @@ type SInCloudSphereAccountUpdateCredentialOptions struct {
 
 func (opts *SInCloudSphereAccountUpdateCredentialOptions) Params() (jsonutils.JSONObject, error) {
 	return jsonutils.Marshal(opts.SAccessKeyCredential), nil
+}
+
+type SProxmoxAccountCreateOptions struct {
+	SCloudAccountCreateBaseOptions
+	SProxmoxCredentialWithEnvironment
+}
+
+func (opts *SProxmoxAccountCreateOptions) Params() (jsonutils.JSONObject, error) {
+	params := jsonutils.Marshal(opts)
+	params.(*jsonutils.JSONDict).Add(jsonutils.NewString(api.CLOUD_PROVIDER_PROXMOX), "provider")
+	return params, nil
+}
+
+type SProxmoxAccountUpdateOptions struct {
+	SCloudAccountUpdateBaseOptions
+}
+
+type SProxmoxAccountUpdateCredentialOptions struct {
+	SCloudAccountIdOptions
+	SUserPasswordCredential
+}
+
+func (opts *SProxmoxAccountUpdateCredentialOptions) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.Marshal(opts.SUserPasswordCredential), nil
+}
+
+type SRemoteFileAccountCreateOptions struct {
+	SCloudAccountCreateBaseOptions
+	AuthURL string
+}
+
+func (opts *SRemoteFileAccountCreateOptions) Params() (jsonutils.JSONObject, error) {
+	params := jsonutils.Marshal(opts)
+	params.(*jsonutils.JSONDict).Add(jsonutils.NewString(api.CLOUD_PROVIDER_REMOTEFILE), "provider")
+	return params, nil
 }

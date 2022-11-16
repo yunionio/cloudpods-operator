@@ -17,12 +17,13 @@ package compute
 import (
 	"net/http"
 
+	"yunion.io/x/cloudmux/pkg/apis/compute"
+	"yunion.io/x/cloudmux/pkg/cloudprovider"
 	"yunion.io/x/pkg/errors"
 	"yunion.io/x/pkg/util/regutils"
 	"yunion.io/x/pkg/utils"
 
 	"yunion.io/x/onecloud/pkg/apis"
-	"yunion.io/x/onecloud/pkg/cloudprovider"
 	"yunion.io/x/onecloud/pkg/httperrors"
 )
 
@@ -31,7 +32,7 @@ const (
 
 	BUCKET_STATUS_START_CREATE = "start_create"
 	BUCKET_STATUS_CREATING     = "creating"
-	BUCKET_STATUS_READY        = "ready"
+	BUCKET_STATUS_READY        = compute.BUCKET_STATUS_READY
 	BUCKET_STATUS_CREATE_FAIL  = "create_fail"
 	BUCKET_STATUS_START_DELETE = "start_delete"
 	BUCKET_STATUS_DELETING     = "deleting"
@@ -61,6 +62,30 @@ type BucketDetails struct {
 
 	// 访问URL列表
 	AccessUrls []cloudprovider.SBucketAccessUrl `json:"access_urls"`
+}
+
+func (self BucketDetails) GetMetricTags() map[string]string {
+	ret := map[string]string{
+		"id":             self.Id,
+		"brand":          self.Brand,
+		"cloudregion":    self.Cloudregion,
+		"cloudregion_id": self.CloudregionId,
+		"domain_id":      self.DomainId,
+		"oss_id":         self.Id,
+		"oss_name":       self.Name,
+		"project_domain": self.ProjectDomain,
+		"region_ext_id":  self.RegionExtId,
+		"status":         self.Status,
+		"tenant":         self.Project,
+		"tenant_id":      self.ProjectId,
+		"external_id":    self.ExternalId,
+	}
+	return ret
+}
+
+func (self BucketDetails) GetMetricPairs() map[string]string {
+	ret := map[string]string{}
+	return ret
 }
 
 type BucketObjectsActionInput struct {

@@ -1,3 +1,17 @@
+// Copyright 2019 Yunion
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package desc
 
 import (
@@ -5,32 +19,6 @@ import (
 
 	api "yunion.io/x/onecloud/pkg/apis/compute"
 )
-
-type SGuestPorjectDesc struct {
-	Tenant        string
-	TenantId      string
-	DomainId      string
-	ProjectDomain string
-}
-
-type SGuestRegionDesc struct {
-	Zone     string
-	Domain   string
-	HostId   string
-	Hostname string
-}
-
-type SGuestControlDesc struct {
-	IsDaemon bool
-	IsMaster bool
-	IsSlave  bool
-
-	ScalingGroupId     string
-	SecurityRules      string
-	AdminSecurityRules string
-
-	EncryptKeyId string
-}
 
 type SGuestCpu struct {
 	Cpus    uint
@@ -49,12 +37,31 @@ type SGuestCpu struct {
 	// CpuCacheMode string
 }
 
+type SMemObject struct {
+	*Object
+	SizeMB int64
+}
+
+type SMemDevice struct {
+	Type string
+	Id   string
+}
+
+type SMemSlot struct {
+	SizeMB int64
+
+	MemObj *Object
+	MemDev *SMemDevice
+}
+
 type SGuestMem struct {
 	Slots  uint
 	MaxMem uint
 
-	// Backend     string
-	// MemFilePath *string `json:",omitempty"`
+	SizeMB int64
+	Mem    *Object `json:",omitempty"`
+
+	MemSlots []*SMemSlot `json:",omitempty"`
 }
 
 type SGuestHardwareDesc struct {
@@ -84,7 +91,8 @@ type SGuestHardwareDesc struct {
 
 	VirtioScsi      *SGuestVirtioScsi       `json:",omitempty"`
 	PvScsi          *SGuestPvScsi           `json:",omitempty"`
-	Cdrom           *SGuestCdrom            `json:",omitempty"`
+	Cdroms          []*SGuestCdrom          `json:"cdroms,omitempty"`
+	Floppys         []*SGuestFloppy         `json:",omitempty"`
 	Disks           []*SGuestDisk           `json:",omitempty"`
 	Nics            []*SGuestNetwork        `json:",omitempty"`
 	NicsStandby     []*SGuestNetwork        `json:",omitempty"`
@@ -98,6 +106,8 @@ type SGuestHardwareDesc struct {
 
 	Usb            *UsbController   `json:",omitempty"`
 	PCIControllers []*PCIController `json:",omitempty"`
+
+	AnonymousPCIDevs []*PCIDevice `json:",omitempty"`
 }
 
 type SGuestIsaSerial struct {
@@ -158,11 +168,22 @@ type SGuestDisk struct {
 // -drive id=MacDVD,if=none,snapshot=on,file=%s
 
 type SGuestCdrom struct {
-	Id   string
-	Path string
+	Id        string
+	Path      string
+	Ordinal   int64
+	BootIndex *int8
 
 	Ide          *IDEDevice        `json:",omitempty"`
 	Scsi         *SCSIDevice       `json:",omitempty"`
+	DriveOptions map[string]string `json:",omitempty"`
+}
+
+type SGuestFloppy struct {
+	Id      string
+	Path    string
+	Ordinal int64
+
+	Floppy       *FloppyDevice     `json:",omitempty"`
 	DriveOptions map[string]string `json:",omitempty"`
 }
 
@@ -265,10 +286,6 @@ type UsbRedir struct {
 }
 
 type SGuestVdi struct {
-	// Protocol string
-	// Port     int
-	// Password string
-
 	Spice *SSpiceDesc
 }
 
@@ -284,12 +301,35 @@ type SGuestPvScsi struct {
 	*PCIDevice
 }
 
-type SGuestDesc struct {
-	SGuestPorjectDesc
-	SGuestRegionDesc
-	SGuestControlDesc
-	SGuestHardwareDesc
+type SGuestProjectDesc struct {
+	Tenant        string
+	TenantId      string
+	DomainId      string
+	ProjectDomain string
+}
 
+type SGuestRegionDesc struct {
+	Zone     string
+	Domain   string
+	HostId   string
+	Hostname string
+}
+
+type SGuestControlDesc struct {
+	IsDaemon bool
+	IsMaster bool
+	IsSlave  bool
+
+	ScalingGroupId     string
+	SecurityRules      string
+	AdminSecurityRules string
+	SrcIpCheck         bool
+	SrcMacCheck        bool
+
+	EncryptKeyId string
+}
+
+type SGuestMetaDesc struct {
 	Name         string
 	Uuid         string
 	OsName       string
@@ -300,4 +340,12 @@ type SGuestDesc struct {
 	UserData     string
 	Metadata     map[string]string
 	ExtraOptions map[string]jsonutils.JSONObject
+}
+
+type SGuestDesc struct {
+	SGuestProjectDesc
+	SGuestRegionDesc
+	SGuestControlDesc
+	SGuestHardwareDesc
+	SGuestMetaDesc
 }

@@ -3,6 +3,8 @@ module yunion.io/x/onecloud-operator
 go 1.18
 
 require (
+	github.com/ClickHouse/clickhouse-go v1.5.4
+	github.com/coreos/go-semver v0.3.0
 	github.com/docker/distribution v0.0.0-20170726174610-edc3ab29cdff
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/minio/minio-go/v7 v7.0.6
@@ -20,21 +22,29 @@ require (
 	k8s.io/kubernetes v0.0.0-00010101000000-000000000000
 	yunion.io/x/jsonutils v1.0.1-0.20220819091305-3bab322ab4fd
 	yunion.io/x/log v1.0.0
-	yunion.io/x/onecloud v0.0.0-20220825062712-7f244f9d36c7
-	yunion.io/x/pkg v1.0.1-0.20220819080140-55b265a8658e
+	yunion.io/x/onecloud v0.3.10-0-alpha.1.0.20221116152054-15ef8028daf2
+	yunion.io/x/pkg v1.0.1-0.20221031045951-0b770b490c45
 	yunion.io/x/structarg v0.0.0-20220312084958-9c6c79c7d1c6
 )
 
-require github.com/coreos/go-semver v0.3.0
+require (
+	golang.org/x/mod v0.4.2
+	golang.org/x/tools v0.1.2
+	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
+	k8s.io/code-generator v0.15.13-beta.0
+	k8s.io/gengo v0.0.0-20190128074634-0689ccc1d7d6
+)
 
 require (
 	github.com/360EntSecGroup-Skylar/excelize v1.4.0 // indirect
+	github.com/basgys/goxml2json v1.1.1-0.20181031222924-996d9fc8d313 // indirect
 	github.com/beevik/etree v1.1.0 // indirect
+	github.com/cloudflare/golz4 v0.0.0-20150217214814-ef862a3cdc58 // indirect
 	github.com/coredns/coredns v1.3.0 // indirect
 	github.com/coreos/go-systemd/v22 v22.3.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/evanphx/json-patch v0.0.0-20190203023257-5858425f7550 // indirect
-	github.com/fatih/color v1.10.0 // indirect
+	github.com/fatih/color v1.13.0 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/gin-gonic/gin v1.7.7 // indirect
@@ -57,8 +67,8 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid v1.3.1 // indirect
 	github.com/leodido/go-urn v1.2.0 // indirect
-	github.com/ma314smith/signedxml v0.0.0-20200410192636-c342a2d0ae60 // indirect
-	github.com/mattn/go-colorable v0.1.8 // indirect
+	github.com/ma314smith/signedxml v0.0.0-20210628192057-abc5b481ae1c // indirect
+	github.com/mattn/go-colorable v0.1.9 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b // indirect
 	github.com/minio/md5-simd v1.1.0 // indirect
@@ -72,25 +82,25 @@ require (
 	github.com/onsi/gomega v1.5.0 // indirect
 	github.com/opencontainers/go-digest v0.0.0-20170106003457-a6d0ee40d420 // indirect
 	github.com/rs/xid v1.2.1 // indirect
-	github.com/sirupsen/logrus v1.7.0 // indirect
+	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/texttheater/golang-levenshtein v0.0.0-20180516184445-d188e65d659e // indirect
 	github.com/tjfoc/gmsm v1.4.1 // indirect
-	github.com/tredoe/osutil v0.0.0-20161130133508-7d3ee1afa71c // indirect
+	github.com/tredoe/osutil v1.0.6 // indirect
 	github.com/ugorji/go/codec v1.1.7 // indirect
-	github.com/vishvananda/netlink v1.0.0 // indirect
+	github.com/vishvananda/netlink v1.1.0 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
 	github.com/vmware/govmomi v0.20.1 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.17.0 // indirect
-	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
-	golang.org/x/net v0.0.0-20210525063256-abc453219eb5 // indirect
+	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4 // indirect
+	golang.org/x/net v0.0.0-20220418201149-a630d4f3e7a2 // indirect
 	golang.org/x/oauth2 v0.0.0-20210514164344-f6687ab2804c // indirect
-	golang.org/x/sys v0.0.0-20220429233432-b5fbb4746d32 // indirect
-	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b // indirect
+	golang.org/x/sys v0.0.0-20220829200755-d48e67d00261 // indirect
+	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/text v0.3.7 // indirect
-	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
+	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba // indirect
 	google.golang.org/appengine v1.6.6 // indirect
 	google.golang.org/genproto v0.0.0-20210602131652-f16073e35f0c // indirect
 	google.golang.org/grpc v1.38.0 // indirect
@@ -107,9 +117,10 @@ require (
 	k8s.io/utils v0.0.0-20200729134348-d5654de09c73 // indirect
 	moul.io/http2curl/v2 v2.3.0 // indirect
 	sigs.k8s.io/yaml v1.2.0 // indirect
+	yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20221112124251-e086cfa622dd // indirect
 	yunion.io/x/executor v0.0.0-20211018100936-39a2cd966656 // indirect
 	yunion.io/x/s3cli v0.0.0-20190917004522-13ac36d8687e // indirect
-	yunion.io/x/sqlchemy v1.1.2-0.20220815121507-5d4f1362bdf7 // indirect
+	yunion.io/x/sqlchemy v1.1.2-0.20220923040147-ddd3e96868af // indirect
 )
 
 replace (
@@ -118,7 +129,6 @@ replace (
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.4.0
 	github.com/jaypipes/ghw => github.com/zexi/ghw v0.9.1
 	github.com/ugorji/go => github.com/ugorji/go v0.0.0-20181204163529-d75b2dcb6bc8
-	google.golang.org/grpc => google.golang.org/grpc v1.29.0
 	k8s.io/api => k8s.io/api v0.0.0-20190620084959-7cf5895f2711
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.0.0-20190620085554-14e95df34f1f
 	k8s.io/apimachinery => k8s.io/apimachinery v0.0.0-20190612205821-1799e75a0719

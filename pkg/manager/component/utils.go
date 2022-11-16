@@ -43,6 +43,8 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
+	"yunion.io/x/onecloud-operator/pkg/util/clickhouse"
+	"yunion.io/x/onecloud-operator/pkg/util/dbutil"
 	"yunion.io/x/onecloud-operator/pkg/util/mysql"
 	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 )
@@ -320,15 +322,36 @@ func CreateOrUpdateConfigMap(client clientset.Interface, cm *corev1.ConfigMap) e
 	return apiclient.CreateOrUpdateConfigMap(client, cm)
 }
 
-func GetDBConnectionByCluster(oc *v1alpha1.OnecloudCluster) (*mysql.Connection, error) {
+func getMysqlDBConnectionByCluster(oc *v1alpha1.OnecloudCluster) (dbutil.IConnection, error) {
 	return mysql.NewConnection(&oc.Spec.Mysql)
 }
 
+func getClickhouseDBConnectionByCluster(oc *v1alpha1.OnecloudCluster) (dbutil.IConnection, error) {
+	return clickhouse.NewConnection(&oc.Spec.Clickhouse)
+}
+
 func EnsureClusterDBUser(oc *v1alpha1.OnecloudCluster, dbConfig v1alpha1.DBConfig) error {
+	return ensureClusterDBUser(oc, dbConfig, "mysql")
+}
+
+func EnsureClusterClickhouseUser(oc *v1alpha1.OnecloudCluster, dbConfig v1alpha1.DBConfig) error {
+	return ensureClusterDBUser(oc, dbConfig, "clickhouse")
+}
+
+func ensureClusterDBUser(oc *v1alpha1.OnecloudCluster, dbConfig v1alpha1.DBConfig, driver string) error {
 	dbName := dbConfig.Database
 	username := dbConfig.Username
 	password := dbConfig.Password
-	conn, err := GetDBConnectionByCluster(oc)
+	var connfactory func(oc *v1alpha1.OnecloudCluster) (dbutil.IConnection, error)
+	switch driver {
+	case "mysql":
+		connfactory = getMysqlDBConnectionByCluster
+	case "clickhouse":
+		connfactory = getClickhouseDBConnectionByCluster
+	default:
+		return fmt.Errorf("unknown db driver %s", driver)
+	}
+	conn, err := connfactory(oc)
 	if err != nil {
 		return err
 	}
@@ -339,7 +362,7 @@ func EnsureClusterDBUser(oc *v1alpha1.OnecloudCluster, dbConfig v1alpha1.DBConfi
 	return nil
 }
 
-func EnsureDBUser(conn *mysql.Connection, dbName string, username string, password string) error {
+func EnsureDBUser(conn dbutil.IConnection, dbName string, username string, password string) error {
 	dbExists, err := conn.IsDatabaseExists(dbName)
 	if err != nil {
 		return errors.Wrap(err, "check db exists")
@@ -349,7 +372,7 @@ func EnsureDBUser(conn *mysql.Connection, dbName string, username string, passwo
 			return errors.Wrapf(err, "create database %q", dbName)
 		}
 	}
-	userExists, err := conn.IsUserExists(username, mysql.AllHosts[0])
+	userExists, err := conn.IsUserExists(username)
 	if err != nil {
 		return errors.Wrap(err, "check user exists")
 	}
@@ -646,6 +669,13 @@ func SetServiceCommonOptions(opt *options.CommonOptions, oc *v1alpha1.OnecloudCl
 
 func SetDBOptions(opt *options.DBOptions, mysql v1alpha1.Mysql, input v1alpha1.DBConfig) {
 	opt.SqlConnection = fmt.Sprintf("mysql+pymysql://%s:%s@%s:%d/%s?charset=utf8", input.Username, input.Password, mysql.Host, mysql.Port, input.Database)
+}
+
+func SetClickhouseOptions(opt *options.DBOptions, clickhouse v1alpha1.Clickhouse, input v1alpha1.DBConfig) {
+	if len(clickhouse.Host) > 0 && len(input.Database) > 0 {
+		opt.Clickhouse = fmt.Sprintf("tcp://%s:%d?database=%s&read_timeout=10&write_timeout=20&username=%s&password=%s", clickhouse.Host, clickhouse.Port, input.Database, input.Username, input.Password)
+		opt.OpsLogWithClickhouse = true
+	}
 }
 
 func CompileTemplateFromMap(tmplt string, configMap interface{}) (string, error) {

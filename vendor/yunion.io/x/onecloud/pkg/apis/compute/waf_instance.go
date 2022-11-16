@@ -15,8 +15,10 @@
 package compute
 
 import (
+	"yunion.io/x/cloudmux/pkg/apis/compute"
+	"yunion.io/x/cloudmux/pkg/cloudprovider"
+
 	"yunion.io/x/onecloud/pkg/apis"
-	"yunion.io/x/onecloud/pkg/cloudprovider"
 )
 
 const (
@@ -25,12 +27,12 @@ const (
 	WAF_ACTION_PREVENTION = "Prevention"
 	WAF_ACTION_DETECTION  = "Detection"
 
-	WAF_STATUS_AVAILABLE     = "available"
-	WAF_STATUS_DELETING      = "deleting"
+	WAF_STATUS_AVAILABLE     = compute.WAF_STATUS_AVAILABLE
+	WAF_STATUS_DELETING      = compute.WAF_STATUS_DELETING
 	WAF_STATUS_DELETE_FAILED = "delete_failed"
 	WAF_STATUS_CREATING      = "creating"
-	WAF_STATUS_CREATE_FAILED = "create_failed"
-	WAF_STATUS_UPDATING      = "updating"
+	WAF_STATUS_CREATE_FAILED = compute.WAF_STATUS_CREATE_FAILED
+	WAF_STATUS_UPDATING      = compute.WAF_STATUS_UPDATING
 	WAF_STATUS_UNKNOWN       = "unknown"
 )
 

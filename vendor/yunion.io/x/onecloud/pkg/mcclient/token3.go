@@ -259,12 +259,12 @@ func (this *TokenCredentialV3) Len() int {
 	return this.Token.Catalog.Len()
 }
 
-func (this *TokenCredentialV3) GetServiceURL(service, region, zone, endpointType string) (string, error) {
-	return this.Token.Catalog.GetServiceURL(service, region, zone, endpointType)
+func (this *TokenCredentialV3) getServiceURL(service, region, zone, endpointType string) (string, error) {
+	return this.Token.Catalog.getServiceURL(service, region, zone, endpointType)
 }
 
-func (this *TokenCredentialV3) GetServiceURLs(service, region, zone, endpointType string) ([]string, error) {
-	return this.Token.Catalog.GetServiceURLs(service, region, zone, endpointType)
+func (this *TokenCredentialV3) getServiceURLs(service, region, zone, endpointType string) ([]string, error) {
+	return this.Token.Catalog.getServiceURLs(service, region, zone, endpointType)
 }
 
 func (this *TokenCredentialV3) GetInternalServices(region string) []string {
@@ -370,7 +370,7 @@ func (catalog KeystoneServiceCatalogV3) getEndpoints(region string, endpointType
 }
 
 func RegionID(region, zone string) string {
-	if len(zone) > 0 {
+	if len(region) > 0 && len(zone) > 0 {
 		return fmt.Sprintf("%s%c%s", region, REGION_ZONE_SEP, zone)
 	} else {
 		return region
@@ -390,15 +390,15 @@ func (catalog KeystoneServiceCatalogV3) Len() int {
 	return len(catalog)
 }
 
-func (catalog KeystoneServiceCatalogV3) GetServiceURL(service, region, zone, endpointType string) (string, error) {
-	urls, err := catalog.GetServiceURLs(service, region, zone, endpointType)
+func (catalog KeystoneServiceCatalogV3) getServiceURL(service, region, zone, endpointType string) (string, error) {
+	urls, err := catalog.getServiceURLs(service, region, zone, endpointType)
 	if err != nil {
 		return "", err
 	}
 	return urls[rand.Intn(len(urls))], nil
 }
 
-func (catalog KeystoneServiceCatalogV3) GetServiceURLs(service, region, zone, endpointType string) ([]string, error) {
+func (catalog KeystoneServiceCatalogV3) getServiceURLs(service, region, zone, endpointType string) ([]string, error) {
 	if endpointType == "" {
 		endpointType = "internalURL"
 	}
@@ -415,9 +415,10 @@ func (catalog KeystoneServiceCatalogV3) GetServiceURLs(service, region, zone, en
 			}
 			for j := 0; j < len(catalog[i].Endpoints); j++ {
 				ep := catalog[i].Endpoints[j]
-				if strings.HasPrefix(endpointType, ep.Interface) && (ep.RegionId == region ||
-					ep.RegionId == regionzone ||
-					len(region) == 0) {
+				if strings.HasPrefix(endpointType, ep.Interface) &&
+					(ep.RegionId == region ||
+						ep.RegionId == regionzone ||
+						len(region) == 0) {
 					_, ok := regeps[ep.RegionId]
 					if !ok {
 						regeps[ep.RegionId] = make([]string, 0)
@@ -432,7 +433,7 @@ func (catalog KeystoneServiceCatalogV3) GetServiceURLs(service, region, zone, en
 						break
 					}
 				} else {
-					return nil, fmt.Errorf("No default region")
+					return nil, fmt.Errorf("No default region for region(%s) zone(%s)", region, zone)
 				}
 			} else {
 				_, ok := regeps[regionzone]

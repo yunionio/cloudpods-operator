@@ -187,6 +187,13 @@ func ParseDiskConfig(diskStr string, idx int) (*compute.DiskConfig, error) {
 			diskConfig.ImageId = str
 		case "existing_path":
 			diskConfig.ExistingPath = str
+		case "boot_index":
+			bootIndex, err := strconv.Atoi(str)
+			if err != nil {
+				return nil, errors.Wrapf(err, "parse disk boot index %s", str)
+			}
+			bootIndex8 := int8(bootIndex)
+			diskConfig.BootIndex = &bootIndex8
 		default:
 			return nil, errors.Errorf("invalid disk description %s", p)
 		}
@@ -254,6 +261,14 @@ func ParseNetworkConfig(desc string, idx int) (*compute.NetworkConfig, error) {
 			netConfig.BwLimit = bw
 		} else if p == "[vip]" {
 			netConfig.Vip = true
+		} else if strings.HasPrefix(p, "sriov-nic-id=") {
+			netConfig.SriovDevice = &compute.IsolatedDeviceConfig{
+				Id: p[len("sriov-nic-id="):],
+			}
+		} else if strings.HasPrefix(p, "sriov-nic-model=") {
+			netConfig.SriovDevice = &compute.IsolatedDeviceConfig{
+				Model: p[len("sriov-nic-model="):],
+			}
 		} else if utils.IsInStringArray(p, compute.ALL_NETWORK_TYPES) {
 			netConfig.NetType = p
 		} else {

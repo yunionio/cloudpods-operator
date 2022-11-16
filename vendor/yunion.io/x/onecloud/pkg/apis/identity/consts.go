@@ -37,6 +37,7 @@ const (
 	AUTH_METHOD_SAML     = "saml"
 	AUTH_METHOD_OIDC     = "oidc"
 	AUTH_METHOD_OAuth2   = "oauth2"
+	AUTH_METHOD_VERIFY   = "verify"
 
 	// AUTH_METHOD_ID_PASSWORD = 1
 	// AUTH_METHOD_ID_TOKEN    = 2
@@ -103,7 +104,6 @@ var (
 		"default": []string{
 			"enable_quota_check",
 			"default_quota_value",
-			"enable_rbac",
 			"non_default_domain_projects",
 			"time_zone",
 			"domainized_namespace",
@@ -114,9 +114,6 @@ var (
 			"ignore_nonrunning_guests",
 			"platform_name",
 			"platform_names",
-			"is_forget_login_user",
-			"enable_organization",
-			"enable_tls_migration",
 		},
 	}
 

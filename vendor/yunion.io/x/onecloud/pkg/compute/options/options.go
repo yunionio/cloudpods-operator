@@ -15,9 +15,11 @@
 package options
 
 import (
+	"yunion.io/x/cloudmux/pkg/multicloud/esxi"
+	"yunion.io/x/log"
+
 	common_options "yunion.io/x/onecloud/pkg/cloudcommon/options"
 	"yunion.io/x/onecloud/pkg/cloudcommon/pending_delete"
-	"yunion.io/x/onecloud/pkg/multicloud/esxi"
 )
 
 type ComputeOptions struct {
@@ -185,7 +187,17 @@ type ComputeOptions struct {
 	DefaultIPAllocationDirection string `help:"default IP allocation direction" default:"stepdown"`
 
 	// 弹性伸缩中的ecs一般会有特殊的系统标签，通过指定这些标签可以忽略这部分ecs的同步, 指定多个key需要以 ',' 分隔
-	SkipServerBySysTagKeys string `help:"skip server sync and create with system tags" default:"acs:autoscaling:scalingGroupId"`
+	SkipServerBySysTagKeys  string `help:"skip server,disk sync and create with system tags" default:"acs:autoscaling:scalingGroupId"`
+	SkipServerByUserTagKeys string `help:"skip server,disk sync and create with user tags" default:""`
+
+	EnableMonitorAgent bool `help:"enable public cloud vm monitor agent" default:"false"`
+
+	EnableTlsMigration bool `help:"Enable TLS migration" default:"false"`
+
+	AliyunResourceGroups []string `help:"Only sync indicate resource group resource"`
+
+	KvmMonitorAgentUseMetadataService bool   `help:"Monitor agent report metrics to metadata service on host" default:"true"`
+	MonitorEndpointType               string `help:"specify monitor endpoint type" default:"public"`
 
 	esxi.EsxiOptions
 }
@@ -225,6 +237,9 @@ func OnOptionsChange(oldO, newO interface{}) bool {
 		if !oldOpts.IsSlaveNode {
 			changed = true
 		}
+	}
+	if oldOpts.EnableTlsMigration != newOpts.EnableTlsMigration {
+		log.Debugf("enable_tls_migration changed from %v to %v", oldOpts.EnableTlsMigration, newOpts.EnableTlsMigration)
 	}
 
 	return changed
