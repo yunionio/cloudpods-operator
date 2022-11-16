@@ -440,8 +440,9 @@ type ServerCreateInput struct {
 	// 创建后自动启动
 	// 部分云创建后会自动启动例如: 腾讯云, AWS, OpenStack, ZStack, Ucloud, Huawei, Azure, 天翼云
 	// default: false
-	AutoStart     bool            `json:"auto_start"`
-	DeployConfigs []*DeployConfig `json:"deploy_configs"`
+	AutoStart      bool            `json:"auto_start"`
+	DeployConfigs  []*DeployConfig `json:"deploy_configs"`
+	DeployTelegraf bool            `json:"deploy_telegraf"`
 
 	// 包年包月时长
 	//
@@ -579,6 +580,8 @@ type GuestBatchMigrateRequest struct {
 	SkipCpuCheck    bool   `json:"skip_cpu_check"`
 	SkipKernelCheck bool   `json:"skip_kernel_check"`
 	EnableTLS       *bool  `json:"enable_tls"`
+	MaxBandwidthMb  *int64 `json:"max_bandwidth_mb"`
+	QuciklyFinish   *bool  `json:"quickly_finish"`
 }
 
 type GuestBatchMigrateParams struct {
@@ -589,6 +592,8 @@ type GuestBatchMigrateParams struct {
 	EnableTLS       *bool
 	RescueMode      bool
 	OldStatus       string
+	MaxBandwidthMb  *int64
+	QuciklyFinish   *bool
 }
 
 type HostLoginInfo struct {

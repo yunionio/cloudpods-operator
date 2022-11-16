@@ -71,6 +71,7 @@ const (
 
 	VM_START_MIGRATE  = "start_migrate"
 	VM_MIGRATING      = "migrating"
+	VM_LIVE_MIGRATING = "live_migrating"
 	VM_MIGRATE_FAILED = "migrate_failed"
 
 	VM_CHANGE_FLAVOR      = "change_flavor"
@@ -154,6 +155,9 @@ const (
 
 	VM_SYNC_ISOLATED_DEVICE_FAILED = "sync_isolated_device_failed"
 
+	VM_QGA_SET_PASSWORD      = "qga_set_password"
+	VM_QGA_COMMAND_EXECUTING = "qga_command_executing"
+
 	SHUTDOWN_STOP      = "stop"
 	SHUTDOWN_TERMINATE = "terminate"
 
@@ -184,6 +188,13 @@ const (
 
 	//	HYPERVISOR_DEFAULT = HYPERVISOR_KVM
 	HYPERVISOR_DEFAULT = HYPERVISOR_KVM
+)
+
+const (
+	QGA_STATUS_UNKNOWN        = "unknown"
+	QGA_STATUS_EXCUTING       = "executing"
+	QGA_STATUS_EXECUTE_FAILED = "execute_failed"
+	QGA_STATUS_AVAILABLE      = "available"
 )
 
 const (

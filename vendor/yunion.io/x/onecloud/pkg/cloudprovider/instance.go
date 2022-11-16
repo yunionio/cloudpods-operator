@@ -35,6 +35,22 @@ var (
 	OsTypeWindows = TOsType(osprofile.OS_TYPE_WINDOWS)
 )
 
+type TBiosType string
+
+var (
+	BIOS = TBiosType("BIOS")
+	UEFI = TBiosType("UEFI")
+)
+
+func ToBiosType(bios string) TBiosType {
+	switch strings.ToLower(bios) {
+	case "uefi", "efi":
+		return UEFI
+	default:
+		return BIOS
+	}
+}
+
 type SDistDefaultAccount struct {
 	// 操作系统发行版
 	OsDistribution string
@@ -303,29 +319,29 @@ type ServerVncInput struct {
 
 // +onecloud:model-api-gen
 type ServerVncOutput struct {
-	Id string
+	Id string `json:"id"`
 
 	// baremetal
-	HostId string
-	Zone   string
+	HostId string `json:"host_id"`
+	Zone   string `json:"zone"`
 
 	// kvm host ip
-	Host     string
-	Protocol string
-	Port     int64
+	Host     string `json:"host"`
+	Protocol string `json:"protocol"`
+	Port     int64  `json:"port"`
 
-	Url          string
-	InstanceId   string
-	InstanceName string
-	Password     string
-	VncPassword  string
+	Url          string `json:"url"`
+	InstanceId   string `json:"instance_id"`
+	InstanceName string `json:"instance_name"`
+	Password     string `json:"password"`
+	VncPassword  string `json:"vnc_password"`
 
-	OsName string
+	OsName string `json:"os_name"`
 
 	// cloudpods
-	ApiServer     string
-	ConnectParams string
-	Session       string
+	ApiServer     string `json:"api_server"`
+	ConnectParams string `json:"connect_params"`
+	Session       string `json:"session"`
 
-	Hypervisor string
+	Hypervisor string `json:"hypervisor"`
 }
