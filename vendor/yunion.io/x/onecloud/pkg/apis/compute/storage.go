@@ -15,6 +15,8 @@
 package compute
 
 import (
+	"strconv"
+
 	"yunion.io/x/jsonutils"
 
 	"yunion.io/x/onecloud/pkg/apis"
@@ -145,6 +147,31 @@ type StorageDetails struct {
 
 	// 超分比
 	CommitBound float32 `json:"commit_bound"`
+}
+
+func (self StorageDetails) GetMetricTags() map[string]string {
+	ret := map[string]string{
+		"id":             self.Id,
+		"storage_id":     self.Id,
+		"storage_name":   self.Name,
+		"brand":          self.Brand,
+		"domain_id":      self.DomainId,
+		"project_domain": self.ProjectDomain,
+		"external_id":    self.ExternalId,
+	}
+	return ret
+}
+
+func (self StorageDetails) GetMetricPairs() map[string]string {
+	usageActive := "0"
+	if self.Capacity > 0 {
+		usageActive = strconv.FormatFloat(float64(self.ActualCapacityUsed/self.Capacity*100.0), 'f', -1, 64)
+	}
+	ret := map[string]string{
+		"free":         strconv.FormatFloat(float64(self.Capacity-self.ActualCapacityUsed), 'f', 2, 64),
+		"usage_active": usageActive,
+	}
+	return ret
 }
 
 type StorageResourceInfo struct {

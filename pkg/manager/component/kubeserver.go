@@ -65,6 +65,10 @@ func (m *kubeManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1
 	return &cfg.KubeServer.DB
 }
 
+func (m *kubeManager) getClickhouseConf(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
+	return &cfg.KubeServer.ClickhouseConf
+}
+
 func (m *kubeManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
 	return &cfg.KubeServer.CloudUser
 }
@@ -80,6 +84,7 @@ func (m *kubeManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 	}
 	config := cfg.KubeServer
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
+	SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
 	SetOptionsServiceTLS(&opt.BaseOptions, false)
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 	opt.AutoSyncTable = true

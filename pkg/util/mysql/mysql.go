@@ -20,9 +20,11 @@ import (
 	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/pkg/errors"
+
+	"yunion.io/x/pkg/errors"
 
 	apis "yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
+	"yunion.io/x/onecloud-operator/pkg/util/dbutil"
 )
 
 var (
@@ -37,7 +39,7 @@ type Connection struct {
 	Password string
 }
 
-func NewConnection(info *apis.Mysql) (*Connection, error) {
+func NewConnection(info *apis.Mysql) (dbutil.IConnection, error) {
 	host := info.Host
 	port := info.Port
 	username := info.Username
@@ -77,11 +79,15 @@ func (conn *Connection) IsDatabaseExists(db string) (bool, error) {
 	return false, nil
 }
 
-func (conn *Connection) IsUserExists(username string, host string) (bool, error) {
+func (conn *Connection) IsUserExists(username string) (bool, error) {
+	return conn.isUserExists(username, "%")
+}
+
+func (conn *Connection) isUserExists(username string, host string) (bool, error) {
 	var count int
 	q := fmt.Sprintf("SELECT COUNT(*) FROM mysql.user WHERE user = '%s'", username)
 	if len(host) != 0 {
-		q = fmt.Sprintf("%s and host = '%s'", q, host)
+		q = fmt.Sprintf("%s AND host = '%s'", q, host)
 	}
 	if err := conn.db.QueryRow(q).Scan(&count); err != nil {
 		return false, errors.Wrapf(err, "check user %s@%s exists", username, host)
@@ -106,7 +112,7 @@ func (conn *Connection) DropUser(username string) error {
 }
 
 func (conn *Connection) DropUserByHost(username string, address string) error {
-	exists, err := conn.IsUserExists(username, address)
+	exists, err := conn.isUserExists(username, address)
 	if err != nil {
 		return errors.Wrapf(err, "drop user %s@%s check exists", username, address)
 	}

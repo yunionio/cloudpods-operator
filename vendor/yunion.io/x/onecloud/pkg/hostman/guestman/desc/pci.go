@@ -1,3 +1,17 @@
+// Copyright 2019 Yunion
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package desc
 
 import (
@@ -82,6 +96,31 @@ func (d *PCIDevice) MultiFunction() string {
 	}
 }
 
+func OptionsToString(options map[string]string) string {
+	var cmd string
+	for key, value := range options {
+		if value != "" {
+			cmd += fmt.Sprintf(",%s=%s", key, value)
+		} else {
+			cmd += fmt.Sprintf(",%s", key)
+		}
+	}
+	return cmd
+}
+
+func (d *PCIDevice) OptionsStr() string {
+	cmd := ""
+	if d.PCIAddr != nil {
+		cmd += fmt.Sprintf("bus=%s,addr=%s", d.BusStr(), d.SlotFunc())
+		if d.Multi != nil {
+			cmd += fmt.Sprintf(",%s", d.MultiFunction())
+		}
+	}
+
+	cmd += OptionsToString(d.Options)
+	return cmd
+}
+
 // pvscsi or virtio-scsi-pci
 type SCSIAddr struct {
 	// The LUN identifies the specific logical unit
@@ -109,6 +148,19 @@ type IDEAddr struct {
 
 type IDEDevice struct {
 	*IDEAddr
+
+	Id      string
+	DevType string
+	Options map[string]string `json:",omitempty"`
+}
+
+type FloppyAddr struct {
+	Bus        uint
+	Controller uint
+}
+
+type FloppyDevice struct {
+	*FloppyAddr
 
 	Id      string
 	DevType string
@@ -268,6 +320,14 @@ func NewPCIDevice(controller PCI_CONTROLLER_TYPE, deviceType, id string) *PCIDev
 		Id:         id,
 		Controller: controller,
 		DevType:    deviceType,
+	}
+}
+
+func NewVfioDevice(controller PCI_CONTROLLER_TYPE, deviceType, id, hostAddr string, hasXVga bool) *VFIODevice {
+	return &VFIODevice{
+		PCIDevice: NewPCIDevice(controller, deviceType, id),
+		HostAddr:  hostAddr,
+		XVga:      hasXVga,
 	}
 }
 

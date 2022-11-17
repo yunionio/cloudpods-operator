@@ -54,6 +54,10 @@ func (m *loggerManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alph
 	return &cfg.Logger.DB
 }
 
+func (m *loggerManager) getClickhouseConf(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
+	return &cfg.Logger.ClickhouseConf
+}
+
 func (m *loggerManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
 	return &cfg.Logger.CloudUser
 }
@@ -71,6 +75,7 @@ func (m *loggerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	}
 	config := cfg.Logger
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
+	SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
 	SetOptionsServiceTLS(&opt.BaseOptions, false)
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 	opt.Port = config.Port

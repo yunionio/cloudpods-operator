@@ -74,6 +74,10 @@ func (m *notifyManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alph
 	return &cfg.Notify.DB
 }
 
+func (m *notifyManager) getClickhouseConf(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
+	return &cfg.Notify.ClickhouseConf
+}
+
 func (m *notifyManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
 	return &cfg.Notify.CloudUser
 }
@@ -108,6 +112,7 @@ func (m *notifyManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	}
 	config := cfg.Notify
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
+	SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
 	SetOptionsServiceTLS(&opt.BaseOptions, false)
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 	opt.SocketFileDir = NotifySocketFileDir

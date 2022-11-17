@@ -55,8 +55,10 @@ func (m *scheduledtaskManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v
 	if err := SetOptionsDefault(opt, constants.ServiceTypeScheduledtask); err != nil {
 		return nil, false, err
 	}
+	// schedtask reuse region's database settings
 	config := cfg.RegionServer
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
+	SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
 	SetOptionsServiceTLS(&opt.BaseOptions, false)
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 	opt.AutoSyncTable = true

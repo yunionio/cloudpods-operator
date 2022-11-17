@@ -228,6 +228,35 @@ type HostDetails struct {
 	SysError string `json:"sys_error"`
 }
 
+func (self HostDetails) GetMetricTags() map[string]string {
+	ret := map[string]string{
+		"id":             self.Id,
+		"host_id":        self.Id,
+		"host_ip":        self.AccessIp,
+		"host":           self.Name,
+		"zone":           self.Zone,
+		"zone_id":        self.ZoneId,
+		"zone_ext_id":    self.ZoneExtId,
+		"status":         self.Status,
+		"cloudregion":    self.Cloudregion,
+		"cloudregion_id": self.CloudregionId,
+		"region_ext_id":  self.RegionExtId,
+		"brand":          self.Brand,
+		"domain_id":      self.DomainId,
+		"project_domain": self.ProjectDomain,
+		"account":        self.Account,
+		"res_type":       "host",
+		"account_id":     self.AccountId,
+		"external_id":    self.ExternalId,
+	}
+	return ret
+}
+
+func (self HostDetails) GetMetricPairs() map[string]string {
+	ret := map[string]string{}
+	return ret
+}
+
 type HostResourceInfo struct {
 	// 归属云订阅ID
 	ManagerId string `json:"manager_id"`
@@ -337,6 +366,8 @@ type HostSizeAttributes struct {
 	MemReserved string `json:"mem_reserved"`
 	// 内存超分比
 	MemCmtbound *float32 `json:"mem_cmtbound"`
+	// 页大小
+	PageSizeKB *int `json:"page_size_kb"`
 
 	// 存储大小,单位Mb
 	StorageSize *int `json:"storage_size"`
@@ -381,6 +412,9 @@ type HostCreateInput struct {
 
 	// 新建带IPMI信息的物理机时不进行IPMI信息探测
 	NoProbe *bool `json:"no_probe"`
+
+	// 物理机不带 BMC 控制器
+	NoBMC bool `json:"no_bmc"`
 
 	// host uuid
 	Uuid string `json:"uuid"`

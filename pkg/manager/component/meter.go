@@ -60,6 +60,10 @@ func (m *meterManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha
 	return &cfg.Meter.DB
 }
 
+func (m *meterManager) getClickhouseConf(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
+	return &cfg.Meter.ClickhouseConf
+}
+
 func (m *meterManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
 	return &cfg.Meter.CloudUser
 }
@@ -94,6 +98,7 @@ func (m *meterManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 	}
 	config := cfg.Meter
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
+	SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
 	SetOptionsServiceTLS(&opt.BaseOptions, false)
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceDBCommonOptions.ServiceCommonOptions)
 

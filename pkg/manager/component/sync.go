@@ -31,6 +31,7 @@ type syncManager interface {
 	getProductVersions() []v1alpha1.ProductVersion
 	getComponentManager() *ComponentManager
 	getDBConfig(*v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig
+	getClickhouseConfig(*v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig
 	getCloudUser(*v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser
 	getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl
 	getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus

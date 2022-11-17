@@ -58,6 +58,8 @@ type ClientSession struct {
 	notifyChannel chan string
 
 	customizeServiceUrl map[string]string
+
+	catalog IServiceCatalog
 }
 
 func populateHeader(self *http.Header, update http.Header) {
@@ -107,6 +109,10 @@ func (this *ClientSession) GetClient() *Client {
 	return this.client
 }
 
+func (this *ClientSession) SetZone(zone string) {
+	this.zone = zone
+}
+
 func getApiVersionByServiceType(serviceType string) string {
 	switch serviceType {
 	case "compute":
@@ -115,51 +121,56 @@ func getApiVersionByServiceType(serviceType string) string {
 	return ""
 }
 
-func (this *ClientSession) getServiceName(service, apiVersion string) string {
-	if len(apiVersion) == 0 {
-		apiVersion = getApiVersionByServiceType(service)
-	}
+func (this *ClientSession) getServiceName(service string) string {
+	apiVersion := getApiVersionByServiceType(service)
 	if len(apiVersion) > 0 && apiVersion != DEFAULT_API_VERSION {
 		service = fmt.Sprintf("%s_%s", service, apiVersion)
 	}
 	return service
 }
 
-func (this *ClientSession) GetServiceURL(service, endpointType, apiVersion string) (string, error) {
-	return this.GetServiceVersionURL(service, endpointType, apiVersion)
+func (this *ClientSession) GetServiceURL(service, endpointType string) (string, error) {
+	return this.GetServiceVersionURL(service, endpointType)
+}
+
+func (this *ClientSession) SetServiceCatalog(catalog IServiceCatalog) {
+	this.catalog = catalog
 }
 
 func (this *ClientSession) GetServiceCatalog() IServiceCatalog {
+	if this.catalog != nil {
+		return this.catalog
+	}
 	return this.client.GetServiceCatalog()
 }
 
-func (this *ClientSession) GetServiceVersionURL(service, endpointType, apiVersion string) (string, error) {
-	urls, err := this.GetServiceVersionURLs(service, endpointType, apiVersion)
+func (this *ClientSession) GetServiceVersionURL(service, endpointType string) (string, error) {
+	urls, err := this.GetServiceVersionURLs(service, endpointType)
 	if err != nil {
 		return "", errors.Wrap(err, "GetServiceVersionURLs")
 	}
 	return urls[rand.Intn(len(urls))], nil
 }
 
-func (this *ClientSession) GetServiceURLs(service, endpointType, apiVersion string) ([]string, error) {
-	return this.GetServiceVersionURLs(service, endpointType, apiVersion)
+func (this *ClientSession) GetServiceURLs(service, endpointType string) ([]string, error) {
+	return this.GetServiceVersionURLs(service, endpointType)
 }
 
-func (this *ClientSession) GetServiceVersionURLs(service, endpointType, apiVersion string) ([]string, error) {
+func (this *ClientSession) GetServiceVersionURLs(service, endpointType string) ([]string, error) {
 	if len(this.endpointType) > 0 {
 		// session specific endpoint type should override the input endpointType, which is supplied by manager
 		endpointType = this.endpointType
 	}
-	service = this.getServiceName(service, apiVersion)
+	service = this.getServiceName(service)
 	if endpointType == api.EndpointInterfaceApigateway {
-		return this.getApigatewayServiceURLs(service, endpointType)
+		return this.getApigatewayServiceURLs(service, this.region, this.zone, endpointType)
 	} else {
-		return this.getServiceVersionURLs(service, endpointType)
+		return this.getServiceVersionURLs(service, this.region, this.zone, endpointType)
 	}
 }
 
-func (this *ClientSession) getApigatewayServiceURLs(service, endpointType string) ([]string, error) {
-	urls, err := this.getServiceVersionURLs(service, "")
+func (this *ClientSession) getApigatewayServiceURLs(service, region, zone, endpointType string) ([]string, error) {
+	urls, err := this.getServiceVersionURLs(service, region, zone, "")
 	if err != nil {
 		return nil, errors.Wrap(err, "getServiceVersionURLs")
 	}
@@ -171,6 +182,12 @@ func (this *ClientSession) getApigatewayServiceURLs(service, endpointType string
 		return nil, errors.Wrapf(err, "invalue auth_url %s", prefix)
 	}
 	prefix = httputils.JoinPath(prefix[:lastSlashPos], "api/s", service)
+	if len(region) > 0 {
+		prefix = httputils.JoinPath(prefix, "r", region)
+		if len(zone) > 0 {
+			prefix = httputils.JoinPath(prefix, "z", zone)
+		}
+	}
 	rets := make([]string, len(urls))
 	for i, url := range urls {
 		if len(url) < 9 {
@@ -189,12 +206,12 @@ func (this *ClientSession) getApigatewayServiceURLs(service, endpointType string
 	return rets, nil
 }
 
-func (this *ClientSession) getServiceVersionURLs(service, endpointType string) ([]string, error) {
+func (this *ClientSession) getServiceVersionURLs(service, region, zone, endpointType string) ([]string, error) {
 	catalog := this.GetServiceCatalog()
 	if gotypes.IsNil(catalog) {
 		return []string{this.client.authUrl}, nil
 	}
-	urls, err := catalog.GetServiceURLs(service, this.region, this.zone, endpointType)
+	urls, err := catalog.getServiceURLs(service, region, zone, endpointType)
 	// HACK! in case of fail to get kestone url or schema of keystone changed, always trust authUrl
 	if service == api.SERVICE_TYPE && (err != nil || len(urls) == 0 || (len(this.client.authUrl) != 0 && this.client.authUrl[:5] != urls[0][:5])) {
 		var msg string
@@ -214,14 +231,14 @@ func (this *ClientSession) getServiceVersionURLs(service, endpointType string) (
 	return urls, err
 }
 
-func (this *ClientSession) getBaseUrl(service, endpointType, apiVersion string) (string, error) {
+func (this *ClientSession) getBaseUrl(service, endpointType string) (string, error) {
 	if len(service) > 0 {
 		if strings.HasPrefix(service, "http://") || strings.HasPrefix(service, "https://") {
 			return service, nil
 		} else if url, ok := this.customizeServiceUrl[service]; ok {
 			return url, nil
 		} else {
-			return this.GetServiceVersionURL(service, endpointType, apiVersion)
+			return this.GetServiceVersionURL(service, endpointType)
 		}
 	} else {
 		return "", fmt.Errorf("Empty service type or baseURL")
@@ -232,10 +249,9 @@ func (this *ClientSession) RawBaseUrlRequest(
 	service, endpointType string,
 	method httputils.THttpMethod, url string,
 	headers http.Header, body io.Reader,
-	apiVersion string,
 	baseurlFactory func(string) string,
 ) (*http.Response, error) {
-	baseurl, err := this.getBaseUrl(service, endpointType, apiVersion)
+	baseurl, err := this.getBaseUrl(service, endpointType)
 	if err != nil {
 		return nil, err
 	}
@@ -260,21 +276,19 @@ func (this *ClientSession) RawBaseUrlRequest(
 func (this *ClientSession) RawVersionRequest(
 	service, endpointType string, method httputils.THttpMethod, url string,
 	headers http.Header, body io.Reader,
-	apiVersion string,
 ) (*http.Response, error) {
-	return this.RawBaseUrlRequest(service, endpointType, method, url, headers, body, apiVersion, nil)
+	return this.RawBaseUrlRequest(service, endpointType, method, url, headers, body, nil)
 }
 
 func (this *ClientSession) RawRequest(service, endpointType string, method httputils.THttpMethod, url string, headers http.Header, body io.Reader) (*http.Response, error) {
-	return this.RawVersionRequest(service, endpointType, method, url, headers, body, "")
+	return this.RawVersionRequest(service, endpointType, method, url, headers, body)
 }
 
 func (this *ClientSession) JSONVersionRequest(
 	service, endpointType string, method httputils.THttpMethod, url string,
 	headers http.Header, body jsonutils.JSONObject,
-	apiVersion string,
 ) (http.Header, jsonutils.JSONObject, error) {
-	baseUrl, err := this.getBaseUrl(service, endpointType, apiVersion)
+	baseUrl, err := this.getBaseUrl(service, endpointType)
 	if err != nil {
 		return headers, nil, err
 	}
@@ -294,7 +308,7 @@ func (this *ClientSession) JSONVersionRequest(
 }
 
 func (this *ClientSession) JSONRequest(service, endpointType string, method httputils.THttpMethod, url string, headers http.Header, body jsonutils.JSONObject) (http.Header, jsonutils.JSONObject, error) {
-	return this.JSONVersionRequest(service, endpointType, method, url, headers, body, "")
+	return this.JSONVersionRequest(service, endpointType, method, url, headers, body)
 }
 
 func (this *ClientSession) ParseJSONResponse(reqBody string, resp *http.Response, err error) (http.Header, jsonutils.JSONObject, error) {

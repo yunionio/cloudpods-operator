@@ -57,6 +57,10 @@ func (m *keystoneManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1al
 	return &cfg.Keystone.DB
 }
 
+func (m *keystoneManager) getClickhouseConf(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
+	return &cfg.Keystone.ClickhouseConf
+}
+
 func (m *keystoneManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return man.Keystone()
 }
@@ -83,6 +87,7 @@ func (m *keystoneManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 	}
 	config := cfg.Keystone
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
+	SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
 	SetOptionsServiceTLS(&opt.BaseOptions, oc.Spec.Keystone.DisableTLS)
 	SetServiceBaseOptions(&opt.BaseOptions, oc.GetRegion(), config.ServiceBaseConfig)
 

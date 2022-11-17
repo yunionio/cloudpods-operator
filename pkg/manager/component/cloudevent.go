@@ -55,6 +55,10 @@ func (m *cloudeventManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1
 	return &cfg.Cloudevent.DB
 }
 
+func (m *cloudeventManager) getClickhouseConf(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
+	return &cfg.Cloudevent.ClickhouseConf
+}
+
 func (m *cloudeventManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
 	return &cfg.Cloudevent.CloudUser
 }
@@ -72,6 +76,7 @@ func (m *cloudeventManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	}
 	config := cfg.Cloudevent
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
+	SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
 	SetOptionsServiceTLS(&opt.BaseOptions, false)
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 	opt.AutoSyncTable = true

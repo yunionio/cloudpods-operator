@@ -17,13 +17,13 @@ package compute
 import (
 	"time"
 
+	"yunion.io/x/cloudmux/pkg/multicloud/esxi/vcenter"
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/pkg/util/fileutils"
 
 	"yunion.io/x/onecloud/pkg/apis"
 	"yunion.io/x/onecloud/pkg/apis/billing"
 	"yunion.io/x/onecloud/pkg/httperrors"
-	"yunion.io/x/onecloud/pkg/multicloud/esxi/vcenter"
 )
 
 type DiskCreateInput struct {
@@ -317,5 +317,6 @@ type DiskAllocateFromBackupInput struct {
 }
 
 type DiskDeleteInput struct {
-	SkipRecycle *bool
+	SkipRecycle      *bool
+	EsxiFlatFilePath string
 }

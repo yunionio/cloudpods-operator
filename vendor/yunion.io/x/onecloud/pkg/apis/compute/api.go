@@ -69,6 +69,9 @@ type NetworkConfig struct {
 	NetType   string `json:"net_type"`
 	NumQueues int    `json:"num_queues"`
 
+	// sriov nic
+	SriovDevice *IsolatedDeviceConfig `json:"srive_device"`
+
 	RequireDesignatedIP bool `json:"require_designated_ip"`
 
 	RequireTeaming bool `json:"require_teaming"`
@@ -97,7 +100,8 @@ type DiskConfig struct {
 
 	// 挂载到虚拟机的磁盘顺序, -1代表不挂载任何虚拟机
 	// default: -1
-	Index int `json:"index"`
+	Index     int   `json:"index"`
+	BootIndex *int8 `json:"boot_index"`
 
 	// 镜像ID,通过镜像创建磁盘,创建虚拟机时第一块磁盘需要指定此参数
 	// required: false
@@ -218,11 +222,13 @@ type DiskConfig struct {
 }
 
 type IsolatedDeviceConfig struct {
-	Index   int    `json:"index"`
-	Id      string `json:"id"`
-	DevType string `json:"dev_type"`
-	Model   string `json:"model"`
-	Vendor  string `json:"vendor"`
+	Index        int    `json:"index"`
+	Id           string `json:"id"`
+	DevType      string `json:"dev_type"`
+	Model        string `json:"model"`
+	Vendor       string `json:"vendor"`
+	NetworkIndex *int8  `json:"network_index"`
+	WireId       string `json:"wire_id"`
 }
 
 type BaremetalDiskConfig struct {
@@ -397,7 +403,8 @@ type ServerCreateInput struct {
 
 	// 使用ISO光盘启动, 仅KVM平台支持
 	// required: false
-	Cdrom string `json:"cdrom"`
+	Cdrom          string `json:"cdrom"`
+	CdromBootIndex *int8  `json:"cdrom_boot_index"`
 
 	// enum: cirros, vmware, qxl, std
 	// default: std
@@ -441,8 +448,9 @@ type ServerCreateInput struct {
 	// 创建后自动启动
 	// 部分云创建后会自动启动例如: 腾讯云, AWS, OpenStack, ZStack, Ucloud, Huawei, Azure, 天翼云
 	// default: false
-	AutoStart     bool            `json:"auto_start"`
-	DeployConfigs []*DeployConfig `json:"deploy_configs"`
+	AutoStart      bool            `json:"auto_start"`
+	DeployConfigs  []*DeployConfig `json:"deploy_configs"`
+	DeployTelegraf bool            `json:"deploy_telegraf"`
 
 	// 包年包月时长
 	//
@@ -580,6 +588,8 @@ type GuestBatchMigrateRequest struct {
 	SkipCpuCheck    bool   `json:"skip_cpu_check"`
 	SkipKernelCheck bool   `json:"skip_kernel_check"`
 	EnableTLS       *bool  `json:"enable_tls"`
+	MaxBandwidthMb  *int64 `json:"max_bandwidth_mb"`
+	QuciklyFinish   *bool  `json:"quickly_finish"`
 }
 
 type GuestBatchMigrateParams struct {
@@ -590,6 +600,8 @@ type GuestBatchMigrateParams struct {
 	EnableTLS       *bool
 	RescueMode      bool
 	OldStatus       string
+	MaxBandwidthMb  *int64
+	QuciklyFinish   *bool
 }
 
 type HostLoginInfo struct {

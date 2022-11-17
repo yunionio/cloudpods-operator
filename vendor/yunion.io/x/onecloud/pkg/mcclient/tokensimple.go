@@ -154,11 +154,11 @@ func (self *SSimpleToken) Len() int {
 	return 0
 }
 
-func (self *SSimpleToken) GetServiceURL(service, region, zone, endpointType string) (string, error) {
+func (self *SSimpleToken) getServiceURL(service, region, zone, endpointType string) (string, error) {
 	return "", fmt.Errorf("Not available")
 }
 
-func (self *SSimpleToken) GetServiceURLs(service, region, zone, endpointType string) ([]string, error) {
+func (self *SSimpleToken) getServiceURLs(service, region, zone, endpointType string) ([]string, error) {
 	return nil, fmt.Errorf("Not available")
 }
 

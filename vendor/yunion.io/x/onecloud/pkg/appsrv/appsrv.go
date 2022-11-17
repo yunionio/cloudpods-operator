@@ -67,6 +67,8 @@ type Application struct {
 	idleConnsClosed chan struct{}
 	httpServer      *http.Server
 	slaveHttpServer *http.Server
+
+	isTLS bool
 }
 
 const (
@@ -148,9 +150,24 @@ func (app *Application) getRoot(method string) *RadixNode {
 }
 
 func (app *Application) AddReverseProxyHandler(prefix string, ef *proxy.SEndpointFactory, m proxy.RequestManipulator) {
+	app.AddReverseProxyHandlerWithCallbackConfig(prefix, ef, m,
+		func(method string, hi *SHandlerInfo) *SHandlerInfo {
+			return hi
+		},
+	)
+}
+
+func (app *Application) AddReverseProxyHandlerWithCallbackConfig(prefix string, ef *proxy.SEndpointFactory, m proxy.RequestManipulator, confCb func(string, *SHandlerInfo) *SHandlerInfo) {
 	handler := proxy.NewHTTPReverseProxy(ef, m).ServeHTTP
 	for _, method := range []string{"GET", "HEAD", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"} {
-		app.AddHandler(method, prefix, handler)
+		hi := &SHandlerInfo{}
+		hi = confCb(method, hi)
+		if hi != nil {
+			hi.SetMethod(method)
+			hi.SetPath(prefix)
+			hi.SetHandler(handler)
+			app.AddHandler3(hi)
+		}
 	}
 }
 
@@ -315,6 +332,9 @@ func (app *Application) defaultHandle(w http.ResponseWriter, r *http.Request, ri
 	w.Header().Set("Server", "Yunion AppServer/Go/2018.4")
 	w.Header().Set("X-Frame-Options", "SAMEORIGIN")
 	w.Header().Set("X-XSS-Protection", "1; mode=block")
+	if app.isTLS {
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+	}
 	isCors := app.handleCORS(w, r)
 	handler := app.getRoot(r.Method).Match(segs, params)
 	if handler != nil {
@@ -500,6 +520,7 @@ func (app *Application) ListenAndServeWithoutCleanup(addr, certFile, keyFile str
 }
 
 func (app *Application) ListenAndServeTLSWithCleanup2(addr string, certFile, keyFile string, onStop func(), isMaster bool) {
+	app.isTLS = true
 	httpSrv := app.initServer(addr)
 	if isMaster {
 		app.addDefaultHandlers()

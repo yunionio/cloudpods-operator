@@ -618,7 +618,7 @@ func GetCommonAlertOfSys(session *mcclient.ClientSession) ([]jsonutils.JSONObjec
 	param.Add(jsonutils.NewString(monitorapi.CommonAlertSystemAlertType), "alert_type")
 	param.Add(jsonutils.NewString("system"), "scope")
 
-	rtn, err := monitor.CommonAlertManager.List(session, param)
+	rtn, err := monitor.CommonAlerts.List(session, param)
 	if err != nil {
 		return nil, err
 	}
@@ -635,10 +635,11 @@ func CreateCommonAlert(s *mcclient.ClientSession, tem CommonAlertTem) (jsonutils
 			Name:  tem.Name,
 			Level: "fatal",
 		},
-		Recipients: []string{monitorapi.CommonAlertDefaultRecipient},
-		AlertType:  monitorapi.CommonAlertSystemAlertType,
-		Scope:      "system",
 	}
+	input.Recipients = []string{monitorapi.CommonAlertDefaultRecipient}
+	input.AlertType = monitorapi.CommonAlertSystemAlertType
+	input.Scope = "system"
+
 	if tem.NoDataState != "" {
 		input.NoDataState = tem.NoDataState
 	}
@@ -659,7 +660,7 @@ func CreateCommonAlert(s *mcclient.ClientSession, tem CommonAlertTem) (jsonutils
 		param.(*jsonutils.JSONDict).Set("description", jsonutils.NewString(tem.Description))
 	}
 	param.(*jsonutils.JSONDict).Set("meta_name", jsonutils.NewString(tem.Name))
-	return monitor.CommonAlertManager.Create(s, param)
+	return monitor.CommonAlerts.Create(s, param)
 }
 
 func UpdateCommonAlert(s *mcclient.ClientSession, tem CommonAlertTem, id string,
@@ -701,7 +702,7 @@ func UpdateCommonAlert(s *mcclient.ClientSession, tem CommonAlertTem, id string,
 	}
 
 	param.(*jsonutils.JSONDict).Set("meta_name", jsonutils.NewString(tem.Name))
-	return monitor.CommonAlertManager.Update(s, id, param)
+	return monitor.CommonAlerts.Update(s, id, param)
 }
 
 func containDiffsWithRtnAlert(input monitorapi.CommonAlertUpdateInput, rtnAlert jsonutils.JSONObject) (bool, error) {
@@ -758,7 +759,7 @@ func containDiffsWithRtnAlert(input monitorapi.CommonAlertUpdateInput, rtnAlert 
 }
 
 func DeleteCommonAlert(s *mcclient.ClientSession, ids []string) {
-	monitor.CommonAlertManager.BatchDelete(s, ids, jsonutils.NewDict())
+	monitor.CommonAlerts.BatchDelete(s, ids, jsonutils.NewDict())
 }
 
 func newCommonalertQuery(tem CommonAlertTem) monitorapi.CommonAlertQuery {

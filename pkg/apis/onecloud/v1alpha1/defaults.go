@@ -112,6 +112,7 @@ func newHyperImagePair(ds *DeploymentSpec, supported bool) *hyperImagePair {
 
 func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	setDefaults_Mysql(&obj.Mysql)
+	setDefaults_Clickhouse(&obj.Clickhouse)
 	if obj.ProductVersion == "" {
 		obj.ProductVersion = ProductVersionFullStack
 	}
@@ -368,6 +369,15 @@ func setDefaults_Mysql(obj *Mysql) {
 	}
 	if obj.Port == 0 {
 		obj.Port = 3306
+	}
+}
+
+func setDefaults_Clickhouse(obj *Clickhouse) {
+	if obj.Username == "" {
+		obj.Username = "default"
+	}
+	if obj.Port == 0 {
+		obj.Port = 9000
 	}
 }
 
@@ -669,6 +679,7 @@ func SetDefaults_ServiceBaseConfig(obj *ServiceBaseConfig, port int) {
 func setDefaults_KeystoneConfig(obj *KeystoneConfig) {
 	SetDefaults_ServiceBaseConfig(&obj.ServiceBaseConfig, constants.KeystonePublicPort)
 	setDefaults_DBConfig(&obj.DB, constants.KeystoneDB, constants.KeystoneDBUser)
+	setDefaults_DBConfig(&obj.ClickhouseConf, constants.KeystoneDB, constants.KeystoneDBUser)
 }
 
 func SetDefaults_ServiceCommonOptions(obj *ServiceCommonOptions, user string, port int) {
@@ -678,6 +689,7 @@ func SetDefaults_ServiceCommonOptions(obj *ServiceCommonOptions, user string, po
 
 func SetDefaults_ServiceDBCommonOptions(obj *ServiceDBCommonOptions, db, dbUser string, svcUser string, port int) {
 	setDefaults_DBConfig(&obj.DB, db, dbUser)
+	setDefaults_DBConfig(&obj.ClickhouseConf, db, dbUser)
 	SetDefaults_ServiceCommonOptions(&obj.ServiceCommonOptions, svcUser, port)
 }
 
