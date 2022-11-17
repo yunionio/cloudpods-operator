@@ -194,6 +194,11 @@ type ICloudRegion interface {
 	GetICloudKubeClusterById(id string) (ICloudKubeCluster, error)
 
 	GetICloudTablestores() ([]ICloudTablestore, error)
+
+	GetIModelartsPools() ([]ICloudModelartsPool, error)
+	GetIModelartsPoolById(id string) (ICloudModelartsPool, error)
+	CreateIModelartsPool(pool *ModelartsPoolCreateOption) (ICloudModelartsPool, error)
+	GetIModelartsPoolSku() ([]ICloudModelartsPoolSku, error)
 }
 
 type ICloudZone interface {
@@ -212,20 +217,19 @@ type ICloudZone interface {
 type ICloudImage interface {
 	IVirtualResource
 
+	IOSInfo
+
 	Delete(ctx context.Context) error
 	GetIStoragecache() ICloudStoragecache
 
 	GetSizeByte() int64
 	GetImageType() TImageType
 	GetImageStatus() string
-	GetOsType() TOsType
-	GetOsDist() string
-	GetOsVersion() string
-	GetOsArch() string
+
 	GetMinOsDiskSizeGb() int
 	GetMinRamSizeMb() int
 	GetImageFormat() string
-	UEFI() bool
+
 	GetPublicScope() rbacutils.TRbacScope
 	GetSubImages() []SSubImage
 }
@@ -296,6 +300,8 @@ type ICloudHost interface {
 	GetCpuDesc() string
 	GetCpuMhz() int
 	GetCpuCmtbound() float32
+	GetCpuArchitecture() string
+
 	GetMemSizeMB() int
 	GetMemCmtbound() float32
 	GetReservedMemoryMb() int
@@ -317,6 +323,8 @@ type ICloudHost interface {
 type ICloudVM interface {
 	IBillingResource
 	IVirtualResource
+
+	IOSInfo
 
 	ConvertPublicIpToEip() error
 
@@ -341,10 +349,12 @@ type ICloudVM interface {
 	GetBootOrder() string
 	GetVga() string
 	GetVdi() string
-	GetOSArch() string
-	GetOsType() TOsType
-	GetOSName() string
-	GetBios() string
+
+	// GetOSArch() string
+	// GetOsType() TOsType
+	// GetOSName() string
+	// GetBios() string
+
 	GetMachine() string
 	GetInstanceType() string
 
@@ -1188,6 +1198,10 @@ type IClouduser interface {
 
 	ResetPassword(password string) error
 	IsConsoleLogin() bool
+
+	CreateAccessKey(name string) (*SAccessKey, error)
+	DeleteAccessKey(accessKey string) error
+	GetAccessKeys() ([]SAccessKey, error)
 }
 
 // 公有云子账号权限

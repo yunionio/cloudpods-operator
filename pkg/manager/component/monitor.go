@@ -56,6 +56,10 @@ func (m *monitorManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alp
 	return &cfg.Monitor.DB
 }
 
+func (m *monitorManager) getClickhouseConf(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
+	return &cfg.Monitor.ClickhouseConf
+}
+
 func (m *monitorManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
 	return &cfg.Monitor.CloudUser
 }
@@ -71,6 +75,7 @@ func (m *monitorManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 	}
 	config := cfg.Monitor
 	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
+	SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
 	SetOptionsServiceTLS(&opt.BaseOptions, false)
 	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 	opt.AutoSyncTable = true

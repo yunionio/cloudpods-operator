@@ -398,6 +398,10 @@ func IsSupportTablestore(prod ICloudProvider) bool {
 	return IsSupportCapability(prod, CLOUD_CAPABILITY_TABLESTORE)
 }
 
+func IsSupportModelartsPool(prod ICloudProvider) bool {
+	return IsSupportCapability(prod, CLOUD_CAPABILITY_MODELARTES)
+}
+
 var providerTable map[string]ICloudProviderFactory
 
 func init() {
@@ -618,6 +622,22 @@ func (self *SBaseProvider) CreateICloudCDNDomain(opts *CdnCreateOptions) (ICloud
 
 func (self *SBaseProvider) GetMetrics(opts *MetricListOptions) ([]MetricValues, error) {
 	return nil, errors.Wrapf(ErrNotImplemented, "GetMetric")
+}
+
+func (self *SBaseProvider) GetIModelartsPools() ([]ICloudModelartsPool, error) {
+	return nil, errors.Wrapf(ErrNotImplemented, "GetIModelartsPools")
+}
+
+func (self *SBaseProvider) GetIModelartsPoolById(id string) (ICloudModelartsPool, error) {
+	return nil, errors.Wrapf(ErrNotImplemented, "GetIModelartsPoolDetail")
+}
+
+func (self *SBaseProvider) CreateIModelartsPool(pool *ModelartsPoolCreateOption) (ICloudModelartsPool, error) {
+	return nil, errors.Wrapf(ErrNotImplemented, "CreateIModelartsPool")
+}
+
+func (self *SBaseProvider) GetIModelartsPoolSku() ([]ICloudModelartsPoolSku, error) {
+	return nil, errors.Wrapf(ErrNotImplemented, "GetIModelartsPoolSku")
 }
 
 func NewBaseProvider(factory ICloudProviderFactory) SBaseProvider {
@@ -909,4 +929,31 @@ func (factory *SPrivateCloudBaseProviderFactory) IsSupportPrepaidResources() boo
 
 func (factory *SPrivateCloudBaseProviderFactory) NeedSyncSkuFromCloud() bool {
 	return true
+}
+
+type ICloudModelartsPool interface {
+	ICloudResource
+	IBillingResource
+
+	Delete() error
+	GetProjectId() string
+	GetInstanceType() string
+	GetWorkType() string
+	GetNodeCount() int
+	ChangeConfig(opts *ModelartsPoolChangeConfigOptions) error
+}
+
+type ICloudModelartsPoolSku interface {
+	ICloudResource
+
+	GetCpuCoreCount() int
+	GetCpuArch() string
+	GetStatus() string
+	GetMemorySizeMB() int
+	GetPoolType() string
+	GetGpuSize() int
+	GetGpuType() string
+	GetNpuSize() int
+	GetNpuType() string
+	GetProcessorType() string
 }

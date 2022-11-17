@@ -14,7 +14,11 @@
 
 package cloudprovider
 
-import "yunion.io/x/jsonutils"
+import (
+	"time"
+
+	"yunion.io/x/jsonutils"
+)
 
 type SClouduserCreateConfig struct {
 	Name              string
@@ -37,4 +41,12 @@ type SCloudpolicyCreateOptions struct {
 	Name     string
 	Desc     string
 	Document *jsonutils.JSONDict
+}
+
+type SAccessKey struct {
+	Name      string
+	AccessKey string
+	Secret    string
+	Status    string
+	CreatedAt time.Time
 }

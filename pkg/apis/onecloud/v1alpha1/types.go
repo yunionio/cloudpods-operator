@@ -199,6 +199,8 @@ type OnecloudClusterSpec struct {
 	Etcd Etcd `json:"etcd,omitempty"`
 	// Mysql holds configuration for mysql
 	Mysql Mysql `json:"mysql"`
+	// Clickhouse holds configuration for clickhouse
+	Clickhouse Clickhouse `json:"clickhouse"`
 	// Version is onecloud components version
 	Version string `json:"version"`
 	// CertSANs sets extra Subject Alternative Names for the Cluster signing cert.
@@ -497,7 +499,7 @@ type Etcd struct {
 	EnableTls bool `json:"enableTls"`
 }
 
-// Mysql describes an mysql server
+// Mysql describes a mysql server
 type Mysql struct {
 	// Host is mysql ip address of hostname
 	Host string `json:"host"`
@@ -508,6 +510,9 @@ type Mysql struct {
 	// Password is mysql user password
 	Password string `json:"password"`
 }
+
+// Clickhouse describe a clickhouse server
+type Clickhouse Mysql
 
 // Minio hols configration for minio S3 object storage backend
 type Minio struct {
@@ -949,12 +954,16 @@ type KeystoneConfig struct {
 	ServiceBaseConfig
 
 	DB DBConfig `json:"db"`
+
+	ClickhouseConf DBConfig `json:"clickhouse_conf"`
 }
 
 type ServiceDBCommonOptions struct {
 	ServiceCommonOptions
 
 	DB DBConfig `json:"db"`
+
+	ClickhouseConf DBConfig `json:"clickhouse_conf"`
 }
 
 type RegionConfig struct {

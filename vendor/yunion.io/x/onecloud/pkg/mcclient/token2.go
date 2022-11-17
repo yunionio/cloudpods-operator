@@ -227,12 +227,12 @@ func (this *TokenCredentialV2) Len() int {
 	return this.ServiceCatalog.Len()
 }
 
-func (this *TokenCredentialV2) GetServiceURL(service, region, zone, endpointType string) (string, error) {
-	return this.ServiceCatalog.GetServiceURL(service, region, zone, endpointType)
+func (this *TokenCredentialV2) getServiceURL(service, region, zone, endpointType string) (string, error) {
+	return this.ServiceCatalog.getServiceURL(service, region, zone, endpointType)
 }
 
-func (this *TokenCredentialV2) GetServiceURLs(service, region, zone, endpointType string) ([]string, error) {
-	return this.ServiceCatalog.GetServiceURLs(service, region, zone, endpointType)
+func (this *TokenCredentialV2) getServiceURLs(service, region, zone, endpointType string) ([]string, error) {
+	return this.ServiceCatalog.getServiceURLs(service, region, zone, endpointType)
 }
 
 func (this *TokenCredentialV2) GetInternalServices(region string) []string {
@@ -335,7 +335,7 @@ func (catalog KeystoneServiceCatalogV2) Len() int {
 	return len(catalog)
 }
 
-func (catalog KeystoneServiceCatalogV2) GetServiceURL(service, region, zone, endpointType string) (string, error) {
+func (catalog KeystoneServiceCatalogV2) getServiceURL(service, region, zone, endpointType string) (string, error) {
 	ep, err := catalog.getServiceEndpoint(service, region, zone)
 	if err != nil {
 		return "", err
@@ -343,8 +343,8 @@ func (catalog KeystoneServiceCatalogV2) GetServiceURL(service, region, zone, end
 	return ep.getURL(endpointType), nil
 }
 
-func (catalog KeystoneServiceCatalogV2) GetServiceURLs(service, region, zone, endpointType string) ([]string, error) {
-	url, err := catalog.GetServiceURL(service, region, zone, endpointType)
+func (catalog KeystoneServiceCatalogV2) getServiceURLs(service, region, zone, endpointType string) ([]string, error) {
+	url, err := catalog.getServiceURL(service, region, zone, endpointType)
 	if err != nil {
 		return nil, err
 	}

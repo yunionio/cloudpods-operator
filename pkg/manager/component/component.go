@@ -237,7 +237,7 @@ func (m *ComponentManager) syncConfigMap(
 	if err != nil {
 		return errorswrap.Wrap(err, "get cluster config")
 	}
-	if dbConfigFactory != nil {
+	{
 		dbConfig := dbConfigFactory(clustercfg)
 		if dbConfig != nil {
 			if err := EnsureClusterDBUser(oc, *dbConfig); err != nil {
@@ -245,7 +245,15 @@ func (m *ComponentManager) syncConfigMap(
 			}
 		}
 	}
-	if svcAccountFactory != nil {
+	{
+		clickhouseConfig := f.getClickhouseConfig(clustercfg)
+		if clickhouseConfig != nil && IsEnterpriseEdition(oc) {
+			if err := EnsureClusterClickhouseUser(oc, *clickhouseConfig); err != nil {
+				return errorswrap.Wrap(err, "ensure cluster db user")
+			}
+		}
+	}
+	{
 		account := svcAccountFactory(clustercfg)
 		if account != nil {
 			m.onecloudControl.RunWithSession(oc, func(s *mcclient.ClientSession) error {
@@ -1259,6 +1267,10 @@ func (m *ComponentManager) multiZoneSync(oc *v1alpha1.OnecloudCluster, wantedZon
 }
 
 func (m *ComponentManager) getDBConfig(_ *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
+	return nil
+}
+
+func (m *ComponentManager) getClickhouseConfig(_ *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
 	return nil
 }
 

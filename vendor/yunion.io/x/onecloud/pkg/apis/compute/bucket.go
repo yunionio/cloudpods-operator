@@ -63,6 +63,30 @@ type BucketDetails struct {
 	AccessUrls []cloudprovider.SBucketAccessUrl `json:"access_urls"`
 }
 
+func (self BucketDetails) GetMetricTags() map[string]string {
+	ret := map[string]string{
+		"id":             self.Id,
+		"brand":          self.Brand,
+		"cloudregion":    self.Cloudregion,
+		"cloudregion_id": self.CloudregionId,
+		"domain_id":      self.DomainId,
+		"oss_id":         self.Id,
+		"oss_name":       self.Name,
+		"project_domain": self.ProjectDomain,
+		"region_ext_id":  self.RegionExtId,
+		"status":         self.Status,
+		"tenant":         self.Project,
+		"tenant_id":      self.ProjectId,
+		"external_id":    self.ExternalId,
+	}
+	return ret
+}
+
+func (self BucketDetails) GetMetricPairs() map[string]string {
+	ret := map[string]string{}
+	return ret
+}
+
 type BucketObjectsActionInput struct {
 	Key []string
 }
