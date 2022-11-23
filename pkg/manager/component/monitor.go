@@ -56,7 +56,7 @@ func (m *monitorManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alp
 	return &cfg.Monitor.DB
 }
 
-func (m *monitorManager) getClickhouseConf(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
+func (m *monitorManager) getClickhouseConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
 	return &cfg.Monitor.ClickhouseConf
 }
 
