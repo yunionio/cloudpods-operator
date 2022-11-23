@@ -62,7 +62,7 @@ func (m *regionManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alph
 	return &cfg.RegionServer.DB
 }
 
-func (m *regionManager) getClickhouseConf(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
+func (m *regionManager) getClickhouseConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
 	return &cfg.RegionServer.ClickhouseConf
 }
 

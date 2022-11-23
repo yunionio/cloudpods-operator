@@ -57,7 +57,7 @@ func (m *webconsoleManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1
 	return &cfg.Webconsole.DB
 }
 
-func (m *webconsoleManager) getClickhouseConf(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
+func (m *webconsoleManager) getClickhouseConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
 	return &cfg.Webconsole.ClickhouseConf
 }
 

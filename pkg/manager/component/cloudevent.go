@@ -55,7 +55,7 @@ func (m *cloudeventManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1
 	return &cfg.Cloudevent.DB
 }
 
-func (m *cloudeventManager) getClickhouseConf(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
+func (m *cloudeventManager) getClickhouseConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
 	return &cfg.Cloudevent.ClickhouseConf
 }
 

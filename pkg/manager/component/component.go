@@ -249,7 +249,7 @@ func (m *ComponentManager) syncConfigMap(
 		clickhouseConfig := f.getClickhouseConfig(clustercfg)
 		if clickhouseConfig != nil && IsEnterpriseEdition(oc) {
 			if err := EnsureClusterClickhouseUser(oc, *clickhouseConfig); err != nil {
-				return errorswrap.Wrap(err, "ensure cluster db user")
+				return errorswrap.Wrap(err, "ensure clickhouse cluster db user")
 			}
 		}
 	}

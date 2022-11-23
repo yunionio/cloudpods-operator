@@ -74,7 +74,7 @@ func (m *notifyManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alph
 	return &cfg.Notify.DB
 }
 
-func (m *notifyManager) getClickhouseConf(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
+func (m *notifyManager) getClickhouseConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
 	return &cfg.Notify.ClickhouseConf
 }
 

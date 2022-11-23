@@ -57,7 +57,7 @@ func (m *keystoneManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1al
 	return &cfg.Keystone.DB
 }
 
-func (m *keystoneManager) getClickhouseConf(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
+func (m *keystoneManager) getClickhouseConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
 	return &cfg.Keystone.ClickhouseConf
 }
 
