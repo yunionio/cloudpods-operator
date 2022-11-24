@@ -245,7 +245,7 @@ func (m *ComponentManager) syncConfigMap(
 			}
 		}
 	}
-	{
+	if len(oc.Spec.Clickhouse.Host) > 0 {
 		clickhouseConfig := f.getClickhouseConfig(clustercfg)
 		if clickhouseConfig != nil && IsEnterpriseEdition(oc) {
 			if err := EnsureClusterClickhouseUser(oc, *clickhouseConfig); err != nil {
