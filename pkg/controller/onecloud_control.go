@@ -1223,18 +1223,21 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		Reduce:      "last",
 		Description: "监测磁盘健康状态",
 	}
-	genHostRaidStatusFilter := func(status ...string) []monitor.MetricQueryTag {
+	genORFilter := func(key string, vals ...string) []monitor.MetricQueryTag {
 		ret := make([]monitor.MetricQueryTag, 0)
-		for _, s := range status {
+		for _, val := range vals {
 			filter := monitor.MetricQueryTag{
-				Key:       "status",
-				Value:     s,
+				Key:       key,
+				Value:     val,
 				Operator:  "=",
 				Condition: "OR",
 			}
 			ret = append(ret, filter)
 		}
 		return ret
+	}
+	genHostRaidStatusFilter := func(status ...string) []monitor.MetricQueryTag {
+		return genORFilter("status", status...)
 	}
 	hostRaidTem := onecloud.CommonAlertTem{
 		Database:    "telegraf",
@@ -1266,6 +1269,7 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		Reduce:      "last",
 		Description: "监测云账号余额",
 		Level:       "important",
+		Filters:     genORFilter("brand", "Aliyun"),
 	}
 	noDataTem := onecloud.CommonAlertTem{
 		Database:      "telegraf",
