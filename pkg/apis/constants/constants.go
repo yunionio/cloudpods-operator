@@ -283,6 +283,12 @@ const (
 	ServiceNameNotify = "notify"
 	ServiceTypeNotify = "notify"
 
+	ServiceNameVpcagent  = "vpcagent"
+	ServiceTypeVpcagent  = "vpcagent"
+	VpcAgentAdminUser    = "vpcagentadmin"
+	VpcAgentAdminProject = SysAdminProject
+	VpcAgentPort         = 30932
+
 	BaremetalDataStore = "/opt/cloud/workspace"
 
 	ServiceURLCloudmeta  = "https://meta.yunion.cn"
@@ -347,8 +353,6 @@ const (
 
 	ServiceOperatorAdminUser = "osOperator"
 	ServiceOperatorPort      = 30885
-
-	VpcAgentAdminUser = "vpcagentadmin"
 
 	EtcdClientPort            = 2379
 	EtcdPeerPort              = 2380

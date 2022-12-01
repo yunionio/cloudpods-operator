@@ -151,7 +151,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		DevtoolComponentType:         nHP(&obj.Devtool.DeploymentSpec, useHyperImage),
 		AutoUpdateComponentType:      nHP(&obj.AutoUpdate.DeploymentSpec, useHyperImage),
 		OvnNorthComponentType:        nHP(&obj.OvnNorth, false),
-		VpcAgentComponentType:        nHP(&obj.VpcAgent, false),
+		VpcAgentComponentType:        nHP(&obj.VpcAgent.DeploymentSpec, false),
 		MonitorComponentType:         nHP(&obj.Monitor.DeploymentSpec, useHyperImage),
 		ServiceOperatorComponentType: nHP(&obj.ServiceOperator.DeploymentSpec, false),
 		ItsmComponentType:            nHP(&obj.Itsm.DeploymentSpec, false),
@@ -358,6 +358,7 @@ func setDefaults_Components_ServicePort(obj *OnecloudClusterSpec) {
 		newSP(&obj.APIGateway.WSService, constants.APIWebsocketPort),
 		newSP(&obj.ServiceOperator.Service, constants.ServiceOperatorPort),
 		newSP(&obj.Yunionagent.Service, constants.YunionAgentPort),
+		newSP(&obj.VpcAgent.Service, constants.VpcAgentPort),
 	} {
 		SetDefaults_ServiceSpec(spec.spec, spec.defaultPort)
 	}
@@ -623,7 +624,7 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		&obj.S3gateway:                           {constants.S3gatewayAdminUser, constants.S3gatewayPort},
 		&obj.AutoUpdate:                          {constants.AutoUpdateAdminUser, constants.AutoUpdatePort},
 		&obj.EsxiAgent.ServiceCommonOptions:      {constants.EsxiAgentAdminUser, constants.EsxiAgentPort},
-		&obj.VpcAgent.ServiceCommonOptions:       {constants.VpcAgentAdminUser, 0},
+		&obj.VpcAgent.ServiceCommonOptions:       {constants.VpcAgentAdminUser, constants.VpcAgentPort},
 		&obj.ServiceOperator:                     {constants.ServiceOperatorAdminUser, constants.ServiceOperatorPort},
 	} {
 		SetDefaults_ServiceCommonOptions(opt, userPort.user, userPort.port)

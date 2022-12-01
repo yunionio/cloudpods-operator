@@ -288,7 +288,8 @@ type OnecloudClusterSpec struct {
 	ServiceOperator DeploymentServicePortSpec `json:"onecloudServiceOperator"`
 
 	OvnNorth DeploymentSpec `json:"ovnNorth"`
-	VpcAgent DeploymentSpec `json:"vpcAgent"`
+
+	VpcAgent DeploymentServicePortSpec `json:"vpcAgent"`
 
 	// Cloudid holds configuration for cloudid service
 	CloudId DeploymentServicePortSpec `json:"cloudid"`
