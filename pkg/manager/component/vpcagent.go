@@ -16,6 +16,7 @@ package component
 
 import (
 	"fmt"
+	"path"
 
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -59,11 +60,8 @@ func (m *vpcAgentManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1a
 }
 
 func (m *vpcAgentManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
-	var (
-		opts = &options.Options{}
-		prog = "vpcagent"
-	)
-	if err := SetOptionsDefault(opts, prog); err != nil {
+	opts := &options.Options{}
+	if err := SetOptionsDefault(opts, constants.ServiceTypeVpcagent); err != nil {
 		return nil, false, err
 	}
 	opts.OvnNorthDatabase = fmt.Sprintf("tcp:%s:%d",
@@ -74,12 +72,28 @@ func (m *vpcAgentManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 		constants.OvnNorthDbPort,
 	)
 	config := cfg.VpcAgent
+	SetOptionsServiceTLS(&opts.BaseOptions, false)
 	SetServiceCommonOptions(&opts.CommonOptions, oc, config.ServiceCommonOptions)
+	opts.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
+	opts.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
+	opts.Port = config.Port
 	return m.newServiceConfigMap(v1alpha1.VpcAgentComponentType, "", oc, opts), false, nil
 }
 
+func (m *vpcAgentManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
+	return controller.NewRegisterEndpointComponent(man,
+		v1alpha1.VpcAgentComponentType,
+		constants.ServiceNameVpcagent,
+		constants.ServiceTypeVpcagent,
+		man.GetCluster().Spec.VpcAgent.Service.NodePort, "")
+}
+
+func (m *vpcAgentManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.VpcAgentComponentType, oc, int32(oc.Spec.VpcAgent.Service.NodePort), int32(cfg.VpcAgent.Port))}
+}
+
 func (m *vpcAgentManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
-	return m.newCloudServiceDeployment(v1alpha1.VpcAgentComponentType, v1alpha1.VpcAgentComponentType, oc, &oc.Spec.VpcAgent, nil, nil, false, true)
+	return m.newCloudServiceSinglePortDeployment(v1alpha1.VpcAgentComponentType, "", oc, &oc.Spec.VpcAgent.DeploymentSpec, int32(cfg.VpcAgent.Port), false, false)
 }
 
 func (m *vpcAgentManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
