@@ -26,6 +26,7 @@ import (
 
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
+	yerr "yunion.io/x/pkg/errors"
 
 	"yunion.io/x/onecloud/pkg/image/options"
 	"yunion.io/x/onecloud/pkg/mcclient/auth"
@@ -104,7 +105,7 @@ func (m *glanceManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	opt.EnableRemoteExecutor = true
 	if oc.Spec.Glance.SwitchToS3 {
 		if err := m.setS3Config(oc); err != nil {
-			return nil, false, err
+			return nil, false, yerr.Wrap(err, "setS3Config")
 		}
 		opt.StorageDriver = "s3"
 	}
@@ -125,11 +126,15 @@ func (m *glanceManager) setS3Config(oc *v1alpha1.OnecloudCluster) error {
 			log.Warningf("Glance service config not found yet")
 			return nil
 		}
-		return err
+		return yerr.Wrap(err, "get glance service config")
+	}
+	if !conf.Contains("config", "default") {
+		log.Warningf("Glance service config doesn't contain default:\n%s", conf.PrettyString())
+		return nil
 	}
 	confJson, err := conf.Get("config", "default")
 	if err != nil {
-		return fmt.Errorf("failed get conf %s", err)
+		return yerr.Wrap(err, "get glance config/default service config")
 	}
 	if confJson.Contains("s3_endpoint") {
 		s3ConfigSynced = true
