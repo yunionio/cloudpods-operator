@@ -174,6 +174,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		APIGatewayComponentType: nHP(&obj.APIGateway.DeploymentSpec, useHyperImage),
 		ClimcComponentType:      nHP(&obj.Climc, false),
 		WebComponentType:        nHP(&obj.Web.DeploymentSpec, false),
+		CloudmonComponentType:   nHP(&obj.Cloudmon.DeploymentSpec, false),
 	} {
 		SetDefaults_DeploymentSpec(spec.DeploymentSpec,
 			getEditionImage(
