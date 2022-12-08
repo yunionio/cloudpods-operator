@@ -105,11 +105,6 @@ func (m *esxiManager) customConfig(oc *v1alpha1.OnecloudCluster, newCfg *corev1.
 	return newCfg, false, nil
 }
 
-func (m *esxiManager) getPVC(oc *v1alpha1.OnecloudCluster, zone string) (*corev1.PersistentVolumeClaim, error) {
-	cfg := oc.Spec.EsxiAgent.StatefulDeploymentSpec
-	return m.ComponentManager.newPVC(v1alpha1.EsxiAgentComponentType, oc, cfg)
-}
-
 func (m *esxiManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	if len(zone) == 0 {
 		return &oc.Status.EsxiAgent.DeploymentStatus
