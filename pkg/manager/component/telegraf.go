@@ -71,7 +71,7 @@ func (m *telegrafManager) newTelegrafDaemonSet(
 						Value: hostRoot,
 					},
 				},
-				Command: []string{
+				Args: []string{
 					"/usr/bin/telegraf",
 					"-config", "/etc/telegraf/telegraf.conf",
 					"-config-directory", "/etc/telegraf/telegraf.d",
