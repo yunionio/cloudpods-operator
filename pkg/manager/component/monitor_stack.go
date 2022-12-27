@@ -75,7 +75,7 @@ func (m *monitorStackManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if err := m.onecloudControl.RunWithSession(oc, func(s *mcclient.ClientSession) error {
 		status := &oc.Status.MonitorStack
 
-		if err := m.syncMinio(s, &spec.Minio, &status.MinioStatus); err != nil {
+		if err := m.syncMinio(s, &oc.Spec, &spec.Minio, &status.MinioStatus); err != nil {
 			return errors.Wrap(err, "sync monitor-stack minio component")
 		}
 
@@ -84,7 +84,7 @@ func (m *monitorStackManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 			return errors.Wrapf(err, "get %q service %q", constants.MonitorStackNamespace, constants.MonitorMinioName)
 		}
 
-		if err := m.syncThanos(s, spec, minioSvc, status); err != nil {
+		if err := m.syncThanos(s, &oc.Spec, spec, minioSvc, status); err != nil {
 			return errors.Wrapf(err, "sync thanos component")
 		}
 
@@ -104,7 +104,7 @@ func (m *monitorStackManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return nil
 }
 
-func (m *monitorStackManager) syncMinio(s *mcclient.ClientSession, spec *v1alpha1.MonitorStackMinioSpec, status *v1alpha1.MonitorStackMinioStatus) error {
+func (m *monitorStackManager) syncMinio(s *mcclient.ClientSession, ocSpec *v1alpha1.OnecloudClusterSpec, spec *v1alpha1.MonitorStackMinioSpec, status *v1alpha1.MonitorStackMinioStatus) error {
 	masterNodes, err := k8sutil.GetReadyMasterNodes(m.nodeLister)
 	if err != nil {
 		return errors.Wrap(err, "List k8s ready master node")
@@ -125,11 +125,11 @@ func (m *monitorStackManager) syncMinio(s *mcclient.ClientSession, spec *v1alpha
 	}
 
 	if spec.Mode == v1alpha1.MinioModeStandalone {
-		return m.syncStandaloneMinio(s, spec, status)
+		return m.syncStandaloneMinio(s, ocSpec, spec, status)
 	}
 
 	// use distributed mode
-	if err := m.syncDistributedMinio(s, spec, status); err != nil {
+	if err := m.syncDistributedMinio(s, ocSpec, spec, status); err != nil {
 		return err
 	}
 
@@ -138,6 +138,7 @@ func (m *monitorStackManager) syncMinio(s *mcclient.ClientSession, spec *v1alpha
 
 func (m *monitorStackManager) syncStandaloneMinio(
 	s *mcclient.ClientSession,
+	ocSpec *v1alpha1.OnecloudClusterSpec,
 	spec *v1alpha1.MonitorStackMinioSpec,
 	status *v1alpha1.MonitorStackMinioStatus,
 ) error {
@@ -147,7 +148,7 @@ func (m *monitorStackManager) syncStandaloneMinio(
 		DrivesPerNode: 1,
 		AccessKey:     spec.AccessKey,
 		SecretKey:     spec.SecretKey,
-	}); err != nil {
+	}, ocSpec); err != nil {
 		return errors.Wrap(err, "sync standalone minio")
 	}
 
@@ -167,6 +168,7 @@ func (m *monitorStackManager) syncStandaloneMinio(
 
 func (m *monitorStackManager) syncDistributedMinio(
 	s *mcclient.ClientSession,
+	ocSpec *v1alpha1.OnecloudClusterSpec,
 	spec *v1alpha1.MonitorStackMinioSpec,
 	status *v1alpha1.MonitorStackMinioStatus,
 ) error {
@@ -176,7 +178,7 @@ func (m *monitorStackManager) syncDistributedMinio(
 		DrivesPerNode: 1,
 		AccessKey:     spec.AccessKey,
 		SecretKey:     spec.SecretKey,
-	}); err != nil {
+	}, ocSpec); err != nil {
 		return errors.Wrap(err, "sync distributed minio")
 	}
 
@@ -222,6 +224,7 @@ func (m *monitorStackManager) setDefaultObjectStoreConfig(
 
 func (m *monitorStackManager) syncThanos(
 	s *mcclient.ClientSession,
+	ocSpec *v1alpha1.OnecloudClusterSpec,
 	spec *v1alpha1.MonitorStackSpec,
 	minioSvc *v1.Service,
 	status *v1alpha1.MonitorStackStatus) error {
@@ -234,7 +237,7 @@ func (m *monitorStackManager) syncThanos(
 
 	m.setDefaultObjectStoreConfig(&spec.Minio, minioSvc, storeSpec, constants.MonitorBucketThanos)
 
-	if err := onecloud.SyncMonitorThanos(s, thanosSpec); err != nil {
+	if err := onecloud.SyncMonitorThanos(s, ocSpec, thanosSpec); err != nil {
 		return errors.Wrap(err, "enable thanos")
 	}
 

@@ -1368,7 +1368,7 @@ func (c *kubeServerComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 		}
 	}
 	return c.RunWithSession(func(s *mcclient.ClientSession) error {
-		if err := c.doEnableMinio(s, spec); err != nil {
+		if err := c.doEnableMinio(s, spec, &oc.Spec); err != nil {
 			return errors.Wrap(err, "Enable minio")
 		}
 		return nil
@@ -1377,7 +1377,8 @@ func (c *kubeServerComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 
 func (c *kubeServerComponent) doEnableMinio(
 	s *mcclient.ClientSession,
-	spec *v1alpha1.Minio,
+	input *v1alpha1.Minio,
+	spec *v1alpha1.OnecloudClusterSpec,
 ) error {
-	return onecloud.SyncMinio(s, spec)
+	return onecloud.SyncMinio(s, input, spec)
 }
