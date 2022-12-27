@@ -165,6 +165,20 @@ type ClusterEnableComponentMinioOpt struct {
 	k8s.ClusterComponentMinioSetting
 }
 
+func injectComponentParamsBySpec(params jsonutils.JSONObject, spec *v1alpha1.OnecloudClusterSpec) jsonutils.JSONObject {
+	if spec.DisableResourceManagement {
+		params.(*jsonutils.JSONDict).Add(jsonutils.JSONTrue, "disableResourceManagement")
+	} else {
+		params.(*jsonutils.JSONDict).Add(jsonutils.JSONFalse, "disableResourceManagement")
+	}
+
+	params.(*jsonutils.JSONDict).Add(jsonutils.Marshal(map[string]interface{}{
+		"url": spec.ImageRepository,
+	}), "imageRepository")
+
+	return params
+}
+
 func (o ClusterEnableComponentMinioOpt) Params(ctype ClusterComponentType) (jsonutils.JSONObject, error) {
 	params := o.ClusterComponentOptions.Params(string(ctype))
 	setting := jsonutils.Marshal(o.ClusterComponentMinioSetting)
@@ -202,7 +216,7 @@ func doUpdateClusterComponent(
 	return nil
 }
 
-func getSyncMinioParams(cType ClusterComponentType, cId string, input *EnableMinioParams) (jsonutils.JSONObject, error) {
+func getSyncMinioParams(cType ClusterComponentType, cId string, input *EnableMinioParams, spec *v1alpha1.OnecloudClusterSpec) (jsonutils.JSONObject, error) {
 	opt := &ClusterEnableComponentMinioOpt{
 		ClusterComponentOptions: newClusterComponentOpt(cId),
 		ClusterComponentMinioSetting: k8s.ClusterComponentMinioSetting{
@@ -223,7 +237,7 @@ func getSyncMinioParams(cType ClusterComponentType, cId string, input *EnableMin
 	if err != nil {
 		return nil, errors.Wrapf(err, "Generate %s component params", cType)
 	}
-	return params, nil
+	return injectComponentParamsBySpec(params, spec), nil
 }
 
 func enableMinio(
@@ -231,8 +245,9 @@ func enableMinio(
 	s *mcclient.ClientSession,
 	systemClusterId string,
 	input *EnableMinioParams,
+	spec *v1alpha1.OnecloudClusterSpec,
 ) error {
-	params, err := getSyncMinioParams(ctype, systemClusterId, input)
+	params, err := getSyncMinioParams(ctype, systemClusterId, input, spec)
 	if err != nil {
 		return err
 	}
@@ -244,8 +259,9 @@ func updateMinio(
 	s *mcclient.ClientSession,
 	systemClusterId string,
 	input *EnableMinioParams,
+	spec *v1alpha1.OnecloudClusterSpec,
 ) error {
-	params, err := getSyncMinioParams(ctype, systemClusterId, input)
+	params, err := getSyncMinioParams(ctype, systemClusterId, input, spec)
 	if err != nil {
 		return err
 	}
@@ -256,6 +272,7 @@ func enableMinioWithParams(
 	cType ClusterComponentType,
 	s *mcclient.ClientSession,
 	params *EnableMinioParams,
+	spec *v1alpha1.OnecloudClusterSpec,
 	getStatus func(*ClusterComponentsStatus) (bool, string),
 ) error {
 	return syncClusterComponent(
@@ -266,15 +283,15 @@ func enableMinioWithParams(
 			return disableClusterComponent(cType, s, id)
 		},
 		func(s *mcclient.ClientSession, id string) error {
-			return enableMinio(cType, s, id, params)
+			return enableMinio(cType, s, id, params, spec)
 		},
 		func(s *mcclient.ClientSession, id string) error {
-			return updateMinio(cType, s, id, params)
+			return updateMinio(cType, s, id, params, spec)
 		},
 	)
 }
 
-func SyncMinio(s *mcclient.ClientSession, input *v1alpha1.Minio) error {
+func SyncMinio(s *mcclient.ClientSession, input *v1alpha1.Minio, spec *v1alpha1.OnecloudClusterSpec) error {
 	params := &EnableMinioParams{
 		Mode:          string(v1alpha1.MinioModeStandalone),
 		Replicas:      1,
@@ -287,16 +304,16 @@ func SyncMinio(s *mcclient.ClientSession, input *v1alpha1.Minio) error {
 		params.Mode = string(v1alpha1.MinioModeDistributed)
 		params.Replicas = 4
 	}
-	return enableMinioWithParams(ClusterComponentTypeMinio, s, params,
+	return enableMinioWithParams(ClusterComponentTypeMinio, s, params, spec,
 		func(status *ClusterComponentsStatus) (bool, string) {
 			return status.Minio.Enabled, status.Minio.Status
 		},
 	)
 }
 
-func SyncMonitorMinio(s *mcclient.ClientSession, input *EnableMinioParams) error {
+func SyncMonitorMinio(s *mcclient.ClientSession, input *EnableMinioParams, spec *v1alpha1.OnecloudClusterSpec) error {
 	return enableMinioWithParams(
-		ClusterComponentTypeMonitorMinio, s, input,
+		ClusterComponentTypeMonitorMinio, s, input, spec,
 		func(ccs *ClusterComponentsStatus) (bool, string) {
 			if ccs.MonitorMinio == nil {
 				return false, ""
@@ -305,7 +322,7 @@ func SyncMonitorMinio(s *mcclient.ClientSession, input *EnableMinioParams) error
 		})
 }
 
-func getSyncThanosParams(cId string, input *v1alpha1.MonitorStackThanosSpec) (jsonutils.JSONObject, error) {
+func getSyncThanosParams(cId string, spec *v1alpha1.OnecloudClusterSpec, input *v1alpha1.MonitorStackThanosSpec) (jsonutils.JSONObject, error) {
 	opt := &k8s.ClusterEnableComponentThanosOpt{
 		ClusterComponentOptions: newClusterComponentOpt(cId),
 		ClusterComponentThanosSetting: k8s.ClusterComponentThanosSetting{
@@ -322,26 +339,26 @@ func getSyncThanosParams(cId string, input *v1alpha1.MonitorStackThanosSpec) (js
 	if err != nil {
 		return nil, errors.Wrapf(err, "Generate thanos component params")
 	}
-	return params, nil
+	return injectComponentParamsBySpec(params, spec), nil
 }
 
-func enableThanos(s *mcclient.ClientSession, cId string, input *v1alpha1.MonitorStackThanosSpec) error {
-	params, err := getSyncThanosParams(cId, input)
+func enableThanos(s *mcclient.ClientSession, cId string, spec *v1alpha1.OnecloudClusterSpec, input *v1alpha1.MonitorStackThanosSpec) error {
+	params, err := getSyncThanosParams(cId, spec, input)
 	if err != nil {
 		return err
 	}
 	return doEnableClusterComponent(ClusterComponentTypeThanos, s, cId, params)
 }
 
-func updateThanos(s *mcclient.ClientSession, cId string, input *v1alpha1.MonitorStackThanosSpec) error {
-	params, err := getSyncThanosParams(cId, input)
+func updateThanos(s *mcclient.ClientSession, cId string, spec *v1alpha1.OnecloudClusterSpec, input *v1alpha1.MonitorStackThanosSpec) error {
+	params, err := getSyncThanosParams(cId, spec, input)
 	if err != nil {
 		return err
 	}
 	return doUpdateClusterComponent(ClusterComponentTypeThanos, s, cId, params)
 }
 
-func SyncMonitorThanos(s *mcclient.ClientSession, input *v1alpha1.MonitorStackThanosSpec) error {
+func SyncMonitorThanos(s *mcclient.ClientSession, spec *v1alpha1.OnecloudClusterSpec, input *v1alpha1.MonitorStackThanosSpec) error {
 	cType := ClusterComponentTypeThanos
 	return syncClusterComponent(cType, s,
 		func(ccs *ClusterComponentsStatus) (bool, string) {
@@ -351,10 +368,10 @@ func SyncMonitorThanos(s *mcclient.ClientSession, input *v1alpha1.MonitorStackTh
 			return disableClusterComponent(cType, s, id)
 		},
 		func(s *mcclient.ClientSession, id string) error {
-			return enableThanos(s, id, input)
+			return enableThanos(s, id, spec, input)
 		},
 		func(s *mcclient.ClientSession, id string) error {
-			return updateThanos(s, id, input)
+			return updateThanos(s, id, spec, input)
 		},
 	)
 }
@@ -448,11 +465,7 @@ func getSyncMonitorParams(cId string, spec *v1alpha1.OnecloudClusterSpec, config
 		"password": grafanaDB.Password,
 	}
 
-	if spec.DisableResourceManagement {
-		params.(*jsonutils.JSONDict).Add(jsonutils.JSONTrue, "disableResourceManagement")
-	} else {
-		params.(*jsonutils.JSONDict).Add(jsonutils.JSONFalse, "disableResourceManagement")
-	}
+	params = injectComponentParamsBySpec(params, spec)
 
 	params.(*jsonutils.JSONDict).Add(jsonutils.Marshal(dbConfig), "monitor", "grafana", "db")
 
