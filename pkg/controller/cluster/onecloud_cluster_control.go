@@ -115,7 +115,11 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 		components.OvnNorth(),
 	} {
 		if err := component.Sync(oc); err != nil {
-			return err
+			if !controller.StopServices {
+				return err
+			} else {
+				log.Warningf("Stop service error: %v", err)
+			}
 		}
 	}
 
