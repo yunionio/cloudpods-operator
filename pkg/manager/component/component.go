@@ -326,6 +326,14 @@ func (m *ComponentManager) syncDaemonSet(
 		}
 	}
 
+	if controller.StopServices {
+		if !utils.IsInStringArray(f.getComponentType().String(), []string{
+			v1alpha1.HostComponentType.String(),
+		}) {
+			return m.dsControl.DeleteDaemonSet(oc, oldDsTmp)
+		}
+	}
+
 	if !inPV {
 		return m.dsControl.DeleteDaemonSet(oc, oldDsTmp)
 	}
@@ -429,6 +437,16 @@ func (m *ComponentManager) syncDeployment(
 	}
 	if newDeploy == nil {
 		return nil
+	}
+	if controller.StopServices {
+		if !utils.IsInStringArray(f.getComponentType().String(), []string{
+			v1alpha1.KeystoneComponentType.String(),
+			v1alpha1.OvnNorthComponentType.String(),
+			v1alpha1.InfluxdbComponentType.String(),
+		}) {
+			var zero int32 = 0
+			newDeploy.Spec.Replicas = &zero
+		}
 	}
 
 	inPV := isInProductVersion(f, oc)
