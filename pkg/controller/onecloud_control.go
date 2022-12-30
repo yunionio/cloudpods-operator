@@ -52,6 +52,7 @@ var (
 	DisableSyncIngress            bool
 	UseRandomServicePort          bool
 	EtcdKeepFailedPods            bool
+	StopServices                  bool
 
 	sessionLock sync.Mutex
 )
