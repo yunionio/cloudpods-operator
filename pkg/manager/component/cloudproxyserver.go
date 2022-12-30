@@ -134,6 +134,9 @@ func (m *cloudproxyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1a
 
 func (m *cloudproxyManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	go func() {
+		if controller.StopServices {
+			return
+		}
 		for i := 0; i < 10; i++ {
 			if _, err := m.getOrCreateProxyAgent(oc); err == nil {
 				return
