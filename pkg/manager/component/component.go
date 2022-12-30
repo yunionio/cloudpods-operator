@@ -313,11 +313,14 @@ func (m *ComponentManager) syncDaemonSet(
 	}
 
 	inPV := isInProductVersion(f, oc)
+	shouldStop := controller.StopServices && !utils.IsInStringArray(f.getComponentType().String(), []string{
+		v1alpha1.HostComponentType.String(),
+	})
 
 	oldDsTmp, err := m.dsLister.DaemonSets(ns).Get(newDs.GetName())
 	if err != nil {
 		if errors.IsNotFound(err) {
-			if !inPV {
+			if !inPV || shouldStop {
 				return nil
 			}
 			return m.dsControl.CreateDaemonSet(oc, newDs)
@@ -326,17 +329,10 @@ func (m *ComponentManager) syncDaemonSet(
 		}
 	}
 
-	if controller.StopServices {
-		if !utils.IsInStringArray(f.getComponentType().String(), []string{
-			v1alpha1.HostComponentType.String(),
-		}) {
-			return m.dsControl.DeleteDaemonSet(oc, oldDsTmp)
-		}
-	}
-
-	if !inPV {
+	if !inPV || shouldStop {
 		return m.dsControl.DeleteDaemonSet(oc, oldDsTmp)
 	}
+
 	oldDs := oldDsTmp.DeepCopy()
 	if err = m.updateDaemonSet(oc, newDs, oldDs); err != nil {
 		return err
@@ -440,7 +436,6 @@ func (m *ComponentManager) syncDeployment(
 	}
 	if controller.StopServices {
 		if !utils.IsInStringArray(f.getComponentType().String(), []string{
-			v1alpha1.KeystoneComponentType.String(),
 			v1alpha1.OvnNorthComponentType.String(),
 			v1alpha1.InfluxdbComponentType.String(),
 		}) {
@@ -1244,6 +1239,9 @@ func (m *ComponentManager) syncPhase(
 	f cloudComponentFactory,
 	zone string,
 ) error {
+	if controller.StopServices {
+		return nil
+	}
 	phaseFactory := f.getPhaseControl
 	phase := phaseFactory(m.onecloudControl.Components(oc), zone)
 	if phase == nil {
