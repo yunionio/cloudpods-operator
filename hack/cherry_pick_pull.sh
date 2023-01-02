@@ -46,8 +46,8 @@ declare -r REBASEMAGIC="${REPO_ROOT}/.git/rebase-apply"
 DRY_RUN=${DRY_RUN:-""}
 UPSTREAM_REMOTE=${UPSTREAM_REMOTE:-upstream}
 FORK_REMOTE=${FORK_REMOTE:-origin}
-MAIN_REPO_ORG=${MAIN_REPO_ORG:-$(git_remote_get_url "$UPSTREAM_REMOTE" | awk '{gsub(/http[s]:\/\/|git@/,"")}1' | awk -F'[@:./]' 'NR==1{print $3}')}
-MAIN_REPO_NAME=${MAIN_REPO_NAME:-$(git_remote_get_url "$UPSTREAM_REMOTE" | awk '{gsub(/http[s]:\/\/|git@/,"")}1' | awk -F'[@:./]' 'NR==1{print $4}')}
+MAIN_REPO_ORG=${MAIN_REPO_ORG:-$(git_remote_get_url "$UPSTREAM_REMOTE" | awk -F'github.com' '{print $2}' | awk -F'[./]' 'NR==1{print $2}')}
+MAIN_REPO_NAME=${MAIN_REPO_NAME:-$(git_remote_get_url "$UPSTREAM_REMOTE" | awk -F'github.com' '{print $2}' | awk -F'[./]' 'NR==1{print $3}')}
 
 if [[ -z ${GITHUB_USER:-} ]]; then
   echo "Please export GITHUB_USER=<your-user> (or GH organization, if that's where your fork lives)"
@@ -56,6 +56,15 @@ fi
 
 if ! which hub > /dev/null; then
   echo "Can't find 'hub' tool in PATH, please install from https://github.com/github/hub"
+  exit 1
+fi
+
+function version_lt() { 
+    test "$(echo "$@" | tr " " "\n" | sort -rV | head -n 1)" != "$1" 
+}
+
+if version_lt "$(hub version | awk '/hub/ {print $3}')" "2.13.0"; then
+  echo "Please install 'hub' with version 2.13.0+ from https://github.com/github/hub/releases"
   exit 1
 fi
 
@@ -156,32 +165,6 @@ EOF
 hub pull-request -F "${prtext}" -h "${GITHUB_USER}:${NEWBRANCH}" -b "${MAIN_REPO_ORG}:${rel}"
 }
 
-function extract-subject {
-  local patch="$1"
-
-  python3 -c '
-import os
-import email.parser
-import email.header
-with open("'"$patch"'", "r") as f:
-    m = email.parser.Parser().parse(f, headersonly=True)
-subj = m["subject"]
-subj = email.header.decode_header(subj)
-s = u""
-for txt, enc in subj:
-    txt = txt.decode(enc) if enc else txt
-    txt = txt.decode("ascii") if isinstance(txt, bytes) else txt
-    txt = txt.replace(u"\n", u"")
-    if txt.startswith(u"[PATCH"):
-        i = txt.index(u"]")
-        txt = txt[i+1:]
-    s += txt
-s = s.strip() + u"\n"
-s = s.encode("utf-8") # write out utf-8 bytes whatsoever
-os.write(1, s)
-'
-}
-
 git checkout -b "${NEWBRANCHUNIQ}" "${BRANCH}"
 cleanbranch="${NEWBRANCHUNIQ}"
 
@@ -189,6 +172,7 @@ gitamcleanup=true
 for pull in "${PULLS[@]}"; do
   echo "+++ Downloading patch to /tmp/${pull}.patch (in case you need to do this again)"
 
+  echo "Downloading https://github.com/${MAIN_REPO_ORG}/${MAIN_REPO_NAME}/pull/${pull}.patch ..."
   curl -o "/tmp/${pull}.patch" -sSL "https://github.com/${MAIN_REPO_ORG}/${MAIN_REPO_NAME}/pull/${pull}.patch"
   echo
   echo "+++ About to attempt cherry pick of PR. To reattempt:"
@@ -219,9 +203,7 @@ for pull in "${PULLS[@]}"; do
     fi
   }
 
-  # set the subject
-  subject=$(extract-subject "/tmp/${pull}.patch")
-  SUBJECTS+=("#${pull}: ${subject}")
+SUBJECTS+=("$(hub pr show -f "%i: %t" ${pull})")
 
   # remove the patch file from /tmp
   rm -f "/tmp/${pull}.patch"
