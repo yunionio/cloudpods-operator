@@ -102,7 +102,11 @@ func (m *glanceManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	opt.AutoSyncTable = true
 	opt.Port = config.Port
 
-	opt.EnableRemoteExecutor = true
+	if oc.Spec.ProductVersion == v1alpha1.ProductVersionCMP {
+		opt.EnableRemoteExecutor = false
+	} else {
+		opt.EnableRemoteExecutor = true
+	}
 	if oc.Spec.Glance.SwitchToS3 {
 		if err := m.setS3Config(oc); err != nil {
 			return nil, false, yerr.Wrap(err, "setS3Config")
@@ -218,6 +222,12 @@ func (m *glanceManager) customConfig(oc *v1alpha1.OnecloudCluster, newCfg *corev
 		deployPath, err := jConfig.GetString("deploy_server_socket_path")
 		if err == nil && deployPath != options.Options.DeployServerSocketPath {
 			jConfig.Set("deploy_server_socket_path", jsonutils.NewString(options.Options.DeployServerSocketPath))
+			updateOldConf = true
+		}
+
+		enableRemoteExecutor, err := jConfig.Bool("enable_remote_executor")
+		if err == nil && enableRemoteExecutor && oc.Spec.ProductVersion == v1alpha1.ProductVersionCMP {
+			jConfig.Set("enable_remote_executor", jsonutils.JSONFalse)
 			updateOldConf = true
 		}
 
