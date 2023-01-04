@@ -21,9 +21,10 @@ import (
 
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
+	"yunion.io/x/pkg/appctx"
+	"yunion.io/x/pkg/util/httputils"
 
 	"yunion.io/x/onecloud/pkg/i18n"
-	"yunion.io/x/onecloud/pkg/util/httputils"
 )
 
 func SendHTTPErrorHeader(w http.ResponseWriter, statusCode int) {
@@ -60,7 +61,7 @@ func formatDetails(ctx context.Context, errData httputils.Error, msg string) str
 	if errData.Id == "" {
 		details = msg
 	} else {
-		lang := i18n.Lang(ctx)
+		lang := appctx.Lang(ctx)
 		a := make([]interface{}, len(errData.Fields))
 		for i := range errData.Fields {
 			a[i] = errData.Fields[i]

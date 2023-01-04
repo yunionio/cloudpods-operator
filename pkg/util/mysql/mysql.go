@@ -57,9 +57,58 @@ func NewConnection(info *apis.Mysql) (dbutil.IConnection, error) {
 	}, nil
 }
 
+func (conn *Connection) DB() *sql.DB {
+	return conn.db
+}
+
 func (conn *Connection) CheckHealth() error {
 	_, err := conn.db.Exec("SHOW MASTER STATUS")
 	return err
+}
+
+func (conn *Connection) scanMap(rows *sql.Rows) (map[string]sql.NullString, error) {
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+
+	if !rows.Next() {
+		err = rows.Err()
+		if err != nil {
+			return nil, err
+		} else {
+			return nil, nil
+		}
+	}
+
+	values := make([]interface{}, len(columns))
+	for index := range values {
+		values[index] = new(sql.NullString)
+	}
+	err = rows.Scan(values...)
+
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[string]sql.NullString)
+
+	for index, columnName := range columns {
+		value := *values[index].(*sql.NullString)
+		if value.Valid {
+			result[columnName] = value
+		}
+	}
+
+	return result, nil
+}
+
+func (conn *Connection) ShowSlaveStatus() (map[string]sql.NullString, error) {
+	rows, err := conn.db.Query("SHOW SLAVE STATUS")
+	if err != nil {
+		return nil, errors.Wrap(err, "show slave status")
+	}
+	return conn.scanMap(rows)
 }
 
 func (conn *Connection) IsDatabaseExists(db string) (bool, error) {

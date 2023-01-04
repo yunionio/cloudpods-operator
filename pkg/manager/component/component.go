@@ -115,6 +115,10 @@ func NewComponentManager(
 	}
 }
 
+func (m *ComponentManager) RunWithSession(oc *v1alpha1.OnecloudCluster, f func(s *mcclient.ClientSession) error) error {
+	return m.onecloudControl.RunWithSession(oc, f)
+}
+
 func (m *ComponentManager) syncService(
 	oc *v1alpha1.OnecloudCluster,
 	factory cloudComponentFactory,

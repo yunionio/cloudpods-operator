@@ -69,6 +69,7 @@ func init() {
 	flag.BoolVar(&controller.EtcdKeepFailedPods, "etcd-keep-failed-pods", false, "Keep the failed etcd pods")
 	flag.BoolVar(&controller.StopServices, "stop-services", false, "Stop services")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false, "Enable leader election for multiple instances")
+	flag.IntVar(&controller.MysqlCheckInterval, "mysql-check-interval", 60, "The minutes of mysql check interval")
 
 	flag.Parse()
 }

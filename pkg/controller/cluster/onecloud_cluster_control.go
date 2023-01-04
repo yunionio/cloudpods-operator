@@ -2,15 +2,21 @@ package cluster
 
 import (
 	"crypto/sha256"
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	errorutils "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/tools/record"
 
+	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
+	"yunion.io/x/onecloud/pkg/apis/notify"
+	"yunion.io/x/onecloud/pkg/mcclient"
+	npk "yunion.io/x/onecloud/pkg/mcclient/modules/notify"
 	"yunion.io/x/pkg/errors"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -19,6 +25,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/manager/certs"
 	"yunion.io/x/onecloud-operator/pkg/manager/component"
 	"yunion.io/x/onecloud-operator/pkg/manager/config"
+	"yunion.io/x/onecloud-operator/pkg/util/mysql"
 )
 
 // ControlInterface implements the control logic for updating OnecloudClusters and their children Deployments or StatefulSets.
@@ -42,6 +49,7 @@ func NewDefaultOnecloudClusterControl(
 		clusterCertsManager:  certsManager,
 		components:           componentManager,
 		recorder:             recorder,
+		lastCheckMysqlTime:   time.Now(),
 	}
 }
 
@@ -51,6 +59,7 @@ type defaultClusterControl struct {
 	clusterCertsManager  *certs.CertsManager
 	components           *component.ComponentManager
 	recorder             record.EventRecorder
+	lastCheckMysqlTime   time.Time
 }
 
 // UpdateOnecloudCluster executes the core logic loop  for a onecloud cluster
@@ -178,5 +187,56 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 	}
 	oc.Status.SpecChecksum = fmt.Sprintf("%x", sha256.Sum256(specJson))
 
+	if time.Since(occ.lastCheckMysqlTime) > time.Duration(controller.MysqlCheckInterval)*time.Minute {
+		if err := occ.checkMysqlSlaveStatus(oc); err != nil {
+			log.Warningf("checkMysqlSlaveStatus error: %v", err)
+		}
+		occ.lastCheckMysqlTime = time.Now()
+	}
+
 	return nil
+}
+
+func (occ *defaultClusterControl) checkMysqlSlaveStatus(oc *v1alpha1.OnecloudCluster) error {
+	dbConf := oc.Spec.Mysql
+	if dbConf.Host == "" || dbConf.Username == "" || dbConf.Password == "" {
+		return nil
+	}
+	conn, err := mysql.NewConnection(&oc.Spec.Mysql)
+	if err != nil {
+		return errors.Wrap(err, "mysql.NewConnection")
+	}
+	defer conn.Close()
+	sqlConn := conn.(*mysql.Connection)
+	status, err := sqlConn.ShowSlaveStatus()
+	if err != nil {
+		return errors.Wrap(err, "ShowSlaveStatus")
+	}
+	if len(status) == 0 {
+		return nil
+	}
+
+	// notify slave status
+	slaveIORunning := status["Slave_IO_Running"]
+	slaveSQLRunning := status["Slave_SQL_Running"]
+	if slaveIORunning.String == "Yes" && slaveSQLRunning.String == "Yes" {
+		return nil
+	}
+	return occ.notifyMysqlError(oc, status)
+}
+
+func (occ *defaultClusterControl) notifyMysqlError(oc *v1alpha1.OnecloudCluster, status map[string]sql.NullString) error {
+	return occ.components.RunWithSession(oc, func(s *mcclient.ClientSession) error {
+		params := notify.NotificationManagerEventNotifyInput{
+			Event: notify.Event.WithAction(notify.ActionMysqlOutOfSync).WithResourceType(notify.TOPIC_RESOURCE_DBINSTANCE).String(),
+			ResourceDetails: jsonutils.Marshal(map[string]interface{}{
+				"ip":                oc.Spec.Mysql.Host,
+				"slave_io_running":  status["Slave_IO_Running"].String,
+				"slave_sql_running": status["Slave_SQL_Running"].String,
+				"last_error":        status["Last_Error"].String,
+			}).(*jsonutils.JSONDict),
+		}
+		_, err := npk.Notification.PerformClassAction(s, "event-notify", jsonutils.Marshal(params))
+		return err
+	})
 }
