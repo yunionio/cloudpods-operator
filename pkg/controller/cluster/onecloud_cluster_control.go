@@ -197,6 +197,16 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 	return nil
 }
 
+const (
+	mysqlKeySlaveIORunning  = "Slave_IO_Running"
+	mysqlKeySlaveSQLRunning = "Slave_SQL_Running"
+	mysqlKeyLastError       = "Last_Error"
+	mysqlKeyLastIOError     = "Last_IO_Error"
+	mysqlKeyMasterHost      = "Master_Host"
+	mysqlKeyIP              = "IP"
+	mysqlKeyOperatorError   = "Operator_Error"
+)
+
 func (occ *defaultClusterControl) checkMysqlSlaveStatus(oc *v1alpha1.OnecloudCluster) error {
 	dbConf := oc.Spec.Mysql
 	if dbConf.Host == "" || dbConf.Username == "" || dbConf.Password == "" {
@@ -216,24 +226,107 @@ func (occ *defaultClusterControl) checkMysqlSlaveStatus(oc *v1alpha1.OnecloudClu
 		return nil
 	}
 
-	// notify slave status
-	slaveIORunning := status["Slave_IO_Running"]
-	slaveSQLRunning := status["Slave_SQL_Running"]
-	if slaveIORunning.String == "Yes" && slaveSQLRunning.String == "Yes" {
+	masterHost := status[mysqlKeyMasterHost]
+	if masterHost.String == "" {
 		return nil
 	}
-	return occ.notifyMysqlError(oc, status)
+
+	showSlaveStatus := func(masterHost string) (string, map[string]sql.NullString, error) {
+		info := oc.Spec.Mysql.DeepCopy()
+		info.Host = masterHost
+		conn, err := mysql.NewConnection(info)
+		if err != nil {
+			return "", nil, errors.Wrapf(err, "mysql.NewConnection of %s", masterHost)
+		}
+		defer conn.Close()
+		sqlConn := conn.(*mysql.Connection)
+		status, err := sqlConn.ShowSlaveStatus()
+		if err != nil {
+			return "", nil, errors.Wrapf(err, "ShowSlaveStatus of %s", masterHost)
+		}
+		// notify slave status
+		slaveIORunning := status[mysqlKeySlaveIORunning]
+		slaveSQLRunning := status[mysqlKeySlaveSQLRunning]
+		peerHost := status[mysqlKeyMasterHost].String
+		if slaveIORunning.String == "Yes" && slaveSQLRunning.String == "Yes" {
+			return peerHost, nil, nil
+		}
+		status[mysqlKeyIP] = sql.NullString{
+			String: masterHost,
+			Valid:  true,
+		}
+		return peerHost, status, nil
+	}
+
+	injectErr := func(ip string, status map[string]sql.NullString, err error) map[string]sql.NullString {
+		if status == nil {
+			status = make(map[string]sql.NullString)
+		}
+		status[mysqlKeyOperatorError] = sql.NullString{
+			String: err.Error(),
+			Valid:  true,
+		}
+		status[mysqlKeyIP] = sql.NullString{
+			String: ip,
+			Valid:  true,
+		}
+		return status
+	}
+
+	peerHost, status1, err := showSlaveStatus(masterHost.String)
+	if err != nil {
+		status1 = injectErr(masterHost.String, status1, err)
+	}
+
+	_, status2, err := showSlaveStatus(peerHost)
+	if peerHost == "" {
+		sqlHost := oc.Spec.Mysql.Host
+		if err != nil {
+			log.Errorf("showSlaveStatus of %q: %v, try get status from %q", peerHost, err, sqlHost)
+		}
+		_, status2, err = showSlaveStatus(sqlHost)
+	}
+	if err != nil {
+		status2 = injectErr(peerHost, status1, err)
+	}
+
+	// notify slave status
+	return occ.notifyMysqlError(oc, status1, status2)
 }
 
-func (occ *defaultClusterControl) notifyMysqlError(oc *v1alpha1.OnecloudCluster, status map[string]sql.NullString) error {
+func (occ *defaultClusterControl) notifyMysqlError(oc *v1alpha1.OnecloudCluster, status1, status2 map[string]sql.NullString) error {
+	if status1 == nil && status2 == nil {
+		return nil
+	}
 	return occ.components.RunWithSession(oc, func(s *mcclient.ClientSession) error {
+		getStatus := func() []map[string]string {
+			ret := make([]map[string]string, 0)
+			for _, s := range []map[string]sql.NullString{status1, status2} {
+				if s == nil {
+					continue
+				}
+				if _, ok := s[mysqlKeyOperatorError]; ok {
+					ret = append(ret, map[string]string{
+						"ip":             s[mysqlKeyIP].String,
+						"operator_error": s[mysqlKeyOperatorError].String,
+					})
+				} else {
+					ret = append(ret, map[string]string{
+						"ip":                s[mysqlKeyIP].String,
+						"slave_io_running":  s[mysqlKeySlaveIORunning].String,
+						"slave_sql_running": s[mysqlKeySlaveSQLRunning].String,
+						"last_error":        s[mysqlKeyLastError].String,
+						"last_io_error":     s[mysqlKeyLastIOError].String,
+					})
+				}
+			}
+			return ret
+		}
 		params := notify.NotificationManagerEventNotifyInput{
 			Event: notify.Event.WithAction(notify.ActionMysqlOutOfSync).WithResourceType(notify.TOPIC_RESOURCE_DBINSTANCE).String(),
 			ResourceDetails: jsonutils.Marshal(map[string]interface{}{
-				"ip":                oc.Spec.Mysql.Host,
-				"slave_io_running":  status["Slave_IO_Running"].String,
-				"slave_sql_running": status["Slave_SQL_Running"].String,
-				"last_error":        status["Last_Error"].String,
+				"ip":     oc.Spec.Mysql.Host,
+				"status": getStatus(),
 			}).(*jsonutils.JSONDict),
 		}
 		_, err := npk.Notification.PerformClassAction(s, "event-notify", jsonutils.Marshal(params))
