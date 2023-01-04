@@ -22,19 +22,14 @@ type CloudMonOptions struct {
 	common_options.CommonOptions
 	PingProbeOptions
 
-	EndpointType string `default:"internalURL" help:"Defaults to internalURL" choices:"publicURL|internalURL|adminURL"`
-	ApiVersion   string `help:"override default modules service api version"`
-
-	ReqTimeout int    `default:"600" help:"Number of seconds to wait for a response"`
-	Insecure   bool   `default:"true" help:"Allow skip server cert verification if URL is https" short-token:"k"`
-	CertFile   string `help:"certificate file"`
-	KeyFile    string `help:"private key file"`
-
 	ResourcesSyncInterval   int64  `help:"Increment Sync Interval unit:minute" default:"10"`
 	CollectMetricInterval   int64  `help:"Increment Sync Interval unit:minute" default:"6"`
 	SkipMetricPullProviders string `help:"Skip indicate provider metric pull" default:""`
 
 	InfluxDatabase string `help:"influxdb database name, default telegraf" default:"telegraf"`
+
+	DisableServiceMetric               bool  `help:"disable service metric collect"`
+	CollectServiceMetricIntervalMinute int64 `help:"Collect Service metirc Interval unit:minute" default:"5"`
 
 	CloudAccountCollectMetricsBatchCount  int `help:"Cloud Account Collect Metrics Batch Count" default:"10"`
 	CloudResourceCollectMetricsBatchCount int `help:"Cloud Resource Collect Metrics BatchC ount" default:"40"`
@@ -66,6 +61,15 @@ func OnOptionsChange(oldO, newO interface{}) bool {
 		if !oldOpts.IsSlaveNode {
 			changed = true
 		}
+	}
+	if oldOpts.ResourcesSyncInterval != newOpts.ResourcesSyncInterval {
+		changed = true
+	}
+	if oldOpts.CollectMetricInterval != newOpts.CollectMetricInterval {
+		changed = true
+	}
+	if oldOpts.CollectServiceMetricIntervalMinute != newOpts.CollectServiceMetricIntervalMinute {
+		changed = true
 	}
 
 	return changed
