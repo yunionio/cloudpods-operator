@@ -21,10 +21,9 @@ import (
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/pkg/errors"
 	"yunion.io/x/pkg/tristate"
-
-	"yunion.io/x/onecloud/pkg/util/billing"
-	"yunion.io/x/onecloud/pkg/util/rbacutils"
-	"yunion.io/x/onecloud/pkg/util/samlutils"
+	"yunion.io/x/pkg/util/billing"
+	"yunion.io/x/pkg/util/rbacscope"
+	"yunion.io/x/pkg/util/samlutils"
 )
 
 type ICloudResource interface {
@@ -116,7 +115,6 @@ type ICloudRegion interface {
 	GetILoadBalancers() ([]ICloudLoadbalancer, error)
 	GetILoadBalancerAcls() ([]ICloudLoadbalancerAcl, error)
 	GetILoadBalancerCertificates() ([]ICloudLoadbalancerCertificate, error)
-	GetILoadBalancerBackendGroups() ([]ICloudLoadbalancerBackendGroup, error) // for aws only
 
 	GetILoadBalancerById(loadbalancerId string) (ICloudLoadbalancer, error)
 	GetILoadBalancerAclById(aclId string) (ICloudLoadbalancerAcl, error)
@@ -232,7 +230,7 @@ type ICloudImage interface {
 	GetMinRamSizeMb() int
 	GetImageFormat() string
 
-	GetPublicScope() rbacutils.TRbacScope
+	GetPublicScope() rbacscope.TRbacScope
 	GetSubImages() []SSubImage
 }
 
@@ -401,6 +399,7 @@ type ICloudVM interface {
 	SaveImage(opts *SaveImageOptions) (ICloudImage, error)
 
 	AllocatePublicIpAddress() (string, error)
+	GetPowerStates() string
 }
 
 type ICloudNic interface {
@@ -641,7 +640,7 @@ type ICloudNetwork interface {
 	// 仅私有云有用，公有云无效
 	// 1. scope = none 非共享, network仅会属于一个项目,并且私有
 	// 2. scope = system 系统共享 云账号共享会跟随云账号共享，云账号非共享,会共享到network所在域
-	GetPublicScope() rbacutils.TRbacScope
+	GetPublicScope() rbacscope.TRbacScope
 
 	Delete() error
 
@@ -687,7 +686,7 @@ type ICloudLoadbalancer interface {
 	CreateILoadBalancerBackendGroup(group *SLoadbalancerBackendGroup) (ICloudLoadbalancerBackendGroup, error)
 	GetILoadBalancerBackendGroupById(groupId string) (ICloudLoadbalancerBackendGroup, error)
 
-	CreateILoadBalancerListener(ctx context.Context, listener *SLoadbalancerListener) (ICloudLoadbalancerListener, error)
+	CreateILoadBalancerListener(ctx context.Context, listener *SLoadbalancerListenerCreateOptions) (ICloudLoadbalancerListener, error)
 	GetILoadBalancerListenerById(listenerId string) (ICloudLoadbalancerListener, error)
 }
 
@@ -717,7 +716,7 @@ type ICloudloadbalancerHealthCheck interface {
 }
 
 type ICloudLoadbalancerListener interface {
-	IVirtualResource
+	ICloudResource
 
 	GetListenerType() string
 	GetListenerPort() int
@@ -755,13 +754,13 @@ type ICloudLoadbalancerListener interface {
 
 	Start() error
 	Stop() error
-	Sync(ctx context.Context, listener *SLoadbalancerListener) error
+	Sync(ctx context.Context, listener *SLoadbalancerListenerCreateOptions) error
 
 	Delete(ctx context.Context) error
 }
 
 type ICloudLoadbalancerListenerRule interface {
-	IVirtualResource
+	ICloudResource
 	// http redirect
 	ICloudLoadbalancerRedirect
 
@@ -775,17 +774,12 @@ type ICloudLoadbalancerListenerRule interface {
 }
 
 type ICloudLoadbalancerBackendGroup interface {
-	IVirtualResource
+	ICloudResource
 
 	IsDefault() bool
 	GetType() string
-	GetLoadbalancerId() string
 	GetILoadbalancerBackends() ([]ICloudLoadbalancerBackend, error)
 	GetILoadbalancerBackendById(backendId string) (ICloudLoadbalancerBackend, error)
-	GetProtocolType() string                                // huawei only .后端云服务器组的后端协议。
-	GetScheduler() string                                   // huawei only
-	GetHealthCheck() (*SLoadbalancerHealthCheck, error)     // huawei only
-	GetStickySession() (*SLoadbalancerStickySession, error) // huawei only
 	AddBackendServer(serverId string, weight int, port int) (ICloudLoadbalancerBackend, error)
 	RemoveBackendServer(serverId string, weight int, port int) error
 
@@ -794,7 +788,7 @@ type ICloudLoadbalancerBackendGroup interface {
 }
 
 type ICloudLoadbalancerBackend interface {
-	IVirtualResource
+	ICloudResource
 
 	GetWeight() int
 	GetPort() int

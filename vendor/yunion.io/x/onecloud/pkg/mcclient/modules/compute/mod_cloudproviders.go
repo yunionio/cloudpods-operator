@@ -26,13 +26,13 @@ import (
 	"yunion.io/x/log"
 	"yunion.io/x/pkg/errors"
 	"yunion.io/x/pkg/gotypes"
+	"yunion.io/x/pkg/util/httputils"
 	"yunion.io/x/pkg/utils"
 
 	proxyapi "yunion.io/x/onecloud/pkg/apis/cloudcommon/proxy"
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/mcclient/modulebase"
 	"yunion.io/x/onecloud/pkg/mcclient/modules"
-	"yunion.io/x/onecloud/pkg/util/httputils"
 )
 
 type SCloudprovider struct {
@@ -77,6 +77,8 @@ type SCloudDelegate struct {
 
 	Options struct {
 		cloudprovider.SHCSOEndpoints
+		Account  string
+		Password string
 	}
 	ProxySetting proxyapi.SProxySetting
 }

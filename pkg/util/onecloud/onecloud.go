@@ -23,6 +23,7 @@ import (
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
 	"yunion.io/x/pkg/errors"
+	"yunion.io/x/pkg/util/httputils"
 
 	ansibleapi "yunion.io/x/onecloud/pkg/apis/ansible"
 	devtoolapi "yunion.io/x/onecloud/pkg/apis/devtool"
@@ -35,7 +36,6 @@ import (
 	"yunion.io/x/onecloud/pkg/mcclient/modules/identity"
 	"yunion.io/x/onecloud/pkg/mcclient/modules/monitor"
 	"yunion.io/x/onecloud/pkg/util/ansible"
-	"yunion.io/x/onecloud/pkg/util/httputils"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 )

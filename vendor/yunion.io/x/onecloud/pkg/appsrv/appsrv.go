@@ -32,16 +32,15 @@ import (
 
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
+	"yunion.io/x/pkg/appctx"
 	"yunion.io/x/pkg/trace"
+	"yunion.io/x/pkg/util/httputils"
 	"yunion.io/x/pkg/util/signalutils"
 	"yunion.io/x/pkg/utils"
 
-	"yunion.io/x/onecloud/pkg/appctx"
 	"yunion.io/x/onecloud/pkg/httperrors"
-	"yunion.io/x/onecloud/pkg/i18n"
 	"yunion.io/x/onecloud/pkg/proxy"
 	"yunion.io/x/onecloud/pkg/util/ctx"
-	"yunion.io/x/onecloud/pkg/util/httputils"
 )
 
 type Application struct {
@@ -364,7 +363,7 @@ func (app *Application) defaultHandle(w http.ResponseWriter, r *http.Request, ri
 			if task.cancel != nil {
 				defer task.cancel()
 			}
-			task.ctx = i18n.WithRequestLang(task.ctx, r)
+			task.ctx = appctx.WithRequestLang(task.ctx, r)
 			session := hand.workerMan
 			if session == nil {
 				if r.Method == "GET" || r.Method == "HEAD" {
@@ -397,11 +396,11 @@ func (app *Application) defaultHandle(w http.ResponseWriter, r *http.Request, ri
 			task.fw.closeChannels()
 			return hand, task.appParams
 		} else {
-			ctx := i18n.WithRequestLang(context.TODO(), r)
+			ctx := appctx.WithRequestLang(context.TODO(), r)
 			httperrors.InternalServerError(ctx, w, "Invalid handler %s", r.URL)
 		}
 	} else if !isCors {
-		ctx := i18n.WithRequestLang(context.TODO(), r)
+		ctx := appctx.WithRequestLang(context.TODO(), r)
 		httperrors.NotFoundError(ctx, w, "Handler not found")
 	}
 	return nil, nil
@@ -420,6 +419,7 @@ func (app *Application) addDefaultHandlers() {
 	app.AddDefaultHandler("POST", "/ping", PingHandler, "ping")
 	app.AddDefaultHandler("GET", "/ping", PingHandler, "ping")
 	app.AddDefaultHandler("GET", "/worker_stats", WorkerStatsHandler, "worker_stats")
+	app.AddDefaultHandler("GET", "/process_stats", ProcessStatsHandler, "process_stats")
 }
 
 func timeoutHandle(h http.Handler) http.HandlerFunc {

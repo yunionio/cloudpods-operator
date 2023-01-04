@@ -53,6 +53,7 @@ var (
 	UseRandomServicePort          bool
 	EtcdKeepFailedPods            bool
 	StopServices                  bool
+	MysqlCheckInterval            int
 
 	sessionLock sync.Mutex
 )

@@ -206,6 +206,14 @@ type CloudaccountCreateInput struct {
 	SubAccounts *cloudprovider.SubAccounts
 
 	ReadOnly bool `json:"read_only"`
+
+	SProjectMappingResourceInput
+}
+
+type SProjectMappingResourceInput struct {
+	ProjectMappingId   string `json:"project_mapping_id"`
+	EnableProjectSync  bool   `json:"enable_project_sync"`
+	EnableResourceSync bool   `json:"enable_resource_sync"`
 }
 
 type CloudaccountShareModeInput struct {
@@ -505,6 +513,9 @@ type CloudaccountProjectMappingInput struct {
 	// 同步策略Id, 若不传此参数则解绑
 	// 绑定同步策略要求当前云账号此刻未绑定其他同步策略
 	ProjectMappingId string `json:"project_mapping_id"`
+
+	EnableProjectSync  *bool `json:"enable_project_sync"`
+	EnableResourceSync *bool `json:"enable_resource_sync"`
 }
 
 type SyncRangeInput struct {
@@ -517,8 +528,8 @@ type SyncRangeInput struct {
 	Host   []string `json:"host"`
 
 	// 按资源类型同步，可输入多个
-	// enmu: compute, network, loadbalancer, objectstore, rds, cache, nat, nas, waf, mongodb, es, kafka, app, container
-	Resources []string `json:"resources" choices:"compute|network|loadbalancer|objectstore|rds|cache|nat|nas|waf|mongodb|es|kafka|app|container|eip|tablestore"`
+	// enmu: project, compute, network, eip, loadbalancer, objectstore, rds, cache, event, cloudid, dnszone, public_ip, intervpcnetwork, saml_auth, quota, nat, nas, waf, mongodb, es, kafka, app, cdn, container, ipv6_gateway, tablestore, modelarts, vpcpeer, misc
+	Resources []string `json:"resources" choices:"project|compute|network|eip|loadbalancer|objectstore|rds|cache|event|cloudid|dnszone|public_ip|intervpcnetwork|saml_auth|quota|nat|nas|waf|mongodb|es|kafka|app|cdn|container|ipv6_gateway|tablestore|modelarts|vpcpeer|misc"`
 }
 
 type SAccountPermission struct {
