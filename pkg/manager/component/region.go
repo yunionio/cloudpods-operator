@@ -50,12 +50,6 @@ func (m *regionManager) getComponentType() v1alpha1.ComponentType {
 }
 
 func (m *regionManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if len(oc.Spec.RegionServer.ImageName) == 0 {
-		oc.Spec.RegionServer.ImageName = constants.RegionCEImageName
-		if IsEnterpriseEdition(oc) {
-			oc.Spec.RegionServer.ImageName = constants.RegionEEImageName
-		}
-	}
 	return syncComponent(m, oc, oc.Spec.RegionServer.Disable, "")
 }
 
