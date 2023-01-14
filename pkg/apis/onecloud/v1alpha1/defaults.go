@@ -453,7 +453,7 @@ func SetDefaults_RegionSpec(
 	imageRepo, version string,
 	useHyperImage, isEE bool,
 ) {
-	SetDefaults_DeploymentSpec(&obj.DeploymentSpec, getImage(
+	SetDefaults_DeploymentSpec(&obj.DeploymentSpec, getEditionImage(
 		imageRepo, obj.Repository,
 		RegionComponentType, obj.ImageName,
 		version, obj.Tag,
