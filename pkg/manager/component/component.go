@@ -438,15 +438,11 @@ func (m *ComponentManager) syncDeployment(
 	if newDeploy == nil {
 		return nil
 	}
-	if controller.StopServices {
-		if !utils.IsInStringArray(f.getComponentType().String(), []string{
-			v1alpha1.OvnNorthComponentType.String(),
-			v1alpha1.InfluxdbComponentType.String(),
-		}) {
-			var zero int32 = 0
-			newDeploy.Spec.Replicas = &zero
-		}
-	}
+
+	shouldStop := controller.StopServices && !utils.IsInStringArray(f.getComponentType().String(), []string{
+		v1alpha1.OvnNorthComponentType.String(),
+		v1alpha1.InfluxdbComponentType.String(),
+	})
 
 	inPV := isInProductVersion(f, oc)
 
@@ -464,7 +460,7 @@ func (m *ComponentManager) syncDeployment(
 	oldDeployTmp, err := m.deployLister.Deployments(ns).Get(newDeploy.GetName())
 	if err != nil {
 		if errors.IsNotFound(err) {
-			if !inPV {
+			if !inPV || shouldStop {
 				return nil
 			}
 			if err := SetDeploymentLastAppliedConfigAnnotation(newDeploy); err != nil {
@@ -484,7 +480,7 @@ func (m *ComponentManager) syncDeployment(
 	}
 
 	oldDeploy := oldDeployTmp.DeepCopy()
-	if !inPV {
+	if !inPV || shouldStop {
 		return m.deployControl.DeleteDeployment(oc, oldDeploy.Name)
 	}
 
