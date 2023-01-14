@@ -47,7 +47,7 @@ func (m *cloudnetManager) getComponentType() v1alpha1.ComponentType {
 }
 
 func (m *cloudnetManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if !oc.Spec.EnableCloudNet {
+	if !oc.Spec.EnableCloudNet && !controller.StopServices {
 		return nil
 	}
 	return syncComponent(m, oc, oc.Spec.Cloudnet.Disable, "")
