@@ -157,7 +157,6 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		ItsmComponentType:            nHP(&obj.Itsm.DeploymentSpec, false),
 		CloudIdComponentType:         nHP(&obj.CloudId.DeploymentSpec, useHyperImage),
 		SuggestionComponentType:      nHP(&obj.Suggestion.DeploymentSpec, useHyperImage),
-		CloudmonComponentType:        nHP(&obj.Cloudmon.DeploymentSpec, useHyperImage),
 		ScheduledtaskComponentType:   nHP(&obj.Scheduledtask.DeploymentSpec, useHyperImage),
 		ReportComponentType:          nHP(&obj.Report.DeploymentSpec, useHyperImage),
 	} {
@@ -174,7 +173,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		APIGatewayComponentType: nHP(&obj.APIGateway.DeploymentSpec, useHyperImage),
 		ClimcComponentType:      nHP(&obj.Climc, false),
 		WebComponentType:        nHP(&obj.Web.DeploymentSpec, false),
-		CloudmonComponentType:   nHP(&obj.Cloudmon.DeploymentSpec, false),
+		CloudmonComponentType:   nHP(&obj.Cloudmon.DeploymentSpec, useHyperImage),
 	} {
 		SetDefaults_DeploymentSpec(spec.DeploymentSpec,
 			getEditionImage(
