@@ -301,7 +301,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		obj.ImageRepository, obj.Notify.Plugins.Repository,
 		DefaultNotifyPluginsImageName, obj.Notify.Plugins.ImageName,
 		obj.Version, obj.Notify.Plugins.Tag,
-		useHyperImage, isEE,
+		false, isEE,
 	)
 	obj.Notify.Plugins.ImagePullPolicy = corev1.PullIfNotPresent
 
