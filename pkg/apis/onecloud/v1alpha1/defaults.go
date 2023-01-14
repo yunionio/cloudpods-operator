@@ -288,7 +288,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	for cType, spec := range map[ComponentType]*stateDeploy{
 		GlanceComponentType:         {&obj.Glance.StatefulDeploymentSpec, DefaultGlanceStorageSize, obj.Version, useHyperImage},
 		InfluxdbComponentType:       {&obj.Influxdb.StatefulDeploymentSpec, DefaultInfluxdbStorageSize, DefaultInfluxdbImageVersion, false},
-		NotifyComponentType:         {&obj.Notify.StatefulDeploymentSpec, DefaultNotifyStorageSize, obj.Version, useHyperImage},
+		NotifyComponentType:         {&obj.Notify.StatefulDeploymentSpec, DefaultNotifyStorageSize, obj.Version, false},
 		BaremetalAgentComponentType: {&obj.BaremetalAgent.StatefulDeploymentSpec, DefaultBaremetalStorageSize, obj.Version, false},
 		MeterComponentType:          {&obj.Meter.StatefulDeploymentSpec, DefaultMeterStorageSize, obj.Version, useHyperImage},
 		EsxiAgentComponentType:      {&obj.EsxiAgent.StatefulDeploymentSpec, DefaultEsxiAgentStorageSize, obj.Version, useHyperImage},
