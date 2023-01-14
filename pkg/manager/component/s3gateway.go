@@ -46,7 +46,7 @@ func (m *s3gatewayManager) getComponentType() v1alpha1.ComponentType {
 }
 
 func (m *s3gatewayManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if !oc.Spec.EnableS3Gateway {
+	if !oc.Spec.EnableS3Gateway && !controller.StopServices {
 		return nil
 	}
 	return syncComponent(m, oc, oc.Spec.S3gateway.Disable, "")

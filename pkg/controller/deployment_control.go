@@ -91,7 +91,7 @@ func (c *realDeploymentControl) UpdateDeployment(oc *v1alpha1.OnecloudCluster, d
 }
 
 func (c *realDeploymentControl) DeleteDeployment(oc *v1alpha1.OnecloudCluster, deploymentName string) error {
-	err := c.kubeCli.AppsV1beta1().Deployments(oc.Namespace).Delete(deploymentName, nil)
+	err := c.kubeCli.AppsV1().Deployments(oc.Namespace).Delete(deploymentName, nil)
 	c.RecordDeleteEvent(oc, newFakeObject(deploymentName), err)
 	return err
 }
