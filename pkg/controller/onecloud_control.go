@@ -28,6 +28,7 @@ import (
 
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
+	"yunion.io/x/pkg/appctx"
 	"yunion.io/x/pkg/errors"
 
 	"yunion.io/x/onecloud/pkg/apis/monitor"
@@ -131,9 +132,15 @@ func newOnecloudClientToken(oc *v1alpha1.OnecloudCluster) (*mcclient.Client, mcc
 	return cli, token, err
 }
 
+func getRequestContext() context.Context {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, appctx.APP_CONTEXT_KEY_APPNAME, "operator")
+	return ctx
+}
+
 func NewOnecloudSessionByToken(cli *mcclient.Client, region string, token mcclient.TokenCredential) (*mcclient.ClientSession, error) {
 	session := cli.NewSession(
-		context.Background(),
+		getRequestContext(),
 		region,
 		"",
 		constants.EndpointTypeInternal,
@@ -189,12 +196,12 @@ func (w *OnecloudControl) RunWithSession(oc *v1alpha1.OnecloudCluster, f func(s 
 		}
 		auth.Init(config.ToAuthInfo(), false, true, "", "")
 	} else {
-		s = auth.GetAdminSession(context.Background(), oc.Spec.Region)
+		s = auth.GetAdminSession(getRequestContext(), oc.Spec.Region)
 	}
 	s.SetServiceUrl("identity", GetAuthURL(oc))
 	if err := f(s); err != nil {
 		auth.Init(config.ToAuthInfo(), false, true, "", "")
-		newSession := auth.GetAdminSession(context.Background(), oc.Spec.Region)
+		newSession := auth.GetAdminSession(getRequestContext(), oc.Spec.Region)
 		return f(newSession)
 	}
 	return nil
