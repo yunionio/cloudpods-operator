@@ -115,11 +115,6 @@ func (m *meterManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 	return m.newServiceConfigMap(v1alpha1.MeterComponentType, "", oc, opt), false, nil
 }
 
-func (m *meterManager) getPVC(oc *v1alpha1.OnecloudCluster, zone string) (*corev1.PersistentVolumeClaim, error) {
-	cfg := oc.Spec.Meter
-	return m.ComponentManager.newPVC(v1alpha1.MeterComponentType, oc, cfg.StatefulDeploymentSpec)
-}
-
 func (m *meterManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
 	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.MeterComponentType, "", oc, &oc.Spec.Meter.DeploymentSpec, constants.MeterPort, true, false)
 	if err != nil {
@@ -133,20 +128,7 @@ func (m *meterManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	 */
 	podTemplate := &deploy.Spec.Template.Spec
 	podVols := podTemplate.Volumes
-	podVols = append(podVols, corev1.Volume{
-		Name: "data",
-		VolumeSource: corev1.VolumeSource{
-			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-				ClaimName: m.newPvcName(oc.GetName(), oc.Spec.Meter.StorageClassName, v1alpha1.MeterComponentType),
-				ReadOnly:  false,
-			},
-		},
-	})
 	volMounts := podTemplate.Containers[0].VolumeMounts
-	volMounts = append(volMounts, corev1.VolumeMount{
-		Name:      "data",
-		MountPath: constants.MeterDataStore,
-	})
 
 	if oc.Spec.Meter.StorageClassName != v1alpha1.DefaultStorageClass {
 		deploy.Spec.Strategy.Type = apps.RecreateDeploymentStrategyType
