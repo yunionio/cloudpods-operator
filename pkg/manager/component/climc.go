@@ -80,6 +80,10 @@ func GetRCAdminEnv(oc *v1alpha1.OnecloudCluster) []corev1.EnvVar {
 			Name:  "YUNION_INSECURE",
 			Value: "true",
 		},
+		{
+			Name:  "EDITOR",
+			Value: "vim",
+		},
 	}
 }
 
