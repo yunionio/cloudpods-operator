@@ -27,6 +27,10 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/util/passwd"
 )
 
+var (
+	ClearComponent bool
+)
+
 const (
 	DefaultVersion                 = "latest"
 	DefaultOnecloudRegion          = "region0"
@@ -107,6 +111,14 @@ func newHyperImagePair(ds *DeploymentSpec, supported bool) *hyperImagePair {
 	return &hyperImagePair{
 		DeploymentSpec: ds,
 		Supported:      supported,
+	}
+}
+
+func clearContainerSpec(spec *ContainerSpec) {
+	if ClearComponent {
+		spec.Tag = ""
+		spec.ImageName = ""
+		spec.Repository = ""
 	}
 }
 
@@ -232,6 +244,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		false, isEE,
 	)
 	obj.HostAgent.SdnAgent.ImagePullPolicy = corev1.PullIfNotPresent
+	clearContainerSpec(&obj.HostAgent.SdnAgent)
 
 	// setting ovn image
 	obj.HostAgent.OvnController.Image = getImage(
@@ -241,6 +254,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		false, isEE,
 	)
 	obj.HostAgent.OvnController.ImagePullPolicy = corev1.PullIfNotPresent
+	clearContainerSpec(&obj.HostAgent.OvnController)
 
 	obj.OvnNorth.Image = getImage(
 		obj.ImageRepository, obj.OvnNorth.Repository,
@@ -249,6 +263,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		false, isEE,
 	)
 	obj.OvnNorth.ImagePullPolicy = corev1.PullIfNotPresent
+	clearContainerSpec(&obj.OvnNorth.ContainerSpec)
 	// host-image
 	obj.HostImage.Image = getImage(
 		obj.ImageRepository, obj.HostImage.Repository,
@@ -256,6 +271,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		DefaultHostImageTag, obj.HostImage.Tag,
 		false, isEE,
 	)
+	clearContainerSpec(&obj.HostImage.ContainerSpec)
 
 	// telegraf spec
 	obj.Telegraf.InitContainerImage = getImage(
@@ -438,6 +454,7 @@ func SetDefaults_KeystoneSpec(
 	if obj.BootstrapPassword == "" {
 		obj.BootstrapPassword = passwd.GeneratePassword()
 	}
+
 }
 
 func SetDefaults_ServiceSpec(obj *ServiceSpec, port int) {
@@ -517,6 +534,7 @@ func SetDefaults_DeploymentSpec(obj *DeploymentSpec, image string) {
 			},
 		}...)
 	}
+	clearContainerSpec(&obj.ContainerSpec)
 }
 
 func SetDefaults_DaemonSetSpec(obj *DaemonSetSpec, image string) {
@@ -536,6 +554,7 @@ func SetDefaults_DaemonSetSpec(obj *DaemonSetSpec, image string) {
 			},
 		}...)
 	}
+	clearContainerSpec(&obj.ContainerSpec)
 }
 
 func SetDefaults_CronJobSpec(obj *CronJobSpec, image string) {
@@ -555,6 +574,7 @@ func SetDefaults_CronJobSpec(obj *CronJobSpec, image string) {
 			},
 		}...)
 	}
+	clearContainerSpec(&obj.ContainerSpec)
 }
 
 func setDefaults_MonitorStackSpec(obj *MonitorStackSpec) {
