@@ -36,6 +36,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog"
 
+	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/client/clientset/versioned"
 	informers "yunion.io/x/onecloud-operator/pkg/client/informers/externalversions"
 	"yunion.io/x/onecloud-operator/pkg/controller"
@@ -70,6 +71,7 @@ func init() {
 	flag.BoolVar(&controller.StopServices, "stop-services", false, "Stop services")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false, "Enable leader election for multiple instances")
 	flag.IntVar(&controller.MysqlCheckInterval, "mysql-check-interval", 60, "The minutes of mysql check interval")
+	flag.BoolVar(&v1alpha1.ClearComponent, "clear-component", false, "Clear component's tag and repository attribute")
 
 	flag.Parse()
 }
