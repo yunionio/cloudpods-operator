@@ -906,9 +906,9 @@ type TelegrafSpec struct {
 // ContainerSpec is the container spec of a pod
 type ContainerSpec struct {
 	Image           string               `json:"image"`
-	Repository      string               `json:"repository,omitempty"`
-	ImageName       string               `json:"imageName,omitempty"`
-	Tag             string               `json:"tag,omitempty"`
+	Repository      string               `json:"repository"`
+	ImageName       string               `json:"imageName"`
+	Tag             string               `json:"tag"`
 	ImagePullPolicy corev1.PullPolicy    `json:"imagePullPolicy,omitempty"`
 	Requests        *ResourceRequirement `json:"requests,omitempty"`
 	Limits          *ResourceRequirement `json:"limits,omitempty"`
