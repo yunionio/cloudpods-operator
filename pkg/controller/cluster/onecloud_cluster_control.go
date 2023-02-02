@@ -70,7 +70,7 @@ func (occ *defaultClusterControl) UpdateOnecloudCluster(oc *v1alpha1.OnecloudClu
 	if err := occ.updateOnecloudCluster(oc); err != nil {
 		errs = append(errs, err)
 	}
-	if apiequality.Semantic.DeepEqual(&oc.Status, oldStatus) {
+	if apiequality.Semantic.DeepEqual(&oc.Status, oldStatus) && !v1alpha1.ClearComponent {
 		return errorutils.NewAggregate(errs)
 	}
 
