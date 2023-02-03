@@ -16,6 +16,7 @@ package compute
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"yunion.io/x/jsonutils"
@@ -23,6 +24,7 @@ import (
 
 	"yunion.io/x/onecloud/pkg/apis"
 	"yunion.io/x/onecloud/pkg/apis/billing"
+	"yunion.io/x/onecloud/pkg/apis/cloudcommon/db"
 	imageapi "yunion.io/x/onecloud/pkg/apis/image"
 	"yunion.io/x/onecloud/pkg/httperrors"
 )
@@ -278,6 +280,11 @@ func (self ServerDetails) GetMetricTags() map[string]string {
 		"account_id":          self.AccountId,
 		"external_id":         self.ExternalId,
 	}
+	for k, v := range self.Metadata {
+		if strings.HasPrefix(k, db.USER_TAG_PREFIX) {
+			ret[k] = v
+		}
+	}
 	return ret
 }
 
@@ -426,14 +433,18 @@ type GuestSyncFixNicsInput struct {
 }
 
 type GuestMigrateInput struct {
-	PreferHost   string `json:"prefer_host"`
+	// swagger: ignore
+	PreferHost   string `json:"prefer_host" yunion-deprecated-by:"prefer_host_id"`
+	PreferHostId string `json:"prefer_host_id"`
 	AutoStart    bool   `json:"auto_start"`
 	IsRescueMode bool   `json:"rescue_mode"`
 }
 
 type GuestLiveMigrateInput struct {
+	// swagger: ignore
+	PreferHost string `json:"prefer_host" yunion-deprecated-by:"prefer_host_id"`
 	// 指定期望的迁移目标宿主机
-	PreferHost string `json:"prefer_host"`
+	PreferHostId string `json:"prefer_host_id"`
 	// 是否跳过CPU检查，默认要做CPU检查
 	SkipCpuCheck *bool `json:"skip_cpu_check"`
 	// 是否跳过kernel检查

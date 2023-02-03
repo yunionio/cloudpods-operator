@@ -30,8 +30,36 @@ import (
 	netutil "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/apimachinery/pkg/util/wait"
 	clientset "k8s.io/client-go/kubernetes"
-	kubeadmconstants "k8s.io/kubernetes/cmd/kubeadm/app/constants"
-	kubetypes "k8s.io/kubernetes/pkg/kubelet/types"
+)
+
+const (
+	// APICallRetryInterval defines how long kubeadm should wait before retrying a failed API operation
+	APICallRetryInterval = 500 * time.Millisecond
+	// KubeletHealthzPort is the port of the kubelet healthz endpoint
+	KubeletHealthzPort = 10248
+	// Etcd defines variable used internally when referring to etcd component
+	Etcd = "etcd"
+	// KubeAPIServer defines variable used internally when referring to kube-apiserver component
+	KubeAPIServer = "kube-apiserver"
+	// KubeControllerManager defines variable used internally when referring to kube-controller-manager component
+	KubeControllerManager = "kube-controller-manager"
+	// KubeScheduler defines variable used internally when referring to kube-scheduler component
+	KubeScheduler = "kube-scheduler"
+	// KubeProxy defines variable used internally when referring to kube-proxy component
+	KubeProxy = "kube-proxy"
+	// HyperKube defines variable used internally when referring to the hyperkube image
+	HyperKube = "hyperkube"
+
+	ConfigSourceAnnotationKey    = "kubernetes.io/config.source"
+	ConfigMirrorAnnotationKey    = v1.MirrorPodAnnotationKey
+	ConfigFirstSeenAnnotationKey = "kubernetes.io/config.seen"
+	ConfigHashAnnotationKey      = "kubernetes.io/config.hash"
+	CriticalPodAnnotationKey     = "scheduler.alpha.kubernetes.io/critical-pod"
+)
+
+var (
+	// ControlPlaneComponents defines the control-plane component names
+	ControlPlaneComponents = []string{KubeAPIServer, KubeControllerManager, KubeScheduler}
 )
 
 // Waiter is an interface for waiting for criteria in Kubernetes to happen
@@ -76,7 +104,7 @@ func NewKubeWaiter(client clientset.Interface, timeout time.Duration, writer io.
 // WaitForAPI waits for the API Server's /healthz endpoint to report "ok"
 func (w *KubeWaiter) WaitForAPI() error {
 	start := time.Now()
-	return wait.PollImmediate(kubeadmconstants.APICallRetryInterval, w.timeout, func() (bool, error) {
+	return wait.PollImmediate(APICallRetryInterval, w.timeout, func() (bool, error) {
 		healthStatus := 0
 		w.client.Discovery().RESTClient().Get().AbsPath("/healthz").Do().StatusCode(&healthStatus)
 		if healthStatus != http.StatusOK {
@@ -93,7 +121,7 @@ func (w *KubeWaiter) WaitForAPI() error {
 func (w *KubeWaiter) WaitForPodsWithLabel(kvLabel string) error {
 
 	lastKnownPodNumber := -1
-	return wait.PollImmediate(kubeadmconstants.APICallRetryInterval, w.timeout, func() (bool, error) {
+	return wait.PollImmediate(APICallRetryInterval, w.timeout, func() (bool, error) {
 		listOpts := metav1.ListOptions{LabelSelector: kvLabel}
 		pods, err := w.client.CoreV1().Pods(metav1.NamespaceSystem).List(listOpts)
 		if err != nil {
@@ -122,7 +150,7 @@ func (w *KubeWaiter) WaitForPodsWithLabel(kvLabel string) error {
 
 // WaitForPodToDisappear blocks until it timeouts or gets a "NotFound" response from the API Server when getting the Static Pod in question
 func (w *KubeWaiter) WaitForPodToDisappear(podName string) error {
-	return wait.PollImmediate(kubeadmconstants.APICallRetryInterval, w.timeout, func() (bool, error) {
+	return wait.PollImmediate(APICallRetryInterval, w.timeout, func() (bool, error) {
 		_, err := w.client.CoreV1().Pods(metav1.NamespaceSystem).Get(podName, metav1.GetOptions{})
 		if apierrors.IsNotFound(err) {
 			fmt.Printf("[apiclient] The old Pod %q is now removed (which is desired)\n", podName)
@@ -160,7 +188,7 @@ func (w *KubeWaiter) WaitForKubeletAndFunc(f func() error) error {
 	errorChan := make(chan error)
 
 	go func(errC chan error, waiter Waiter) {
-		if err := waiter.WaitForHealthyKubelet(40*time.Second, fmt.Sprintf("http://localhost:%d/healthz", kubeadmconstants.KubeletHealthzPort)); err != nil {
+		if err := waiter.WaitForHealthyKubelet(40*time.Second, fmt.Sprintf("http://localhost:%d/healthz", KubeletHealthzPort)); err != nil {
 			errC <- err
 		}
 	}(errorChan, w)
@@ -186,8 +214,8 @@ func (w *KubeWaiter) WaitForStaticPodControlPlaneHashes(nodeName string) (map[st
 	componentHash := ""
 	var err error
 	mirrorPodHashes := map[string]string{}
-	for _, component := range kubeadmconstants.ControlPlaneComponents {
-		err = wait.PollImmediate(kubeadmconstants.APICallRetryInterval, w.timeout, func() (bool, error) {
+	for _, component := range ControlPlaneComponents {
+		err = wait.PollImmediate(APICallRetryInterval, w.timeout, func() (bool, error) {
 			componentHash, err = getStaticPodSingleHash(w.client, nodeName, component)
 			if err != nil {
 				return false, nil
@@ -208,7 +236,7 @@ func (w *KubeWaiter) WaitForStaticPodSingleHash(nodeName string, component strin
 
 	componentPodHash := ""
 	var err error
-	err = wait.PollImmediate(kubeadmconstants.APICallRetryInterval, w.timeout, func() (bool, error) {
+	err = wait.PollImmediate(APICallRetryInterval, w.timeout, func() (bool, error) {
 		componentPodHash, err = getStaticPodSingleHash(w.client, nodeName, component)
 		if err != nil {
 			return false, nil
@@ -222,7 +250,7 @@ func (w *KubeWaiter) WaitForStaticPodSingleHash(nodeName string, component strin
 // WaitForStaticPodHashChange blocks until it timeouts or notices that the Mirror Pod (for the Static Pod, respectively) has changed
 // This implicitly means this function blocks until the kubelet has restarted the Static Pod in question
 func (w *KubeWaiter) WaitForStaticPodHashChange(nodeName, component, previousHash string) error {
-	return wait.PollImmediate(kubeadmconstants.APICallRetryInterval, w.timeout, func() (bool, error) {
+	return wait.PollImmediate(APICallRetryInterval, w.timeout, func() (bool, error) {
 
 		hash, err := getStaticPodSingleHash(w.client, nodeName, component)
 		if err != nil {
@@ -246,7 +274,7 @@ func getStaticPodSingleHash(client clientset.Interface, nodeName string, compone
 		return "", err
 	}
 
-	staticPodHash := staticPod.Annotations[kubetypes.ConfigHashAnnotationKey]
+	staticPodHash := staticPod.Annotations[ConfigHashAnnotationKey]
 	fmt.Printf("Static pod: %s hash: %s\n", staticPodName, staticPodHash)
 	return staticPodHash, nil
 }

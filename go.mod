@@ -8,12 +8,10 @@ require (
 	github.com/docker/distribution v0.0.0-20170726174610-edc3ab29cdff
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/googleapis/gnostic v0.4.1 // indirect
-	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/minio/minio-go/v7 v7.0.6
 	github.com/pborman/uuid v1.2.0
 	github.com/pkg/errors v0.9.1
-	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
 	go.etcd.io/etcd/api/v3 v3.5.0
 	go.etcd.io/etcd/client/pkg/v3 v3.5.0
@@ -24,10 +22,9 @@ require (
 	k8s.io/apimachinery v0.19.3
 	k8s.io/client-go v9.0.0+incompatible
 	k8s.io/klog v0.3.3
-	k8s.io/kubernetes v0.0.0-00010101000000-000000000000
 	yunion.io/x/jsonutils v1.0.1-0.20220819091305-3bab322ab4fd
 	yunion.io/x/log v1.0.0
-	yunion.io/x/onecloud v0.3.9-5.0.20230103103552-7aeba1856ee2
+	yunion.io/x/onecloud v0.3.9-5.0.20230202091423-5ead117c2324
 	yunion.io/x/pkg v1.0.1-0.20221031045951-0b770b490c45
 	yunion.io/x/structarg v0.0.0-20220312084958-9c6c79c7d1c6
 )
@@ -109,9 +106,6 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.57.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/apiserver v0.0.0 // indirect
-	k8s.io/cluster-bootstrap v0.19.3 // indirect
-	k8s.io/component-base v0.0.0 // indirect
 	k8s.io/klog/v2 v2.2.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20190603182131-db7b694dc208 // indirect
 	k8s.io/utils v0.0.0-20200729134348-d5654de09c73 // indirect
@@ -145,7 +139,6 @@ replace (
 	k8s.io/kube-proxy => k8s.io/kube-proxy v0.0.0-20190620085809-589f994ddf7f
 	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.0.0-20190620085912-4acac5405ec6
 	k8s.io/kubelet => k8s.io/kubelet v0.0.0-20190620085838-f1cb295a73c9
-	k8s.io/kubernetes => k8s.io/kubernetes v1.15.1
 	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.0.0-20190620090156-2138f2c9de18
 	k8s.io/metrics => k8s.io/metrics v0.0.0-20190620085625-3b22d835f165
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.0.0-20190620085408-1aef9010884e
