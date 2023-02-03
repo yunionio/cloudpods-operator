@@ -223,6 +223,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		HostDeployerComponentType: &obj.HostDeployer,
 		YunionagentComponentType:  &obj.Yunionagent.DaemonSetSpec,
 		HostImageComponentType:    &obj.HostImage,
+		LbagentComponentType:      &obj.Lbagent.DaemonSetSpec,
 	} {
 		useHI := false
 		if cType == YunionagentComponentType {
@@ -272,6 +273,16 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		false, isEE,
 	)
 	clearContainerSpec(&obj.HostImage.ContainerSpec)
+
+	// lbagent ovn-controller
+	// setting ovn image
+	obj.Lbagent.OvnController.Image = getImage(
+		obj.ImageRepository, obj.Lbagent.OvnController.Repository,
+		DefaultOvnImageName, obj.Lbagent.OvnController.ImageName,
+		DefaultOvnImageTag, obj.Lbagent.OvnController.Tag,
+		false, isEE,
+	)
+	obj.Lbagent.OvnController.ImagePullPolicy = corev1.PullIfNotPresent
 
 	// telegraf spec
 	obj.Telegraf.InitContainerImage = getImage(
@@ -646,6 +657,7 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		&obj.EsxiAgent.ServiceCommonOptions:      {constants.EsxiAgentAdminUser, constants.EsxiAgentPort},
 		&obj.VpcAgent.ServiceCommonOptions:       {constants.VpcAgentAdminUser, constants.VpcAgentPort},
 		&obj.ServiceOperator:                     {constants.ServiceOperatorAdminUser, constants.ServiceOperatorPort},
+		&obj.Lbagent.ServiceCommonOptions:        {constants.LbagentAdminUser, constants.LbagentPort},
 	} {
 		SetDefaults_ServiceCommonOptions(opt, userPort.user, userPort.port)
 	}

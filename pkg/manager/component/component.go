@@ -1437,6 +1437,10 @@ func (m *ComponentManager) Host() manager.Manager {
 	return newHostManager(m)
 }
 
+func (m *ComponentManager) Lbgent() manager.Manager {
+	return newLbagentManager(m)
+}
+
 func (m *ComponentManager) HostDeployer() manager.Manager {
 	return newHostDeployerManger(m)
 }

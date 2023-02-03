@@ -820,7 +820,7 @@ sigs.k8s.io/structured-merge-diff/v4/value
 # sigs.k8s.io/yaml v1.2.0
 ## explicit; go 1.12
 sigs.k8s.io/yaml
-# yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20230131095155-9869526ad2e5
+# yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20230206033857-e8424981e0bf
 ## explicit; go 1.18
 yunion.io/x/cloudmux/pkg/apis
 yunion.io/x/cloudmux/pkg/apis/billing
@@ -841,7 +841,7 @@ yunion.io/x/jsonutils
 ## explicit; go 1.12
 yunion.io/x/log
 yunion.io/x/log/hooks
-# yunion.io/x/onecloud v0.0.0-20230202133230-c2f2ceafd4e7
+# yunion.io/x/onecloud v0.0.0-20230208030310-d272345b7799
 ## explicit; go 1.18
 yunion.io/x/onecloud/cmd/climc/shell
 yunion.io/x/onecloud/locales
@@ -896,6 +896,9 @@ yunion.io/x/onecloud/pkg/compute/options
 yunion.io/x/onecloud/pkg/compute/sshkeys
 yunion.io/x/onecloud/pkg/devtool/utils
 yunion.io/x/onecloud/pkg/esxi/options
+yunion.io/x/onecloud/pkg/hostman/guestfs/fsdriver
+yunion.io/x/onecloud/pkg/hostman/guestman/desc
+yunion.io/x/onecloud/pkg/hostman/hostdeployer/apis
 yunion.io/x/onecloud/pkg/hostman/hostinfo/hostconsts
 yunion.io/x/onecloud/pkg/hostman/options
 yunion.io/x/onecloud/pkg/hostman/system_service
@@ -948,15 +951,19 @@ yunion.io/x/onecloud/pkg/util/cgrouputils
 yunion.io/x/onecloud/pkg/util/cgrouputils/cpuset
 yunion.io/x/onecloud/pkg/util/choices
 yunion.io/x/onecloud/pkg/util/conditionparser
+yunion.io/x/onecloud/pkg/util/coreosutils
 yunion.io/x/onecloud/pkg/util/ctx
 yunion.io/x/onecloud/pkg/util/excelutils
 yunion.io/x/onecloud/pkg/util/fileutils2
+yunion.io/x/onecloud/pkg/util/fstabutils
 yunion.io/x/onecloud/pkg/util/hashcache
 yunion.io/x/onecloud/pkg/util/influxdb
 yunion.io/x/onecloud/pkg/util/iproute2
 yunion.io/x/onecloud/pkg/util/k8s/kubeadm
 yunion.io/x/onecloud/pkg/util/k8s/tokens
 yunion.io/x/onecloud/pkg/util/logclient
+yunion.io/x/onecloud/pkg/util/macutils
+yunion.io/x/onecloud/pkg/util/netplan
 yunion.io/x/onecloud/pkg/util/netutils2
 yunion.io/x/onecloud/pkg/util/nopanic
 yunion.io/x/onecloud/pkg/util/ovsutils
@@ -967,8 +974,10 @@ yunion.io/x/onecloud/pkg/util/seclib2
 yunion.io/x/onecloud/pkg/util/splitable
 yunion.io/x/onecloud/pkg/util/ssh
 yunion.io/x/onecloud/pkg/util/stringutils2
+yunion.io/x/onecloud/pkg/util/sysutils
 yunion.io/x/onecloud/pkg/util/tagutils
 yunion.io/x/onecloud/pkg/util/validate
+yunion.io/x/onecloud/pkg/util/winutils
 yunion.io/x/onecloud/pkg/vpcagent/options
 yunion.io/x/onecloud/pkg/webconsole/options
 yunion.io/x/onecloud/pkg/yunionconf/options
