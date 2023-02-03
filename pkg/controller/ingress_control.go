@@ -15,6 +15,7 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -64,7 +65,7 @@ func (c *realIngressControl) Client() dynamic.NamespaceableResourceInterface {
 }
 
 func (c *realIngressControl) CreateIngress(oc *v1alpha1.OnecloudCluster, ing *unstructured.Unstructured) error {
-	_, err := c.Client().Namespace(oc.GetNamespace()).Create(ing, metav1.CreateOptions{})
+	_, err := c.Client().Namespace(oc.GetNamespace()).Create(context.Background(), ing, metav1.CreateOptions{})
 	if apierrors.IsAlreadyExists(err) {
 		return err
 	}
@@ -80,14 +81,14 @@ func (c *realIngressControl) UpdateIngress(oc *v1alpha1.OnecloudCluster, ing *un
 	var updatedIng *unstructured.Unstructured
 	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		var updateErr error
-		updatedIng, updateErr = c.Client().Namespace(oc.GetNamespace()).Update(ing, metav1.UpdateOptions{})
+		updatedIng, updateErr = c.Client().Namespace(oc.GetNamespace()).Update(context.Background(), ing, metav1.UpdateOptions{})
 		if updateErr == nil {
 			klog.Infof("OnecloudCluster: [%s/%s]'s Ingress: [%s/%s] updated successfully", ns, ocName, ns, ingName)
 			return nil
 		}
 		klog.Errorf("failed to update OnecloudCluster: [%s/%s]'s Ingress: [%s/%s], error: %v", ns, ocName, ns, ingName, updateErr)
 
-		if updated, err := c.Client().Namespace(ns).Get(ingName, metav1.GetOptions{}); err == nil {
+		if updated, err := c.Client().Namespace(ns).Get(context.Background(), ingName, metav1.GetOptions{}); err == nil {
 			ing = updated.DeepCopy()
 			unstructured.SetNestedField(ing.Object, ingSpec, "spec")
 		} else {
@@ -101,7 +102,7 @@ func (c *realIngressControl) UpdateIngress(oc *v1alpha1.OnecloudCluster, ing *un
 }
 
 func (c *realIngressControl) DeleteIngress(oc *v1alpha1.OnecloudCluster, ing *unstructured.Unstructured) error {
-	err := c.Client().Namespace(oc.GetNamespace()).Delete(ing.GetName(), nil)
+	err := c.Client().Namespace(oc.GetNamespace()).Delete(context.Background(), ing.GetName(), metav1.DeleteOptions{})
 	c.RecordDeleteEvent(oc, ing, err)
 	return err
 }
