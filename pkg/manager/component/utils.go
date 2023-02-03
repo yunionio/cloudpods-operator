@@ -27,12 +27,11 @@ import (
 	batchv1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
-	"k8s.io/kubernetes/cmd/kubeadm/app/util/apiclient"
-	deploymentutil "k8s.io/kubernetes/pkg/kubectl/util/deployment"
 
 	"yunion.io/x/pkg/util/reflectutils"
 	"yunion.io/x/structarg"
@@ -272,10 +271,27 @@ func encode(obj interface{}) (string, error) {
 	return string(b), nil
 }
 
+const (
+	// TimedOutReason is added in a deployment when its newest replica set fails to show any progress
+	// within the given deadline (progressDeadlineSeconds).
+	TimedOutReason = "ProgressDeadlineExceeded"
+)
+
+// GetDeploymentCondition returns the condition with the provided type.
+func GetDeploymentCondition(status apps.DeploymentStatus, condType apps.DeploymentConditionType) *apps.DeploymentCondition {
+	for i := range status.Conditions {
+		c := status.Conditions[i]
+		if c.Type == condType {
+			return &c
+		}
+	}
+	return nil
+}
+
 func deploymentIsRollout(deploy *apps.Deployment) (bool, string, error) {
 	if deploy.Generation <= deploy.Status.ObservedGeneration {
-		cond := deploymentutil.GetDeploymentCondition(deploy.Status, apps.DeploymentProgressing)
-		if cond != nil && cond.Reason == deploymentutil.TimedOutReason {
+		cond := GetDeploymentCondition(deploy.Status, apps.DeploymentProgressing)
+		if cond != nil && cond.Reason == TimedOutReason {
 			return false, "", fmt.Errorf("deployment %q exceeded its progress deadline", deploy.GetName())
 		}
 		if deploy.Spec.Replicas != nil && deploy.Status.UpdatedReplicas < *deploy.Spec.Replicas {
@@ -319,7 +335,16 @@ func CombineAnnotations(a, b map[string]string) map[string]string {
 }
 
 func CreateOrUpdateConfigMap(client clientset.Interface, cm *corev1.ConfigMap) error {
-	return apiclient.CreateOrUpdateConfigMap(client, cm)
+	if _, err := client.CoreV1().ConfigMaps(cm.ObjectMeta.Namespace).Create(cm); err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return errors.Wrap(err, "unable to create configmap")
+		}
+
+		if _, err := client.CoreV1().ConfigMaps(cm.ObjectMeta.Namespace).Update(cm); err != nil {
+			return errors.Wrap(err, "unable to update configmap")
+		}
+	}
+	return nil
 }
 
 func getMysqlDBConnectionByCluster(oc *v1alpha1.OnecloudCluster) (dbutil.IConnection, error) {
