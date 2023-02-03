@@ -31,3 +31,11 @@ type LoadbalancerAgentListInput struct {
 	IP      []string `json:"ip"`
 	HaState []string `json:"ha_state"`
 }
+
+type LoadbalancerAgentJoinClusterInput struct {
+	ClusterId string `json:"cluster_id"`
+	Priority  int    `json:"priority"`
+}
+
+type LoadbalancerAgentLeaveClusterInput struct {
+}
