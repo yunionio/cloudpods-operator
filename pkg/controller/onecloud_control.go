@@ -515,7 +515,7 @@ func (c keystoneComponent) getEtcdCertificate() (*jsonutils.JSONDict, error) {
 	ret := jsonutils.NewDict()
 	ctl := c.baseComponent.manager.GetController()
 	secret, err := ctl.kubeCli.CoreV1().Secrets(oc.GetNamespace()).
-		Get(constants.EtcdClientSecret, metav1.GetOptions{})
+		Get(context.Background(), constants.EtcdClientSecret, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
