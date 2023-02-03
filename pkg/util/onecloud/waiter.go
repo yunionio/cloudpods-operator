@@ -25,7 +25,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
-	"k8s.io/kubernetes/cmd/kubeadm/app/util/apiclient"
 
 	"yunion.io/x/onecloud/pkg/mcclient"
 	compute_modules "yunion.io/x/onecloud/pkg/mcclient/modules/compute"
@@ -34,6 +33,7 @@ import (
 	scheduler_modules "yunion.io/x/onecloud/pkg/mcclient/modules/scheduler"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
+	"yunion.io/x/onecloud-operator/pkg/util/apiclient"
 )
 
 type Waiter interface {
