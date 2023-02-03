@@ -2,20 +2,24 @@ package pkiutil
 
 import (
 	"crypto"
+	"crypto/ecdsa"
 	"crypto/rand"
 	cryptorand "crypto/rand"
+	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/pem"
 	"fmt"
 	"math"
 	"math/big"
 	"net"
+	"path/filepath"
 	"time"
 
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/validation"
 	certutil "k8s.io/client-go/util/cert"
-	"k8s.io/kubernetes/cmd/kubeadm/app/util/pkiutil"
+	"k8s.io/client-go/util/keyutil"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -26,12 +30,96 @@ const (
 	duration365d = oneday * 365
 )
 
-var (
-	NewPrivateKey       = pkiutil.NewPrivateKey
-	EncodeCertPEM       = pkiutil.EncodeCertPEM
-	TryLoadCertFromDisk = pkiutil.TryLoadCertFromDisk
-	TryLoadKeyFromDisk  = pkiutil.TryLoadKeyFromDisk
+const (
+	// PrivateKeyBlockType is a possible value for pem.Block.Type.
+	PrivateKeyBlockType = "PRIVATE KEY"
+	// PublicKeyBlockType is a possible value for pem.Block.Type.
+	PublicKeyBlockType = "PUBLIC KEY"
+	// CertificateBlockType is a possible value for pem.Block.Type.
+	CertificateBlockType = "CERTIFICATE"
+	// RSAPrivateKeyBlockType is a possible value for pem.Block.Type.
+	RSAPrivateKeyBlockType = "RSA PRIVATE KEY"
+	rsaKeySize             = 2048
 )
+
+// NewPrivateKey creates an RSA private key
+func NewPrivateKey() (crypto.Signer, error) {
+	return rsa.GenerateKey(cryptorand.Reader, rsaKeySize)
+}
+
+// EncodeCertPEM returns PEM-endcoded certificate data
+func EncodeCertPEM(cert *x509.Certificate) []byte {
+	block := pem.Block{
+		Type:  CertificateBlockType,
+		Bytes: cert.Raw,
+	}
+	return pem.EncodeToMemory(&block)
+}
+
+func pathForCert(pkiPath, name string) string {
+	return filepath.Join(pkiPath, fmt.Sprintf("%s.crt", name))
+}
+
+func pathForKey(pkiPath, name string) string {
+	return filepath.Join(pkiPath, fmt.Sprintf("%s.key", name))
+}
+
+func pathForPublicKey(pkiPath, name string) string {
+	return filepath.Join(pkiPath, fmt.Sprintf("%s.pub", name))
+}
+
+func pathForCSR(pkiPath, name string) string {
+	return filepath.Join(pkiPath, fmt.Sprintf("%s.csr", name))
+}
+
+// TryLoadCertFromDisk tries to load the cert from the disk and validates that it is valid
+func TryLoadCertFromDisk(pkiPath, name string) (*x509.Certificate, error) {
+	certificatePath := pathForCert(pkiPath, name)
+
+	certs, err := certutil.CertsFromFile(certificatePath)
+	if err != nil {
+		return nil, errors.Wrapf(err, "couldn't load the certificate file %s", certificatePath)
+	}
+
+	// We are only putting one certificate in the certificate pem file, so it's safe to just pick the first one
+	// TODO: Support multiple certs here in order to be able to rotate certs
+	cert := certs[0]
+
+	// Check so that the certificate is valid now
+	now := time.Now()
+	if now.Before(cert.NotBefore) {
+		return nil, errors.New("the certificate is not valid yet")
+	}
+	if now.After(cert.NotAfter) {
+		return nil, errors.New("the certificate has expired")
+	}
+
+	return cert, nil
+}
+
+// TryLoadKeyFromDisk tries to load the key from the disk and validates that it is valid
+func TryLoadKeyFromDisk(pkiPath, name string) (crypto.Signer, error) {
+	privateKeyPath := pathForKey(pkiPath, name)
+
+	// Parse the private key from a file
+	privKey, err := keyutil.PrivateKeyFromFile(privateKeyPath)
+	if err != nil {
+		return nil, errors.Wrapf(err, "couldn't load the private key file %s", privateKeyPath)
+	}
+
+	// Allow RSA and ECDSA formats only
+	var key crypto.Signer
+	switch k := privKey.(type) {
+	case *rsa.PrivateKey:
+		key = k
+	case *ecdsa.PrivateKey:
+		key = k
+	default:
+		return nil, errors.Errorf("the private key file %s is neither in RSA nor ECDSA format", privateKeyPath)
+	}
+
+	return key, nil
+}
 
 // NewCertificateAuthority creates new certificate and private key for the certificate authority
 func NewCertificateAuthority(config *certutil.Config) (*x509.Certificate, crypto.Signer, error) {
