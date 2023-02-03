@@ -19,10 +19,9 @@ require (
 	k8s.io/apimachinery v0.19.3
 	k8s.io/client-go v9.0.0+incompatible
 	k8s.io/klog v0.3.3
-	k8s.io/kubernetes v0.0.0-00010101000000-000000000000
 	yunion.io/x/jsonutils v1.0.1-0.20220819091305-3bab322ab4fd
 	yunion.io/x/log v1.0.0
-	yunion.io/x/onecloud v0.3.10-0-alpha2.0.20230106095558-0dde5e7d61ec
+	yunion.io/x/onecloud v0.3.10-0-alpha2.0.20230202091413-42579c36816c
 	yunion.io/x/pkg v1.0.1-0.20230102060551-df05ccecb71c
 	yunion.io/x/structarg v0.0.0-20220312084958-9c6c79c7d1c6
 )
@@ -56,7 +55,6 @@ require (
 	github.com/googleapis/gnostic v0.4.1 // indirect
 	github.com/hako/durafmt v0.0.0-20180520121703-7b7ae1e72ead // indirect
 	github.com/hashicorp/golang-lru v0.5.1 // indirect
-	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid v1.3.1 // indirect
 	github.com/leodido/go-urn v1.2.0 // indirect
@@ -79,7 +77,6 @@ require (
 	github.com/rs/xid v1.2.1 // indirect
 	github.com/shirou/gopsutil/v3 v3.22.10 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
-	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/texttheater/golang-levenshtein v0.0.0-20180516184445-d188e65d659e // indirect
 	github.com/tjfoc/gmsm v1.4.1 // indirect
 	github.com/tklauser/go-sysconf v0.3.10 // indirect
@@ -108,15 +105,12 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.62.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/apiserver v0.0.0 // indirect
-	k8s.io/cluster-bootstrap v0.19.3 // indirect
-	k8s.io/component-base v0.0.0 // indirect
 	k8s.io/klog/v2 v2.2.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20190603182131-db7b694dc208 // indirect
 	k8s.io/utils v0.0.0-20200729134348-d5654de09c73 // indirect
 	moul.io/http2curl/v2 v2.3.0 // indirect
 	sigs.k8s.io/yaml v1.2.0 // indirect
-	yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20230106094254-4a1f50d41c1c // indirect
+	yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20230131095206-0d758294026e // indirect
 	yunion.io/x/executor v0.0.0-20211018100936-39a2cd966656 // indirect
 	yunion.io/x/s3cli v0.0.0-20190917004522-13ac36d8687e // indirect
 	yunion.io/x/sqlchemy v1.1.2-0.20230102055317-b2aa2b5c26f8 // indirect
@@ -145,7 +139,6 @@ replace (
 	k8s.io/kube-proxy => k8s.io/kube-proxy v0.0.0-20190620085809-589f994ddf7f
 	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.0.0-20190620085912-4acac5405ec6
 	k8s.io/kubelet => k8s.io/kubelet v0.0.0-20190620085838-f1cb295a73c9
-	k8s.io/kubernetes => k8s.io/kubernetes v1.15.1
 	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.0.0-20190620090156-2138f2c9de18
 	k8s.io/metrics => k8s.io/metrics v0.0.0-20190620085625-3b22d835f165
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.0.0-20190620085408-1aef9010884e
