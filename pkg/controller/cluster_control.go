@@ -15,11 +15,13 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
@@ -66,7 +68,7 @@ func (c *clusterControl) UpdateCluster(oc *v1alpha1.OnecloudCluster, newStatus, 
 	// don't wait due to limited number of clients, but backoff after the default number of steps
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		var updateErr error
-		updateOC, updateErr = c.cli.OnecloudV1alpha1().OnecloudClusters(ns).Update(oc)
+		updateOC, updateErr = c.cli.OnecloudV1alpha1().OnecloudClusters(ns).Update(context.Background(), oc, v1.UpdateOptions{})
 		if updateErr == nil {
 			klog.Infof("OnecloudCluster: [%s/%s] updated successfully, spec: %#v", ns, ocName, oc.Spec.MonitorStack)
 			return nil

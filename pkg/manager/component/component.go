@@ -15,6 +15,7 @@
 package component
 
 import (
+	"context"
 	"fmt"
 
 	apps "k8s.io/api/apps/v1"
@@ -448,7 +449,7 @@ func (m *ComponentManager) syncDeployment(
 
 	postFunc := func(deploy *apps.Deployment) error {
 		if postSyncFunc != nil {
-			deploy, err := m.kubeCli.AppsV1().Deployments(deploy.GetNamespace()).Get(deploy.GetName(), metav1.GetOptions{})
+			deploy, err := m.kubeCli.AppsV1().Deployments(deploy.GetNamespace()).Get(context.Background(), deploy.GetName(), metav1.GetOptions{})
 			if err != nil {
 				return errorswrap.Wrapf(err, "get deployment %s", deploy.GetName())
 			}
@@ -1537,7 +1538,7 @@ func (m *ComponentManager) shouldSyncConfigmap(
 	cfgMap := m.newServiceConfigMap(ct, "", oc, opt)
 	cfgCli := m.kubeCli.CoreV1().ConfigMaps(oc.GetNamespace())
 
-	oldCfgMap, _ := cfgCli.Get(cfgMap.GetName(), metav1.GetOptions{})
+	oldCfgMap, _ := cfgCli.Get(context.Background(), cfgMap.GetName(), metav1.GetOptions{})
 	if oldCfgMap != nil {
 		optStr, ok := oldCfgMap.Data["config"]
 		if ok {

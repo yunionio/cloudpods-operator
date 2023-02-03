@@ -15,6 +15,7 @@
 package k8s
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -54,17 +55,17 @@ func CreateOrUpdateCRD(
 	clientset apiextensionsclient.Interface,
 	crd *apiextensionsv1beta1.CustomResourceDefinition,
 ) error {
-	if _, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Create(crd); err != nil {
+	if _, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Create(context.Background(), crd, metav1.CreateOptions{}); err != nil {
 		if !IsKubernetesResourceAlreadyExistError(err) {
 			return errors.Wrapf(err, "unable to create crd %s", crd.GetName())
 		}
-		oldCrd, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Get(crd.GetName(), metav1.GetOptions{})
+		oldCrd, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Get(context.Background(), crd.GetName(), metav1.GetOptions{})
 		if err != nil {
 			return errors.Wrapf(err, "unable to get crd %s", crd.GetName())
 		}
 		newCrd := oldCrd.DeepCopy()
 		newCrd.Spec = crd.Spec
-		if _, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Update(newCrd); err != nil {
+		if _, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Update(context.Background(), newCrd, metav1.UpdateOptions{}); err != nil {
 			return errors.Wrapf(err, "unable to update crd %s", newCrd.GetName())
 		}
 	}
@@ -73,7 +74,7 @@ func CreateOrUpdateCRD(
 
 func WaitCRDReady(clientset apiextensionsclient.Interface, crdName string) error {
 	err := retryutil.Retry(5*time.Second, 20, func() (bool, error) {
-		crd, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Get(crdName, metav1.GetOptions{})
+		crd, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Get(context.Background(), crdName, metav1.GetOptions{})
 		if err != nil {
 			return false, err
 		}
