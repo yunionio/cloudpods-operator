@@ -134,6 +134,8 @@ const (
 	MonitorStackComponentType ComponentType = "monitor-stack"
 
 	ReportComponentType ComponentType = "report"
+
+	LbagentComponentType ComponentType = "lbagent"
 )
 
 // ComponentPhase is the current state of component
@@ -261,6 +263,8 @@ type OnecloudClusterSpec struct {
 	Cloudevent DeploymentServicePortSpec `json:"cloudevent"`
 	// Notify holds configuration for notify service
 	Notify NotifySpec `json:"notify"`
+	// Lbagent holds configuration for lbagent
+	Lbagent LbagentSpec `json:"lbagent"`
 	// HostAgent holds configuration for host
 	HostAgent HostAgentSpec `json:"hostagent"`
 	// HostDeployer holds configuration for host-deployer
@@ -899,6 +903,12 @@ type HostAgentSpec struct {
 	DefaultQemuVersion     string `json:"defaultQemuVersion"`
 }
 
+type LbagentSpec struct {
+	DaemonSetSpec
+
+	OvnController ContainerSpec
+}
+
 type TelegrafSpec struct {
 	DaemonSetSpec
 	InitContainerImage string `json:"initContainerImage"`
@@ -984,6 +994,10 @@ type HostConfig struct {
 	ServiceCommonOptions
 }
 
+type LbagentConfig struct {
+	ServiceCommonOptions
+}
+
 type BaremetalConfig struct {
 	ServiceCommonOptions
 }
@@ -1028,6 +1042,7 @@ type OnecloudClusterConfig struct {
 	Cloudmon        ServiceCommonOptions   `json:"cloudmon"`
 	Notify          ServiceDBCommonOptions `json:"notify"`
 	HostAgent       HostConfig             `json:"host"`
+	Lbagent         LbagentConfig          `json:"lbagent"`
 	BaremetalAgent  BaremetalConfig        `json:"baremetal"`
 	S3gateway       ServiceCommonOptions   `json:"s3gateway"`
 	Devtool         ServiceDBCommonOptions `json:"devtool"`
