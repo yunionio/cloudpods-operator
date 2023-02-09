@@ -15,8 +15,11 @@
 package controller
 
 import (
+	"context"
+
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/record"
@@ -45,7 +48,7 @@ func NewPVCControl(kubeCli kubernetes.Interface, pvcLister corelisters.Persisten
 }
 
 func (c *realPVCControl) CreatePVC(oc *v1alpha1.OnecloudCluster, pvc *corev1.PersistentVolumeClaim) error {
-	_, err := c.kubeCli.CoreV1().PersistentVolumeClaims(oc.Namespace).Create(pvc)
+	_, err := c.kubeCli.CoreV1().PersistentVolumeClaims(oc.Namespace).Create(context.Background(), pvc, v1.CreateOptions{})
 	if apierrors.IsAlreadyExists(err) {
 		return err
 	}

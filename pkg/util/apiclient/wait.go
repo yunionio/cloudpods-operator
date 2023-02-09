@@ -17,6 +17,7 @@ limitations under the License.
 package apiclient
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -106,7 +107,7 @@ func (w *KubeWaiter) WaitForAPI() error {
 	start := time.Now()
 	return wait.PollImmediate(APICallRetryInterval, w.timeout, func() (bool, error) {
 		healthStatus := 0
-		w.client.Discovery().RESTClient().Get().AbsPath("/healthz").Do().StatusCode(&healthStatus)
+		w.client.Discovery().RESTClient().Get().AbsPath("/healthz").Do(context.Background()).StatusCode(&healthStatus)
 		if healthStatus != http.StatusOK {
 			return false, nil
 		}
@@ -123,7 +124,7 @@ func (w *KubeWaiter) WaitForPodsWithLabel(kvLabel string) error {
 	lastKnownPodNumber := -1
 	return wait.PollImmediate(APICallRetryInterval, w.timeout, func() (bool, error) {
 		listOpts := metav1.ListOptions{LabelSelector: kvLabel}
-		pods, err := w.client.CoreV1().Pods(metav1.NamespaceSystem).List(listOpts)
+		pods, err := w.client.CoreV1().Pods(metav1.NamespaceSystem).List(context.Background(), listOpts)
 		if err != nil {
 			fmt.Fprintf(w.writer, "[apiclient] Error getting Pods with label selector %q [%v]\n", kvLabel, err)
 			return false, nil
@@ -151,7 +152,7 @@ func (w *KubeWaiter) WaitForPodsWithLabel(kvLabel string) error {
 // WaitForPodToDisappear blocks until it timeouts or gets a "NotFound" response from the API Server when getting the Static Pod in question
 func (w *KubeWaiter) WaitForPodToDisappear(podName string) error {
 	return wait.PollImmediate(APICallRetryInterval, w.timeout, func() (bool, error) {
-		_, err := w.client.CoreV1().Pods(metav1.NamespaceSystem).Get(podName, metav1.GetOptions{})
+		_, err := w.client.CoreV1().Pods(metav1.NamespaceSystem).Get(context.Background(), podName, metav1.GetOptions{})
 		if apierrors.IsNotFound(err) {
 			fmt.Printf("[apiclient] The old Pod %q is now removed (which is desired)\n", podName)
 			return true, nil
@@ -269,7 +270,7 @@ func (w *KubeWaiter) WaitForStaticPodHashChange(nodeName, component, previousHas
 func getStaticPodSingleHash(client clientset.Interface, nodeName string, component string) (string, error) {
 
 	staticPodName := fmt.Sprintf("%s-%s", component, nodeName)
-	staticPod, err := client.CoreV1().Pods(metav1.NamespaceSystem).Get(staticPodName, metav1.GetOptions{})
+	staticPod, err := client.CoreV1().Pods(metav1.NamespaceSystem).Get(context.Background(), staticPodName, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}

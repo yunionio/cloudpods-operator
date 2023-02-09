@@ -351,7 +351,7 @@ func (m *etcdManager) createPod(
 	if m.isPodPVEnabled() {
 		pvc := k8sutil.NewEtcdPodPVC(mb, *m.oc.Spec.Etcd.Pod.PersistentVolumeClaimSpec,
 			m.oc.GetName(), m.oc.GetNamespace(), controller.GetOwnerRef(m.oc))
-		_, err := m.kubeCli.CoreV1().PersistentVolumeClaims(m.oc.GetNamespace()).Create(pvc)
+		_, err := m.kubeCli.CoreV1().PersistentVolumeClaims(m.oc.GetNamespace()).Create(context.Background(), pvc, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to create PVC for member (%s): %v", mb.Name, err)
 		}
@@ -359,7 +359,7 @@ func (m *etcdManager) createPod(
 	} else {
 		addEtcdVolumeToPod(pod, nil)
 	}
-	_, err := m.kubeCli.CoreV1().Pods(m.oc.GetNamespace()).Create(pod)
+	_, err := m.kubeCli.CoreV1().Pods(m.oc.GetNamespace()).Create(context.Background(), pod, metav1.CreateOptions{})
 	return err
 }
 
@@ -478,7 +478,7 @@ func (m *etcdManager) newEtcdCommand(mb *etcdutil.Member, state, token string, i
 func (m *etcdManager) removePod(name string) error {
 	ns := m.oc.Namespace
 	opts := metav1.NewDeleteOptions(podTerminationGracePeriod)
-	err := m.kubeCli.CoreV1().Pods(ns).Delete(name, opts)
+	err := m.kubeCli.CoreV1().Pods(ns).Delete(context.Background(), name, *opts)
 	if err != nil {
 		if !k8sutil.IsKubernetesResourceNotFoundError(err) {
 			return err
@@ -488,7 +488,7 @@ func (m *etcdManager) removePod(name string) error {
 }
 
 func (m *etcdManager) pollPods() (running, pending, failed []*corev1.Pod, err error) {
-	podList, err := m.kubeCli.CoreV1().Pods(m.oc.Namespace).List(k8sutil.ClusterListOpt(m.getEtcdClusterPrefix()))
+	podList, err := m.kubeCli.CoreV1().Pods(m.oc.Namespace).List(context.Background(), k8sutil.ClusterListOpt(m.getEtcdClusterPrefix()))
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to list running pods: %v", err)
 	}
@@ -664,17 +664,17 @@ func createService(
 	o := svc.GetObjectMeta()
 	o.SetOwnerReferences(append(o.GetOwnerReferences(), owner))
 
-	oldSvc, err := kubecli.CoreV1().Services(ns).Get(svcName, metav1.GetOptions{})
+	oldSvc, err := kubecli.CoreV1().Services(ns).Get(context.Background(), svcName, metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	} else if err == nil {
 		if !reflect.DeepEqual(oldSvc.Annotations, svc.Annotations) {
 			oldSvc.Annotations = svc.Annotations
-			_, err = kubecli.CoreV1().Services(ns).Update(oldSvc)
+			_, err = kubecli.CoreV1().Services(ns).Update(context.Background(), oldSvc, metav1.UpdateOptions{})
 			return err
 		}
 	}
-	_, err = kubecli.CoreV1().Services(ns).Create(svc)
+	_, err = kubecli.CoreV1().Services(ns).Create(context.Background(), svc, metav1.CreateOptions{})
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		return err
 	}
@@ -979,7 +979,7 @@ func (m *etcdManager) cleanAllMembers() error {
 }
 
 func (m *etcdManager) removePVC(pvcName string) error {
-	err := m.kubeCli.CoreV1().PersistentVolumeClaims(m.oc.Namespace).Delete(pvcName, nil)
+	err := m.kubeCli.CoreV1().PersistentVolumeClaims(m.oc.Namespace).Delete(context.Background(), pvcName, metav1.DeleteOptions{})
 	if err != nil && !k8sutil.IsKubernetesResourceNotFoundError(err) {
 		return fmt.Errorf("remove pvc (%s) failed: %v", pvcName, err)
 	}
@@ -1012,7 +1012,7 @@ func (m *etcdManager) updateMembers(known etcdutil.MemberSet) error {
 
 func (m *etcdManager) upgradeOneMember(memberName string) error {
 	ns := m.oc.Namespace
-	pod, err := m.kubeCli.CoreV1().Pods(ns).Get(memberName, metav1.GetOptions{})
+	pod, err := m.kubeCli.CoreV1().Pods(ns).Get(context.Background(), memberName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("fail to get pod (%s): %v", memberName, err)
 	}
@@ -1027,7 +1027,7 @@ func (m *etcdManager) upgradeOneMember(memberName string) error {
 		return fmt.Errorf("error creating patch: %v", err)
 	}
 
-	_, err = m.kubeCli.CoreV1().Pods(ns).Patch(pod.GetName(), types.StrategicMergePatchType, patchdata)
+	_, err = m.kubeCli.CoreV1().Pods(ns).Patch(context.Background(), pod.GetName(), types.StrategicMergePatchType, patchdata, metav1.PatchOptions{})
 	if err != nil {
 		return fmt.Errorf("fail to update the etcd member (%s): %v", memberName, err)
 	}
