@@ -49,6 +49,7 @@ const (
 	OnecloudEanbleBaremetalLabelKey string = "onecloud.yunion.io/baremetal"
 	OnecloudControllerLabelKey      string = "onecloud.yunion.io/controller"
 	OnecloudHostDeployerLabelKey    string = "onecloud.yunion.io/host-deployer"
+	OnecloudEnableLbagentLabelKey   string = "onecloud.yunion.io/lbagent"
 	OnecloudCommunityEdition        string = "ce"
 	OnecloudEnterpriseEdition       string = "ee"
 
@@ -389,6 +390,12 @@ const (
 	ReportPort         = 30967
 	ReportDB           = "report"
 	ReportDBUser       = "report"
+
+	ServiceNameLbagent  = "lbagent"
+	ServiceTypeLbagent  = "lbagent"
+	LbagentAdminUser    = "lbagentadm"
+	LbagentAdminProject = SysAdminProject
+	LbagentPort         = 8895
 )
 
 var (

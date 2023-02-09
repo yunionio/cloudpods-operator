@@ -11,6 +11,9 @@ github.com/ClickHouse/clickhouse-go/lib/data
 github.com/ClickHouse/clickhouse-go/lib/lz4
 github.com/ClickHouse/clickhouse-go/lib/protocol
 github.com/ClickHouse/clickhouse-go/lib/types
+# github.com/StackExchange/wmi v1.2.1
+## explicit; go 1.13
+github.com/StackExchange/wmi
 # github.com/basgys/goxml2json v1.1.1-0.20181031222924-996d9fc8d313
 ## explicit
 github.com/basgys/goxml2json
@@ -23,6 +26,9 @@ github.com/cloudflare/golz4
 # github.com/coredns/coredns v1.3.0
 ## explicit
 github.com/coredns/coredns/plugin/pkg/log
+# github.com/coreos/go-iptables v0.6.0
+## explicit; go 1.16
+github.com/coreos/go-iptables/iptables
 # github.com/coreos/go-semver v0.3.0
 ## explicit
 github.com/coreos/go-semver/semver
@@ -42,6 +48,9 @@ github.com/evanphx/json-patch
 # github.com/fatih/color v1.13.0
 ## explicit; go 1.13
 github.com/fatih/color
+# github.com/fsnotify/fsnotify v1.4.9
+## explicit; go 1.13
+github.com/fsnotify/fsnotify
 # github.com/ghodss/yaml v1.0.0
 ## explicit
 github.com/ghodss/yaml
@@ -129,6 +138,19 @@ github.com/hako/durafmt
 ## explicit
 github.com/hashicorp/golang-lru
 github.com/hashicorp/golang-lru/simplelru
+# github.com/jaypipes/ghw v0.9.1 => github.com/zexi/ghw v0.9.1
+## explicit; go 1.15
+github.com/jaypipes/ghw/pkg/context
+github.com/jaypipes/ghw/pkg/cpu
+github.com/jaypipes/ghw/pkg/linuxpath
+github.com/jaypipes/ghw/pkg/marshal
+github.com/jaypipes/ghw/pkg/memory
+github.com/jaypipes/ghw/pkg/option
+github.com/jaypipes/ghw/pkg/pci/address
+github.com/jaypipes/ghw/pkg/snapshot
+github.com/jaypipes/ghw/pkg/topology
+github.com/jaypipes/ghw/pkg/unitutil
+github.com/jaypipes/ghw/pkg/util
 # github.com/json-iterator/go v1.1.12
 ## explicit; go 1.12
 github.com/json-iterator/go
@@ -156,6 +178,9 @@ github.com/mgutz/ansi
 # github.com/minio/md5-simd v1.1.0
 ## explicit; go 1.14
 github.com/minio/md5-simd
+# github.com/minio/minio-go v6.0.14+incompatible
+## explicit
+github.com/minio/minio-go/pkg/s3utils
 # github.com/minio/minio-go/v6 v6.0.33
 ## explicit; go 1.12
 github.com/minio/minio-go/v6/pkg/credentials
@@ -191,6 +216,9 @@ github.com/modern-go/reflect2
 # github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
 ## explicit
 github.com/mohae/deepcopy
+# github.com/mozillazg/go-pinyin v0.19.0
+## explicit; go 1.11
+github.com/mozillazg/go-pinyin
 # github.com/onsi/ginkgo v1.8.0
 ## explicit
 # github.com/onsi/gomega v1.5.0
@@ -210,6 +238,16 @@ github.com/power-devops/perfstat
 # github.com/rs/xid v1.2.1
 ## explicit
 github.com/rs/xid
+# github.com/serialx/hashring v0.0.0-20180504054112-49a4782e9908
+## explicit
+github.com/serialx/hashring
+# github.com/shirou/gopsutil v3.21.11+incompatible
+## explicit
+github.com/shirou/gopsutil/cpu
+github.com/shirou/gopsutil/internal/common
+github.com/shirou/gopsutil/mem
+github.com/shirou/gopsutil/net
+github.com/shirou/gopsutil/process
 # github.com/shirou/gopsutil/v3 v3.22.10
 ## explicit; go 1.15
 github.com/shirou/gopsutil/v3/cpu
@@ -288,6 +326,7 @@ go.etcd.io/etcd/client/pkg/v3/types
 # go.etcd.io/etcd/client/v3 v3.5.0
 ## explicit; go 1.16
 go.etcd.io/etcd/client/v3
+go.etcd.io/etcd/client/v3/concurrency
 go.etcd.io/etcd/client/v3/credentials
 go.etcd.io/etcd/client/v3/internal/endpoint
 go.etcd.io/etcd/client/v3/internal/resolver
@@ -734,6 +773,10 @@ k8s.io/client-go/util/flowcontrol
 k8s.io/client-go/util/keyutil
 k8s.io/client-go/util/retry
 k8s.io/client-go/util/workqueue
+# k8s.io/cluster-bootstrap v0.19.3 => k8s.io/cluster-bootstrap v0.0.0-20190620090013-c9a0fc045dc1
+## explicit; go 1.12
+k8s.io/cluster-bootstrap/token/api
+k8s.io/cluster-bootstrap/token/util
 # k8s.io/klog v0.3.3
 ## explicit
 k8s.io/klog
@@ -755,10 +798,11 @@ moul.io/http2curl/v2
 # sigs.k8s.io/yaml v1.2.0
 ## explicit; go 1.12
 sigs.k8s.io/yaml
-# yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20230131095206-0d758294026e
+# yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20230206033907-593ed22677c6
 ## explicit; go 1.18
 yunion.io/x/cloudmux/pkg/apis
 yunion.io/x/cloudmux/pkg/apis/billing
+yunion.io/x/cloudmux/pkg/apis/cloudid
 yunion.io/x/cloudmux/pkg/apis/compute
 yunion.io/x/cloudmux/pkg/cloudprovider
 yunion.io/x/cloudmux/pkg/multicloud
@@ -775,40 +819,64 @@ yunion.io/x/jsonutils
 ## explicit; go 1.12
 yunion.io/x/log
 yunion.io/x/log/hooks
-# yunion.io/x/onecloud v0.3.10-0-alpha2.0.20230202091413-42579c36816c
+# yunion.io/x/onecloud v0.3.10-0-alpha2.0.20230208030316-ee19e764eee6
 ## explicit; go 1.18
 yunion.io/x/onecloud/cmd/climc/shell
 yunion.io/x/onecloud/locales
 yunion.io/x/onecloud/pkg/ansibleserver/options
+yunion.io/x/onecloud/pkg/apihelper
 yunion.io/x/onecloud/pkg/apis
 yunion.io/x/onecloud/pkg/apis/ansible
 yunion.io/x/onecloud/pkg/apis/billing
 yunion.io/x/onecloud/pkg/apis/cloudcommon/db
 yunion.io/x/onecloud/pkg/apis/cloudcommon/proxy
+yunion.io/x/onecloud/pkg/apis/cloudid
+yunion.io/x/onecloud/pkg/apis/cloudproxy
 yunion.io/x/onecloud/pkg/apis/compute
 yunion.io/x/onecloud/pkg/apis/devtool
+yunion.io/x/onecloud/pkg/apis/host
 yunion.io/x/onecloud/pkg/apis/identity
 yunion.io/x/onecloud/pkg/apis/image
+yunion.io/x/onecloud/pkg/apis/logger
 yunion.io/x/onecloud/pkg/apis/monitor
 yunion.io/x/onecloud/pkg/apis/notify
 yunion.io/x/onecloud/pkg/apis/scheduler
 yunion.io/x/onecloud/pkg/appsrv
+yunion.io/x/onecloud/pkg/appsrv/dispatcher
 yunion.io/x/onecloud/pkg/baremetal/options
+yunion.io/x/onecloud/pkg/cloudcommon/app
 yunion.io/x/onecloud/pkg/cloudcommon/cmdline
 yunion.io/x/onecloud/pkg/cloudcommon/consts
+yunion.io/x/onecloud/pkg/cloudcommon/db
+yunion.io/x/onecloud/pkg/cloudcommon/db/lockman
+yunion.io/x/onecloud/pkg/cloudcommon/db/proxy
+yunion.io/x/onecloud/pkg/cloudcommon/db/quotas
+yunion.io/x/onecloud/pkg/cloudcommon/db/taskman
 yunion.io/x/onecloud/pkg/cloudcommon/etcd
 yunion.io/x/onecloud/pkg/cloudcommon/informer
+yunion.io/x/onecloud/pkg/cloudcommon/notifyclient
 yunion.io/x/onecloud/pkg/cloudcommon/options
 yunion.io/x/onecloud/pkg/cloudcommon/pending_delete
+yunion.io/x/onecloud/pkg/cloudcommon/policy
 yunion.io/x/onecloud/pkg/cloudcommon/syncman
 yunion.io/x/onecloud/pkg/cloudcommon/syncman/watcher
 yunion.io/x/onecloud/pkg/cloudcommon/types
+yunion.io/x/onecloud/pkg/cloudcommon/userdata
+yunion.io/x/onecloud/pkg/cloudcommon/validators
 yunion.io/x/onecloud/pkg/cloudmon/options
 yunion.io/x/onecloud/pkg/cloudnet/options
 yunion.io/x/onecloud/pkg/cloudproxy/agent/options
 yunion.io/x/onecloud/pkg/cloudproxy/options
+yunion.io/x/onecloud/pkg/compute/baremetal
+yunion.io/x/onecloud/pkg/compute/guestdrivers/types
+yunion.io/x/onecloud/pkg/compute/models
 yunion.io/x/onecloud/pkg/compute/options
+yunion.io/x/onecloud/pkg/compute/sshkeys
+yunion.io/x/onecloud/pkg/devtool/utils
 yunion.io/x/onecloud/pkg/esxi/options
+yunion.io/x/onecloud/pkg/hostman/guestfs/fsdriver
+yunion.io/x/onecloud/pkg/hostman/guestman/desc
+yunion.io/x/onecloud/pkg/hostman/hostdeployer/apis
 yunion.io/x/onecloud/pkg/hostman/hostinfo/hostconsts
 yunion.io/x/onecloud/pkg/hostman/options
 yunion.io/x/onecloud/pkg/hostman/system_service
@@ -817,6 +885,10 @@ yunion.io/x/onecloud/pkg/i18n
 yunion.io/x/onecloud/pkg/image/options
 yunion.io/x/onecloud/pkg/keystone/locale
 yunion.io/x/onecloud/pkg/keystone/options
+yunion.io/x/onecloud/pkg/lbagent
+yunion.io/x/onecloud/pkg/lbagent/gobetween
+yunion.io/x/onecloud/pkg/lbagent/models
+yunion.io/x/onecloud/pkg/lbagent/utils
 yunion.io/x/onecloud/pkg/logger/extern
 yunion.io/x/onecloud/pkg/logger/options
 yunion.io/x/onecloud/pkg/mcclient
@@ -826,19 +898,23 @@ yunion.io/x/onecloud/pkg/mcclient/models
 yunion.io/x/onecloud/pkg/mcclient/modulebase
 yunion.io/x/onecloud/pkg/mcclient/modules
 yunion.io/x/onecloud/pkg/mcclient/modules/ansible
+yunion.io/x/onecloud/pkg/mcclient/modules/cloudid
 yunion.io/x/onecloud/pkg/mcclient/modules/cloudproxy
 yunion.io/x/onecloud/pkg/mcclient/modules/compute
 yunion.io/x/onecloud/pkg/mcclient/modules/devtool
 yunion.io/x/onecloud/pkg/mcclient/modules/identity
 yunion.io/x/onecloud/pkg/mcclient/modules/image
 yunion.io/x/onecloud/pkg/mcclient/modules/k8s
+yunion.io/x/onecloud/pkg/mcclient/modules/logger
 yunion.io/x/onecloud/pkg/mcclient/modules/monitor
 yunion.io/x/onecloud/pkg/mcclient/modules/notify
 yunion.io/x/onecloud/pkg/mcclient/modules/quota
 yunion.io/x/onecloud/pkg/mcclient/modules/scheduler
 yunion.io/x/onecloud/pkg/mcclient/modules/yunionconf
 yunion.io/x/onecloud/pkg/mcclient/options
+yunion.io/x/onecloud/pkg/mcclient/options/compute
 yunion.io/x/onecloud/pkg/mcclient/options/k8s
+yunion.io/x/onecloud/pkg/mcclient/utils
 yunion.io/x/onecloud/pkg/monitor/options
 yunion.io/x/onecloud/pkg/monitor/tsdb
 yunion.io/x/onecloud/pkg/notify/options
@@ -848,12 +924,24 @@ yunion.io/x/onecloud/pkg/scheduledtask/options
 yunion.io/x/onecloud/pkg/scheduler/options
 yunion.io/x/onecloud/pkg/util/ansible
 yunion.io/x/onecloud/pkg/util/atexit
+yunion.io/x/onecloud/pkg/util/bitmap
+yunion.io/x/onecloud/pkg/util/cgrouputils
+yunion.io/x/onecloud/pkg/util/cgrouputils/cpuset
 yunion.io/x/onecloud/pkg/util/choices
+yunion.io/x/onecloud/pkg/util/conditionparser
+yunion.io/x/onecloud/pkg/util/coreosutils
 yunion.io/x/onecloud/pkg/util/ctx
 yunion.io/x/onecloud/pkg/util/excelutils
 yunion.io/x/onecloud/pkg/util/fileutils2
+yunion.io/x/onecloud/pkg/util/fstabutils
 yunion.io/x/onecloud/pkg/util/hashcache
+yunion.io/x/onecloud/pkg/util/influxdb
 yunion.io/x/onecloud/pkg/util/iproute2
+yunion.io/x/onecloud/pkg/util/k8s/kubeadm
+yunion.io/x/onecloud/pkg/util/k8s/tokens
+yunion.io/x/onecloud/pkg/util/logclient
+yunion.io/x/onecloud/pkg/util/macutils
+yunion.io/x/onecloud/pkg/util/netplan
 yunion.io/x/onecloud/pkg/util/netutils2
 yunion.io/x/onecloud/pkg/util/nopanic
 yunion.io/x/onecloud/pkg/util/ovsutils
@@ -861,8 +949,13 @@ yunion.io/x/onecloud/pkg/util/procutils
 yunion.io/x/onecloud/pkg/util/rbacutils
 yunion.io/x/onecloud/pkg/util/regutils2
 yunion.io/x/onecloud/pkg/util/seclib2
+yunion.io/x/onecloud/pkg/util/splitable
+yunion.io/x/onecloud/pkg/util/ssh
 yunion.io/x/onecloud/pkg/util/stringutils2
+yunion.io/x/onecloud/pkg/util/sysutils
 yunion.io/x/onecloud/pkg/util/tagutils
+yunion.io/x/onecloud/pkg/util/validate
+yunion.io/x/onecloud/pkg/util/winutils
 yunion.io/x/onecloud/pkg/vpcagent/options
 yunion.io/x/onecloud/pkg/webconsole/options
 yunion.io/x/onecloud/pkg/yunionconf/options
@@ -871,6 +964,7 @@ yunion.io/x/onecloud/pkg/yunionconf/options
 yunion.io/x/pkg/appctx
 yunion.io/x/pkg/errors
 yunion.io/x/pkg/gotypes
+yunion.io/x/pkg/object
 yunion.io/x/pkg/prettytable
 yunion.io/x/pkg/sortedmap
 yunion.io/x/pkg/trace
@@ -879,16 +973,22 @@ yunion.io/x/pkg/util/billing
 yunion.io/x/pkg/util/cache
 yunion.io/x/pkg/util/clock
 yunion.io/x/pkg/util/cloudinit
+yunion.io/x/pkg/util/compare
+yunion.io/x/pkg/util/delayedwork
 yunion.io/x/pkg/util/errors
 yunion.io/x/pkg/util/fileutils
+yunion.io/x/pkg/util/filterclause
 yunion.io/x/pkg/util/httputils
 yunion.io/x/pkg/util/imagetools
 yunion.io/x/pkg/util/netutils
 yunion.io/x/pkg/util/osprofile
+yunion.io/x/pkg/util/pinyinutils
 yunion.io/x/pkg/util/printutils
+yunion.io/x/pkg/util/rand
 yunion.io/x/pkg/util/rbacscope
 yunion.io/x/pkg/util/reflectutils
 yunion.io/x/pkg/util/regutils
+yunion.io/x/pkg/util/runtime
 yunion.io/x/pkg/util/s3auth
 yunion.io/x/pkg/util/samlutils
 yunion.io/x/pkg/util/seclib
@@ -896,9 +996,11 @@ yunion.io/x/pkg/util/secrules
 yunion.io/x/pkg/util/sets
 yunion.io/x/pkg/util/signalutils
 yunion.io/x/pkg/util/streamutils
+yunion.io/x/pkg/util/stringutils
 yunion.io/x/pkg/util/timeutils
 yunion.io/x/pkg/util/version
 yunion.io/x/pkg/util/vmdkutils
+yunion.io/x/pkg/util/wait
 yunion.io/x/pkg/utils
 # yunion.io/x/s3cli v0.0.0-20190917004522-13ac36d8687e
 ## explicit; go 1.12
@@ -906,6 +1008,7 @@ yunion.io/x/s3cli
 # yunion.io/x/sqlchemy v1.1.2-0.20230102055317-b2aa2b5c26f8
 ## explicit; go 1.17
 yunion.io/x/sqlchemy
+yunion.io/x/sqlchemy/backends/clickhouse
 # yunion.io/x/structarg v0.0.0-20220312084958-9c6c79c7d1c6
 ## explicit; go 1.12
 yunion.io/x/structarg
