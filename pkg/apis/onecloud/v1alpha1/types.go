@@ -852,6 +852,7 @@ type RegionSpec struct {
 type WebSpec struct {
 	DeploymentSpec
 
+	UseHTTP  bool `json:"useHTTP"`
 	Overview ContainerSpec
 	Docs     ContainerSpec
 }

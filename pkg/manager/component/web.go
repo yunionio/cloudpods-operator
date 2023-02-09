@@ -77,10 +77,15 @@ map $http_upgrade $connection_upgrade {
 }
 
 server {
+	{{- if .UseHTTP}}
+    listen 80 default_server;
+    server_name _;
+	{{- else }}
     listen 443 default_server ssl;
     server_name _;
     ssl_certificate /etc/yunion/pki/service.crt;
     ssl_certificate_key /etc/yunion/pki/service.key;
+	{{- end }}
 
     gzip_static on;
     gzip on;
@@ -254,6 +259,7 @@ type WebNginxConfig struct {
 	WebconsoleURL   string
 	APIGatewayWsURL string
 	APIGatewayURL   string
+	UseHTTP         bool
 }
 
 func (c WebNginxConfig) GetContent() (string, error) {
@@ -292,6 +298,12 @@ func (m *webManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 
 func (m *webManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
 	ports := []corev1.ServicePort{
+		{
+			Name:       "http",
+			Protocol:   corev1.ProtocolTCP,
+			Port:       80,
+			TargetPort: intstr.FromInt(80),
+		},
 		{
 			Name:       "https",
 			Protocol:   corev1.ProtocolTCP,
@@ -349,6 +361,12 @@ func (m *webManager) getIngress(oc *v1alpha1.OnecloudCluster, zone string) *unst
 	// 	},
 	// }, "spec", "rules")
 
+	useHTTP := oc.Spec.Web.UseHTTP
+	port := 443
+	if useHTTP {
+		port = 80
+	}
+
 	unstructured.SetNestedMap(obj.Object, map[string]interface{}{
 		"tls": []interface{}{
 			map[string]interface{}{
@@ -364,11 +382,11 @@ func (m *webManager) getIngress(oc *v1alpha1.OnecloudCluster, zone string) *unst
 							"path":     "/",
 							"backend": map[string]interface{}{
 								"serviceName": svcName,
-								"servicePort": int64(443),
+								"servicePort": int64(port),
 								"service": map[string]interface{}{
 									"name": svcName,
 									"port": map[string]interface{}{
-										"number": int64(443),
+										"number": int64(port),
 									},
 								},
 							},
@@ -412,7 +430,11 @@ func (m *webManager) getIngress(oc *v1alpha1.OnecloudCluster, zone string) *unst
 	if len(anno) == 0 {
 		anno = map[string]string{}
 	}
-	anno["nginx.ingress.kubernetes.io/backend-protocol"] = "HTTPS"
+	if useHTTP {
+		anno["nginx.ingress.kubernetes.io/backend-protocol"] = "HTTP"
+	} else {
+		anno["nginx.ingress.kubernetes.io/backend-protocol"] = "HTTPS"
+	}
 	obj.SetAnnotations(anno)
 
 	return m.addIngressPaths(IsEnterpriseEdition(oc), svcName, obj)
@@ -501,6 +523,7 @@ func (m *webManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.On
 		WebconsoleURL:   urlF(v1alpha1.WebconsoleComponentType, constants.WebconsolePort),
 		APIGatewayWsURL: urlF(v1alpha1.APIGatewayComponentType, constants.APIWebsocketPort),
 		APIGatewayURL:   urlF(v1alpha1.APIGatewayComponentType, constants.APIGatewayPort),
+		UseHTTP:         oc.Spec.Web.UseHTTP,
 	}
 	content, err := config.GetContent()
 	if err != nil {
