@@ -15,10 +15,12 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 
 	apps "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	appslisters "k8s.io/client-go/listers/apps/v1"
@@ -51,7 +53,7 @@ func NewDeploymentControl(kubeCli kubernetes.Interface, deployLister appslisters
 }
 
 func (c *realDeploymentControl) CreateDeployment(oc *v1alpha1.OnecloudCluster, deploy *apps.Deployment) error {
-	_, err := c.kubeCli.AppsV1().Deployments(oc.Namespace).Create(deploy)
+	_, err := c.kubeCli.AppsV1().Deployments(oc.Namespace).Create(context.Background(), deploy, v1.CreateOptions{})
 	// sink already exists errors
 	if apierrors.IsAlreadyExists(err) {
 		return err
@@ -69,7 +71,7 @@ func (c *realDeploymentControl) UpdateDeployment(oc *v1alpha1.OnecloudCluster, d
 
 	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		var updateErr error
-		updatedDeploy, updateErr = c.kubeCli.AppsV1().Deployments(ns).Update(deploy)
+		updatedDeploy, updateErr = c.kubeCli.AppsV1().Deployments(ns).Update(context.Background(), deploy, v1.UpdateOptions{})
 		if updateErr == nil {
 			klog.Infof("OnecloudCluster: [%s/%s]'s Deployment: [%s/%s] updated successfully", ns, ocName, ns, deployName)
 			return nil
@@ -91,7 +93,7 @@ func (c *realDeploymentControl) UpdateDeployment(oc *v1alpha1.OnecloudCluster, d
 }
 
 func (c *realDeploymentControl) DeleteDeployment(oc *v1alpha1.OnecloudCluster, deploymentName string) error {
-	err := c.kubeCli.AppsV1().Deployments(oc.Namespace).Delete(deploymentName, nil)
+	err := c.kubeCli.AppsV1().Deployments(oc.Namespace).Delete(context.Background(), deploymentName, v1.DeleteOptions{})
 	c.RecordDeleteEvent(oc, newFakeObject(deploymentName), err)
 	return err
 }

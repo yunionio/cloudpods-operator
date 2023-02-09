@@ -15,6 +15,7 @@
 package onecloud
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"time"
@@ -89,7 +90,7 @@ func (w *OCWaiter) WaitForPodsWithLabel(kvLabel string) error {
 	lastKnownPodNumber := -1
 	return wait.PollImmediate(constants.APICallRetryInterval, w.timeout, func() (bool, error) {
 		listOpts := metav1.ListOptions{LabelSelector: kvLabel}
-		pods, err := w.kubeClient.CoreV1().Pods(metav1.NamespaceSystem).List(listOpts)
+		pods, err := w.kubeClient.CoreV1().Pods(metav1.NamespaceSystem).List(context.Background(), listOpts)
 		if err != nil {
 			fmt.Fprintf(w.writer, "[apiclient] Error getting Pods with label selector %q [%v]\n", kvLabel, err)
 			return false, nil

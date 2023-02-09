@@ -16,6 +16,7 @@ package component
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"path"
@@ -28,6 +29,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	clientset "k8s.io/client-go/kubernetes"
@@ -335,12 +337,12 @@ func CombineAnnotations(a, b map[string]string) map[string]string {
 }
 
 func CreateOrUpdateConfigMap(client clientset.Interface, cm *corev1.ConfigMap) error {
-	if _, err := client.CoreV1().ConfigMaps(cm.ObjectMeta.Namespace).Create(cm); err != nil {
+	if _, err := client.CoreV1().ConfigMaps(cm.ObjectMeta.Namespace).Create(context.Background(), cm, v1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return errors.Wrap(err, "unable to create configmap")
 		}
 
-		if _, err := client.CoreV1().ConfigMaps(cm.ObjectMeta.Namespace).Update(cm); err != nil {
+		if _, err := client.CoreV1().ConfigMaps(cm.ObjectMeta.Namespace).Update(context.Background(), cm, v1.UpdateOptions{}); err != nil {
 			return errors.Wrap(err, "unable to update configmap")
 		}
 	}

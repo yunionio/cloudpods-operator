@@ -15,6 +15,8 @@
 package config
 
 import (
+	"context"
+
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -92,7 +94,7 @@ func newClusterConfig() *v1alpha1.OnecloudClusterConfig {
 func GetClusterConfigByClient(k8sCli kubernetes.Interface, oc *v1alpha1.OnecloudCluster) (*v1alpha1.OnecloudClusterConfig, error) {
 	cfgMapName := controller.ClusterConfigMapName(oc)
 	ns := oc.GetNamespace()
-	obj, err := k8sCli.CoreV1().ConfigMaps(ns).Get(cfgMapName, metav1.GetOptions{})
+	obj, err := k8sCli.CoreV1().ConfigMaps(ns).Get(context.Background(), cfgMapName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}

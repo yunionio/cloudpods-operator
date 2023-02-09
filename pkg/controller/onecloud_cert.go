@@ -15,6 +15,7 @@
 package controller
 
 import (
+	"context"
 	"crypto"
 	"crypto/x509"
 	"fmt"
@@ -86,7 +87,7 @@ func (c *realOnecloudCertControl) CreateCert(oc *v1alpha1.OnecloudCluster) error
 		return err
 	}
 	certSecret := newSecretFromStore(oc, store)
-	_, err = c.kubeCli.CoreV1().Secrets(oc.GetNamespace()).Create(certSecret)
+	_, err = c.kubeCli.CoreV1().Secrets(oc.GetNamespace()).Create(context.Background(), certSecret, metav1.CreateOptions{})
 	return err
 }
 
