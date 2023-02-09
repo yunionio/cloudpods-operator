@@ -16,7 +16,7 @@
 
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-GO111MODULE=on ${scriptdir}/generate-groups.sh \
+GO111MODULE=on bash -x ${scriptdir}/generate-groups.sh \
   deepcopy,client,lister,informer,defaulter \
   yunion.io/x/onecloud-operator/pkg/client \
   yunion.io/x/onecloud-operator/pkg/apis \

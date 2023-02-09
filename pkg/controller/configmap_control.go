@@ -15,10 +15,12 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	corelisters "k8s.io/client-go/listers/core/v1"
@@ -50,7 +52,7 @@ func NewConfigMapControl(kubeCli kubernetes.Interface, cfgLister corelisters.Con
 }
 
 func (c *realConfigMapControl) CreateConfigMap(oc *v1alpha1.OnecloudCluster, cfg *corev1.ConfigMap) error {
-	_, err := c.kubeCli.CoreV1().ConfigMaps(oc.Namespace).Create(cfg)
+	_, err := c.kubeCli.CoreV1().ConfigMaps(oc.Namespace).Create(context.Background(), cfg, v1.CreateOptions{})
 	if apierrors.IsAlreadyExists(err) {
 		return err
 	}
@@ -66,7 +68,7 @@ func (c *realConfigMapControl) UpdateConfigMap(oc *v1alpha1.OnecloudCluster, cfg
 	var updateCfg *corev1.ConfigMap
 	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		var updateErr error
-		updateCfg, updateErr = c.kubeCli.CoreV1().ConfigMaps(ns).Update(cfg)
+		updateCfg, updateErr = c.kubeCli.CoreV1().ConfigMaps(ns).Update(context.Background(), cfg, v1.UpdateOptions{})
 		if updateErr == nil {
 			klog.Infof("update ConfigMap: [%s/%s] successfully, cluster: %s", ns, cfgName, ocName)
 			return nil
@@ -85,7 +87,7 @@ func (c *realConfigMapControl) UpdateConfigMap(oc *v1alpha1.OnecloudCluster, cfg
 }
 
 func (c *realConfigMapControl) DeleteConfigMap(oc *v1alpha1.OnecloudCluster, cfg *corev1.ConfigMap) error {
-	err := c.kubeCli.CoreV1().ConfigMaps(oc.Namespace).Delete(cfg.Name, nil)
+	err := c.kubeCli.CoreV1().ConfigMaps(oc.Namespace).Delete(context.Background(), cfg.Name, v1.DeleteOptions{})
 	c.RecordDeleteEvent(oc, cfg, err)
 	return err
 }

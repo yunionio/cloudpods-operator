@@ -1,10 +1,12 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 
 	batchv1 "k8s.io/api/batch/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/listers/batch/v1beta1"
@@ -36,7 +38,7 @@ func NewCronJobControl(
 func (c *cronJobControl) CreateCronJob(
 	oc *v1alpha1.OnecloudCluster, cronJob *batchv1.CronJob,
 ) error {
-	_, err := c.kubeCli.BatchV1beta1().CronJobs(oc.Namespace).Create(cronJob)
+	_, err := c.kubeCli.BatchV1beta1().CronJobs(oc.Namespace).Create(context.Background(), cronJob, v1.CreateOptions{})
 	if apierrors.IsAlreadyExists(err) {
 		return err
 	}
@@ -54,7 +56,7 @@ func (c *cronJobControl) UpdateCronJob(
 	var cronJobSpec = cronJob.Spec.DeepCopy()
 	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		var updateErr error
-		newCronJob, updateErr = c.kubeCli.BatchV1beta1().CronJobs(ns).Update(cronJob)
+		newCronJob, updateErr = c.kubeCli.BatchV1beta1().CronJobs(ns).Update(context.Background(), cronJob, v1.UpdateOptions{})
 		if updateErr == nil {
 			klog.Infof("OnecloudCluster: [%s/%s]'s CronJob: [%s/%s] updated successfully", ns, ocName, ns, cronJobName)
 			return nil
@@ -78,7 +80,7 @@ func (c *cronJobControl) UpdateCronJob(
 func (c *cronJobControl) DeleteCronJob(
 	oc *v1alpha1.OnecloudCluster, cronJobName string,
 ) error {
-	err := c.kubeCli.BatchV1beta1().CronJobs(oc.Namespace).Delete(cronJobName, nil)
+	err := c.kubeCli.BatchV1beta1().CronJobs(oc.Namespace).Delete(context.Background(), cronJobName, v1.DeleteOptions{})
 	c.RecordDeleteEvent(oc, newFakeObject(cronJobName), err)
 	return err
 }

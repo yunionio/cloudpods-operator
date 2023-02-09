@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 
@@ -34,7 +35,7 @@ func main() {
 	if len(influxAddr) == 0 {
 		log.Fatalf("Missing influxdb url")
 	}
-	node, err := clientset.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+	node, err := clientset.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
 	if err != nil {
 		log.Fatal(err)
 	}
