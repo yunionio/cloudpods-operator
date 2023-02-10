@@ -35,6 +35,7 @@ import (
 	"yunion.io/x/onecloud/pkg/keystone/locale"
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/mcclient/auth"
+	cloudproxy_modules "yunion.io/x/onecloud/pkg/mcclient/modules/cloudproxy"
 	identity_modules "yunion.io/x/onecloud/pkg/mcclient/modules/identity"
 	quota_modules "yunion.io/x/onecloud/pkg/mcclient/modules/quota"
 
@@ -244,6 +245,7 @@ type ComponentManager interface {
 	YunionAgent() PhaseControl
 	Devtool() PhaseControl
 	Monitor() PhaseControl
+	Cloudproxy() PhaseControl
 }
 
 func (w *OnecloudControl) Components(oc *v1alpha1.OnecloudCluster) ComponentManager {
@@ -307,6 +309,10 @@ func (c *realComponent) Devtool() PhaseControl {
 
 func (c *realComponent) Monitor() PhaseControl {
 	return &monitorComponent{newBaseComponent(c)}
+}
+
+func (c *realComponent) Cloudproxy() PhaseControl {
+	return &cloudproxyComponent{newBaseComponent(c)}
 }
 
 type baseComponent struct {
@@ -1383,4 +1389,49 @@ func (c *kubeServerComponent) doEnableMinio(
 	spec *v1alpha1.OnecloudClusterSpec,
 ) error {
 	return onecloud.SyncMinio(s, input, spec)
+}
+
+type cloudproxyComponent struct {
+	*baseComponent
+}
+
+func (c *cloudproxyComponent) Setup() error {
+	return c.RegisterCloudServiceEndpoint(
+		v1alpha1.CloudproxyComponentType,
+		constants.ServiceNameCloudproxy, constants.ServiceTypeCloudproxy,
+		c.GetCluster().Spec.Cloudproxy.Service.NodePort, "", true)
+}
+
+func GetDefaultProxyAgentName() string {
+	return "proxyagent0"
+}
+
+func (m *cloudproxyComponent) getOrCreateProxyAgent(s *mcclient.ClientSession, oc *v1alpha1.OnecloudCluster) (string, error) {
+	proxyAgentName := GetDefaultProxyAgentName()
+
+	if r, err := cloudproxy_modules.ProxyAgents.Get(s, proxyAgentName, nil); err == nil {
+		return r.GetString("id")
+	}
+
+	createParams := jsonutils.NewDict()
+	createParams.Set("name", jsonutils.NewString(proxyAgentName))
+	if r, err := cloudproxy_modules.ProxyAgents.Create(s, createParams); err == nil {
+		return r.GetString("id")
+	} else {
+		return "", err
+	}
+}
+
+func (c *cloudproxyComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
+	return c.RunWithSession(func(s *mcclient.ClientSession) error {
+		if StopServices {
+			return nil
+		}
+
+		if _, err := c.getOrCreateProxyAgent(s, oc); err == nil {
+			return nil
+		} else {
+			return errors.Wrap(err, "getOrCreateProxyAgent")
+		}
+	})
 }
