@@ -15,18 +15,12 @@
 package component
 
 import (
-	"context"
 	"path"
-	"time"
 
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
-	"yunion.io/x/jsonutils"
-
 	"yunion.io/x/onecloud/pkg/cloudproxy/options"
-	"yunion.io/x/onecloud/pkg/mcclient/auth"
-	cloudproxy_modules "yunion.io/x/onecloud/pkg/mcclient/modules/cloudproxy"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -66,9 +60,7 @@ func (m *cloudproxyManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v
 }
 
 func (m *cloudproxyManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
-	return controller.NewRegisterEndpointComponent(man, v1alpha1.CloudproxyComponentType,
-		constants.ServiceNameCloudproxy, constants.ServiceTypeCloudproxy,
-		man.GetCluster().Spec.Cloudproxy.Service.NodePort, "")
+	return man.Cloudproxy()
 }
 
 func (m *cloudproxyManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
@@ -86,31 +78,10 @@ func (m *cloudproxyManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 
 	opt.EnableAPIServer = true
 	opt.EnableProxyAgent = true
-	opt.ProxyAgentId = m.theProxyAgentName()
+	opt.ProxyAgentId = controller.GetDefaultProxyAgentName()
 
 	opt.Port = config.Port
 	return m.newServiceConfigMap(v1alpha1.CloudproxyComponentType, "", oc, opt), false, nil
-}
-
-func (m *cloudproxyManager) theProxyAgentName() string {
-	return "proxyagent0"
-}
-
-func (m *cloudproxyManager) getOrCreateProxyAgent(oc *v1alpha1.OnecloudCluster) (string, error) {
-	proxyAgentName := m.theProxyAgentName()
-
-	s := auth.GetAdminSession(context.Background(), oc.Spec.Region)
-	if r, err := cloudproxy_modules.ProxyAgents.Get(s, proxyAgentName, nil); err == nil {
-		return r.GetString("id")
-	}
-
-	createParams := jsonutils.NewDict()
-	createParams.Set("name", jsonutils.NewString(proxyAgentName))
-	if r, err := cloudproxy_modules.ProxyAgents.Create(s, createParams); err == nil {
-		return r.GetString("id")
-	} else {
-		return "", err
-	}
 }
 
 func (m *cloudproxyManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
@@ -133,16 +104,5 @@ func (m *cloudproxyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1a
 }
 
 func (m *cloudproxyManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
-	go func() {
-		if controller.StopServices {
-			return
-		}
-		for i := 0; i < 10; i++ {
-			if _, err := m.getOrCreateProxyAgent(oc); err == nil {
-				return
-			}
-			time.Sleep(time.Second)
-		}
-	}()
 	return &oc.Status.Cloudproxy
 }
