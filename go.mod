@@ -24,7 +24,7 @@ require (
 	k8s.io/klog v0.3.3
 	yunion.io/x/jsonutils v1.0.1-0.20220819091305-3bab322ab4fd
 	yunion.io/x/log v1.0.0
-	yunion.io/x/onecloud v0.3.9-5.0.20230208060158-03f8defbf14b
+	yunion.io/x/onecloud v0.3.9-5.0.20230214042008-64227d6e509b
 	yunion.io/x/pkg v1.0.1-0.20221031045951-0b770b490c45
 	yunion.io/x/structarg v0.0.0-20220312084958-9c6c79c7d1c6
 )
