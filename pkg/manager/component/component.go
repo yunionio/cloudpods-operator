@@ -261,12 +261,14 @@ func (m *ComponentManager) syncConfigMap(
 	{
 		account := svcAccountFactory(clustercfg)
 		if account != nil {
-			m.onecloudControl.RunWithSession(oc, func(s *mcclient.ClientSession) error {
+			if err := m.onecloudControl.RunWithSession(oc, func(s *mcclient.ClientSession) error {
 				if err := EnsureServiceAccount(s, *account); err != nil {
 					return errorswrap.Wrapf(err, "ensure service account %#v", *account)
 				}
 				return nil
-			})
+			}); err != nil {
+				return errorswrap.Wrap(err, "RunWithSession")
+			}
 		}
 	}
 	cfgMap, forceUpdate, err := cfgMapFactory(oc, clustercfg, zone)
