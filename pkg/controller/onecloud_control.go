@@ -514,7 +514,7 @@ func (c keystoneComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 				certName = constants.ServiceCertEtcdName
 			}
 
-			if err := doCreateEtcdServiceEndpoint(s, region, c.getEtcdUrl(), certName); err != nil {
+			if err := doCreateEtcdServiceEndpoint(oc, s, region, certName); err != nil {
 				return errors.Wrap(err, "create etcd endpoint")
 			}
 		}
@@ -686,11 +686,28 @@ func doSyncCommonConfigure(s *mcclient.ClientSession, defaultConf map[string]str
 	return err
 }
 
-func doCreateEtcdServiceEndpoint(s *mcclient.ClientSession, regionId, endpointUrl, certName string) error {
-	return onecloud.RegisterServiceEndpointByInterfaces(
-		s, regionId, constants.ServiceNameEtcd, constants.ServiceTypeEtcd,
-		endpointUrl, certName, []string{constants.EndpointTypeInternal},
-	)
+func doCreateEtcdServiceEndpoint(oc *v1alpha1.OnecloudCluster, s *mcclient.ClientSession, regionId, certName string) error {
+	useHTTPS := true
+	if !oc.Spec.Etcd.EnableTls {
+		useHTTPS = false
+	}
+	pubHost := oc.Spec.LoadBalancerEndpoint
+	intHost := fmt.Sprintf("%s-etcd-client.%s.svc", oc.Name, oc.Namespace)
+	if pubHost == "" {
+		pubHost = intHost
+	}
+	eps := []*endpoint{
+		newInternalEndpoint(intHost, constants.EtcdClientPort, ""),
+	}
+	nodePort := oc.Spec.Etcd.ClientNodePort
+	if nodePort != 0 {
+		eps = append(eps, newPublicEndpoint(pubHost, nodePort, ""))
+	}
+	urls := map[string]string{}
+	for _, ep := range eps {
+		urls[ep.Interface] = ep.GetUrl(useHTTPS)
+	}
+	return onecloud.RegisterServiceEndpoints(s, regionId, constants.ServiceNameEtcd, constants.ServiceTypeEtcd, certName, urls)
 }
 
 func doCreateEtcdCertificate(s *mcclient.ClientSession, certDetails *jsonutils.JSONDict) error {

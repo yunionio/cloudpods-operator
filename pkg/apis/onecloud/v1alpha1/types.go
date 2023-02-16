@@ -497,6 +497,8 @@ type Etcd struct {
 	Disable bool `json:"disable"`
 	// enable tls
 	EnableTls bool `json:"enableTls"`
+	// client service nodePort
+	ClientNodePort int `json:"clientNodePort"`
 }
 
 // Mysql describes a mysql server
@@ -791,7 +793,8 @@ type EctdStatus struct {
 
 	// ClientPort is the port for etcd client to access.
 	// It's the same on client LB service and etcd nodes.
-	ClientPort int `json:"clientPort,omitempty"`
+	ClientPort     int `json:"clientPort,omitempty"`
+	ClientNodePort int `json:"clientNodePort,omitempty"`
 
 	// Members are the etcd members in the cluster
 	Members EtcdMembersStatus `json:"members"`
