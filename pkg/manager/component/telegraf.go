@@ -48,7 +48,7 @@ func (m *telegrafManager) newTelegrafDaemonSet(
 	dsSpec := oc.Spec.Telegraf
 	privileged := true
 	containersF := func(volMounts []corev1.VolumeMount) []corev1.Container {
-		return []corev1.Container{
+		cs := []corev1.Container{
 			{
 				Name:            cType.String(),
 				Image:           dsSpec.Image, // TODO: set default_image
@@ -81,7 +81,9 @@ func (m *telegrafManager) newTelegrafDaemonSet(
 					Privileged: &privileged,
 				},
 			},
-			{
+		}
+		if oc.Spec.Telegraf.EnableRaidPlugin {
+			cs = append(cs, corev1.Container{
 				Name:            "telegraf-raid-plugin",
 				Image:           dsSpec.TelegrafRaidImage,
 				ImagePullPolicy: dsSpec.ImagePullPolicy,
@@ -102,8 +104,9 @@ func (m *telegrafManager) newTelegrafDaemonSet(
 						},
 					},
 				},
-			},
+			})
 		}
+		return cs
 	}
 	initContainers := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		return []corev1.Container{

@@ -912,6 +912,7 @@ type LbagentSpec struct {
 type TelegrafSpec struct {
 	DaemonSetSpec
 	InitContainerImage string `json:"initContainerImage"`
+	EnableRaidPlugin   bool   `json:"enableRaidPlugin"`
 	TelegrafRaidImage  string `json:"telegrafRaidImage"`
 }
 
