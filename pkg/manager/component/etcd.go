@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 
+	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
@@ -163,6 +164,10 @@ func (m *etcdManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 		changed = true
 		oc.Spec.Etcd.Version = constants.EtcdImageVersion
 	}
+	if oc.Spec.Etcd.ClientNodePort == 0 {
+		changed = true
+		oc.Spec.Etcd.ClientNodePort = constants.EtcdClientNodePort
+	}
 	if changed {
 		oc, err = m.onecloudClusterControl.UpdateCluster(oc, nil, nil)
 		if err != nil {
@@ -180,6 +185,7 @@ func (m *etcdManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 func (m *etcdManager) sync(oc *v1alpha1.OnecloudCluster) {
 	m.setSyncing()
 	defer m.setUnsync()
+
 	m.reconcileLock.Lock()
 	defer m.reconcileLock.Unlock()
 
@@ -272,7 +278,7 @@ func (m *etcdManager) setup() error {
 		return fmt.Errorf("unexpected cluster phase: %s", m.status.Phase)
 	}
 
-	log.Infof("start setup ......")
+	log.Infof("start etcd setup ......")
 
 	if m.isSecure() {
 		d, err := k8sutil.GetTLSDataFromSecret(m.kubeCli, m.oc.GetNamespace(), constants.EtcdClientSecret)
@@ -618,7 +624,7 @@ func (m *etcdManager) reportFailedStatus() {
 }
 
 func (m *etcdManager) setupServices() error {
-	err := CreateClientService(m.kubeCli, m.getEtcdClusterPrefix(), m.oc.Namespace, controller.GetOwnerRef(m.oc))
+	err := CreateClientService(m.kubeCli, m.getEtcdClusterPrefix(), m.oc.Namespace, controller.GetOwnerRef(m.oc), m.oc.Spec.Etcd.ClientNodePort)
 	if err != nil {
 		return err
 	}
@@ -626,12 +632,13 @@ func (m *etcdManager) setupServices() error {
 	return CreatePeerService(m.kubeCli, m.getEtcdClusterPrefix(), m.oc.Namespace, controller.GetOwnerRef(m.oc))
 }
 
-func CreateClientService(kubecli kubernetes.Interface, clusterName, ns string, owner metav1.OwnerReference) error {
+func CreateClientService(kubecli kubernetes.Interface, clusterName, ns string, owner metav1.OwnerReference, nodePort int) error {
 	ports := []corev1.ServicePort{{
 		Name:       "client",
 		Port:       constants.EtcdClientPort,
 		TargetPort: intstr.FromInt(constants.EtcdClientPort),
 		Protocol:   corev1.ProtocolTCP,
+		NodePort:   int32(nodePort),
 	}}
 	return createService(kubecli, ClientServiceName(clusterName), clusterName, ns, "", ports, owner, false)
 }
@@ -670,6 +677,8 @@ func createService(
 	} else if err == nil {
 		if !reflect.DeepEqual(oldSvc.Annotations, svc.Annotations) {
 			oldSvc.Annotations = svc.Annotations
+			oldSvc.Spec.Ports = svc.Spec.Ports
+			oldSvc.Spec.Type = svc.Spec.Type
 			_, err = kubecli.CoreV1().Services(ns).Update(context.Background(), oldSvc, metav1.UpdateOptions{})
 			return err
 		}
@@ -689,6 +698,9 @@ func newEtcdServiceManifest(
 	if tolerateUnreadyEndpoints {
 		annotations[k8sutil.TolerateUnreadyEndpointsAnnotation] = "true"
 	}
+	for i, p := range ports {
+		annotations[fmt.Sprintf("onecloud.etcd.io/port%d", i)] = jsonutils.Marshal(p).String()
+	}
 	svc := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        svcName,
@@ -700,6 +712,7 @@ func newEtcdServiceManifest(
 			Ports:                    ports,
 			Selector:                 labels,
 			ClusterIP:                clusterIP,
+			Type:                     corev1.ServiceTypeNodePort,
 		},
 	}
 	return svc
@@ -711,6 +724,7 @@ func (m *etcdManager) run() {
 	}
 	m.status.ServiceName = controller.NewClusterComponentName(m.oc.GetName(), v1alpha1.EtcdClientComponentType)
 	m.status.ClientPort = constants.EtcdClientPort
+	m.status.ClientNodePort = m.oc.Spec.Etcd.ClientNodePort
 	m.status.Phase = v1alpha1.EtcdClusterPhaseRunning
 	if err := m.updateEtcdStatus(); err != nil {
 		log.Warningf("update initial etcd culster status failed: %s", err)
