@@ -187,23 +187,24 @@ func (w *OnecloudControl) RunWithSession(oc *v1alpha1.OnecloudCluster, f func(s 
 	sessionLock.Lock()
 	defer sessionLock.Unlock()
 
-	config := NewOnecloudRCAdminConfig(oc, false)
 	var s *mcclient.ClientSession
 	var err error
 	if !auth.IsAuthed() {
 		s, err = w.getSession(oc)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "get mcclient session")
 		}
-		auth.Init(config.ToAuthInfo(), false, true, "", "")
+		w.initAuth(oc)
 	} else {
-		s = auth.GetAdminSession(getRequestContext(), oc.Spec.Region)
+		s = w.getAuthBackgroudSession(oc, false)
 	}
 	s.SetServiceUrl("identity", GetAuthURL(oc))
 	if err := f(s); err != nil {
-		auth.Init(config.ToAuthInfo(), false, true, "", "")
-		newSession := auth.GetAdminSession(getRequestContext(), oc.Spec.Region)
-		return f(newSession)
+		newSession := w.getAuthBackgroudSession(oc, true)
+		if err := f(newSession); err != nil {
+			return errors.Wrap(err, "RunWithSession twice")
+		}
+		return nil
 	}
 	return nil
 }
@@ -229,6 +230,21 @@ func (w *OnecloudControl) RunWithSession(oc *v1alpha1.OnecloudCluster, f func(s 
 
 func (w *OnecloudControl) getSession(oc *v1alpha1.OnecloudCluster) (*mcclient.ClientSession, error) {
 	return NewOnecloudClientSession(oc)
+}
+
+func (w *OnecloudControl) getAuthBackgroudSession(oc *v1alpha1.OnecloudCluster, refresh bool) *mcclient.ClientSession {
+	if !auth.IsAuthed() || refresh {
+		auth.SetDefaultAuthSource(mcclient.AuthSourceOperator)
+		config := NewOnecloudRCAdminConfig(oc, false)
+		auth.Init(config.ToAuthInfo(), false, true, "", "")
+	}
+	return auth.GetAdminSession(getRequestContext(), oc.Spec.Region)
+}
+
+func (w *OnecloudControl) initAuth(oc *v1alpha1.OnecloudCluster) {
+	config := NewOnecloudRCAdminConfig(oc, false)
+	auth.SetDefaultAuthSource(mcclient.AuthSourceOperator)
+	auth.Init(config.ToAuthInfo(), false, true, "", "")
 }
 
 func (w *OnecloudControl) getSessionNoEndpoints(oc *v1alpha1.OnecloudCluster) (*mcclient.ClientSession, error) {
