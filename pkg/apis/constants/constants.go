@@ -356,6 +356,7 @@ const (
 	ServiceOperatorPort      = 30885
 
 	EtcdClientPort            = 2379
+	EtcdClientNodePort        = 30379
 	EtcdPeerPort              = 2380
 	EtcdImageName             = "etcd"
 	EtcdDefaultClusterSize    = 3
