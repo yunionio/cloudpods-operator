@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/pborman/uuid"
-	"github.com/pkg/errors"
 	"go.etcd.io/etcd/api/v3/etcdserverpb"
 	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -27,6 +26,7 @@ import (
 
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
+	"yunion.io/x/pkg/errors"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -75,8 +75,8 @@ var (
 
 	reconcileInterval         = 8 * time.Second
 	podTerminationGracePeriod = int64(5)
-	ErrLostQuorum             = errors.New("lost quorum")
-	errCreatedCluster         = errors.New("etcd cluster failed to be created")
+	ErrLostQuorum             = errors.Error("lost quorum")
+	errCreatedCluster         = errors.Error("etcd cluster failed to be created")
 )
 
 func newEtcdComponentManager(baseMan *ComponentManager) manager.Manager {
@@ -624,12 +624,15 @@ func (m *etcdManager) reportFailedStatus() {
 }
 
 func (m *etcdManager) setupServices() error {
-	err := CreateClientService(m.kubeCli, m.getEtcdClusterPrefix(), m.oc.Namespace, controller.GetOwnerRef(m.oc), m.oc.Spec.Etcd.ClientNodePort)
-	if err != nil {
-		return err
+	errs := make([]error, 0)
+	if err := CreateClientService(m.kubeCli, m.getEtcdClusterPrefix(), m.oc.Namespace, controller.GetOwnerRef(m.oc), m.oc.Spec.Etcd.ClientNodePort); err != nil {
+		errs = append(errs, errors.Wrap(err, "create etcd client service"))
 	}
 
-	return CreatePeerService(m.kubeCli, m.getEtcdClusterPrefix(), m.oc.Namespace, controller.GetOwnerRef(m.oc))
+	if err := CreatePeerService(m.kubeCli, m.getEtcdClusterPrefix(), m.oc.Namespace, controller.GetOwnerRef(m.oc)); err != nil {
+		errs = append(errs, errors.Wrap(err, "create etcd peer service"))
+	}
+	return errors.NewAggregate(errs)
 }
 
 func CreateClientService(kubecli kubernetes.Interface, clusterName, ns string, owner metav1.OwnerReference, nodePort int) error {
@@ -640,7 +643,7 @@ func CreateClientService(kubecli kubernetes.Interface, clusterName, ns string, o
 		Protocol:   corev1.ProtocolTCP,
 		NodePort:   int32(nodePort),
 	}}
-	return createService(kubecli, ClientServiceName(clusterName), clusterName, ns, "", ports, owner, false)
+	return createService(kubecli, ClientServiceName(clusterName), clusterName, ns, "", ports, owner, false, true)
 }
 
 func ClientServiceName(clusterName string) string {
@@ -660,20 +663,21 @@ func CreatePeerService(kubecli kubernetes.Interface, clusterName, ns string, own
 		Protocol:   corev1.ProtocolTCP,
 	}}
 
-	return createService(kubecli, clusterName, clusterName, ns, corev1.ClusterIPNone, ports, owner, true)
+	return createService(kubecli, clusterName, clusterName, ns, corev1.ClusterIPNone, ports, owner, true, false)
 }
 
 func createService(
 	kubecli kubernetes.Interface, svcName, clusterName, ns, clusterIP string,
 	ports []corev1.ServicePort, owner metav1.OwnerReference, tolerateUnreadyEndpoints bool,
+	useNodePort bool,
 ) error {
-	svc := newEtcdServiceManifest(svcName, clusterName, clusterIP, ports, tolerateUnreadyEndpoints)
+	svc := newEtcdServiceManifest(svcName, clusterName, clusterIP, ports, tolerateUnreadyEndpoints, useNodePort)
 	o := svc.GetObjectMeta()
 	o.SetOwnerReferences(append(o.GetOwnerReferences(), owner))
 
 	oldSvc, err := kubecli.CoreV1().Services(ns).Get(context.Background(), svcName, metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
-		return err
+		return errors.Wrapf(err, "Get service %q", svcName)
 	} else if err == nil {
 		if !reflect.DeepEqual(oldSvc.Annotations, svc.Annotations) {
 			oldSvc.Annotations = svc.Annotations
@@ -682,16 +686,18 @@ func createService(
 			_, err = kubecli.CoreV1().Services(ns).Update(context.Background(), oldSvc, metav1.UpdateOptions{})
 			return err
 		}
-	}
-	_, err = kubecli.CoreV1().Services(ns).Create(context.Background(), svc, metav1.CreateOptions{})
-	if err != nil && !apierrors.IsAlreadyExists(err) {
-		return err
+	} else if apierrors.IsNotFound(err) {
+		if _, err = kubecli.CoreV1().Services(ns).Create(context.Background(), svc, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
+			return errors.Wrapf(err, "create service %q", svcName)
+		}
 	}
 	return nil
 }
 
 func newEtcdServiceManifest(
-	svcName, clusterName, clusterIP string, ports []corev1.ServicePort, tolerateUnreadyEndpoints bool,
+	svcName, clusterName, clusterIP string,
+	ports []corev1.ServicePort, tolerateUnreadyEndpoints bool,
+	useNodePort bool,
 ) *corev1.Service {
 	labels := k8sutil.LabelsForCluster(clusterName)
 	annotations := map[string]string{}
@@ -712,8 +718,12 @@ func newEtcdServiceManifest(
 			Ports:                    ports,
 			Selector:                 labels,
 			ClusterIP:                clusterIP,
-			Type:                     corev1.ServiceTypeNodePort,
 		},
+	}
+	if useNodePort {
+		svc.Spec.Type = corev1.ServiceTypeNodePort
+	} else {
+		svc.Spec.Type = corev1.ServiceTypeClusterIP
 	}
 	return svc
 }
