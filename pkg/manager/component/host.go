@@ -69,6 +69,7 @@ func (m *hostManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 	}
 	commonOpt.HostCpuPassthrough = hostCpuPassthrough
 	commonOpt.DefaultQemuVersion = oc.Spec.HostAgent.DefaultQemuVersion
+	commonOpt.DisableLocalVpc = oc.Spec.DisableLocalVpc
 
 	return m.shouldSyncConfigmap(oc, v1alpha1.HostComponentType, commonOpt, func(oldOpt string) bool {
 		for _, k := range []string{

@@ -59,6 +59,7 @@ func (m *lbagentManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 	commonOpt.Port = constants.LbagentPort
 	commonOpt.BaseDataDir = "/opt/cloud/workspace/lbagent"
 	commonOpt.EnableRemoteExecutor = true
+	commonOpt.DisableLocalVpc = oc.Spec.DisableLocalVpc
 
 	return m.shouldSyncConfigmap(oc, v1alpha1.LbagentComponentType, commonOpt, func(oldOpt string) bool {
 		return false
