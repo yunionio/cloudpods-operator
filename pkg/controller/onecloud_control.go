@@ -269,6 +269,7 @@ type ComponentManager interface {
 	Devtool() PhaseControl
 	Monitor() PhaseControl
 	Cloudproxy() PhaseControl
+	EChartsSSR() PhaseControl
 }
 
 func (w *OnecloudControl) Components(oc *v1alpha1.OnecloudCluster) ComponentManager {
@@ -336,6 +337,10 @@ func (c *realComponent) Monitor() PhaseControl {
 
 func (c *realComponent) Cloudproxy() PhaseControl {
 	return &cloudproxyComponent{newBaseComponent(c)}
+}
+
+func (c *realComponent) EChartsSSR() PhaseControl {
+	return &echartsSSRComponent{newBaseComponent(c)}
 }
 
 type baseComponent struct {
@@ -1473,5 +1478,17 @@ func (c *cloudproxyComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 		} else {
 			return errors.Wrap(err, "getOrCreateProxyAgent")
 		}
+	})
+}
+
+type echartsSSRComponent struct {
+	*baseComponent
+}
+
+func (c *echartsSSRComponent) Setup() error {
+	return c.RunWithSession(func(s *mcclient.ClientSession) error {
+		oc := c.GetCluster()
+		url := fmt.Sprintf("http://%s-%s.%s.svc:%d", oc.GetName(), v1alpha1.EChartsSSRComponentType, oc.GetNamespace(), constants.EChartsSSRPort)
+		return onecloud.RegisterServiceEndpointByInterfaces(s, oc.Spec.Region, constants.ServiceNameEChartsSSR, constants.ServiceTypeEChartsSSR, url, "", []string{constants.EndpointTypeInternal})
 	})
 }
