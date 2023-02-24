@@ -18,7 +18,7 @@ require (
 	k8s.io/apiextensions-apiserver v0.0.0-20210712072745-9fa34dbd5ee3
 	k8s.io/apimachinery v0.19.3
 	k8s.io/client-go v0.19.3
-	k8s.io/klog v0.3.3
+	k8s.io/klog v0.4.0
 	yunion.io/x/jsonutils v1.0.1-0.20220819091305-3bab322ab4fd
 	yunion.io/x/log v1.0.0
 	yunion.io/x/onecloud v0.0.0-20230223112202-52a9b945366f
@@ -32,7 +32,7 @@ require (
 	github.com/basgys/goxml2json v1.1.1-0.20181031222924-996d9fc8d313 // indirect
 	github.com/beevik/etree v1.1.0 // indirect
 	github.com/cloudflare/golz4 v0.0.0-20150217214814-ef862a3cdc58 // indirect
-	github.com/coredns/coredns v1.3.0 // indirect
+	github.com/coredns/coredns v1.6.6 // indirect
 	github.com/coreos/go-iptables v0.6.0 // indirect
 	github.com/coreos/go-systemd/v22 v22.3.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -57,7 +57,7 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/googleapis/gnostic v0.4.1 // indirect
 	github.com/hako/durafmt v0.0.0-20180520121703-7b7ae1e72ead // indirect
-	github.com/hashicorp/golang-lru v0.5.1 // indirect
+	github.com/hashicorp/golang-lru v0.5.3 // indirect
 	github.com/jaypipes/ghw v0.9.1 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid v1.3.1 // indirect

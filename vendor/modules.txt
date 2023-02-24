@@ -23,8 +23,8 @@ github.com/beevik/etree
 # github.com/cloudflare/golz4 v0.0.0-20150217214814-ef862a3cdc58
 ## explicit
 github.com/cloudflare/golz4
-# github.com/coredns/coredns v1.3.0
-## explicit
+# github.com/coredns/coredns v1.6.6
+## explicit; go 1.12
 github.com/coredns/coredns/plugin/pkg/log
 # github.com/coreos/go-iptables v0.6.0
 ## explicit; go 1.16
@@ -134,8 +134,8 @@ github.com/googleapis/gnostic/openapiv2
 # github.com/hako/durafmt v0.0.0-20180520121703-7b7ae1e72ead
 ## explicit
 github.com/hako/durafmt
-# github.com/hashicorp/golang-lru v0.5.1
-## explicit
+# github.com/hashicorp/golang-lru v0.5.3
+## explicit; go 1.12
 github.com/hashicorp/golang-lru
 github.com/hashicorp/golang-lru/simplelru
 # github.com/jaypipes/ghw v0.9.1 => github.com/zexi/ghw v0.9.1
@@ -796,8 +796,8 @@ k8s.io/client-go/util/workqueue
 ## explicit; go 1.15
 k8s.io/cluster-bootstrap/token/api
 k8s.io/cluster-bootstrap/token/util
-# k8s.io/klog v0.3.3
-## explicit
+# k8s.io/klog v0.4.0
+## explicit; go 1.12
 k8s.io/klog
 # k8s.io/klog/v2 v2.2.0
 ## explicit; go 1.13
