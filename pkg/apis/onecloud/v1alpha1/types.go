@@ -136,6 +136,8 @@ const (
 	ReportComponentType ComponentType = "report"
 
 	LbagentComponentType ComponentType = "lbagent"
+
+	EChartsSSRComponentType ComponentType = "echarts-ssr"
 )
 
 // ComponentPhase is the current state of component
@@ -305,7 +307,8 @@ type OnecloudClusterSpec struct {
 
 	Scheduledtask DeploymentServicePortSpec `json:"scheduledtask"`
 
-	Report DeploymentServicePortSpec `json:"report"`
+	Report     DeploymentServicePortSpec `json:"report"`
+	EChartsSSR EChartsSSRSpec            `json:"echartsSSR"`
 }
 
 // OnecloudClusterStatus describes cluster status
@@ -344,6 +347,7 @@ type OnecloudClusterStatus struct {
 	MonitorStack   MonitorStackStatus   `json:"monitorStack,omitempty"`
 	Scheduledtask  DeploymentStatus     `json:"scheduledtask,omitempty"`
 	Report         DeploymentStatus     `json:"report,omitempty"`
+	ECharts        DeploymentStatus     `json:"echarts,omitempty"`
 }
 
 type EtcdClusterSpec struct {
@@ -917,6 +921,41 @@ type TelegrafSpec struct {
 	InitContainerImage string `json:"initContainerImage"`
 	EnableRaidPlugin   bool   `json:"enableRaidPlugin"`
 	TelegrafRaidImage  string `json:"telegrafRaidImage"`
+}
+
+type EChartsSSRSpec struct {
+	ContainerSpec
+	Disable          *bool                         `json:"disable"`
+	Replicas         int32                         `json:"replicas"`
+	Affinity         *corev1.Affinity              `json:"affinity,omitempty"`
+	NodeSelector     map[string]string             `json:"nodeSelector,omitempty"`
+	Tolerations      []corev1.Toleration           `json:"tolerations,omitempty"`
+	Annotations      map[string]string             `json:"annotations,omitempty"`
+	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
+}
+
+func (es *EChartsSSRSpec) ToDeploymentSpec() *DeploymentSpec {
+	return &DeploymentSpec{
+		ContainerSpec:    es.ContainerSpec,
+		Disable:          *es.Disable,
+		Replicas:         es.Replicas,
+		Affinity:         es.Affinity,
+		NodeSelector:     es.NodeSelector,
+		Tolerations:      es.Tolerations,
+		Annotations:      es.Annotations,
+		ImagePullSecrets: es.ImagePullSecrets,
+	}
+}
+
+func (es *EChartsSSRSpec) FillBySpec(dSpec *DeploymentSpec) {
+	es.ContainerSpec = dSpec.ContainerSpec
+	es.Disable = &dSpec.Disable
+	es.Replicas = dSpec.Replicas
+	es.Affinity = dSpec.Affinity
+	es.NodeSelector = dSpec.NodeSelector
+	es.Tolerations = dSpec.Tolerations
+	es.Annotations = dSpec.Annotations
+	es.ImagePullSecrets = dSpec.ImagePullSecrets
 }
 
 // ContainerSpec is the container spec of a pod
