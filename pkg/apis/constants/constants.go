@@ -397,6 +397,10 @@ const (
 	LbagentAdminUser    = "lbagentadm"
 	LbagentAdminProject = SysAdminProject
 	LbagentPort         = 8895
+
+	ServiceNameEChartsSSR = "echarts-ssr"
+	ServiceTypeEChartsSSR = "echarts-ssr"
+	EChartsSSRPort        = 8081
 )
 
 var (

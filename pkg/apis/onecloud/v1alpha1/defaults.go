@@ -72,6 +72,8 @@ const (
 	DefaultTelegrafRaidImageTag  = "release-1.6.4"
 
 	DefaultHostQemuVersion = "4.2.0"
+
+	DefaultEChartSSRVersion = "v0.0.1"
 )
 
 func addDefaultingFuncs(scheme *runtime.Scheme) error {
@@ -340,6 +342,8 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	setDefaults_MonitorStackSpec(&obj.MonitorStack)
 
 	setDefaults_Components_ServicePort(obj)
+
+	setDefaults_EChartsSpec(obj, &obj.EChartsSSR)
 }
 
 type serviceSpecPair struct {
@@ -750,4 +754,18 @@ func setDefaults_CloudUser(obj *CloudUser, username string) {
 func setDefaults_ItsmConfig(obj *ItsmConfig) {
 	obj.SecondDatabase = fmt.Sprintf("%s_engine", obj.DB.Database)
 	obj.EncryptionKey = passwd.GeneratePassword()
+}
+
+func setDefaults_EChartsSpec(spec *OnecloudClusterSpec, obj *EChartsSSRSpec) {
+	if obj.Disable == nil {
+		trueVar := true
+		obj.Disable = &trueVar
+	}
+	dSpec := obj.ToDeploymentSpec()
+	SetDefaults_DeploymentSpec(dSpec, getImage(
+		spec.ImageRepository, dSpec.Repository,
+		EChartsSSRComponentType, dSpec.ImageName,
+		DefaultEChartSSRVersion, dSpec.Tag,
+		false, false))
+	obj.FillBySpec(dSpec)
 }
