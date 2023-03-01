@@ -1035,7 +1035,7 @@ type OnecloudClusterConfig struct {
 	S3gateway       ServiceCommonOptions   `json:"s3gateway"`
 	Devtool         ServiceDBCommonOptions `json:"devtool"`
 	Meter           MeterConfig            `json:"meter"`
-	AutoUpdate      ServiceCommonOptions   `json:"autoupdate"`
+	AutoUpdate      ServiceDBCommonOptions `json:"autoupdate"`
 	EsxiAgent       EsxiAgentConfig        `json:"esxiagent"`
 	VpcAgent        VpcAgentConfig         `json:"vpcagent"`
 	ServiceOperator ServiceCommonOptions   `json:"onecloudServiceOperator"`
