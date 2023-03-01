@@ -65,7 +65,7 @@ const (
 	DefaultInfluxdbImageVersion = "1.7.7"
 
 	DefaultTelegrafImageName     = "telegraf"
-	DefaultTelegrafImageTag      = "release-1.19.2-1"
+	DefaultTelegrafImageTag      = "release-1.19.2-2"
 	DefaultTelegrafInitImageName = "telegraf-init"
 	DefaultTelegrafInitImageTag  = "release-1.19.2-0"
 	DefaultTelegrafRaidImageName = "telegraf-raid-plugin"
