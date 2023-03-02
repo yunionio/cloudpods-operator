@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/ClickHouse/clickhouse-go v1.5.4
 	github.com/coreos/go-semver v0.3.0
-	github.com/docker/distribution v0.0.0-20170726174610-edc3ab29cdff
+	github.com/docker/distribution v2.8.0+incompatible
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/minio/minio-go/v7 v7.0.6
 	github.com/pborman/uuid v1.2.0
