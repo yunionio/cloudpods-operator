@@ -215,7 +215,6 @@ func (manager *SGuestManager) ListItemFilter(
 	query api.ServerListInput,
 ) (*sqlchemy.SQuery, error) {
 	var err error
-
 	q, err = manager.SHostResourceBaseManager.ListItemFilter(ctx, q, userCred, query.HostFilterListInput)
 	if err != nil {
 		return nil, errors.Wrap(err, "SHostResourceBaseManager.ListItemFilter")
@@ -1417,10 +1416,6 @@ func (manager *SGuestManager) validateCreateData(
 			support := desc == "true"
 			imgSupportUEFI = &support
 		}
-		// imgIsWindows := imgProperties[imageapi.IMAGE_OS_TYPE] == "Windows"
-		// if imgSupportUEFI && imgIsWindows && len(input.IsolatedDevices) > 0 {
-		// 	input.Bios = "UEFI" // windows gpu passthrough
-		// }
 		if input.OsArch == apis.OS_ARCH_AARCH64 {
 			// arm image supports UEFI by default
 			support := true
@@ -1446,6 +1441,19 @@ func (manager *SGuestManager) validateCreateData(
 			imgProperties = map[string]string{"os_type": "Linux"}
 		}
 		input.DisableUsbKbd = imgProperties[imageapi.IMAGE_DISABLE_USB_KBD] == "true"
+		imgIsWindows := imgProperties[imageapi.IMAGE_OS_TYPE] == "Windows"
+
+		hasGpuVga := func() bool {
+			for i := 0; i < len(input.IsolatedDevices); i++ {
+				if input.IsolatedDevices[i].DevType == GPU_VGA_TYPE {
+					return true
+				}
+			}
+			return false
+		}()
+		if imgIsWindows && hasGpuVga && input.Bios != "UEFI" {
+			return nil, httperrors.NewInputParameterError("Windows use gpu vga requires UEFI image")
+		}
 
 		if vdi, ok := imgProperties[imageapi.IMAGE_VDI_PROTOCOL]; ok && len(vdi) > 0 && len(input.Vdi) == 0 {
 			input.Vdi = vdi
@@ -2905,23 +2913,13 @@ func (self *SGuest) syncWithCloudVM(ctx context.Context, userCred mcclient.Token
 
 		self.IsEmulated = extVM.IsEmulated()
 
-		if provider.GetFactory().IsSupportPrepaidResources() && !recycle &&
-			!extVM.GetExpiredAt().IsZero() {
-
+		if provider.GetFactory().IsSupportPrepaidResources() && !recycle {
 			self.BillingType = extVM.GetBillingType()
 			self.ExpiredAt = extVM.GetExpiredAt()
 			if self.GetDriver().IsSupportSetAutoRenew() {
 				self.AutoRenew = extVM.IsAutoRenew()
 			}
 		}
-
-		// no need to sync CreatedAt
-		// if !recycle {
-		//	if createdAt := extVM.GetCreatedAt(); !createdAt.IsZero() {
-		//		self.CreatedAt = createdAt
-		//	}
-		// }
-
 		return nil
 	})
 	if err != nil {
@@ -4052,7 +4050,7 @@ func (self *SGuest) CreateDisksOnHost(
 	return nil
 }
 
-func (self *SGuest) createDiskOnStorage(ctx context.Context, userCred mcclient.TokenCredential, storage *SStorage,
+func (self *SGuest) CreateDiskOnStorage(ctx context.Context, userCred mcclient.TokenCredential, storage *SStorage,
 	diskConfig *api.DiskConfig, pendingUsage quotas.IQuota, inheritBilling bool, isWithServerCreate bool) (*SDisk, error) {
 	lockman.LockObject(ctx, storage)
 	defer lockman.ReleaseObject(ctx, storage)
@@ -4139,7 +4137,7 @@ func (self *SGuest) createDiskOnHost(
 		return nil, fmt.Errorf("No storage on %s to create disk for %s", host.GetName(), diskConfig.Backend)
 	}
 	log.Debugf("Choose storage %s:%s for disk %#v", storage.Name, storage.Id, diskConfig)
-	disk, err := self.createDiskOnStorage(ctx, userCred, storage, diskConfig, pendingUsage, inheritBilling, isWithServerCreate)
+	disk, err := self.CreateDiskOnStorage(ctx, userCred, storage, diskConfig, pendingUsage, inheritBilling, isWithServerCreate)
 	if err != nil {
 		return nil, err
 	}
