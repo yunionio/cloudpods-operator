@@ -641,7 +641,6 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		&obj.HostAgent.ServiceCommonOptions:      {constants.HostAdminUser, constants.HostPort},
 		&obj.BaremetalAgent.ServiceCommonOptions: {constants.BaremetalAdminUser, constants.BaremetalPort},
 		&obj.S3gateway:                           {constants.S3gatewayAdminUser, constants.S3gatewayPort},
-		&obj.AutoUpdate:                          {constants.AutoUpdateAdminUser, constants.AutoUpdatePort},
 		&obj.EsxiAgent.ServiceCommonOptions:      {constants.EsxiAgentAdminUser, constants.EsxiAgentPort},
 		&obj.VpcAgent.ServiceCommonOptions:       {constants.VpcAgentAdminUser, 0},
 		&obj.ServiceOperator:                     {constants.ServiceOperatorAdminUser, constants.ServiceOperatorPort},
@@ -677,6 +676,7 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		&obj.CloudId:                             {constants.CloudIdAdminUser, constants.CloudIdPort, constants.CloudIdDB, constants.CloudIdDBUser},
 		&obj.Webconsole:                          {constants.WebconsoleAdminUser, constants.WebconsolePort, constants.WebconsoleDB, constants.WebconsoleDBUser},
 		&obj.Report:                              {constants.ReportAdminUser, constants.ReportPort, constants.ReportDB, constants.ReportDBUser},
+		&obj.AutoUpdate:                          {constants.AutoUpdateAdminUser, constants.AutoUpdatePort, constants.AutoUpdateDB, constants.AutoUpdateDBUser},
 	} {
 		if user, ok := registryPorts[tmp.port]; ok {
 			log.Fatalf("port %d has been registered by %s", tmp.port, user)

@@ -295,6 +295,8 @@ const (
 	AutoUpdateAdminUser    = "autoupdate"
 	AutoUpdateAdminProject = SysAdminProject
 	AutoUpdatePort         = 30981
+	AutoUpdateDB           = "autoupdate"
+	AutoUpdateDBUser       = "autoupdate"
 
 	NetworkTypeBaremetal = "baremetal"
 	NetworkTypeServer    = "server"
