@@ -53,6 +53,14 @@ func (m *autoUpdateManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.AutoUpdate.Disable, "")
 }
 
+func (m *autoUpdateManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
+	return &cfg.AutoUpdate.DB
+}
+
+func (m *autoUpdateManager) getClickhouseConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
+	return &cfg.RegionServer.ClickhouseConf
+}
+
 func (m *autoUpdateManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
 	return &cfg.AutoUpdate.CloudUser
 }
@@ -67,6 +75,7 @@ func (m *autoUpdateManager) getPhaseControl(man controller.ComponentManager, zon
 
 type autoUpdateOptions struct {
 	common_options.CommonOptions
+	common_options.DBOptions
 
 	UpdateServer             string
 	UpdateCheckIntervalHours float64
@@ -83,8 +92,10 @@ func (m *autoUpdateManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 		return nil, false, err
 	}
 	config := cfg.AutoUpdate
+	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
+	SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
 	SetOptionsServiceTLS(&opt.BaseOptions, false)
-	SetServiceCommonOptions(&opt.CommonOptions, oc, config)
+	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 
 	opt.Port = config.Port
 	opt.UpdateServer = "https://iso.yunion.cn"
@@ -104,13 +115,13 @@ func (m *autoUpdateManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 }
 
 func (m *autoUpdateManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
-	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.AutoUpdateComponentType, "", oc, &oc.Spec.AutoUpdate.DeploymentSpec, int32(cfg.AutoUpdate.Port), false, false)
+	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.AutoUpdateComponentType, "", oc, &oc.Spec.AutoUpdate.DeploymentSpec, int32(cfg.AutoUpdate.Port), true, false)
 	if err != nil {
 		return nil, err
 	}
 	// TODO: support add serviceAccount for component
 	// use operator serviceAccount currently
-	deploy.Spec.Template.Spec.ServiceAccountName = "onecloud-operator"
+	deploy.Spec.Template.Spec.ServiceAccountName = constants.ServiceAccountOnecloudOperator
 	return deploy, nil
 }
 
