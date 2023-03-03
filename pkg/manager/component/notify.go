@@ -90,18 +90,7 @@ func (m *notifyManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 }
 
 func (m *notifyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
-	cf := func(volMounts []corev1.VolumeMount) []corev1.Container {
-		return []corev1.Container{
-			{
-				Name:            "notify",
-				Image:           oc.Spec.Notify.Image,
-				ImagePullPolicy: oc.Spec.Notify.ImagePullPolicy,
-				Command:         []string{"/opt/yunion/bin/notify", "--config", "/etc/yunion/notify.conf"},
-				VolumeMounts:    volMounts,
-			},
-		}
-	}
-	return m.newDefaultDeploymentNoInit(v1alpha1.NotifyComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.NotifyComponentType), v1alpha1.NotifyComponentType), &oc.Spec.Notify.DeploymentSpec, cf)
+	return m.newCloudServiceSinglePortDeployment(v1alpha1.NotifyComponentType, "", oc, &oc.Spec.Notify.DeploymentSpec, int32(cfg.Notify.Port), true, true)
 }
 
 func (m *notifyManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
