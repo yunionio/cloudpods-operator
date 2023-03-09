@@ -142,6 +142,18 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 					Privileged: &privileged,
 				},
 				WorkingDir: "/opt/cloud",
+				StartupProbe: &corev1.Probe{
+					Handler: corev1.Handler{
+						HTTPGet: &corev1.HTTPGetAction{
+							Path:   "/ping",
+							Port:   intstr.FromInt(8885),
+							Host:   "localhost",
+							Scheme: corev1.URISchemeHTTPS,
+						},
+					},
+					FailureThreshold: 30,
+					PeriodSeconds:    10,
+				},
 			},
 		}
 		if !oc.Spec.DisableLocalVpc {
@@ -183,7 +195,7 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 	}
 	dsSpec.NodeSelector[constants.OnecloudEnableHostLabelKey] = "enable"
 	ds, err := m.newDaemonSet(cType, oc, cfg,
-		NewHostVolume(cType, oc, configMap), dsSpec.DaemonSetSpec, "", nil, containersF)
+		NewHostVolume(cType, oc, configMap), dsSpec.DaemonSetSpec, apps.DaemonSetUpdateStrategyType(dsSpec.DaemonSetSpec.UpdateStrategy), nil, containersF)
 	if err != nil {
 		return nil, err
 	}
@@ -193,6 +205,93 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 	ds.Spec.Template.Spec.TerminationGracePeriodSeconds = &terminationGracePeriodSecond
 
 	/* set host pod max maxUnavailable count, default 1 */
+	if ds.Spec.UpdateStrategy.RollingUpdate == nil {
+		ds.Spec.UpdateStrategy.RollingUpdate = new(apps.RollingUpdateDaemonSet)
+	}
+	var maxUnavailableCount = intstr.FromInt(3)
+	ds.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable = &maxUnavailableCount
+
+	/* add pod label for pod affinity */
+	if ds.Spec.Template.ObjectMeta.Labels == nil {
+		ds.Spec.Template.ObjectMeta.Labels = make(map[string]string)
+	}
+	ds.Spec.Template.ObjectMeta.Labels[constants.OnecloudHostDeployerLabelKey] = ""
+	if ds.Spec.Selector == nil {
+		ds.Spec.Selector = &metav1.LabelSelector{}
+	}
+	if ds.Spec.Selector.MatchLabels == nil {
+		ds.Spec.Selector.MatchLabels = make(map[string]string)
+	}
+	ds.Spec.Selector.MatchLabels[constants.OnecloudHostDeployerLabelKey] = ""
+	return ds, nil
+}
+
+type hostHealthManager struct {
+	*ComponentManager
+}
+
+func newHostHealthManager(man *ComponentManager) manager.Manager {
+	return &hostHealthManager{ComponentManager: man}
+}
+
+func (m *hostHealthManager) getProductVersions() []v1alpha1.ProductVersion {
+	return []v1alpha1.ProductVersion{
+		v1alpha1.ProductVersionFullStack,
+		v1alpha1.ProductVersionEdge,
+	}
+}
+
+func (m *hostHealthManager) getComponentType() v1alpha1.ComponentType {
+	return v1alpha1.HostHealthComponentType
+}
+
+func (m *hostHealthManager) Sync(oc *v1alpha1.OnecloudCluster) error {
+	return syncComponent(m, oc, oc.Spec.HostAgent.Disable, "")
+}
+
+func (m *hostHealthManager) getDaemonSet(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.DaemonSet, error) {
+	return m.newHostPrivilegedDaemonSet(v1alpha1.HostHealthComponentType, oc, cfg)
+}
+
+func (m *hostHealthManager) newHostPrivilegedDaemonSet(
+	cType v1alpha1.ComponentType,
+	oc *v1alpha1.OnecloudCluster,
+	cfg *v1alpha1.OnecloudClusterConfig,
+) (*apps.DaemonSet, error) {
+	var (
+		privileged = true
+		dsSpec     = oc.Spec.HostAgent
+		configMap  = controller.ComponentConfigMapName(oc, v1alpha1.HostComponentType)
+	)
+	containersF := func(volMounts []corev1.VolumeMount) []corev1.Container {
+		containers := []corev1.Container{}
+		containers = append(containers, corev1.Container{
+			Name:            "host-health",
+			Image:           dsSpec.HostHealth.Image,
+			ImagePullPolicy: dsSpec.HostHealth.ImagePullPolicy,
+			Command: []string{
+				"/opt/yunion/bin/host-health",
+				"--common-config-file",
+				"/etc/yunion/common/common.conf",
+			},
+			VolumeMounts: volMounts,
+			SecurityContext: &corev1.SecurityContext{
+				Privileged: &privileged,
+			},
+		})
+		return containers
+	}
+	if dsSpec.NodeSelector == nil {
+		dsSpec.NodeSelector = make(map[string]string)
+	}
+	dsSpec.NodeSelector[constants.OnecloudEnableHostLabelKey] = "enable"
+	ds, err := m.newDaemonSet(cType, oc, cfg,
+		NewHostVolume(cType, oc, configMap), dsSpec.DaemonSetSpec, "", nil, containersF)
+	if err != nil {
+		return nil, err
+	}
+
+	/* set host health pod max maxUnavailable count, default 1 */
 	if ds.Spec.UpdateStrategy.RollingUpdate == nil {
 		ds.Spec.UpdateStrategy.RollingUpdate = new(apps.RollingUpdateDaemonSet)
 	}
