@@ -22,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 
 	"yunion.io/x/log"
+	"yunion.io/x/pkg/utils"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/util/passwd"
@@ -165,7 +166,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		DevtoolComponentType:         nHP(&obj.Devtool.DeploymentSpec, useHyperImage),
 		AutoUpdateComponentType:      nHP(&obj.AutoUpdate.DeploymentSpec, useHyperImage),
 		OvnNorthComponentType:        nHP(&obj.OvnNorth, false),
-		VpcAgentComponentType:        nHP(&obj.VpcAgent.DeploymentSpec, false),
+		VpcAgentComponentType:        nHP(&obj.VpcAgent.DeploymentSpec, useHyperImage),
 		MonitorComponentType:         nHP(&obj.Monitor.DeploymentSpec, useHyperImage),
 		ServiceOperatorComponentType: nHP(&obj.ServiceOperator.DeploymentSpec, false),
 		ItsmComponentType:            nHP(&obj.Itsm.DeploymentSpec, false),
@@ -228,7 +229,11 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		LbagentComponentType:      &obj.Lbagent.DaemonSetSpec,
 	} {
 		useHI := false
-		if cType == YunionagentComponentType {
+		if utils.IsInStringArray(string(cType), []string{
+			string(YunionagentComponentType),
+			string(HostComponentType),
+			string(LbagentComponentType),
+		}) {
 			useHI = useHyperImage
 		}
 		SetDefaults_DaemonSetSpec(spec, getImage(
@@ -244,7 +249,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		obj.ImageRepository, obj.HostAgent.SdnAgent.Repository,
 		DefaultSdnAgentImageName, obj.HostAgent.SdnAgent.ImageName,
 		obj.Version, obj.HostAgent.SdnAgent.Tag,
-		false, isEE,
+		useHyperImage, isEE,
 	)
 	obj.HostAgent.SdnAgent.ImagePullPolicy = corev1.PullIfNotPresent
 	clearContainerSpec(&obj.HostAgent.SdnAgent)
