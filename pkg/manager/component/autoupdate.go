@@ -15,6 +15,8 @@
 package component
 
 import (
+	"strings"
+
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
@@ -105,7 +107,14 @@ func (m *autoUpdateManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	opt.HostUpdateTimeZone = "Asia/Shanghai"
 	opt.KubernetesMode = true
 	opt.Channel = "stable"
-	return m.newServiceConfigMap(v1alpha1.AutoUpdateComponentType, "", oc, opt), false, nil
+
+	return m.shouldSyncConfigmap(oc, v1alpha1.AutoUpdateComponentType, opt, func(optStr string) bool {
+		if !strings.Contains(optStr, "sql_connection") {
+			// hack: force update old configmap if not contains sql_connection option
+			return true
+		}
+		return false
+	})
 }
 
 func (m *autoUpdateManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
