@@ -138,6 +138,8 @@ const (
 	LbagentComponentType ComponentType = "lbagent"
 
 	EChartsSSRComponentType ComponentType = "echarts-ssr"
+
+	HostHealthComponentType ComponentType = "host-health"
 )
 
 // ComponentPhase is the current state of component
@@ -576,6 +578,7 @@ type DaemonSetSpec struct {
 	Tolerations      []corev1.Toleration           `json:"tolerations,omitempty"`
 	Annotations      map[string]string             `json:"annotations,omitempty"`
 	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
+	UpdateStrategy   string                        `json:"updateStrategy,omitempty"`
 }
 
 type YunionagentSpec struct {
@@ -901,6 +904,7 @@ type HostAgentSpec struct {
 	DaemonSetSpec
 	SdnAgent      ContainerSpec
 	OvnController ContainerSpec
+	HostHealth    ContainerSpec
 
 	OvnEncapIpDetectionMethod string `json:"OvnEncapIpDetectionMethod"`
 

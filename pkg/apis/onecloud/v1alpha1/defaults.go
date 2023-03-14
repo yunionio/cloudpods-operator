@@ -63,6 +63,9 @@ const (
 	DefaultHostImageName = "host-image"
 	DefaultHostImageTag  = "v1.0.5"
 
+	DefaultHostHealthName = "host-health"
+	DefaultHostHealthTag  = "v0.0.1"
+
 	DefaultInfluxdbImageVersion = "1.7.7"
 
 	DefaultTelegrafImageName     = "telegraf"
@@ -279,6 +282,14 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		DefaultHostImageTag, obj.HostImage.Tag,
 		false, isEE,
 	)
+	// setting host health image
+	obj.HostAgent.HostHealth.Image = getImage(
+		obj.ImageRepository, obj.HostAgent.HostHealth.Repository,
+		DefaultHostHealthName, obj.HostAgent.HostHealth.ImageName,
+		DefaultHostHealthTag, obj.HostAgent.HostHealth.Tag,
+		false, isEE,
+	)
+
 	clearContainerSpec(&obj.HostImage.ContainerSpec)
 
 	// lbagent ovn-controller
