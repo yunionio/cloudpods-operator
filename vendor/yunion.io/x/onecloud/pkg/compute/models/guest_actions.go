@@ -77,6 +77,9 @@ func (self *SGuest) GetDetailsVnc(ctx context.Context, userCred mcclient.TokenCr
 		if err != nil {
 			return nil, httperrors.NewInternalServerError(errors.Wrapf(err, "GetHost").Error())
 		}
+		if options.Options.ForceUseOriginVnc {
+			input.Origin = true
+		}
 		ret, err = self.GetDriver().GetGuestVncInfo(ctx, userCred, self, host, input)
 		if err != nil {
 			return nil, err
@@ -2904,9 +2907,16 @@ func (self *SGuest) SetBackupGuestStatus(userCred mcclient.TokenCredential, stat
 }
 
 func (self *SGuest) PerformStatus(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input apis.PerformStatusInput) (jsonutils.JSONObject, error) {
-	if input.HostId != "" && self.BackupHostId != "" && input.HostId == self.BackupHostId { // perform status called from slave guest
+	if input.HostId != "" && self.BackupHostId != "" && input.HostId == self.BackupHostId {
+		// perform status called from slave guest
 		return nil, self.SetBackupGuestStatus(userCred, input.Status, input.Reason)
 	}
+
+	if input.HostId != "" && input.HostId != self.HostId {
+		// perform status called from volatile host, eg: migrate dest host
+		return nil, nil
+	}
+
 	if input.PowerStates != "" {
 		if err := self.SetPowerStates(input.PowerStates); err != nil {
 			return nil, errors.Wrap(err, "set power states")
@@ -5494,6 +5504,7 @@ func (self *SGuest) StartGuestChangeStorageTask(ctx context.Context, userCred mc
 	params := api.ServerChangeStorageInternalInput{
 		ServerChangeStorageInput: *input,
 		Disks:                    disks,
+		DiskCount:                len(disks),
 		GuestRunning:             self.Status == api.VM_RUNNING,
 	}
 	reason := fmt.Sprintf("Change guest disks storage to %s", input.TargetStorageId)
