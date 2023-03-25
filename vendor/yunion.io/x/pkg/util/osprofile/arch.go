@@ -12,18 +12,40 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package compute
+package osprofile
 
-type SSubImage struct {
-	Id         string
-	Name       string
-	MinDiskMB  int32
-	DiskFormat string
-}
+import (
+	"yunion.io/x/pkg/utils"
+)
 
-type SImagesInGuest struct {
-	Id         string
-	Name       string
-	RootImage  SSubImage
-	DataImages []SSubImage
+const (
+	OS_ARCH_X86 = "x86"
+	OS_ARCH_ARM = "arm"
+
+	OS_ARCH_I386    = "i386"
+	OS_ARCH_X86_32  = "x86_32"
+	OS_ARCH_X86_64  = "x86_64"
+	OS_ARCH_AARCH32 = "aarch32"
+	OS_ARCH_AARCH64 = "aarch64"
+
+	OS_BOOT_BIOS = "BIOS"
+	OS_BOOT_UEFI = "UEFI"
+)
+
+var (
+	ARCH_X86 = []string{
+		OS_ARCH_X86,
+		OS_ARCH_I386,
+		OS_ARCH_X86_32,
+		OS_ARCH_X86_64,
+	}
+	ARCH_ARM = []string{
+		OS_ARCH_ARM,
+		OS_ARCH_AARCH32,
+		OS_ARCH_AARCH64,
+	}
+)
+
+func IsARM(osArch string) bool {
+	return utils.IsInStringArray(osArch, ARCH_ARM)
 }

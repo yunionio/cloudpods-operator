@@ -24,9 +24,12 @@ require (
 	k8s.io/klog v0.3.3
 	yunion.io/x/jsonutils v1.0.1-0.20220819091305-3bab322ab4fd
 	yunion.io/x/log v1.0.0
-	yunion.io/x/onecloud v0.3.9-5.0.20230216064429-325c54b61c7e
-	yunion.io/x/pkg v1.0.1-0.20221031045951-0b770b490c45
 	yunion.io/x/structarg v0.0.0-20220312084958-9c6c79c7d1c6
+)
+
+require (
+	yunion.io/x/onecloud v0.3.9-5.0.20230323074428-2044224ea257
+	yunion.io/x/pkg v1.0.1-0.20230102060551-df05ccecb71c
 )
 
 require (
@@ -82,6 +85,7 @@ require (
 	github.com/tklauser/go-sysconf v0.3.10 // indirect
 	github.com/tklauser/numcpus v0.4.0 // indirect
 	github.com/tredoe/osutil v1.0.6 // indirect
+	github.com/tredoe/osutil/v2 v2.0.0-rc.16 // indirect
 	github.com/ugorji/go/codec v1.1.7 // indirect
 	github.com/vishvananda/netlink v1.1.0 // indirect
 	github.com/vmware/govmomi v0.20.1 // indirect
@@ -102,7 +106,7 @@ require (
 	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/fatih/set.v0 v0.2.1 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	gopkg.in/ini.v1 v1.57.0 // indirect
+	gopkg.in/ini.v1 v1.62.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	k8s.io/klog/v2 v2.2.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20200805222855-6aeccd4b50c6 // indirect
@@ -112,7 +116,7 @@ require (
 	sigs.k8s.io/yaml v1.2.0 // indirect
 	yunion.io/x/executor v0.0.0-20211018100936-39a2cd966656 // indirect
 	yunion.io/x/s3cli v0.0.0-20190917004522-13ac36d8687e // indirect
-	yunion.io/x/sqlchemy v1.1.2-0.20220923040147-ddd3e96868af // indirect
+	yunion.io/x/sqlchemy v1.1.2-0.20230223125758-76ea06389ac5 // indirect
 )
 
 replace (

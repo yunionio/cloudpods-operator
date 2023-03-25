@@ -12,18 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package compute
+package fileutils
 
-type SSubImage struct {
-	Id         string
-	Name       string
-	MinDiskMB  int32
-	DiskFormat string
+import "os"
+
+func IsFile(filepath string) bool {
+	fi, err := os.Lstat(filepath)
+	if err != nil {
+		return false
+	}
+	mode := fi.Mode()
+	return mode.IsRegular()
 }
 
-type SImagesInGuest struct {
-	Id         string
-	Name       string
-	RootImage  SSubImage
-	DataImages []SSubImage
+func IsDir(filepath string) bool {
+	fi, err := os.Lstat(filepath)
+	if err != nil {
+		return false
+	}
+	mode := fi.Mode()
+	return mode.IsDir()
 }
