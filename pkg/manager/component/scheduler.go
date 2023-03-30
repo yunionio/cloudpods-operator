@@ -20,12 +20,11 @@ import (
 
 	"yunion.io/x/pkg/errors"
 
-	"yunion.io/x/onecloud/pkg/scheduler/options"
-
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/service-init/component"
 )
 
 type schedulerManager struct {
@@ -53,22 +52,14 @@ func (m *schedulerManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 }
 
 func (m *schedulerManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
-	return controller.NewRegisterEndpointComponent(man, v1alpha1.SchedulerComponentType,
-		constants.ServiceNameScheduler, constants.ServiceTypeScheduler, man.GetCluster().Spec.Scheduler.Service.NodePort, "")
+	return component.NewScheduler().GetPhaseControl(man)
 }
 
 func (m *schedulerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
-	opt := &options.Options
-	if err := SetOptionsDefault(opt, constants.ServiceTypeScheduler); err != nil {
+	opt, err := component.NewScheduler().GetConfig(oc, cfg)
+	if err != nil {
 		return nil, false, errors.Wrap(err, "scheduler: SetOptionsDefault")
 	}
-	// scheduler use region config directly
-	config := cfg.RegionServer
-	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
-	SetOptionsServiceTLS(&opt.BaseOptions, false)
-	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceDBCommonOptions.ServiceCommonOptions)
-
-	opt.SchedulerPort = constants.SchedulerPort
 	return m.newServiceConfigMap(v1alpha1.SchedulerComponentType, "", oc, opt), false, nil
 }
 

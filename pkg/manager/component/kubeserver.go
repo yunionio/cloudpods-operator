@@ -15,17 +15,14 @@
 package component
 
 import (
-	"path"
-
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-
-	"yunion.io/x/onecloud/pkg/cloudcommon/options"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/service-init/component"
 )
 
 type kubeManager struct {
@@ -34,15 +31,6 @@ type kubeManager struct {
 
 func newKubeManager(man *ComponentManager) manager.Manager {
 	return &kubeManager{man}
-}
-
-type kubeOptions struct {
-	options.CommonOptions
-	options.DBOptions
-
-	HttpsPort         int
-	TlsCertFile       string
-	TlsPrivateKeyFile string
 }
 
 func (m *kubeManager) getProductVersions() []v1alpha1.ProductVersion {
@@ -78,19 +66,10 @@ func (m *kubeManager) getPhaseControl(man controller.ComponentManager, zone stri
 }
 
 func (m *kubeManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
-	opt := &kubeOptions{}
-	if err := SetOptionsDefault(opt, constants.ServiceTypeKubeServer); err != nil {
+	opt, err := component.NewKubeserver().GetConfig(oc, cfg)
+	if err != nil {
 		return nil, false, err
 	}
-	config := cfg.KubeServer
-	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
-	SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
-	SetOptionsServiceTLS(&opt.BaseOptions, false)
-	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
-	opt.AutoSyncTable = true
-	opt.TlsCertFile = path.Join(constants.CertDir, constants.ServiceCertName)
-	opt.TlsPrivateKeyFile = path.Join(constants.CertDir, constants.ServiceKeyName)
-	opt.HttpsPort = config.Port
 	return m.newServiceConfigMap(v1alpha1.KubeServerComponentType, "", oc, opt), false, nil
 }
 

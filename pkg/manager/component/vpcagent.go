@@ -27,6 +27,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
 type vpcAgentManager struct {
@@ -61,7 +62,7 @@ func (m *vpcAgentManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1a
 
 func (m *vpcAgentManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
 	opts := &options.Options{}
-	if err := SetOptionsDefault(opts, constants.ServiceTypeVpcagent); err != nil {
+	if err := option.SetOptionsDefault(opts, constants.ServiceTypeVpcagent); err != nil {
 		return nil, false, err
 	}
 	opts.OvnNorthDatabase = fmt.Sprintf("tcp:%s:%d",
@@ -72,8 +73,8 @@ func (m *vpcAgentManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 		constants.OvnNorthDbPort,
 	)
 	config := cfg.VpcAgent
-	SetOptionsServiceTLS(&opts.BaseOptions, false)
-	SetServiceCommonOptions(&opts.CommonOptions, oc, config.ServiceCommonOptions)
+	options.SetOptionsServiceTLS(&opts.BaseOptions, false)
+	options.SetServiceCommonOptions(&opts.CommonOptions, oc, config.ServiceCommonOptions)
 	opts.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
 	opts.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
 	opts.Port = config.Port

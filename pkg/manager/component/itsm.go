@@ -10,6 +10,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/service-init/component"
 )
 
 const (
@@ -193,7 +194,7 @@ func (m *itsmManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 }
 
 func (m *itsmManager) NewConfigMapByTemplate(cType v1alpha1.ComponentType, oc *v1alpha1.OnecloudCluster, template string, config interface{}) (*corev1.ConfigMap, bool, error) {
-	data, err := CompileTemplateFromMap(template, config)
+	data, err := component.CompileTemplateFromMap(template, config)
 	if err != nil {
 		return nil, false, err
 	}

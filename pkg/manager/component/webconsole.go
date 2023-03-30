@@ -15,18 +15,16 @@
 package component
 
 import (
-	"fmt"
 	"strings"
 
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
-	"yunion.io/x/onecloud/pkg/webconsole/options"
-
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/service-init/component"
 )
 
 type webconsoleManager struct {
@@ -66,31 +64,14 @@ func (m *webconsoleManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v
 }
 
 func (m *webconsoleManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
-	return controller.NewRegisterEndpointComponent(
-		man, v1alpha1.WebconsoleComponentType,
-		constants.ServiceNameWebconsole, constants.ServiceTypeWebconsole,
-		man.GetCluster().Spec.Webconsole.Service.NodePort, "")
+	return component.NewWebconsole().GetPhaseControl(man)
 }
 
 func (m *webconsoleManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
-	opt := &options.Options
-	if err := SetOptionsDefault(opt, constants.ServiceTypeWebconsole); err != nil {
+	opt, err := component.NewWebconsole().GetConfig(oc, cfg)
+	if err != nil {
 		return nil, false, err
 	}
-	config := cfg.Webconsole
-	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
-	SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
-	opt.AutoSyncTable = true
-	SetOptionsServiceTLS(&opt.BaseOptions, false)
-	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
-
-	opt.IpmitoolPath = "/usr/sbin/ipmitool"
-	opt.EnableAutoLogin = true
-	address := oc.Spec.LoadBalancerEndpoint
-	opt.Port = constants.WebconsolePort
-	// opt.ApiServer = fmt.Sprintf("https://%s:%d", address, constants.WebconsolePort)
-	opt.ApiServer = fmt.Sprintf("https://%s", address)
-
 	return m.shouldSyncConfigmap(oc, v1alpha1.WebconsoleComponentType, opt, func(optStr string) bool {
 		if !strings.Contains(optStr, "sql_connection") {
 			// hack: force update old configmap if not contains sql_connection option

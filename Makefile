@@ -15,7 +15,7 @@ GOARCH := $(if $(GOARCH),$(GOARCH),amd64)
 GOENV := GO111MODULE=on CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH)
 GO := $(GOENV) go build
 
-build: onecloud-operator
+build: onecloud-operator compose-service-init telegraf-init
 
 onecloud-operator:
 	$(GO) -mod vendor -ldflags $(LDFLAGS) -o $(BIN_DIR)/onecloud-controller-manager cmd/onecloud-operator/main.go
@@ -23,13 +23,19 @@ onecloud-operator:
 telegraf-init:
 	$(GO) -mod vendor -ldflags $(LDFLAGS) -o $(BIN_DIR)/telegraf-init cmd/telegraf-init/main.go
 
+compose-service-init:
+	$(GO) -mod vendor -ldflags $(LDFLAGS) -o $(BIN_DIR)/compose-service-init cmd/compose-service-init/main.go
+
 image:
 	DOCKER_DIR=${CURDIR}/images/onecloud-operator IMAGE_KEYWORD=onecloud-operator PUSH=true DEBUG=${DEBUG} REGISTRY=${REGISTRY} TAG=${VERSION} ARCH=${ARCH} ${CURDIR}/scripts/docker_push.sh onecloud-operator
 
 TELEGRAF_INIT_VERSION=release-1.19.2-0
-
 telegraf-init-image: telegraf-init
 	DOCKER_DIR=${CURDIR}/images/telegraf-init IMAGE_KEYWORD=telegraf-init PUSH=true DEBUG=${DEBUG} REGISTRY=${REGISTRY} TAG=${TELEGRAF_INIT_VERSION} ARCH=all ${CURDIR}/scripts/docker_push.sh telegraf-init
+
+COMPOSE_SERVICE_INIT_VERSION=v0.0.1
+compose-service-init-image: compose-service-init
+	DOCKER_DIR=${CURDIR}/images/compose-service-init IMAGE_KEYWORD=compose-service-init PUSH=true DEBUG=${DEBUG} REGISTRY=${REGISTRY} TAG=${COMPOSE_SERVICE_INIT_VERSION} ARCH=all ${CURDIR}/scripts/docker_push.sh compose-service-init
 
 fmt:
 	@find . -type f -name "*.go" -not -path "./_output/*" \

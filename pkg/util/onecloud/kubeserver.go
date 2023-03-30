@@ -110,7 +110,7 @@ func syncClusterComponent(
 		return nil
 	}
 	if err := SyncSystemCluster(s, id); err != nil {
-		return errors.Wrap(err, "Sync system default cluster")
+		return errors.Wrap(err, "Init system default cluster")
 	}
 
 	if err := doEnable(s, id); err != nil {
