@@ -15,17 +15,13 @@
 package component
 
 import (
-	"path"
-
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
-	"yunion.io/x/onecloud/pkg/monitor/options"
-
-	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/service-init/component"
 )
 
 type monitorManager struct {
@@ -69,19 +65,10 @@ func (m *monitorManager) getPhaseControl(man controller.ComponentManager, zone s
 }
 
 func (m *monitorManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
-	opt := &options.Options
-	if err := SetOptionsDefault(opt, constants.ServiceTypeMonitor); err != nil {
+	opt, err := component.NewMonitor().GetConfig(oc, cfg)
+	if err != nil {
 		return nil, false, err
 	}
-	config := cfg.Monitor
-	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
-	SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
-	SetOptionsServiceTLS(&opt.BaseOptions, false)
-	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
-	opt.AutoSyncTable = true
-	opt.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
-	opt.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
-	opt.Port = config.Port
 	return m.newServiceConfigMap(v1alpha1.MonitorComponentType, "", oc, opt), false, nil
 }
 

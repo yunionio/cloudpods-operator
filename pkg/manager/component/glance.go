@@ -36,6 +36,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/service-init/component"
 )
 
 var s3ConfigSynced bool
@@ -85,28 +86,11 @@ func (m *glanceManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 }
 
 func (m *glanceManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
-	opt := &options.Options
-	if err := SetOptionsDefault(opt, constants.ServiceTypeGlance); err != nil {
+	optObj, err := component.NewGlance().GetConfig(oc, cfg)
+	if err != nil {
 		return nil, false, err
 	}
-	config := cfg.Glance
-	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
-	SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
-	SetOptionsServiceTLS(&opt.BaseOptions, false)
-	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceDBCommonOptions.ServiceCommonOptions)
-
-	opt.FilesystemStoreDatadir = constants.GlanceFileStoreDir
-	//opt.TorrentStoreDir = constants.GlanceTorrentStoreDir
-	opt.EnableTorrentService = false
-	// TODO: fix this
-	opt.AutoSyncTable = true
-	opt.Port = config.Port
-
-	if oc.Spec.ProductVersion == v1alpha1.ProductVersionCMP {
-		opt.EnableRemoteExecutor = false
-	} else {
-		opt.EnableRemoteExecutor = true
-	}
+	opt := optObj.(*options.SImageOptions)
 	if oc.Spec.Glance.SwitchToS3 {
 		if err := m.setS3Config(oc); err != nil {
 			return nil, false, yerr.Wrap(err, "setS3Config")

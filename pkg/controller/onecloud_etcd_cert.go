@@ -208,7 +208,7 @@ func (c *realOnecloudCertControl) CreateEtcdCert(oc *v1alpha1.OnecloudCluster) e
 	return nil
 }
 
-func newEtcdSecretFromStore(oc *v1alpha1.OnecloudCluster, name string, store certsStore) *corev1.Secret {
+func newEtcdSecretFromStore(oc *v1alpha1.OnecloudCluster, name string, store CertsStore) *corev1.Secret {
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            name,

@@ -24,6 +24,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/service-init/component"
 )
 
 const (
@@ -69,7 +70,7 @@ type RegionDNSProxy struct {
 }
 
 func (c RegionDNSConfig) GetContent() (string, error) {
-	return CompileTemplateFromMap(RegionDNSConfigTemplate, c)
+	return component.CompileTemplateFromMap(RegionDNSConfigTemplate, c)
 }
 
 type regionDNSManager struct {

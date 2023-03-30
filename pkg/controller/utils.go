@@ -85,6 +85,9 @@ func GetServiceType(services []v1alpha1.Service, serviceName string) corev1.Serv
 }
 
 func NewClusterComponentName(clusterName string, componentName v1alpha1.ComponentType) string {
+	if IsDockerComposeClusterName(clusterName) {
+		return componentName.String()
+	}
 	return fmt.Sprintf("%s-%s", clusterName, componentName.String())
 }
 
