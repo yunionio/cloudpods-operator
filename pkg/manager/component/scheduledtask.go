@@ -12,6 +12,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
 type scheduledtaskManager struct {
@@ -52,15 +53,15 @@ func (m *scheduledtaskManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1a
 
 func (m *scheduledtaskManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
 	opt := &options.Options
-	if err := SetOptionsDefault(opt, constants.ServiceTypeScheduledtask); err != nil {
+	if err := option.SetOptionsDefault(opt, constants.ServiceTypeScheduledtask); err != nil {
 		return nil, false, err
 	}
 	// schedtask reuse region's database settings
 	config := cfg.RegionServer
-	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
-	SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
-	SetOptionsServiceTLS(&opt.BaseOptions, false)
-	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
+	option.SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
+	option.SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
+	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
+	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 	opt.AutoSyncTable = true
 	opt.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
 	opt.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)

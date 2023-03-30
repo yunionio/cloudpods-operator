@@ -18,12 +18,11 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
-	"yunion.io/x/onecloud/pkg/cloudcommon/options"
-
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/service-init/component"
 )
 
 type apiGatewayManager struct {
@@ -55,62 +54,19 @@ func (m *apiGatewayManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.APIGateway.Disable, "")
 }
 
-type apiOptions struct {
-	options.CommonOptions
-	WsPort      int  `default:"10443"`
-	ShowCaptcha bool `default:"true"`
-	EnableTotp  bool `default:"true"`
-}
-
 func (m *apiGatewayManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
 	return &cfg.APIGateway.CloudUser
 }
 
 func (m *apiGatewayManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
-	return newAPIGatewaPhaseControl(man)
-}
-
-type apiGatewayPhaseControl struct {
-	man controller.ComponentManager
-	ac  controller.PhaseControl
-	wc  controller.PhaseControl
-}
-
-func newAPIGatewaPhaseControl(man controller.ComponentManager) controller.PhaseControl {
-	oc := man.GetCluster()
-	return &apiGatewayPhaseControl{
-		man: man,
-		ac:  controller.NewRegisterServiceComponent(man, constants.ServiceNameAPIGateway, constants.ServiceTypeAPIGateway),
-		wc: controller.NewRegisterEndpointComponent(man, v1alpha1.APIGatewayComponentType,
-			constants.ServiceNameWebsocket, constants.ServiceTypeWebsocket,
-			oc.Spec.APIGateway.WSService.NodePort, ""),
-	}
-}
-
-func (c *apiGatewayPhaseControl) Setup() error {
-	if err := c.ac.Setup(); err != nil {
-		return err
-	}
-	if err := c.wc.Setup(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (c *apiGatewayPhaseControl) SystemInit(oc *v1alpha1.OnecloudCluster) error {
-	return nil
+	return component.NewApiGateway().GetPhaseControl(man)
 }
 
 func (m *apiGatewayManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
-	opt := &apiOptions{}
-	if err := SetOptionsDefault(opt, "apigateway"); err != nil {
+	opt, err := component.NewApiGateway().GetConfig(oc, cfg)
+	if err != nil {
 		return nil, false, err
 	}
-	SetOptionsServiceTLS(&opt.BaseOptions, false)
-	SetServiceCommonOptions(&opt.CommonOptions, oc, cfg.APIGateway)
-	opt.Port = cfg.APIGateway.Port
-	opt.WsPort = constants.APIWebsocketPort
-	opt.CorsHosts = oc.Spec.APIGateway.CorsHosts
 	return m.newServiceConfigMap(v1alpha1.APIGatewayComponentType, "", oc, opt), false, nil
 }
 
