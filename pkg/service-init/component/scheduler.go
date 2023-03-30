@@ -1,9 +1,8 @@
 package component
 
 import (
-	"yunion.io/x/pkg/errors"
-
 	"yunion.io/x/onecloud/pkg/scheduler/options"
+	"yunion.io/x/pkg/errors"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"

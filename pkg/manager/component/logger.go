@@ -18,13 +18,11 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
-	"yunion.io/x/onecloud/pkg/logger/options"
-
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
-	"yunion.io/x/onecloud-operator/pkg/util/option"
+	"yunion.io/x/onecloud-operator/pkg/service-init/component"
 )
 
 type loggerManager struct {
@@ -64,22 +62,14 @@ func (m *loggerManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alp
 }
 
 func (m *loggerManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
-	return controller.NewRegisterEndpointComponent(man, v1alpha1.LoggerComponentType,
-		constants.ServiceNameLogger, constants.ServiceTypeLogger,
-		man.GetCluster().Spec.Logger.Service.NodePort, "")
+	return component.NewLogger().GetPhaseControl(man)
 }
 
 func (m *loggerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
-	opt := &options.Options
-	if err := option.SetOptionsDefault(opt, constants.ServiceTypeLogger); err != nil {
+	opt, err := component.NewLogger().GetConfig(oc, cfg)
+	if err != nil {
 		return nil, false, err
 	}
-	config := cfg.Logger
-	option.SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
-	option.SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
-	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
-	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
-	opt.Port = config.Port
 
 	return m.newServiceConfigMap(v1alpha1.LoggerComponentType, zone, oc, opt), false, nil
 }
