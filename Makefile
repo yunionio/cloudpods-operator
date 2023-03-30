@@ -33,9 +33,8 @@ TELEGRAF_INIT_VERSION=release-1.19.2-0
 telegraf-init-image: telegraf-init
 	DOCKER_DIR=${CURDIR}/images/telegraf-init IMAGE_KEYWORD=telegraf-init PUSH=true DEBUG=${DEBUG} REGISTRY=${REGISTRY} TAG=${TELEGRAF_INIT_VERSION} ARCH=all ${CURDIR}/scripts/docker_push.sh telegraf-init
 
-COMPOSE_SERVICE_INIT_VERSION=v0.0.1
 compose-service-init-image: compose-service-init
-	DOCKER_DIR=${CURDIR}/images/compose-service-init IMAGE_KEYWORD=compose-service-init PUSH=true DEBUG=${DEBUG} REGISTRY=${REGISTRY} TAG=${COMPOSE_SERVICE_INIT_VERSION} ARCH=all ${CURDIR}/scripts/docker_push.sh compose-service-init
+	DOCKER_DIR=${CURDIR}/images/compose-service-init IMAGE_KEYWORD=compose-service-init PUSH=true DEBUG=${DEBUG} REGISTRY=${REGISTRY} TAG=${VERSION} ARCH=${ARCH} ${CURDIR}/scripts/docker_push.sh compose-service-init
 
 fmt:
 	@find . -type f -name "*.go" -not -path "./_output/*" \

@@ -38,6 +38,7 @@ func (c climc) BeforeStart(oc *v1alpha1.OnecloudCluster, targetCfgDir string) er
 		return nil
 	}
 	return controller.RunWithSession(oc, func(s *mcclient.ClientSession) error {
+		controller.SyncUser = false
 		if err := EnsureServiceAccount(s, v1alpha1.CloudUser{
 			Username: user,
 			Password: userPwd,
