@@ -20,6 +20,8 @@ import (
 
 	"yunion.io/x/onecloud/pkg/yunionconf/options"
 
+	"yunion.io/x/onecloud-operator/pkg/util/option"
+
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
@@ -64,13 +66,13 @@ func (m *devtoolManager) getPhaseControl(man controller.ComponentManager, zone s
 
 func (m *devtoolManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
 	opt := &options.Options
-	if err := SetOptionsDefault(opt, constants.ServiceTypeDevtool); err != nil {
+	if err := option.SetOptionsDefault(opt, constants.ServiceTypeDevtool); err != nil {
 		return nil, false, err
 	}
 	config := cfg.Devtool
-	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
-	SetOptionsServiceTLS(&opt.BaseOptions, false)
-	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
+	option.SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
+	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
+	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 	opt.Port = config.Port
 	opt.AutoSyncTable = true
 

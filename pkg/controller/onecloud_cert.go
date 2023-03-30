@@ -59,31 +59,39 @@ func NewOnecloudCertControl(kubeCli kubernetes.Interface, secretLister coreliste
 	}
 }
 
-func (c *realOnecloudCertControl) CreateCert(oc *v1alpha1.OnecloudCluster) error {
+func CreateCertPair(oc *v1alpha1.OnecloudCluster) (CertsStore, error) {
 	caCert := NewClusterCACert()
 	config, err := caCert.GetConfig(oc)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	cert, key, err := NewCACertAndKey(config)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	store := newCertsStore()
 	if err := store.WriteCertAndKey(caCert.BaseName, cert, key); err != nil {
-		return err
+		return nil, err
 	}
 
 	svcCerts := NewServiceCert(caCert.BaseName, constants.ServiceCertAndKeyBaseName, constants.ServiceCertName)
 	svcCert, svcKey, err := svcCerts.CreateFromCA(oc, cert, key)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if err := store.WriteCertAndKey(svcCerts.BaseName, svcCert, svcKey); err != nil {
-		return err
+		return nil, err
 	}
 	// for web ingress
 	if err := store.WriteCertAndKey("tls", svcCert, svcKey); err != nil {
+		return nil, err
+	}
+	return store, nil
+}
+
+func (c *realOnecloudCertControl) CreateCert(oc *v1alpha1.OnecloudCluster) error {
+	store, err := CreateCertPair(oc)
+	if err != nil {
 		return err
 	}
 	certSecret := newSecretFromStore(oc, store)
@@ -91,13 +99,13 @@ func (c *realOnecloudCertControl) CreateCert(oc *v1alpha1.OnecloudCluster) error
 	return err
 }
 
-type certsStore map[string][]byte
+type CertsStore map[string][]byte
 
-func newCertsStore() certsStore {
+func newCertsStore() CertsStore {
 	return make(map[string][]byte)
 }
 
-func (s certsStore) WriteCertAndKey(name string, cert *x509.Certificate, key crypto.Signer) error {
+func (s CertsStore) WriteCertAndKey(name string, cert *x509.Certificate, key crypto.Signer) error {
 	if err := s.WriteKey(name, key); err != nil {
 		return errors.Wrapf(err, "cloudn't write %s key", name)
 	}
@@ -112,7 +120,7 @@ func nameForCert(name string) string {
 	return fmt.Sprintf("%s.crt", name)
 }
 
-func (s certsStore) WriteKey(name string, key crypto.Signer) error {
+func (s CertsStore) WriteKey(name string, key crypto.Signer) error {
 	if key == nil {
 		return errors.New("private key cannot be nil when write")
 	}
@@ -124,7 +132,7 @@ func (s certsStore) WriteKey(name string, key crypto.Signer) error {
 	return nil
 }
 
-func (s certsStore) WriteCert(name string, cert *x509.Certificate) error {
+func (s CertsStore) WriteCert(name string, cert *x509.Certificate) error {
 	if cert == nil {
 		return errors.New("certificate cannot be nil when write")
 	}
@@ -134,7 +142,7 @@ func (s certsStore) WriteCert(name string, cert *x509.Certificate) error {
 	return nil
 }
 
-func newSecretFromStore(oc *v1alpha1.OnecloudCluster, store certsStore) *corev1.Secret {
+func newSecretFromStore(oc *v1alpha1.OnecloudCluster, store CertsStore) *corev1.Secret {
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            ClustercertSecretName(oc),

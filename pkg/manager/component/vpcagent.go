@@ -26,6 +26,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
 type vpcAgentManager struct {
@@ -63,7 +64,7 @@ func (m *vpcAgentManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 		opts = &options.Options{}
 		prog = "vpcagent"
 	)
-	if err := SetOptionsDefault(opts, prog); err != nil {
+	if err := option.SetOptionsDefault(opts, prog); err != nil {
 		return nil, false, err
 	}
 	opts.OvnNorthDatabase = fmt.Sprintf("tcp:%s:%d",
@@ -74,7 +75,7 @@ func (m *vpcAgentManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 		constants.OvnNorthDbPort,
 	)
 	config := cfg.VpcAgent
-	SetServiceCommonOptions(&opts.CommonOptions, oc, config.ServiceCommonOptions)
+	option.SetServiceCommonOptions(&opts.CommonOptions, oc, config.ServiceCommonOptions)
 	return m.newServiceConfigMap(v1alpha1.VpcAgentComponentType, "", oc, opts), false, nil
 }
 

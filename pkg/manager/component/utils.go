@@ -15,14 +15,9 @@
 package component
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"path"
-	"reflect"
-	"text/template"
-
 	"github.com/pkg/errors"
 	apps "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1beta1"
@@ -34,20 +29,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
-
-	"yunion.io/x/pkg/util/reflectutils"
-	"yunion.io/x/structarg"
-
-	"yunion.io/x/onecloud/pkg/cloudcommon/options"
-	"yunion.io/x/onecloud/pkg/mcclient"
+	"path"
+	"reflect"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
-	"yunion.io/x/onecloud-operator/pkg/util/clickhouse"
-	"yunion.io/x/onecloud-operator/pkg/util/dbutil"
-	"yunion.io/x/onecloud-operator/pkg/util/mysql"
-	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 )
 
 const (
@@ -349,129 +336,6 @@ func CreateOrUpdateConfigMap(client clientset.Interface, cm *corev1.ConfigMap) e
 	return nil
 }
 
-func getMysqlDBConnectionByCluster(oc *v1alpha1.OnecloudCluster) (dbutil.IConnection, error) {
-	return mysql.NewConnection(&oc.Spec.Mysql)
-}
-
-func getClickhouseDBConnectionByCluster(oc *v1alpha1.OnecloudCluster) (dbutil.IConnection, error) {
-	return clickhouse.NewConnection(&oc.Spec.Clickhouse)
-}
-
-func EnsureClusterDBUser(oc *v1alpha1.OnecloudCluster, dbConfig v1alpha1.DBConfig) error {
-	return ensureClusterDBUser(oc, dbConfig, "mysql")
-}
-
-func EnsureClusterClickhouseUser(oc *v1alpha1.OnecloudCluster, dbConfig v1alpha1.DBConfig) error {
-	return ensureClusterDBUser(oc, dbConfig, "clickhouse")
-}
-
-func ensureClusterDBUser(oc *v1alpha1.OnecloudCluster, dbConfig v1alpha1.DBConfig, driver string) error {
-	dbName := dbConfig.Database
-	username := dbConfig.Username
-	password := dbConfig.Password
-	var connfactory func(oc *v1alpha1.OnecloudCluster) (dbutil.IConnection, error)
-	switch driver {
-	case "mysql":
-		connfactory = getMysqlDBConnectionByCluster
-	case "clickhouse":
-		connfactory = getClickhouseDBConnectionByCluster
-	default:
-		return fmt.Errorf("unknown db driver %s", driver)
-	}
-	conn, err := connfactory(oc)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-	if err := EnsureDBUser(conn, dbName, username, password); err != nil {
-		return err
-	}
-	return nil
-}
-
-func EnsureDBUser(conn dbutil.IConnection, dbName string, username string, password string) error {
-	dbExists, err := conn.IsDatabaseExists(dbName)
-	if err != nil {
-		return errors.Wrap(err, "check db exists")
-	}
-	if !dbExists {
-		if err := conn.CreateDatabase(dbName); err != nil {
-			return errors.Wrapf(err, "create database %q", dbName)
-		}
-	}
-	userExists, err := conn.IsUserExists(username)
-	if err != nil {
-		return errors.Wrap(err, "check user exists")
-	}
-	if !userExists || controller.SyncUser {
-		if err := conn.CreateUser(username, password, dbName); err != nil {
-			return errors.Wrapf(err, "create user %q for database %q", username, dbName)
-		}
-	}
-	return nil
-}
-
-func LoginByServiceAccount(s *mcclient.ClientSession, account v1alpha1.CloudUser) (mcclient.TokenCredential, error) {
-	return s.GetClient().AuthenticateWithSource(account.Username, account.Password, constants.DefaultDomain, constants.SysAdminProject, "", "operator")
-}
-
-func EnsureServiceAccount(s *mcclient.ClientSession, account v1alpha1.CloudUser) error {
-	username := account.Username
-	password := account.Password
-	obj, exists, err := onecloud.IsUserExists(s, username)
-	if err != nil {
-		return err
-	}
-	if exists {
-		if userProjectCnt, err := obj.Int("project_count"); err != nil {
-			klog.Errorf("Get user %s project_count: %v", username, err)
-		} else {
-			if userProjectCnt == 0 {
-				userId, _ := obj.GetString("id")
-				if err := onecloud.ProjectAddUser(s, constants.SysAdminProject, userId, constants.RoleAdmin); err != nil {
-					return errors.Wrapf(err, "add exists user %s to system project", username)
-				}
-			}
-		}
-		if !controller.SyncUser {
-			return nil
-		} else {
-			// password not change
-			if _, err := LoginByServiceAccount(s, account); err == nil {
-				return nil
-			}
-			id, _ := obj.GetString("id")
-			if _, err := onecloud.ChangeUserPassword(s, id, password); err != nil {
-				return errors.Wrapf(err, "user %s already exists, update password", username)
-			}
-			return nil
-		}
-	}
-	obj, err = onecloud.CreateUser(s, username, password)
-	if err != nil {
-		return errors.Wrapf(err, "create user %s", username)
-	}
-	userId, _ := obj.GetString("id")
-	return onecloud.ProjectAddUser(s, constants.SysAdminProject, userId, constants.RoleAdmin)
-}
-
-func SetOptionsDefault(opt interface{}, serviceType string) error {
-	parser, err := structarg.NewArgumentParser(opt, serviceType, "", "")
-	if err != nil {
-		return err
-	}
-	parser.SetDefault()
-
-	var optionsRef *options.BaseOptions
-	if err := reflectutils.FindAnonymouStructPointer(opt, &optionsRef); err != nil {
-		return err
-	}
-	if len(optionsRef.ApplicationID) == 0 {
-		optionsRef.ApplicationID = serviceType
-	}
-	return nil
-}
-
 type VolumeHelper struct {
 	cluster      *v1alpha1.OnecloudCluster
 	optionCfgMap string
@@ -667,51 +531,6 @@ func NewServiceNodePort(name string, nodePort int32, targetPort int32) corev1.Se
 		TargetPort: intstr.FromInt(int(targetPort)),
 		NodePort:   nodePort,
 	}
-}
-
-func SetOptionsServiceTLS(config *options.BaseOptions, disableTLS bool) {
-	enableConfigTLS(disableTLS, config, constants.CertDir, constants.CACertName, constants.ServiceCertName, constants.ServiceKeyName)
-}
-
-func enableConfigTLS(disableTLS bool, config *options.BaseOptions, certDir string, ca string, cert string, key string) {
-	config.EnableSsl = !disableTLS
-	config.SslCaCerts = path.Join(certDir, ca)
-	config.SslCertfile = path.Join(certDir, cert)
-	config.SslKeyfile = path.Join(certDir, key)
-}
-
-func SetServiceBaseOptions(opt *options.BaseOptions, region string, input v1alpha1.ServiceBaseConfig) {
-	opt.Region = region
-	opt.Port = input.Port
-}
-
-func SetServiceCommonOptions(opt *options.CommonOptions, oc *v1alpha1.OnecloudCluster, input v1alpha1.ServiceCommonOptions) {
-	SetServiceBaseOptions(&opt.BaseOptions, oc.GetRegion(), input.ServiceBaseConfig)
-	opt.AuthURL = controller.GetAuthURL(oc)
-	opt.AdminUser = input.CloudUser.Username
-	opt.AdminDomain = constants.DefaultDomain
-	opt.AdminPassword = input.CloudUser.Password
-	opt.AdminProject = constants.SysAdminProject
-}
-
-func SetDBOptions(opt *options.DBOptions, mysql v1alpha1.Mysql, input v1alpha1.DBConfig) {
-	opt.SqlConnection = fmt.Sprintf("mysql+pymysql://%s:%s@%s:%d/%s?charset=utf8", input.Username, input.Password, mysql.Host, mysql.Port, input.Database)
-}
-
-func SetClickhouseOptions(opt *options.DBOptions, clickhouse v1alpha1.Clickhouse, input v1alpha1.DBConfig) {
-	if len(clickhouse.Host) > 0 && len(input.Database) > 0 {
-		opt.Clickhouse = fmt.Sprintf("tcp://%s:%d?database=%s&read_timeout=10&write_timeout=20&username=%s&password=%s", clickhouse.Host, clickhouse.Port, input.Database, input.Username, input.Password)
-		opt.OpsLogWithClickhouse = true
-	}
-}
-
-func CompileTemplateFromMap(tmplt string, configMap interface{}) (string, error) {
-	out := new(bytes.Buffer)
-	t := template.Must(template.New("compiled_template").Parse(tmplt))
-	if err := t.Execute(out, configMap); err != nil {
-		return "", err
-	}
-	return out.String(), nil
 }
 
 var (

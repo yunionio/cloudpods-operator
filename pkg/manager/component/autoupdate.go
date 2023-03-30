@@ -26,6 +26,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
 type autoUpdateManager struct {
@@ -90,14 +91,14 @@ type autoUpdateOptions struct {
 
 func (m *autoUpdateManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
 	opt := &autoUpdateOptions{}
-	if err := SetOptionsDefault(opt, constants.ServiceTypeAutoUpdate); err != nil {
+	if err := option.SetOptionsDefault(opt, constants.ServiceTypeAutoUpdate); err != nil {
 		return nil, false, err
 	}
 	config := cfg.AutoUpdate
-	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
-	SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
-	SetOptionsServiceTLS(&opt.BaseOptions, false)
-	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
+	option.SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
+	option.SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
+	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
+	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 
 	opt.Port = config.Port
 	opt.UpdateServer = "https://iso.yunion.cn"
