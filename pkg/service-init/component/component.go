@@ -105,6 +105,11 @@ func (c composeComponentManager) Cloudproxy() controller.PhaseControl {
 	return controller.NewCloudproxyPhaseControl(c)
 }
 
+func (c composeComponentManager) EChartsSSR() controller.PhaseControl {
+	//TODO implement me
+	panic("implement me")
+}
+
 func GetComponentDBConfig(cmpt Component, cfg *v1alpha1.OnecloudClusterConfig, existOpt jsonutils.JSONObject) (*v1alpha1.DBConfig, error) {
 	dbCfg := cmpt.GetDefaultDBConfig(cfg)
 	if dbCfg == nil {
