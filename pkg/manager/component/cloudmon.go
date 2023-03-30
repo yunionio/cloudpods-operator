@@ -15,6 +15,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
 type cloudmonManager struct {
@@ -68,12 +69,12 @@ func (m *cloudmonManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1a
 
 func (m *cloudmonManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
 	opt := &options.Options
-	if err := SetOptionsDefault(opt, constants.ServiceTypeCloudmon); err != nil {
+	if err := option.SetOptionsDefault(opt, constants.ServiceTypeCloudmon); err != nil {
 		return nil, false, err
 	}
 	config := cfg.Cloudmon
-	SetOptionsServiceTLS(&opt.BaseOptions, false)
-	SetServiceCommonOptions(&opt.CommonOptions, oc, config)
+	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
+	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config)
 	opt.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
 	opt.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
 	opt.Port = config.Port

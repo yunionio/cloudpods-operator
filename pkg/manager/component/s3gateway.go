@@ -24,6 +24,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
 type s3gatewayManager struct {
@@ -65,12 +66,12 @@ func (m *s3gatewayManager) getPhaseControl(man controller.ComponentManager, zone
 
 func (m *s3gatewayManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
 	opt := &options.Options
-	if err := SetOptionsDefault(opt, constants.ServiceTypeS3gateway); err != nil {
+	if err := option.SetOptionsDefault(opt, constants.ServiceTypeS3gateway); err != nil {
 		return nil, false, err
 	}
 	config := cfg.S3gateway
-	SetOptionsServiceTLS(&opt.BaseOptions, false)
-	SetServiceCommonOptions(&opt.CommonOptions, oc, config)
+	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
+	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config)
 
 	return m.newServiceConfigMap(v1alpha1.S3gatewayComponentType, "", oc, opt), false, nil
 }

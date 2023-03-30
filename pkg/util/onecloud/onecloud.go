@@ -211,12 +211,19 @@ func CreateUser(s *mcclient.ClientSession, username string, password string) (js
 	params.Add(jsonutils.NewString(username), "name")
 	params.Add(jsonutils.NewString(password), "password")
 	params.Add(jsonutils.JSONTrue, "is_system_account")
+	params.Add(jsonutils.JSONFalse, "allow_web_console")
 	return identity.UsersV3.Create(s, params)
 }
 
 func ChangeUserPassword(s *mcclient.ClientSession, username string, password string) (jsonutils.JSONObject, error) {
 	params := jsonutils.NewDict()
 	params.Add(jsonutils.NewString(password), "password")
+	return identity.UsersV3.Update(s, username, params)
+}
+
+func AllowUserWebLogin(s *mcclient.ClientSession, username string) (jsonutils.JSONObject, error) {
+	params := jsonutils.NewDict()
+	params.Add(jsonutils.JSONTrue, "allow_web_console")
 	return identity.UsersV3.Update(s, username, params)
 }
 

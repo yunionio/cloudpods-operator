@@ -15,6 +15,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
 type baremetalManager struct {
@@ -52,12 +53,12 @@ func (m *baremetalManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 	zoneId := oc.GetZone(zone)
 
 	opt := &options.Options
-	if err := SetOptionsDefault(opt, ""); err != nil {
+	if err := option.SetOptionsDefault(opt, ""); err != nil {
 		return nil, false, err
 	}
 	config := cfg.BaremetalAgent
-	SetOptionsServiceTLS(&opt.BaseOptions, false)
-	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
+	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
+	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 	opt.Port = constants.BaremetalPort
 	opt.AutoRegisterBaremetal = false
 	opt.LinuxDefaultRootUser = true

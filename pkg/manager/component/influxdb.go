@@ -16,7 +16,6 @@ package component
 
 import (
 	"fmt"
-	"path"
 
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -25,49 +24,8 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/service-init/component"
 )
-
-const (
-	InfluxDBConfigTemplate = `
-[meta]
-  # Where the metadata/raft database is stored
-  dir = "/var/lib/influxdb/meta"
-
-  # Automatically create a default retention policy when creating a database.
-  retention-autocreate = true
-
-  # If log messages are printed for the meta service
-  # logging-enabled = true
-  # default-retention-policy-name = "default"
-  default-retention-policy-name = "30day_only"
-
-[data]
-  # The directory where the TSM storage engine stores TSM files.
-  dir = "/var/lib/influxdb/data"
-
-  # The directory where the TSM storage engine stores WAL files.
-  wal-dir = "/var/lib/influxdb/wal"
-
-[http]
-  https-enabled = true
-  https-certificate = "{{.CertPath}}"
-  https-private-key = "{{.KeyPath}}"
-  bind-address = ":{{.Port}}"
-
-[subscriber]
-  insecure-skip-verify = true
-`
-)
-
-type InfluxdbConfig struct {
-	Port     int
-	CertPath string
-	KeyPath  string
-}
-
-func (c InfluxdbConfig) GetContent() (string, error) {
-	return CompileTemplateFromMap(InfluxDBConfigTemplate, c)
-}
 
 type influxdbManager struct {
 	*ComponentManager
@@ -94,10 +52,7 @@ func (m *influxdbManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 }
 
 func (m *influxdbManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
-	return controller.NewRegisterEndpointComponent(
-		man, v1alpha1.InfluxdbComponentType,
-		constants.ServiceNameInfluxdb, constants.ServiceTypeInfluxdb,
-		constants.InfluxdbPort, "")
+	return component.NewInfluxdb().GetPhaseControl(man)
 }
 
 func (m *influxdbManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
@@ -110,16 +65,11 @@ func (m *influxdbManager) getPVC(oc *v1alpha1.OnecloudCluster, zone string) (*co
 }
 
 func (m *influxdbManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
-	config := InfluxdbConfig{
-		Port:     constants.InfluxdbPort,
-		CertPath: path.Join(constants.CertDir, constants.ServiceCertName),
-		KeyPath:  path.Join(constants.CertDir, constants.ServiceKeyName),
-	}
-	content, err := config.GetContent()
+	content, err := component.NewInfluxdb().GetConfig(oc, cfg)
 	if err != nil {
 		return nil, false, err
 	}
-	return m.newConfigMap(v1alpha1.InfluxdbComponentType, "", oc, content), false, nil
+	return m.newConfigMap(v1alpha1.InfluxdbComponentType, "", oc, content.(string)), false, nil
 }
 
 func (m *influxdbManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {

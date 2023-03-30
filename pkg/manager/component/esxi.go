@@ -21,13 +21,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"yunion.io/x/jsonutils"
-
 	"yunion.io/x/onecloud/pkg/esxi/options"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
 type esxiManager struct {
@@ -61,14 +61,14 @@ func (m *esxiManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 	zoneId := oc.GetZone(zone)
 
 	opt := &options.Options
-	if err := SetOptionsDefault(opt, ""); err != nil {
+	if err := option.SetOptionsDefault(opt, ""); err != nil {
 		return nil, false, err
 	}
 	opt.Zone = zoneId
 	opt.ListenInterface = "eth0"
 	config := cfg.EsxiAgent
-	SetOptionsServiceTLS(&opt.BaseOptions, false)
-	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
+	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
+	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 	opt.Port = constants.EsxiAgentPort
 	newCfg := m.newServiceConfigMap(v1alpha1.EsxiAgentComponentType, zone, oc, opt)
 	return m.customConfig(oc, newCfg, zone)

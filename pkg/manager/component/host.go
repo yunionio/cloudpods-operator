@@ -15,6 +15,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
 type hostManager struct {
@@ -51,12 +52,12 @@ func (m *hostManager) getPhaseControl(man controller.ComponentManager, zone stri
 func (m *hostManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
 	commonOpt := new(options.SHostBaseOptions)
 	// opt := &options.HostOptions
-	if err := SetOptionsDefault(commonOpt, ""); err != nil {
+	if err := option.SetOptionsDefault(commonOpt, ""); err != nil {
 		return nil, false, err
 	}
 	config := cfg.HostAgent
-	SetOptionsServiceTLS(&commonOpt.BaseOptions, false)
-	SetServiceCommonOptions(&commonOpt.CommonOptions, oc, config.ServiceCommonOptions)
+	option.SetOptionsServiceTLS(&commonOpt.BaseOptions, false)
+	option.SetServiceCommonOptions(&commonOpt.CommonOptions, oc, config.ServiceCommonOptions)
 	commonOpt.Port = constants.HostPort
 
 	commonOpt.EnableRemoteExecutor = true

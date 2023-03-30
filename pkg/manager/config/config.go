@@ -59,7 +59,7 @@ func (c *ConfigManager) CreateOrUpdate(oc *v1alpha1.OnecloudCluster) (*v1alpha1.
 		if !apierrors.IsNotFound(err) {
 			return nil, err
 		}
-		cfg := newClusterConfig()
+		cfg := NewClusterConfig()
 		// not found cluster config, create new one
 		newCfgMap, err := clusterConfigToConfigMap(oc, cfg)
 		if err != nil {
@@ -86,7 +86,7 @@ func (c *ConfigManager) CreateOrUpdate(oc *v1alpha1.OnecloudCluster) (*v1alpha1.
 	}
 }
 
-func newClusterConfig() *v1alpha1.OnecloudClusterConfig {
+func NewClusterConfig() *v1alpha1.OnecloudClusterConfig {
 	config := &v1alpha1.OnecloudClusterConfig{}
 	return fillClusterConfigDefault(config)
 }
