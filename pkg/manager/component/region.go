@@ -15,17 +15,14 @@
 package component
 
 import (
-	"fmt"
-
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-
-	"yunion.io/x/onecloud/pkg/compute/options"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/service-init/component"
 )
 
 type regionManager struct {
@@ -54,7 +51,8 @@ func (m *regionManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 }
 
 func (m *regionManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
-	return &cfg.RegionServer.DB
+	dbCfg := component.NewRegion().GetDefaultDBConfig(cfg)
+	return dbCfg
 }
 
 func (m *regionManager) getClickhouseConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
@@ -70,38 +68,12 @@ func (m *regionManager) getPhaseControl(man controller.ComponentManager, zone st
 }
 
 func (m *regionManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
-	opt := &options.Options
-	if err := SetOptionsDefault(opt, constants.ServiceTypeComputeV2); err != nil {
-		return nil, false, err
-	}
-	config := cfg.RegionServer
-	spec := oc.Spec.RegionServer
-	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
-	SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
-	SetOptionsServiceTLS(&opt.BaseOptions, false)
-	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceDBCommonOptions.ServiceCommonOptions)
-	// TODO: fix this, currently init container can't sync table
-	opt.AutoSyncTable = true
-
-	opt.DNSDomain = spec.DNSDomain
-	if spec.DNSServer == "" {
-		spec.DNSServer = oc.Spec.LoadBalancerEndpoint
-	}
-	oc.Spec.RegionServer = spec
-	opt.DNSServer = spec.DNSServer
-
-	opt.PortV2 = config.Port
-	err := m.setBaremetalPrepareConfigure(oc, cfg, opt)
+	opt, err := component.NewRegion().GetConfig(oc, cfg)
 	if err != nil {
 		return nil, false, err
 	}
-	return m.newServiceConfigMap(v1alpha1.RegionComponentType, "", oc, opt), false, nil
-}
 
-func (m *regionManager) setBaremetalPrepareConfigure(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, opt *options.ComputeOptions) error {
-	masterAddress := oc.Spec.LoadBalancerEndpoint
-	opt.BaremetalPreparePackageUrl = fmt.Sprintf("https://%s/baremetal-prepare/baremetal_prepare.tar.gz", masterAddress)
-	return nil
+	return m.newServiceConfigMap(v1alpha1.RegionComponentType, "", oc, opt), false, nil
 }
 
 func (m *regionManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {

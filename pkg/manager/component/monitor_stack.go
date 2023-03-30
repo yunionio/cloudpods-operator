@@ -31,6 +31,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/service-init/component"
 	"yunion.io/x/onecloud-operator/pkg/util/k8sutil"
 	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 )
@@ -67,7 +68,7 @@ func (m *monitorStackManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 
 	spec := &oc.Spec.MonitorStack
 	if !spec.Grafana.Disable {
-		if err := EnsureClusterDBUser(oc, clustercfg.Grafana.DB); err != nil {
+		if err := component.EnsureClusterDBUser(oc, clustercfg.Grafana.DB); err != nil {
 			return errors.Wrap(err, "ensure grafana db config")
 		}
 	}

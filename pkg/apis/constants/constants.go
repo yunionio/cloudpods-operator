@@ -458,3 +458,7 @@ const (
 	RoleDomainAdmin   = "domainadmin"
 	RoleProjectEditor = "project_editor"
 )
+
+const (
+	DockerComposeClusterName = "docker-compose-cluster"
+)

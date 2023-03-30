@@ -18,12 +18,11 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
-	"yunion.io/x/onecloud/pkg/keystone/options"
-
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/service-init/component"
 )
 
 type keystoneManager struct {
@@ -54,11 +53,12 @@ func (m *keystoneManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 }
 
 func (m *keystoneManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
-	return &cfg.Keystone.DB
+	dbCfg := component.NewKeystone().GetDefaultDBConfig(cfg)
+	return dbCfg
 }
 
 func (m *keystoneManager) getClickhouseConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
-	return &cfg.Keystone.ClickhouseConf
+	return component.NewKeystone().GetDefaultClickhouseConfig(cfg)
 }
 
 func (m *keystoneManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
@@ -81,20 +81,10 @@ func (m *keystoneManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 }
 
 func (m *keystoneManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
-	opt := &options.Options
-	if err := SetOptionsDefault(opt, constants.ServiceTypeIdentity); err != nil {
+	opt, err := component.NewKeystone().GetConfig(oc, cfg)
+	if err != nil {
 		return nil, false, err
 	}
-	config := cfg.Keystone
-	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
-	SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
-	SetOptionsServiceTLS(&opt.BaseOptions, oc.Spec.Keystone.DisableTLS)
-	SetServiceBaseOptions(&opt.BaseOptions, oc.GetRegion(), config.ServiceBaseConfig)
-
-	opt.BootstrapAdminUserPassword = oc.Spec.Keystone.BootstrapPassword
-	// always reset admin user password to ensure password is correct
-	opt.ResetAdminUserPassword = true
-	opt.AdminPort = constants.KeystoneAdminPort
 
 	return m.newServiceConfigMap(v1alpha1.KeystoneComponentType, "", oc, opt), false, nil
 }

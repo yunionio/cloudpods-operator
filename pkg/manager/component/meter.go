@@ -27,6 +27,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
 type meterManager struct {
@@ -93,14 +94,14 @@ type meterOptions struct {
 
 func (m *meterManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
 	opt := &meterOptions{}
-	if err := SetOptionsDefault(opt, constants.ServiceTypeMeter); err != nil {
+	if err := option.SetOptionsDefault(opt, constants.ServiceTypeMeter); err != nil {
 		return nil, false, err
 	}
 	config := cfg.Meter
-	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
-	SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
-	SetOptionsServiceTLS(&opt.BaseOptions, false)
-	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceDBCommonOptions.ServiceCommonOptions)
+	option.SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
+	option.SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
+	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
+	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceDBCommonOptions.ServiceCommonOptions)
 
 	opt.BillingFileDirectory = filepath.Join(constants.MeterDataStore, constants.MeterBillingDataDir)
 	opt.CloudratesFileDirectory = filepath.Join(constants.MeterDataStore, constants.MeterRatesDataDir)

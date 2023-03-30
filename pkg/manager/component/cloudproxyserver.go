@@ -26,6 +26,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
 type cloudproxyManager struct {
@@ -65,13 +66,13 @@ func (m *cloudproxyManager) getPhaseControl(man controller.ComponentManager, zon
 
 func (m *cloudproxyManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
 	opt := &options.Options{}
-	if err := SetOptionsDefault(opt, constants.ServiceTypeCloudproxy); err != nil {
+	if err := option.SetOptionsDefault(opt, constants.ServiceTypeCloudproxy); err != nil {
 		return nil, false, err
 	}
 	config := cfg.Cloudproxy
-	SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
-	SetOptionsServiceTLS(&opt.CommonOptions.BaseOptions, false)
-	SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
+	option.SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
+	option.SetOptionsServiceTLS(&opt.CommonOptions.BaseOptions, false)
+	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 	opt.AutoSyncTable = true
 	opt.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
 	opt.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
