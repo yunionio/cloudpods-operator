@@ -2,20 +2,16 @@ package component
 
 import (
 	"context"
-	"path"
 
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"yunion.io/x/onecloud/pkg/cloudmon/options"
-
-	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
-	"yunion.io/x/onecloud-operator/pkg/util/option"
+	"yunion.io/x/onecloud-operator/pkg/service-init/component"
 )
 
 type cloudmonManager struct {
@@ -68,25 +64,15 @@ func (m *cloudmonManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1a
 }
 
 func (m *cloudmonManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
-	opt := &options.Options
-	if err := option.SetOptionsDefault(opt, constants.ServiceTypeCloudmon); err != nil {
+	opt, err := component.NewCloudmon().GetConfig(oc, cfg)
+	if err != nil {
 		return nil, false, err
 	}
-	config := cfg.Cloudmon
-	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
-	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config)
-	opt.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
-	opt.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
-	opt.Port = config.Port
 	return m.newServiceConfigMap(v1alpha1.CloudmonComponentType, "", oc, opt), false, nil
 }
 
 func (m *cloudmonManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
-	return controller.NewRegisterEndpointComponent(man,
-		v1alpha1.CloudmonComponentType,
-		constants.ServiceNameCloudmon,
-		constants.ServiceTypeCloudmon,
-		man.GetCluster().Spec.Cloudmon.Service.NodePort, "")
+	return component.NewCloudmon().GetPhaseControl(man)
 }
 
 func (m *cloudmonManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
