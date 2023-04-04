@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
 	corelisters "k8s.io/client-go/listers/core/v1"
@@ -998,6 +999,62 @@ func NewRegisterEndpointComponent(
 
 func (c *registerEndpointComponent) Setup() error {
 	return c.RegisterCloudServiceEndpoint(c.cType, c.serviceName, c.serviceType, c.port, c.prefix, true)
+}
+
+type influxdbComponent struct {
+	*registerEndpointComponent
+}
+
+func NewInfluxdbEndpointComponent(
+	man ComponentManager,
+	ctype v1alpha1.ComponentType,
+	serviceName string,
+	serviceType string,
+	port int, prefix string,
+) PhaseControl {
+	return &influxdbComponent{
+		registerEndpointComponent: &registerEndpointComponent{
+			baseComponent: newBaseComponent(man),
+			cType:         ctype,
+			serviceName:   serviceName,
+			serviceType:   serviceType,
+			port:          port,
+			prefix:        prefix,
+		},
+	}
+}
+
+func (c *influxdbComponent) Setup() error {
+	oc := c.GetCluster()
+	s, err := getSession(oc)
+	if err != nil {
+		return errors.Wrap(err, "get mcclient session")
+	}
+	_, exists, err := onecloud.IsServiceExists(s, c.serviceName)
+	if err != nil {
+		return errors.Wrap(err, "check service exists")
+	}
+	err = c.RegisterCloudServiceEndpoint(c.cType, c.serviceName, c.serviceType, c.port, c.prefix, true)
+	if err != nil {
+		return errors.Wrap(err, "RegisterCloudServiceEndpoint")
+	}
+	if !exists {
+		regionName := NewClusterComponentName(oc.GetName(), v1alpha1.RegionComponentType)
+		region, err := c.manager.GetController().kubeCli.AppsV1().Deployments(oc.Namespace).Get(context.Background(), regionName, metav1.GetOptions{})
+		if err != nil && k8serrors.IsNotFound(err) {
+			return nil
+		} else if region.Status.ReadyReplicas == 0 {
+			return nil
+		}
+
+		log.Infof("influxdb service not exist, restart region service")
+		// restart region service to reload influxdb endpoint
+		err = c.manager.GetController().kubeCli.AppsV1().Deployments(oc.Namespace).Delete(context.Background(), regionName, metav1.DeleteOptions{})
+		if err != nil {
+			log.Errorf("failed delete region deployment %s", err)
+		}
+	}
+	return nil
 }
 
 type itsmComponent struct {
