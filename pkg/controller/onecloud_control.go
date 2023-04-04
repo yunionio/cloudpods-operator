@@ -1000,6 +1000,55 @@ func (c *registerEndpointComponent) Setup() error {
 	return c.RegisterCloudServiceEndpoint(c.cType, c.serviceName, c.serviceType, c.port, c.prefix, true)
 }
 
+type influxdbComponent struct {
+	*registerEndpointComponent
+}
+
+func NewInfluxdbEndpointComponent(
+	man ComponentManager,
+	ctype v1alpha1.ComponentType,
+	serviceName string,
+	serviceType string,
+	port int, prefix string,
+) PhaseControl {
+	return &influxdbComponent{
+		registerEndpointComponent: &registerEndpointComponent{
+			baseComponent: newBaseComponent(man),
+			cType:         ctype,
+			serviceName:   serviceName,
+			serviceType:   serviceType,
+			port:          port,
+			prefix:        prefix,
+		},
+	}
+}
+
+func (c *influxdbComponent) Setup() error {
+	oc := c.GetCluster()
+	s, err := getSession(oc)
+	if err != nil {
+		return errors.Wrap(err, "get mcclient session")
+	}
+	_, exists, err := onecloud.IsServiceExists(s, c.serviceName)
+	if err != nil {
+		return errors.Wrap(err, "check service exists")
+	}
+	err = c.RegisterCloudServiceEndpoint(c.cType, c.serviceName, c.serviceType, c.port, c.prefix, true)
+	if err != nil {
+		return errors.Wrap(err, "RegisterCloudServiceEndpoint")
+	}
+	if !exists {
+		log.Infof("influxdb service not exist, restart region service")
+		// restart region service to reload influxdb endpoint
+		regionName := NewClusterComponentName(oc.GetName(), v1alpha1.RegionComponentType)
+		err = c.manager.GetController().kubeCli.AppsV1().Deployments(oc.Namespace).Delete(context.Background(), regionName, metav1.DeleteOptions{})
+		if err != nil {
+			log.Errorf("failed delete region deployment %s", err)
+		}
+	}
+	return nil
+}
+
 type itsmComponent struct {
 	*registerEndpointComponent
 }
