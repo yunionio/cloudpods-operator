@@ -17,7 +17,6 @@ package component
 import (
 	"context"
 	"fmt"
-	"yunion.io/x/onecloud-operator/pkg/service-init/component"
 
 	apps "k8s.io/api/apps/v1"
 	jobbatchv1 "k8s.io/api/batch/v1"
@@ -48,6 +47,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/label"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/service-init/component"
 	"yunion.io/x/onecloud-operator/pkg/util/k8sutil"
 )
 
