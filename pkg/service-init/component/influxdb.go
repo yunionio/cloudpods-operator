@@ -74,7 +74,7 @@ func (r influxdb) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.Onecloud
 }
 
 func (r influxdb) GetPhaseControl(man controller.ComponentManager) controller.PhaseControl {
-	return controller.NewRegisterEndpointComponent(
+	return controller.NewInfluxdbEndpointComponent(
 		man, v1alpha1.InfluxdbComponentType,
 		constants.ServiceNameInfluxdb, constants.ServiceTypeInfluxdb,
 		constants.InfluxdbPort, "")
