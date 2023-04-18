@@ -109,6 +109,8 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 	}
 
 	for _, component := range []manager.Manager{
+		components.Influxdb(),
+		components.Telegraf(),
 		components.Keystone(),
 		components.Region(),
 		components.Scheduler(),
@@ -122,10 +124,16 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 		components.Meter(),
 		components.EsxiAgent(),
 		components.OvnNorth(),
+		components.VpcAgent(),
+		components.HostDeployer(),
+		components.HostImage(),
+		components.Host(),
+		components.Monitor(),
+		components.Cloudmon(),
 	} {
 		if err := component.Sync(oc); err != nil {
 			if !controller.StopServices {
-				return err
+				return errors.Wrap(err, "sync component")
 			} else {
 				log.Warningf("Stop service error: %v", err)
 			}
@@ -134,7 +142,6 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 
 	var dependComponents = []manager.Manager{
 		components.Logger(),
-		components.Influxdb(),
 		components.Climc(),
 		components.AutoUpdate(),
 		components.Cloudnet(),
@@ -143,19 +150,12 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 		components.Devtool(),
 		components.Webconsole(),
 		components.Yunionconf(),
-		components.Monitor(),
 		components.S3gateway(),
 		components.Notify(),
-		components.Host(),
-		components.HostDeployer(),
-		components.HostImage(),
-		components.VpcAgent(),
 		components.Baremetal(),
 		components.ServiceOperator(),
 		components.Itsm(),
-		components.Telegraf(),
 		components.CloudId(),
-		components.Cloudmon(),
 		components.Suggestion(),
 		components.Scheduledtask(),
 		components.Report(),
