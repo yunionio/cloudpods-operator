@@ -24,6 +24,7 @@ import (
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
 	"yunion.io/x/pkg/errors"
+	"yunion.io/x/pkg/gotypes"
 	"yunion.io/x/pkg/util/compare"
 	"yunion.io/x/pkg/util/rbacscope"
 	"yunion.io/x/pkg/util/timeutils"
@@ -245,6 +246,26 @@ func (manager *SSnapshotManager) OrderByExtraFields(
 	if err != nil {
 		return nil, errors.Wrap(err, "SStorageResourceBaseManager.OrderByExtraFields")
 	}
+	if db.NeedOrderQuery([]string{query.OrderByGuest}) {
+		guestSQ := GuestManager.Query("name", "id").SubQuery()
+		guestdiskQ := GuestdiskManager.Query()
+		guestdiskQ = guestdiskQ.Join(guestSQ, sqlchemy.Equals(guestSQ.Field("id"), guestdiskQ.Field("guest_id")))
+		guestdiskSQ := guestdiskQ.AppendField(guestdiskQ.Field("disk_id"), guestSQ.Field("name").Label("guest_name")).SubQuery()
+		q = q.LeftJoin(guestdiskSQ, sqlchemy.Equals(guestdiskSQ.Field("disk_id"), q.Field("disk_id")))
+		q = q.AppendField(q.QueryFields()...)
+		q = q.AppendField(guestdiskSQ.Field("guest_name"))
+		q = db.OrderByFields(q, []string{query.OrderByGuest}, []sqlchemy.IQueryField{q.Field("guest_name")})
+	}
+	if db.NeedOrderQuery([]string{query.OrderByDiskName}) {
+		dSQ := DiskManager.Query("name", "id").SubQuery()
+		guestdiskQ := GuestdiskManager.Query()
+		guestdiskQ = guestdiskQ.LeftJoin(dSQ, sqlchemy.Equals(dSQ.Field("id"), guestdiskQ.Field("disk_id")))
+		guestdiskSQ := guestdiskQ.AppendField(guestdiskQ.Field("disk_id"), dSQ.Field("name").Label("disk_name")).SubQuery()
+		q = q.LeftJoin(guestdiskSQ, sqlchemy.Equals(guestdiskSQ.Field("disk_id"), q.Field("disk_id")))
+		q = q.AppendField(q.QueryFields()...)
+		q = q.AppendField(guestdiskSQ.Field("disk_name"))
+		q = db.OrderByFields(q, []string{query.OrderByDiskName}, []sqlchemy.IQueryField{q.Field("disk_name")})
+	}
 
 	return q, nil
 }
@@ -270,6 +291,13 @@ func (manager *SSnapshotManager) QueryDistinctExtraField(q *sqlchemy.SQuery, fie
 	return q, httperrors.ErrNotFound
 }
 
+type sSnapshotGuest struct {
+	DiskId      string
+	GuestId     string
+	GuestName   string
+	GuestStatus string
+}
+
 func (manager *SSnapshotManager) FetchCustomizeColumns(
 	ctx context.Context,
 	userCred mcclient.TokenCredential,
@@ -285,6 +313,9 @@ func (manager *SSnapshotManager) FetchCustomizeColumns(
 	regionRows := manager.SCloudregionResourceBaseManager.FetchCustomizeColumns(ctx, userCred, query, objs, fields, isList)
 	encRows := manager.SEncryptedResourceManager.FetchCustomizeColumns(ctx, userCred, query, objs, fields, isList)
 
+	storageIds := make([]string, len(objs))
+	diskIds := make([]string, len(objs))
+	snapshotIds := make([]string, len(objs))
 	for i := range rows {
 		rows[i] = api.SnapshotDetails{
 			VirtualResourceDetails:  virtRows[i],
@@ -293,33 +324,88 @@ func (manager *SSnapshotManager) FetchCustomizeColumns(
 
 			EncryptedResourceDetails: encRows[i],
 		}
-		rows[i] = objs[i].(*SSnapshot).getMoreDetails(rows[i])
+		snapshot := objs[i].(*SSnapshot)
+		storageIds[i] = snapshot.StorageId
+		diskIds[i] = snapshot.DiskId
+		snapshotIds[i] = snapshot.Id
+	}
+
+	storages := map[string]SStorage{}
+	err := db.FetchModelObjectsByIds(StorageManager, "id", storageIds, storages)
+	if err != nil {
+		log.Errorf("FetchModelObjectsByIds")
+		return rows
+	}
+	disks := map[string]SDisk{}
+	err = db.FetchModelObjectsByIds(DiskManager, "id", diskIds, disks)
+	if err != nil {
+		log.Errorf("FetchModelObjectsByIds")
+		return rows
+	}
+	iss := []SInstanceSnapshotJoint{}
+	err = InstanceSnapshotJointManager.Query().In("snapshot_id", snapshotIds).All(&iss)
+	if err != nil {
+		log.Errorf("query instance snapshot joint")
+		return rows
+	}
+	issMap := map[string]bool{}
+	for i := range iss {
+		issMap[iss[i].SnapshotId] = true
+	}
+	q := GuestManager.Query()
+	gds := GuestdiskManager.Query().SubQuery()
+	sq := q.SubQuery()
+	guests := sq.Query(
+		sq.Field("id").Label("guest_id"),
+		sq.Field("name").Label("guest_name"),
+		sq.Field("status").Label("guest_status"),
+		gds.Field("disk_id"),
+	).Join(gds, sqlchemy.Equals(gds.Field("guest_id"), sq.Field("id"))).Filter(sqlchemy.In(gds.Field("disk_id"), diskIds))
+	guestdisks := []struct {
+		DiskId      string
+		GuestId     string
+		GuestName   string
+		GuestStatus string
+	}{}
+	err = guests.All(&guestdisks)
+	if err != nil {
+		log.Errorf("guests.All")
+		return rows
+	}
+	guestMap := map[string]struct {
+		GuestId     string
+		GuestName   string
+		GuestStatus string
+	}{}
+	for _, gd := range guestdisks {
+		guestMap[gd.DiskId] = struct {
+			GuestId     string
+			GuestName   string
+			GuestStatus string
+		}{
+			GuestId:     gd.GuestId,
+			GuestName:   gd.GuestName,
+			GuestStatus: gd.GuestStatus,
+		}
+	}
+
+	for i := range rows {
+		if storage, ok := storages[storageIds[i]]; ok {
+			rows[i].StorageType = storage.StorageType
+		}
+		if disk, ok := disks[diskIds[i]]; ok {
+			rows[i].DiskStatus = disk.Status
+			rows[i].DiskName = disk.Name
+		}
+		if guest, ok := guestMap[diskIds[i]]; ok {
+			rows[i].GuestId = guest.GuestId
+			rows[i].Guest = guest.GuestName
+			rows[i].GuestStatus = guest.GuestStatus
+		}
+		rows[i].IsSubSnapshot, _ = issMap[snapshotIds[i]]
 	}
 
 	return rows
-}
-
-func (self *SSnapshot) getMoreDetails(out api.SnapshotDetails) api.SnapshotDetails {
-	if IStorage, _ := StorageManager.FetchById(self.StorageId); IStorage != nil {
-		storage := IStorage.(*SStorage)
-		out.StorageType = storage.StorageType
-	}
-	disk, _ := self.GetDisk()
-	if disk != nil {
-		out.DiskStatus = disk.Status
-		out.DiskName = disk.Name
-		guests := disk.GetGuests()
-		if len(guests) == 1 {
-			out.Guest = guests[0].Name
-			out.GuestId = guests[0].Id
-			out.GuestStatus = guests[0].Status
-		}
-	}
-	if t, _ := InstanceSnapshotJointManager.IsSubSnapshot(self.Id); t {
-		out.IsSubSnapshot = true
-	}
-
-	return out
 }
 
 func (self *SSnapshot) GetShortDesc(ctx context.Context) *jsonutils.JSONDict {
@@ -640,23 +726,28 @@ func (self *SSnapshot) StartSnapshotDeleteTask(ctx context.Context, userCred mcc
 	return nil
 }
 
-func (self *SSnapshot) ValidateDeleteCondition(ctx context.Context, info jsonutils.JSONObject) error {
+func (self *SSnapshot) ValidateDeleteCondition(ctx context.Context, info *api.SnapshotDetails) error {
 	if self.Status == api.SNAPSHOT_DELETING {
 		return httperrors.NewBadRequestError("Cannot delete snapshot in status %s", self.Status)
 	}
-	return self.ValidatePurgeCondition(ctx)
-}
-
-func (self *SSnapshot) ValidatePurgeCondition(ctx context.Context) error {
-	count, err := InstanceSnapshotJointManager.Query().Equals("snapshot_id", self.Id).CountWithError()
-	if err != nil {
-		return httperrors.NewInternalServerError("Fetch instance snapshot error %s", err)
-	}
-	if count > 0 {
-		return httperrors.NewBadRequestError("snapshot referenced by instance snapshot")
-	}
-	if disk, err := self.GetDisk(); err == nil {
-		if disk.Status == api.DISK_RESET {
+	if gotypes.IsNil(info) {
+		count, err := InstanceSnapshotJointManager.Query().Equals("snapshot_id", self.Id).CountWithError()
+		if err != nil {
+			return httperrors.NewInternalServerError("Fetch instance snapshot error %s", err)
+		}
+		if count > 0 {
+			return httperrors.NewBadRequestError("snapshot referenced by instance snapshot")
+		}
+		if disk, err := self.GetDisk(); err == nil {
+			if disk.Status == api.DISK_RESET {
+				return httperrors.NewBadRequestError("Cannot delete snapshot on disk reset")
+			}
+		}
+	} else {
+		if info.IsSubSnapshot {
+			return httperrors.NewBadRequestError("snapshot referenced by instance snapshot")
+		}
+		if info.DiskStatus == api.DISK_RESET {
 			return httperrors.NewBadRequestError("Cannot delete snapshot on disk reset")
 		}
 	}
@@ -985,9 +1076,17 @@ func (manager *SSnapshotManager) getProviderSnapshotsByRegion(region *SCloudregi
 	return snapshots, nil
 }
 
-func (manager *SSnapshotManager) SyncSnapshots(ctx context.Context, userCred mcclient.TokenCredential, provider *SCloudprovider, region *SCloudregion, snapshots []cloudprovider.ICloudSnapshot, syncOwnerId mcclient.IIdentityProvider) compare.SyncResult {
-	lockman.LockRawObject(ctx, "snapshots", fmt.Sprintf("%s-%s", provider.Id, region.Id))
-	defer lockman.ReleaseRawObject(ctx, "snapshots", fmt.Sprintf("%s-%s", provider.Id, region.Id))
+func (manager *SSnapshotManager) SyncSnapshots(
+	ctx context.Context,
+	userCred mcclient.TokenCredential,
+	provider *SCloudprovider,
+	region *SCloudregion,
+	snapshots []cloudprovider.ICloudSnapshot,
+	syncOwnerId mcclient.IIdentityProvider,
+	xor bool,
+) compare.SyncResult {
+	lockman.LockRawObject(ctx, manager.Keyword(), fmt.Sprintf("%s-%s", provider.Id, region.Id))
+	defer lockman.ReleaseRawObject(ctx, manager.Keyword(), fmt.Sprintf("%s-%s", provider.Id, region.Id))
 
 	syncResult := compare.SyncResult{}
 	dbSnapshots, err := manager.getProviderSnapshotsByRegion(region, provider)
@@ -1009,15 +1108,17 @@ func (manager *SSnapshotManager) SyncSnapshots(ctx context.Context, userCred mcc
 		err = removed[i].syncRemoveCloudSnapshot(ctx, userCred)
 		if err != nil {
 			syncResult.DeleteError(err)
-		} else {
-			syncResult.Delete()
+			continue
 		}
+		syncResult.Delete()
 	}
-	for i := 0; i < len(commondb); i += 1 {
-		err = commondb[i].SyncWithCloudSnapshot(ctx, userCred, commonext[i], syncOwnerId, region)
-		if err != nil {
-			syncResult.UpdateError(err)
-		} else {
+	if !xor {
+		for i := 0; i < len(commondb); i += 1 {
+			err = commondb[i].SyncWithCloudSnapshot(ctx, userCred, commonext[i], syncOwnerId, region)
+			if err != nil {
+				syncResult.UpdateError(err)
+				continue
+			}
 			syncResult.Update()
 		}
 	}
@@ -1025,9 +1126,9 @@ func (manager *SSnapshotManager) SyncSnapshots(ctx context.Context, userCred mcc
 		_, err := manager.newFromCloudSnapshot(ctx, userCred, added[i], region, syncOwnerId, provider)
 		if err != nil {
 			syncResult.AddError(err)
-		} else {
-			syncResult.Add()
+			continue
 		}
+		syncResult.Add()
 	}
 	return syncResult
 }
@@ -1154,4 +1255,29 @@ func (manager *SSnapshotManager) ListItemExportKeys(ctx context.Context,
 	}
 
 	return q, nil
+}
+
+func (manager *SSnapshotManager) DataCleaning(ctx context.Context, userCred mcclient.TokenCredential, isStart bool) {
+	err := dataCleaning(manager.TableSpec().Name())
+	if err != nil {
+		log.Errorf("*************  %s:dataCleaning error:%s  ************", manager.TableSpec().Name(), err.Error())
+	}
+}
+
+func dataCleaning(tableName string) error {
+	now := time.Now()
+	monthsDaysAgo := now.AddDate(0, 0, -options.Options.KeepDeletedSnapshotDays).Format("2006-01-02 15:04:05")
+	sqlStr := fmt.Sprintf(
+		"delete from %s  where deleted = 1 and deleted_at < '%s'",
+		tableName,
+		monthsDaysAgo,
+	)
+	q := sqlchemy.NewRawQuery(sqlStr)
+	rows, err := q.Rows()
+	if err != nil {
+		return errors.Wrapf(err, "unable to delete expired data in %q", tableName)
+	}
+	defer rows.Close()
+	log.Infof("delete expired data in %q successfully", tableName)
+	return nil
 }

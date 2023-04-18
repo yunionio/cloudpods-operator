@@ -170,6 +170,7 @@ type ComputeOptions struct {
 	common_options.DBOptions
 
 	EnableAutoMergeSecurityGroup bool `help:"Enable auto merge secgroup when sync security group from cloud, default False" default:"false"`
+	EnableAutoSplitSecurityGroup bool `help:"Enable auto split secgroup when sync security group with diffrent rules from cloud, default False" default:"true"`
 	DeleteSnapshotExpiredRelease bool `help:"Should the virtual machine be automatically deleted when the virtual machine expires?" default:"false"`
 	DeleteEipExpiredRelease      bool `help:"Should the EIP  be automatically deleted when the virtual machine expires?" default:"false"`
 	DeleteDisksExpiredRelease    bool `help:"Should the Disks be automatically deleted when the virtual machine expires?" default:"false"`
@@ -186,6 +187,8 @@ type ComputeOptions struct {
 
 	DefaultIPAllocationDirection string `help:"default IP allocation direction" default:"stepdown"`
 
+	CleanupSnapshots        bool `help:"create a cronjob to cleaning snapshots every day" default:"true"`
+	KeepDeletedSnapshotDays int  `help:"The day of cleanup snapshot" default:"30"`
 	// 弹性伸缩中的ecs一般会有特殊的系统标签，通过指定这些标签可以忽略这部分ecs的同步, 指定多个key需要以 ',' 分隔
 	SkipServerBySysTagKeys  string `help:"skip server,disk sync and create with system tags" default:"acs:autoscaling:scalingGroupId"`
 	SkipServerByUserTagKeys string `help:"skip server,disk sync and create with user tags" default:""`
@@ -199,6 +202,12 @@ type ComputeOptions struct {
 	KvmMonitorAgentUseMetadataService bool   `help:"Monitor agent report metrics to metadata service on host" default:"true"`
 	MonitorEndpointType               string `help:"specify monitor endpoint type" default:"public"`
 	ForceUseOriginVnc                 bool   `help:"force openstack use origin vnc console" default:"true"`
+
+	LocalDataDiskMinSizeGB int `help:"Data disk min size when using local storage" default:"10"`
+	LocalDataDiskMaxSizeGB int `help:"Data disk max size when using local storage" default:"40960"`
+
+	SkuMaxMemSize  int64 `help:"Sku max memory size GB" default:"1024"`
+	SkuMaxCpuCount int64 `help:"Sku max cpu count" default:"256"`
 
 	esxi.EsxiOptions
 }

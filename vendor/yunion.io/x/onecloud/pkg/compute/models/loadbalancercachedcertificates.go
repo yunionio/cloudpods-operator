@@ -94,15 +94,15 @@ func (manager *SCachedLoadbalancerCertificateManager) FetchOwnerId(ctx context.C
 	return db.FetchProjectInfo(ctx, data)
 }
 
-func (manager *SCachedLoadbalancerCertificateManager) FilterByOwner(q *sqlchemy.SQuery, userCred mcclient.IIdentityProvider, scope rbacscope.TRbacScope) *sqlchemy.SQuery {
-	if userCred != nil {
+func (manager *SCachedLoadbalancerCertificateManager) FilterByOwner(q *sqlchemy.SQuery, man db.FilterByOwnerProvider, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, scope rbacscope.TRbacScope) *sqlchemy.SQuery {
+	if ownerId != nil {
 		sq := LoadbalancerCertificateManager.Query("id")
 		switch scope {
 		case rbacscope.ScopeProject:
-			sq = sq.Equals("tenant_id", userCred.GetProjectId())
+			sq = sq.Equals("tenant_id", ownerId.GetProjectId())
 			return q.In("certificate_id", sq.SubQuery())
 		case rbacscope.ScopeDomain:
-			sq = sq.Equals("domain_id", userCred.GetProjectDomainId())
+			sq = sq.Equals("domain_id", ownerId.GetProjectDomainId())
 			return q.In("certificate_id", sq.SubQuery())
 		}
 	}
@@ -404,7 +404,13 @@ func (self *SCloudprovider) getLoadbalancerCertificatesByRegion(region *SCloudre
 	return ret, nil
 }
 
-func (self *SCloudprovider) SyncLoadbalancerCertificates(ctx context.Context, userCred mcclient.TokenCredential, region *SCloudregion, certificates []cloudprovider.ICloudLoadbalancerCertificate) compare.SyncResult {
+func (self *SCloudprovider) SyncLoadbalancerCertificates(
+	ctx context.Context,
+	userCred mcclient.TokenCredential,
+	region *SCloudregion,
+	certificates []cloudprovider.ICloudLoadbalancerCertificate,
+	xor bool,
+) compare.SyncResult {
 	lockman.LockRawObject(ctx, CachedLoadbalancerCertificateManager.Keyword(), fmt.Sprintf("%s-%s", self.Id, region.Id))
 	defer lockman.ReleaseRawObject(ctx, CachedLoadbalancerCertificateManager.Keyword(), fmt.Sprintf("%s-%s", self.Id, region.Id))
 
@@ -435,13 +441,15 @@ func (self *SCloudprovider) SyncLoadbalancerCertificates(ctx context.Context, us
 		}
 		syncResult.Delete()
 	}
-	for i := 0; i < len(commondb); i++ {
-		err = commondb[i].SyncWithCloudLoadbalancerCertificate(ctx, userCred, commonext[i])
-		if err != nil {
-			syncResult.UpdateError(err)
-			continue
+	if !xor {
+		for i := 0; i < len(commondb); i++ {
+			err = commondb[i].SyncWithCloudLoadbalancerCertificate(ctx, userCred, commonext[i])
+			if err != nil {
+				syncResult.UpdateError(err)
+				continue
+			}
+			syncResult.Update()
 		}
-		syncResult.Update()
 	}
 	for i := 0; i < len(added); i++ {
 		err := self.newFromCloudLoadbalancerCertificate(ctx, userCred, added[i], region)

@@ -46,6 +46,7 @@ const (
 	USER_TAG_PREFIX      = dbapi.USER_TAG_PREFIX
 	SYS_CLOUD_TAG_PREFIX = dbapi.SYS_CLOUD_TAG_PREFIX
 	CLASS_TAG_PREFIX     = dbapi.CLASS_TAT_PREFIX
+	SKU_METADAT_KEY      = "md5"
 
 	// TAG_DELETE_RANGE_USER  = "user"
 	// TAG_DELETE_RANGE_CLOUD = CLOUD_TAG_PREFIX // "cloud"
@@ -406,7 +407,7 @@ func (manager *SMetadataManager) ListItemFilter(ctx context.Context, q *sqlchemy
 				log.Warningf("FetchCheckQueryOwnerScope.%s error: %v", man.Keyword(), err)
 				continue
 			}
-			sq = man.FilterByOwner(sq, ownerId, queryScope)
+			sq = man.FilterByOwner(sq, man, userCred, ownerId, queryScope)
 			sq = man.FilterBySystemAttributes(sq, userCred, query, queryScope)
 			sq = man.FilterByHiddenSystemAttributes(sq, userCred, query, queryScope)
 			conditions = append(conditions, sqlchemy.In(q.Field("obj_id"), sq))

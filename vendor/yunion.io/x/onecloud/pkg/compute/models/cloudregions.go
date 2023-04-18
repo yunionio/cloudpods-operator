@@ -24,6 +24,7 @@ import (
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
 	"yunion.io/x/pkg/errors"
+	"yunion.io/x/pkg/gotypes"
 	"yunion.io/x/pkg/util/compare"
 	"yunion.io/x/pkg/util/rbacscope"
 	"yunion.io/x/pkg/utils"
@@ -83,20 +84,20 @@ func (self *SCloudregion) CustomizeCreate(ctx context.Context, userCred mcclient
 	return nil
 }
 
-func (self *SCloudregion) ValidateDeleteCondition(ctx context.Context, info jsonutils.JSONObject) error {
-	zoneCnt, err := self.GetZoneCount()
-	if err != nil {
-		return httperrors.NewInternalServerError("GetZoneCount fail %s", err)
-	}
-	vpcCnt, err := self.GetVpcCount()
-	if err != nil {
-		return httperrors.NewInternalServerError("GetVpcCount fail %s", err)
-	}
-	if zoneCnt > 0 || vpcCnt > 0 {
-		return httperrors.NewNotEmptyError("not empty cloud region")
-	}
+func (self *SCloudregion) ValidateDeleteCondition(ctx context.Context, info *api.CloudregionDetails) error {
 	if self.Id == api.DEFAULT_REGION_ID {
 		return httperrors.NewProtectedResourceError("not allow to delete default cloud region")
+	}
+	if gotypes.IsNil(info) {
+		info := &api.CloudregionDetails{}
+		usage, err := CloudregionManager.TotalResourceCount([]string{self.Id})
+		if err != nil {
+			return err
+		}
+		info.SCloudregionUsage, _ = usage[self.Id]
+	}
+	if info.ZoneCount > 0 || info.VpcCount > 0 {
+		return httperrors.NewNotEmptyError("not empty cloud region")
 	}
 	return self.SEnabledStatusStandaloneResourceBase.ValidateDeleteCondition(ctx, nil)
 }
@@ -304,6 +305,93 @@ func (self *SCloudregion) getUsage() api.SCloudregionUsage {
 	return out
 }
 
+type SRegionUsageCount struct {
+	Id string
+	api.SCloudregionUsage
+}
+
+func (cm *SCloudregionManager) query(manager db.IModelManager, field string, regionIds []string, filter func(*sqlchemy.SQuery) *sqlchemy.SQuery) *sqlchemy.SSubQuery {
+	q := manager.Query()
+
+	if filter != nil {
+		q = filter(q)
+	}
+
+	sq := q.SubQuery()
+
+	return sq.Query(
+		sq.Field("cloudregion_id"),
+		sqlchemy.COUNT(field),
+	).In("cloudregion_id", regionIds).GroupBy(sq.Field("cloudregion_id")).SubQuery()
+}
+
+func (manager *SCloudregionManager) TotalResourceCount(regionIds []string) (map[string]api.SCloudregionUsage, error) {
+	vpcSQ := manager.query(VpcManager, "vpc_cnt", regionIds, nil)
+	zoneSQ := manager.query(ZoneManager, "zone_cnt", regionIds, nil)
+	guestSQ := manager.query(GuestManager, "guest_cnt", regionIds, func(q *sqlchemy.SQuery) *sqlchemy.SQuery {
+		hosts := HostManager.Query().SubQuery()
+		zones := ZoneManager.Query().SubQuery()
+		sq := q.SubQuery()
+		return sq.Query(
+			sq.Field("id"),
+			zones.Field("cloudregion_id").Label("cloudregion_id"),
+		).Join(hosts, sqlchemy.Equals(sq.Field("host_id"), hosts.Field("id"))).Join(zones, sqlchemy.Equals(zones.Field("id"), hosts.Field("zone_id")))
+	})
+	guestIncSQ := manager.query(GuestManager, "guest_increment_cnt", regionIds, func(q *sqlchemy.SQuery) *sqlchemy.SQuery {
+		hosts := HostManager.Query().SubQuery()
+		zones := ZoneManager.Query().SubQuery()
+		year, month, _ := time.Now().UTC().Date()
+		startOfMonth := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
+		q = q.GE("created_at", startOfMonth)
+		sq := q.SubQuery()
+		return sq.Query(
+			sq.Field("id"),
+			zones.Field("cloudregion_id").Label("cloudregion_id"),
+		).Join(hosts, sqlchemy.Equals(sq.Field("host_id"), hosts.Field("id"))).Join(zones, sqlchemy.Equals(zones.Field("id"), hosts.Field("zone_id")))
+	})
+	networkSQ := manager.query(NetworkManager, "network_cnt", regionIds, func(q *sqlchemy.SQuery) *sqlchemy.SQuery {
+		wires := WireManager.Query().SubQuery()
+		vpcs := VpcManager.Query().SubQuery()
+		sq := q.SubQuery()
+		return sq.Query(
+			sq.Field("id"),
+			vpcs.Field("cloudregion_id").Label("cloudregion_id"),
+		).Join(wires, sqlchemy.Equals(sq.Field("wire_id"), wires.Field("id"))).Join(vpcs, sqlchemy.Equals(vpcs.Field("id"), wires.Field("vpc_id")))
+	})
+
+	regions := manager.Query().SubQuery()
+	regionQ := regions.Query(
+		sqlchemy.SUM("vpc_count", vpcSQ.Field("vpc_cnt")),
+		sqlchemy.SUM("zone_count", zoneSQ.Field("zone_cnt")),
+		sqlchemy.SUM("guest_count", guestSQ.Field("guest_cnt")),
+		sqlchemy.SUM("guest_increment_count", guestIncSQ.Field("guest_increment_cnt")),
+		sqlchemy.SUM("network_count", networkSQ.Field("network_cnt")),
+	)
+
+	regionQ.AppendField(regionQ.Field("id"))
+
+	regionQ = regionQ.LeftJoin(vpcSQ, sqlchemy.Equals(regionQ.Field("id"), vpcSQ.Field("cloudregion_id")))
+	regionQ = regionQ.LeftJoin(zoneSQ, sqlchemy.Equals(regionQ.Field("id"), zoneSQ.Field("cloudregion_id")))
+	regionQ = regionQ.LeftJoin(guestSQ, sqlchemy.Equals(regionQ.Field("id"), guestSQ.Field("cloudregion_id")))
+	regionQ = regionQ.LeftJoin(guestIncSQ, sqlchemy.Equals(regionQ.Field("id"), guestIncSQ.Field("cloudregion_id")))
+	regionQ = regionQ.LeftJoin(networkSQ, sqlchemy.Equals(regionQ.Field("id"), networkSQ.Field("cloudregion_id")))
+
+	regionQ = regionQ.Filter(sqlchemy.In(regionQ.Field("id"), regionIds)).GroupBy(regionQ.Field("id"))
+
+	regionCount := []SRegionUsageCount{}
+	err := regionQ.All(&regionCount)
+	if err != nil {
+		return nil, errors.Wrapf(err, "regionQ.All")
+	}
+
+	result := map[string]api.SCloudregionUsage{}
+	for i := range regionCount {
+		result[regionCount[i].Id] = regionCount[i].SCloudregionUsage
+	}
+
+	return result, nil
+}
+
 func (manager *SCloudregionManager) FetchCustomizeColumns(
 	ctx context.Context,
 	userCred mcclient.TokenCredential,
@@ -314,13 +402,22 @@ func (manager *SCloudregionManager) FetchCustomizeColumns(
 ) []api.CloudregionDetails {
 	rows := make([]api.CloudregionDetails, len(objs))
 	stdRows := manager.SEnabledStatusStandaloneResourceBaseManager.FetchCustomizeColumns(ctx, userCred, query, objs, fields, isList)
+	regionIds := make([]string, len(objs))
 	for i := range rows {
 		region := objs[i].(*SCloudregion)
 		rows[i] = api.CloudregionDetails{
 			EnabledStatusStandaloneResourceDetails: stdRows[i],
-			SCloudregionUsage:                      region.getUsage(),
 			CloudEnv:                               region.GetCloudEnv(),
 		}
+		regionIds[i] = region.Id
+	}
+	count, err := manager.TotalResourceCount(regionIds)
+	if err != nil {
+		log.Errorf("TotalResourceCount")
+		return rows
+	}
+	for i := range rows {
+		rows[i].SCloudregionUsage, _ = count[regionIds[i]]
 	}
 	return rows
 }
@@ -678,6 +775,50 @@ func (manager *SCloudregionManager) OrderByExtraFields(ctx context.Context, q *s
 	if err != nil {
 		return nil, errors.Wrap(err, "SEnabledStatusStandaloneResourceBaseManager.OrderByExtraFields")
 	}
+	if db.NeedOrderQuery([]string{query.OrderByZoneCount}) {
+		zQ := ZoneManager.Query()
+		zQ = zQ.AppendField(zQ.Field("cloudregion_id"), sqlchemy.COUNT("zone_count", zQ.Field("cloudregion_id")))
+		zQ = zQ.GroupBy(zQ.Field("cloudregion_id"))
+		zSQ := zQ.SubQuery()
+		q = q.LeftJoin(zSQ, sqlchemy.Equals(zSQ.Field("cloudregion_id"), q.Field("id")))
+		q = q.AppendField(q.QueryFields()...)
+		q = q.AppendField(zSQ.Field("zone_count"))
+		q = db.OrderByFields(q, []string{query.OrderByZoneCount}, []sqlchemy.IQueryField{q.Field("zone_count")})
+	}
+	if db.NeedOrderQuery([]string{query.OrderByVpcCount}) {
+		vQ := VpcManager.Query()
+		vQ = vQ.AppendField(vQ.Field("cloudregion_id"), sqlchemy.COUNT("vpc_count", vQ.Field("cloudregion_id")))
+		vQ = vQ.GroupBy(vQ.Field("cloudregion_id"))
+		vSQ := vQ.SubQuery()
+		q = q.LeftJoin(vSQ, sqlchemy.Equals(vSQ.Field("cloudregion_id"), q.Field("id")))
+		q = q.AppendField(q.QueryFields()...)
+		q = q.AppendField(vSQ.Field("vpc_count"))
+		q = db.OrderByFields(q, []string{query.OrderByZoneCount}, []sqlchemy.IQueryField{q.Field("vpc_count")})
+	}
+	if db.NeedOrderQuery([]string{query.OrderByGuestCount}) {
+		guestQ := GuestManager.Query()
+		guestQ = guestQ.AppendField(guestQ.Field("host_id"), sqlchemy.COUNT("guest_count"))
+		guestQ = guestQ.GroupBy(guestQ.Field("host_id"))
+		guestSQ := guestQ.SubQuery()
+
+		hostQ := HostManager.Query()
+		hostQ = hostQ.LeftJoin(guestSQ, sqlchemy.Equals(guestSQ.Field("host_id"), hostQ.Field("id")))
+		hostQ = hostQ.AppendField(hostQ.QueryFields()...)
+		hostQ = hostQ.AppendField(hostQ.Field("zone_id"), sqlchemy.COUNT("guest_count", guestSQ.Field("guest_count")))
+		hostQ = hostQ.GroupBy("zone_id")
+		hostSQ := hostQ.SubQuery()
+
+		zQ := ZoneManager.Query()
+		zQ = zQ.AppendField(zQ.Field("cloudregion_id"), sqlchemy.COUNT("guest_count", hostSQ.Field("guest_count")))
+		zQ = zQ.GroupBy(zQ.Field("cloudregion_id"))
+		zQ = zQ.LeftJoin(hostSQ, sqlchemy.Equals(zQ.Field("id"), hostSQ.Field("zone_id")))
+		zSQ := zQ.SubQuery()
+
+		q = q.LeftJoin(zSQ, sqlchemy.Equals(zSQ.Field("cloudregion_id"), q.Field("id")))
+		q = q.AppendField(q.QueryFields()...)
+		q = q.AppendField(zSQ.Field("guest_count"))
+		q = db.OrderByFields(q, []string{query.OrderByGuestCount}, []sqlchemy.IQueryField{q.Field("guest_count")})
+	}
 	return q, nil
 }
 
@@ -927,7 +1068,7 @@ func (self *SCloudregion) GetDetailsDiskCapability(ctx context.Context, userCred
 }
 
 func (self *SCloudregion) GetNetworkCount() (int, error) {
-	return getNetworkCount(nil, rbacscope.ScopeSystem, self, nil)
+	return getNetworkCount(nil, nil, rbacscope.ScopeSystem, self, nil)
 }
 
 func (self *SCloudregion) getMinNicCount() int {
@@ -1002,9 +1143,9 @@ func (self *SCloudregion) GetSystemImageCount() (int, error) {
 	return q.CountWithError()
 }
 
-func (self *SCloudregion) SyncCloudImages(ctx context.Context, userCred mcclient.TokenCredential, refresh bool) error {
-	lockman.LockRawObject(ctx, "cloudimages", self.Id)
-	defer lockman.ReleaseRawObject(ctx, "cloudimages", self.Id)
+func (self *SCloudregion) SyncCloudImages(ctx context.Context, userCred mcclient.TokenCredential, refresh, xor bool) error {
+	lockman.LockRawObject(ctx, CloudimageManager.Keyword(), self.Id)
+	defer lockman.ReleaseRawObject(ctx, CloudimageManager.Keyword(), self.Id)
 
 	systemImageCount, err := self.GetSystemImageCount()
 	if err != nil {
@@ -1047,13 +1188,15 @@ func (self *SCloudregion) SyncCloudImages(ctx context.Context, userCred mcclient
 		result.Delete()
 	}
 
-	for i := 0; i < len(commonext); i++ {
-		err := commondb[i].syncWithImage(ctx, userCred, commonext[i])
-		if err != nil {
-			result.UpdateError(errors.Wrapf(err, "updateCachedImage"))
-			continue
+	if !xor {
+		for i := 0; i < len(commonext); i++ {
+			err := commondb[i].syncWithImage(ctx, userCred, commonext[i])
+			if err != nil {
+				result.UpdateError(errors.Wrapf(err, "updateCachedImage"))
+				continue
+			}
+			result.Update()
 		}
-		result.Update()
 	}
 
 	for i := 0; i < len(added); i++ {

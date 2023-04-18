@@ -1185,12 +1185,16 @@ func (self *SGuest) insertIso(imageId string, cdromOrdinal int64) bool {
 	return cdrom.insertIso(imageId)
 }
 
-func (self *SGuest) InsertIsoSucc(cdromOrdinal int64, imageId string, path string, size int64, name string, bootIndex *int8) bool {
+func (self *SGuest) InsertIsoSucc(cdromOrdinal int64, imageId string, path string, size int64, name string, bootIndex *int8) (*SGuestcdrom, bool) {
 	cdrom := self.getCdrom(false, cdromOrdinal)
-	return cdrom.insertIsoSucc(imageId, path, size, name, bootIndex)
+	return cdrom, cdrom.insertIsoSucc(imageId, path, size, name, bootIndex)
 }
 
-func (self *SGuest) GetDetailsIso(cdromOrdinal int64, userCred mcclient.TokenCredential) jsonutils.JSONObject {
+func (self *SGuest) GetDetailsIso(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject) (jsonutils.JSONObject, error) {
+	var cdromOrdinal int64 = 0
+	if query.Contains("ordinal") {
+		cdromOrdinal, _ = query.Int("ordinal")
+	}
 	cdrom := self.getCdrom(false, cdromOrdinal)
 	desc := jsonutils.NewDict()
 	if len(cdrom.ImageId) > 0 {
@@ -1202,7 +1206,7 @@ func (self *SGuest) GetDetailsIso(cdromOrdinal int64, userCred mcclient.TokenCre
 		desc.Set("size", jsonutils.NewInt(int64(cdrom.Size)))
 		desc.Set("status", jsonutils.NewString("ready"))
 	}
-	return desc
+	return desc, nil
 }
 
 func (self *SGuest) PerformInsertiso(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
@@ -1929,6 +1933,7 @@ func (self *SGuest) detachIsolateDevice(ctx context.Context, userCred mcclient.T
 	_, err := db.Update(dev, func() error {
 		dev.GuestId = ""
 		dev.NetworkIndex = -1
+		dev.DiskIndex = -1
 		return nil
 	})
 	if err != nil {
@@ -1951,7 +1956,7 @@ func (self *SGuest) PerformAttachIsolatedDevice(ctx context.Context, userCred mc
 	autoStart := jsonutils.QueryBoolean(data, "auto_start", false)
 	if data.Contains("device") {
 		device, _ := data.GetString("device")
-		err = self.StartAttachIsolatedDeviceWithoutNic(ctx, userCred, device, autoStart)
+		err = self.StartAttachIsolatedDeviceGpuOrUsb(ctx, userCred, device, autoStart)
 	} else if data.Contains("model") {
 		vmodel, _ := data.GetString("model")
 		var count int64 = 1
@@ -1993,7 +1998,7 @@ func (self *SGuest) startAttachIsolatedDevices(ctx context.Context, userCred mcc
 	}
 	defer func() { go host.ClearSchedDescCache() }()
 	for i := 0; i < len(devs); i++ {
-		err = self.attachIsolatedDevice(ctx, userCred, &devs[i], nil)
+		err = self.attachIsolatedDevice(ctx, userCred, &devs[i], nil, nil)
 		if err != nil {
 			return err
 		}
@@ -2001,15 +2006,15 @@ func (self *SGuest) startAttachIsolatedDevices(ctx context.Context, userCred mcc
 	return nil
 }
 
-func (self *SGuest) StartAttachIsolatedDeviceWithoutNic(ctx context.Context, userCred mcclient.TokenCredential, device string, autoStart bool) error {
-	if err := self.startAttachIsolatedDeviceWithoutNic(ctx, userCred, device); err != nil {
+func (self *SGuest) StartAttachIsolatedDeviceGpuOrUsb(ctx context.Context, userCred mcclient.TokenCredential, device string, autoStart bool) error {
+	if err := self.startAttachIsolatedDevGpuOrUsb(ctx, userCred, device); err != nil {
 		return err
 	}
 	// perform post attach task
 	return self.startIsolatedDevicesSyncTask(ctx, userCred, autoStart, "")
 }
 
-func (self *SGuest) startAttachIsolatedDeviceWithoutNic(ctx context.Context, userCred mcclient.TokenCredential, device string) error {
+func (self *SGuest) startAttachIsolatedDevGpuOrUsb(ctx context.Context, userCred mcclient.TokenCredential, device string) error {
 	iDev, err := IsolatedDeviceManager.FetchByIdOrName(userCred, device)
 	if err != nil {
 		msgFmt := "Isolated device %s not found"
@@ -2018,16 +2023,16 @@ func (self *SGuest) startAttachIsolatedDeviceWithoutNic(ctx context.Context, use
 		return httperrors.NewBadRequestError(msgFmt, device)
 	}
 	dev := iDev.(*SIsolatedDevice)
-	if dev.DevType == api.NIC_TYPE {
-		return httperrors.NewBadRequestError("Can't separately attach dev type %s", api.NIC_TYPE)
+	if !utils.IsInStringArray(dev.DevType, []string{api.GPU_HPC_TYPE, api.GPU_VGA_TYPE, api.USB_TYPE}) {
+		return httperrors.NewBadRequestError("Can't separately attach dev type %s", dev.DevType)
 	}
-	if dev.IsGPU() && !utils.IsInStringArray(self.GetStatus(), []string{api.VM_READY, api.VM_RUNNING}) {
+	if !utils.IsInStringArray(self.GetStatus(), []string{api.VM_READY, api.VM_RUNNING}) {
 		return httperrors.NewInvalidStatusError("Can't attach GPU when status is %q", self.GetStatus())
 	}
 	host, _ := self.GetHost()
 	lockman.LockObject(ctx, host)
 	defer lockman.ReleaseObject(ctx, host)
-	err = self.attachIsolatedDevice(ctx, userCred, dev, nil)
+	err = self.attachIsolatedDevice(ctx, userCred, dev, nil, nil)
 	var msg string
 	if err != nil {
 		msg = err.Error()
@@ -2038,7 +2043,7 @@ func (self *SGuest) startAttachIsolatedDeviceWithoutNic(ctx context.Context, use
 	return err
 }
 
-func (self *SGuest) attachIsolatedDevice(ctx context.Context, userCred mcclient.TokenCredential, dev *SIsolatedDevice, networkIndex *int8) error {
+func (self *SGuest) attachIsolatedDevice(ctx context.Context, userCred mcclient.TokenCredential, dev *SIsolatedDevice, networkIndex, diskIndex *int8) error {
 	if len(dev.GuestId) > 0 {
 		return fmt.Errorf("Isolated device already attached to another guest: %s", dev.GuestId)
 	}
@@ -2052,6 +2057,11 @@ func (self *SGuest) attachIsolatedDevice(ctx context.Context, userCred mcclient.
 			dev.NetworkIndex = *networkIndex
 		} else {
 			dev.NetworkIndex = -1
+		}
+		if diskIndex != nil {
+			dev.DiskIndex = *diskIndex
+		} else {
+			dev.DiskIndex = -1
 		}
 		return nil
 	})
@@ -2103,7 +2113,7 @@ func (self *SGuest) PerformSetIsolatedDevice(ctx context.Context, userCred mccli
 		}
 	}
 	for i := 0; i < len(addDevs); i++ {
-		err := self.startAttachIsolatedDeviceWithoutNic(ctx, userCred, addDevs[i])
+		err := self.startAttachIsolatedDevGpuOrUsb(ctx, userCred, addDevs[i])
 		if err != nil {
 			return nil, err
 		}
@@ -2377,7 +2387,7 @@ func (self *SGuest) PerformAttachnetwork(ctx context.Context, userCred mcclient.
 			if err != nil {
 				return nil, httperrors.NewInputParameterError("parse isolated device description error %s", err)
 			}
-			err = IsolatedDeviceManager.isValidNicDeviceinfo(devConfig)
+			err = IsolatedDeviceManager.isValidNicDeviceInfo(devConfig)
 			if err != nil {
 				return nil, err
 			}
@@ -3377,7 +3387,7 @@ func (manager *SGuestManager) getGuests(userCred mcclient.TokenCredential, data 
 	guests := []SGuest{}
 	q1 := manager.Query().In("id", _guests)
 	q2 := manager.Query().In("name", _guests)
-	q2 = manager.FilterByOwner(q2, userCred, manager.NamespaceScope())
+	q2 = manager.FilterByOwner(q2, manager, userCred, userCred, manager.NamespaceScope())
 	q2 = manager.FilterBySystemAttributes(q2, userCred, data, manager.ResourceScope())
 	q := sqlchemy.Union(q1, q2).Query().Distinct()
 	err := db.FetchModelObjects(manager, q, &guests)

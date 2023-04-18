@@ -48,7 +48,7 @@ type SCloudimage struct {
 	db.SStandaloneResourceBase
 	db.SExternalizedResourceBase
 
-	SCloudregionResourceBase
+	SCloudregionResourceBase `width:"36" charset:"ascii" nullable:"false" list:"user" default:"default" create:"optional" json:"cloudregion_id" index:"true"`
 }
 
 func SyncPublicCloudImages(ctx context.Context, userCred mcclient.TokenCredential, isStart bool) {
@@ -83,10 +83,15 @@ func SyncPublicCloudImages(ctx context.Context, userCred mcclient.TokenCredentia
 
 	for i := range regions {
 		region := &regions[i]
-		oldMd5, _ := imageIndex[region.ExternalId]
+
+		skuMeta := &SCloudimage{}
+		skuMeta.SetModelManager(CloudimageManager, skuMeta)
+		skuMeta.Id = region.ExternalId
+
+		oldMd5 := db.Metadata.GetStringValue(ctx, skuMeta, db.SKU_METADAT_KEY, userCred)
 		newMd5, ok := index[region.ExternalId]
 		if ok {
-			imageIndex[region.ExternalId] = newMd5
+			db.Metadata.SetValue(ctx, skuMeta, db.SKU_METADAT_KEY, newMd5, userCred)
 		}
 
 		if newMd5 == EMPTY_MD5 {
@@ -99,7 +104,7 @@ func SyncPublicCloudImages(ctx context.Context, userCred mcclient.TokenCredentia
 			continue
 		}
 
-		err = regions[i].SyncCloudImages(ctx, userCred, !isStart)
+		err = regions[i].SyncCloudImages(ctx, userCred, !isStart, false)
 		if err != nil {
 			log.Errorf("SyncCloudImages for region %s(%s) error: %v", regions[i].Name, regions[i].Id, err)
 			continue

@@ -145,10 +145,10 @@ type SElasticcache struct {
 
 	// 维护开始时间，格式为HH:mmZ
 	// example: 02:00Z
-	MaintainStartTime string `width:"8" charset:"ascii" nullable:"true" list:"user" create:"optional" json:"maintain_start_time"`
+	MaintainStartTime string `width:"16" charset:"ascii" nullable:"true" list:"user" create:"optional" json:"maintain_start_time"`
 
 	// 维护结束时间
-	MaintainEndTime string `width:"8" charset:"ascii" nullable:"true" list:"user" create:"optional" json:"maintain_end_time"`
+	MaintainEndTime string `width:"16" charset:"ascii" nullable:"true" list:"user" create:"optional" json:"maintain_end_time"`
 
 	// 访问密码？ on （开启密码）|off （免密码访问）
 	AuthMode string `width:"8" charset:"ascii" nullable:"false" list:"user" create:"optional" json:"auth_mode"`
@@ -498,9 +498,17 @@ func (manager *SElasticcacheManager) QueryDistinctExtraField(q *sqlchemy.SQuery,
 	return q, httperrors.ErrNotFound
 }
 
-func (manager *SElasticcacheManager) SyncElasticcaches(ctx context.Context, userCred mcclient.TokenCredential, syncOwnerId mcclient.IIdentityProvider, provider *SCloudprovider, region *SCloudregion, cloudElasticcaches []cloudprovider.ICloudElasticcache) ([]SElasticcache, []cloudprovider.ICloudElasticcache, compare.SyncResult) {
-	lockman.LockRawObject(ctx, "elastic-cache", fmt.Sprintf("%s-%s", provider.Id, region.Id))
-	defer lockman.ReleaseRawObject(ctx, "elastic-cache", fmt.Sprintf("%s-%s", provider.Id, region.Id))
+func (manager *SElasticcacheManager) SyncElasticcaches(
+	ctx context.Context,
+	userCred mcclient.TokenCredential,
+	syncOwnerId mcclient.IIdentityProvider,
+	provider *SCloudprovider,
+	region *SCloudregion,
+	cloudElasticcaches []cloudprovider.ICloudElasticcache,
+	xor bool,
+) ([]SElasticcache, []cloudprovider.ICloudElasticcache, compare.SyncResult) {
+	lockman.LockRawObject(ctx, manager.Keyword(), fmt.Sprintf("%s-%s", provider.Id, region.Id))
+	defer lockman.ReleaseRawObject(ctx, manager.Keyword(), fmt.Sprintf("%s-%s", provider.Id, region.Id))
 
 	localElasticcaches := []SElasticcache{}
 	remoteElasticcaches := []cloudprovider.ICloudElasticcache{}
@@ -537,15 +545,17 @@ func (manager *SElasticcacheManager) SyncElasticcaches(ctx context.Context, user
 		}
 	}
 
-	for i := 0; i < len(commondb); i++ {
-		err := commondb[i].SyncWithCloudElasticcache(ctx, userCred, provider, commonext[i])
-		if err != nil {
-			syncResult.UpdateError(err)
-			continue
+	if !xor {
+		for i := 0; i < len(commondb); i++ {
+			err := commondb[i].SyncWithCloudElasticcache(ctx, userCred, provider, commonext[i])
+			if err != nil {
+				syncResult.UpdateError(err)
+				continue
+			}
+			localElasticcaches = append(localElasticcaches, commondb[i])
+			remoteElasticcaches = append(remoteElasticcaches, commonext[i])
+			syncResult.Update()
 		}
-		localElasticcaches = append(localElasticcaches, commondb[i])
-		remoteElasticcaches = append(remoteElasticcaches, commonext[i])
-		syncResult.Update()
 	}
 
 	for i := 0; i < len(added); i++ {
@@ -567,22 +577,11 @@ func (self *SElasticcache) syncRemoveCloudElasticcache(ctx context.Context, user
 
 	self.SetDisableDelete(userCred, false)
 
-	self.DeleteSubResources(ctx, userCred)
-
-	err := self.ValidatePurgeCondition(ctx)
-	if err != nil {
-		self.SetStatus(userCred, api.ELASTIC_CACHE_STATUS_ERROR, "sync to delete")
-		return errors.Wrap(err, "ValidateDeleteCondition")
-	}
-	err = self.SVirtualResourceBase.Delete(ctx, userCred)
-	if err != nil {
-		return err
-	}
 	notifyclient.EventNotify(ctx, userCred, notifyclient.SEventNotifyParam{
 		Obj:    self,
 		Action: notifyclient.ActionSyncDelete,
 	})
-	return nil
+	return self.RealDelete(ctx, userCred)
 }
 
 func (self *SElasticcache) SyncWithCloudElasticcache(ctx context.Context, userCred mcclient.TokenCredential, provider *SCloudprovider, extInstance cloudprovider.ICloudElasticcache) error {
@@ -1408,53 +1407,63 @@ func (self *SElasticcache) StartSyncTask(ctx context.Context, userCred mcclient.
 }
 
 // 清理所有关联资源记录
-func (self *SElasticcache) DeleteSubResources(ctx context.Context, userCred mcclient.TokenCredential) {
+func (self *SElasticcache) DeleteSubResources(ctx context.Context, userCred mcclient.TokenCredential) error {
 	ms := []db.IResourceModelManager{
+		ElasticcachesecgroupManager,
 		ElasticcacheAccountManager,
 		ElasticcacheAclManager,
 		ElasticcacheBackupManager,
 		ElasticcacheParameterManager,
 	}
-
 	ownerId := self.GetOwnerId()
-	for _, m := range ms {
-		func(man db.IResourceModelManager) {
-			lockman.LockClass(ctx, man, db.GetLockClassKey(man, ownerId))
-			defer lockman.ReleaseClass(ctx, man, db.GetLockClassKey(man, ownerId))
-			q := man.Query().IsFalse("deleted").Equals("elasticcache_id", self.GetId())
+	delFunc := func(man db.IResourceModelManager) error {
+		lockman.LockClass(ctx, man, db.GetLockClassKey(man, ownerId))
+		defer lockman.ReleaseClass(ctx, man, db.GetLockClassKey(man, ownerId))
+		q := man.Query().IsFalse("deleted").Equals("elasticcache_id", self.GetId())
 
-			models := make([]interface{}, 0)
-			err := db.FetchModelObjects(man, q, &models)
+		models := make([]interface{}, 0)
+		err := db.FetchModelObjects(man, q, &models)
+		if err != nil {
+			return errors.Wrapf(err, "db.FetchModelObjects")
+		}
+
+		for i := range models {
+			var imodel db.IModel
+			switch models[i].(type) {
+			case SElasticcachesecgroup:
+				_m := models[i].(SElasticcachesecgroup)
+				imodel = &_m
+			case SElasticcacheAccount:
+				_m := models[i].(SElasticcacheAccount)
+				imodel = &_m
+			case SElasticcacheAcl:
+				_m := models[i].(SElasticcacheAcl)
+				imodel = &_m
+			case SElasticcacheBackup:
+				_m := models[i].(SElasticcacheBackup)
+				imodel = &_m
+			case SElasticcacheParameter:
+				_m := models[i].(SElasticcacheParameter)
+				imodel = &_m
+			default:
+				log.Errorf("elasticcache.DeleteSubResources.UnknownModelType %s", models[i])
+			}
+
+			err = db.DeleteModel(ctx, userCred, imodel)
 			if err != nil {
-				log.Errorf("elasticcache.DeleteSubResources.FetchModelObjects %s", err)
+				return errors.Wrapf(err, "db.DeleteModel")
 			}
-
-			for i := range models {
-				var imodel db.IModel
-				switch models[i].(type) {
-				case SElasticcacheAccount:
-					_m := models[i].(SElasticcacheAccount)
-					imodel = &_m
-				case SElasticcacheAcl:
-					_m := models[i].(SElasticcacheAcl)
-					imodel = &_m
-				case SElasticcacheBackup:
-					_m := models[i].(SElasticcacheBackup)
-					imodel = &_m
-				case SElasticcacheParameter:
-					_m := models[i].(SElasticcacheParameter)
-					imodel = &_m
-				default:
-					log.Errorf("elasticcache.DeleteSubResources.UnknownModelType %s", models[i])
-				}
-
-				err = db.DeleteModel(ctx, userCred, imodel)
-				if err != nil {
-					log.Errorf("elasticcache.DeleteSubResources.DeleteModel %s", err)
-				}
-			}
-		}(m)
+		}
+		return nil
 	}
+
+	for i := range ms {
+		err := delFunc(ms[i])
+		if err != nil {
+			return errors.Wrapf(err, "delFunc")
+		}
+	}
+	return nil
 }
 
 func (man *SElasticcacheManager) TotalCount(
@@ -1605,8 +1614,15 @@ func (self *SElasticcache) doExternalSync(ctx context.Context, userCred mcclient
 }
 
 func (self *SElasticcache) Delete(ctx context.Context, userCred mcclient.TokenCredential) error {
-	log.Infof("elasticcache delete do nothing. Do delete in StartDeleteElasticcacheTask")
 	return nil
+}
+
+func (self *SElasticcache) RealDelete(ctx context.Context, userCred mcclient.TokenCredential) error {
+	err := self.DeleteSubResources(ctx, userCred)
+	if err != nil {
+		return err
+	}
+	return self.SVirtualResourceBase.Delete(ctx, userCred)
 }
 
 func (manager *SElasticcacheManager) DeleteExpiredPostpaids(ctx context.Context, userCred mcclient.TokenCredential, isStart bool) {
