@@ -84,9 +84,6 @@ const (
 	IdentitySyncStatusIdle    = "idle"
 
 	MinimalSyncIntervalSeconds = 5 * 60 // 5 minutes
-
-	MaxUserRolesInProject  = 10
-	MaxGroupRolesInProject = 5
 )
 
 var (
@@ -227,6 +224,11 @@ var (
 			"deploy_server_socket_path",
 			"enable_remote_executor",
 			"executor_socket_path",
+
+			// ############################
+			// kubeserver blacklist options
+			// ############################
+			"running_mode",
 		},
 	}
 )

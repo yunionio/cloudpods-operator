@@ -30,6 +30,10 @@ type CloudaccountListOptions struct {
 
 	//DistinctField string `help:"distinct field"`
 	ProxySetting string `help:"Proxy setting id or name"`
+	// 按宿主机数量排序
+	OrderByHostCount string
+	// 按虚拟机数量排序
+	OrderByGuestCount string
 }
 
 func (opts *CloudaccountListOptions) Params() (jsonutils.JSONObject, error) {
@@ -1123,13 +1127,15 @@ func (opts *SubscriptionCreateOptions) Params() (jsonutils.JSONObject, error) {
 
 type ClouaccountProjectMappingOptions struct {
 	SCloudAccountIdOptions
+	ProjectId          string `json:"project_id" help:"default project id"`
+	AutoCreateProject  bool   `help:"auto create project"`
 	ProjectMappingId   string `json:"project_mapping_id" help:"project mapping id"`
 	EnableProjectSync  bool
 	EnableResourceSync bool
 }
 
 func (opts *ClouaccountProjectMappingOptions) Params() (jsonutils.JSONObject, error) {
-	return jsonutils.Marshal(map[string]string{"project_mapping_id": opts.ProjectMappingId}), nil
+	return jsonutils.Marshal(opts), nil
 }
 
 type SNutanixCloudAccountCreateOptions struct {

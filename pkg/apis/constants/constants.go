@@ -386,6 +386,10 @@ const (
 	ServiceTypeScheduledtask = "scheduledtask"
 	ScheduledtaskPort        = 30978
 
+	ServiceNameAPIMap = "apimap"
+	ServiceTypeAPIMap = "apimap"
+	APIMapPort        = 31999
+
 	ServiceNameReport  = "report"
 	ServiceTypeReport  = "report"
 	ReportAdminUser    = "report"

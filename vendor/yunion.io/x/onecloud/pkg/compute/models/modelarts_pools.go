@@ -24,6 +24,7 @@ import (
 	"yunion.io/x/pkg/errors"
 	"yunion.io/x/pkg/util/compare"
 	"yunion.io/x/pkg/util/netutils"
+	"yunion.io/x/pkg/utils"
 	"yunion.io/x/sqlchemy"
 
 	billing_api "yunion.io/x/onecloud/pkg/apis/billing"
@@ -235,7 +236,13 @@ func (self *SCloudregion) GetPools(managerId string) ([]SModelartsPool, error) {
 	return ret, nil
 }
 
-func (self *SCloudregion) SyncModelartsPools(ctx context.Context, userCred mcclient.TokenCredential, provider *SCloudprovider, exts []cloudprovider.ICloudModelartsPool) compare.SyncResult {
+func (self *SCloudregion) SyncModelartsPools(
+	ctx context.Context,
+	userCred mcclient.TokenCredential,
+	provider *SCloudprovider,
+	exts []cloudprovider.ICloudModelartsPool,
+	xor bool,
+) compare.SyncResult {
 	// 加锁防止重入
 	lockman.LockRawObject(ctx, ModelartsPoolManager.KeywordPlural(), fmt.Sprintf("%s-%s", provider.Id, self.Id))
 	defer lockman.ReleaseRawObject(ctx, ModelartsPoolManager.KeywordPlural(), fmt.Sprintf("%s-%s", provider.Id, self.Id))
@@ -267,14 +274,16 @@ func (self *SCloudregion) SyncModelartsPools(ctx context.Context, userCred mccli
 		result.Delete()
 	}
 
-	// 和云上资源属性进行同步
-	for i := 0; i < len(commondb); i++ {
-		err := commondb[i].SyncWithCloudModelartsPool(ctx, userCred, commonext[i])
-		if err != nil {
-			result.UpdateError(err)
-			continue
+	if !xor {
+		// 和云上资源属性进行同步
+		for i := 0; i < len(commondb); i++ {
+			err := commondb[i].SyncWithCloudModelartsPool(ctx, userCred, commonext[i])
+			if err != nil {
+				result.UpdateError(err)
+				continue
+			}
+			result.Update()
 		}
-		result.Update()
 	}
 
 	// 创建本地没有的云上资源
@@ -294,7 +303,7 @@ func (self *SModelartsPool) ValidateDeleteCondition(ctx context.Context, info js
 	if self.DisableDelete.IsTrue() {
 		return httperrors.NewInvalidStatusError("ModelartsPool is locked, cannot delete")
 	}
-	if self.Status != api.MODELARTS_POOL_STATUS_RUNNING && self.Status != api.MODELARTS_POOL_STATUS_UNKNOWN {
+	if utils.IsInStringArray(self.Status, []string{api.MODELARTS_POOL_STATUS_CREATING, api.MODELARTS_POOL_STATUS_DELETING}) {
 		return httperrors.NewInvalidStatusError("ModelartsPool status cannot support delete")
 	}
 	return self.SStatusStandaloneResourceBase.ValidateDeleteCondition(ctx, nil)

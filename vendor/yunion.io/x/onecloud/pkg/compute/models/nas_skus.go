@@ -198,7 +198,7 @@ func (self SNasSku) GetGlobalId() string {
 	return self.ExternalId
 }
 
-func (self *SCloudregion) SyncNasSkus(ctx context.Context, userCred mcclient.TokenCredential, meta *SSkuResourcesMeta) compare.SyncResult {
+func (self *SCloudregion) SyncNasSkus(ctx context.Context, userCred mcclient.TokenCredential, meta *SSkuResourcesMeta, xor bool) compare.SyncResult {
 	lockman.LockRawObject(ctx, self.Id, "nas-sku")
 	defer lockman.ReleaseRawObject(ctx, self.Id, "nas-sku")
 
@@ -235,13 +235,15 @@ func (self *SCloudregion) SyncNasSkus(ctx context.Context, userCred mcclient.Tok
 		}
 		syncResult.Delete()
 	}
-	for i := 0; i < len(commondb); i += 1 {
-		err = commondb[i].syncWithCloudSku(ctx, userCred, commonext[i])
-		if err != nil {
-			syncResult.UpdateError(err)
-			continue
+	if !xor {
+		for i := 0; i < len(commondb); i += 1 {
+			err = commondb[i].syncWithCloudSku(ctx, userCred, commonext[i])
+			if err != nil {
+				syncResult.UpdateError(err)
+				continue
+			}
+			syncResult.Update()
 		}
-		syncResult.Update()
 	}
 	for i := 0; i < len(added); i += 1 {
 		err = self.newFromCloudNasSku(ctx, userCred, added[i])
@@ -274,13 +276,13 @@ func (self *SCloudregion) newFromCloudNasSku(ctx context.Context, userCred mccli
 }
 
 func SyncNasSkus(ctx context.Context, userCred mcclient.TokenCredential, isStart bool) {
-	err := SyncRegionNasSkus(ctx, userCred, "", isStart)
+	err := SyncRegionNasSkus(ctx, userCred, "", isStart, false)
 	if err != nil {
 		log.Errorf("SyncRegionNasSkus error: %v", err)
 	}
 }
 
-func SyncRegionNasSkus(ctx context.Context, userCred mcclient.TokenCredential, regionId string, isStart bool) error {
+func SyncRegionNasSkus(ctx context.Context, userCred mcclient.TokenCredential, regionId string, isStart, xor bool) error {
 	if isStart {
 		q := NasSkuManager.Query()
 		if len(regionId) > 0 {
@@ -312,15 +314,43 @@ func SyncRegionNasSkus(ctx context.Context, userCred mcclient.TokenCredential, r
 		return errors.Wrapf(err, "FetchSkuResourcesMeta")
 	}
 
+	index, err := meta.getSkuIndex(meta.NasBase)
+	if err != nil {
+		log.Errorf("get nas sku index error: %v", err)
+		return err
+	}
+
 	for i := range regions {
-		if !regions[i].GetDriver().IsSupportedNas() {
-			log.Infof("region %s(%s) not support nas, skip sync", regions[i].Name, regions[i].Id)
+		region := regions[i]
+		if !region.GetDriver().IsSupportedNas() {
+			log.Debugf("region %s(%s) not support nas, skip sync", regions[i].Name, regions[i].Id)
 			continue
 		}
-		result := regions[i].SyncNasSkus(ctx, userCred, meta)
+
+		skuMeta := &SNasSku{}
+		skuMeta.SetModelManager(NasSkuManager, skuMeta)
+		skuMeta.Id = region.ExternalId
+
+		oldMd5 := db.Metadata.GetStringValue(ctx, skuMeta, db.SKU_METADAT_KEY, userCred)
+		newMd5, ok := index[region.ExternalId]
+		if ok {
+			db.Metadata.SetValue(ctx, skuMeta, db.SKU_METADAT_KEY, newMd5, userCred)
+		}
+
+		if newMd5 == EMPTY_MD5 {
+			log.Debugf("%s nas skus is empty skip syncing", region.Name)
+			continue
+		}
+
+		if len(oldMd5) > 0 && newMd5 == oldMd5 {
+			log.Debugf("%s nas skus not changed skip syncing", region.Name)
+			continue
+		}
+
+		result := regions[i].SyncNasSkus(ctx, userCred, meta, xor)
 		msg := result.Result()
 		notes := fmt.Sprintf("SyncNasSkus for region %s result: %s", regions[i].Name, msg)
-		log.Infof(notes)
+		log.Debugf(notes)
 	}
 	return nil
 }
