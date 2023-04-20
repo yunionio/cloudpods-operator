@@ -109,9 +109,9 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 	}
 
 	for _, component := range []manager.Manager{
+		components.Keystone(),
 		components.Influxdb(),
 		components.Telegraf(),
-		components.Keystone(),
 		components.Region(),
 		components.Scheduler(),
 		components.Web(),
