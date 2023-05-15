@@ -257,7 +257,7 @@ func (manager *SNetworkManager) GetOrCreateClassicNetwork(ctx context.Context, w
 func (self *SNetwork) GetUsedAddresses() map[string]bool {
 	used := make(map[string]bool)
 
-	q := self.getUsedAddressQuery(nil, rbacscope.ScopeSystem, true)
+	q := self.getUsedAddressQuery(nil, nil, rbacscope.ScopeSystem, true)
 	results, err := q.AllStringMap()
 	if err != nil {
 		log.Errorf("GetUsedAddresses fail %s", err)
@@ -538,7 +538,7 @@ func (self *SNetwork) IsExitNetwork() bool {
 }
 
 func (manager *SNetworkManager) getNetworksByWire(wire *SWire) ([]SNetwork, error) {
-	return wire.getNetworks(nil, rbacscope.ScopeNone)
+	return wire.getNetworks(nil, nil, rbacscope.ScopeNone)
 	/* nets := make([]SNetwork, 0)
 	q := manager.Query().Equals("wire_id", wire.Id)
 	err := db.FetchModelObjects(manager, q, &nets)
@@ -549,11 +549,18 @@ func (manager *SNetworkManager) getNetworksByWire(wire *SWire) ([]SNetwork, erro
 	return nets, nil */
 }
 
-func (manager *SNetworkManager) SyncNetworks(ctx context.Context, userCred mcclient.TokenCredential, wire *SWire, nets []cloudprovider.ICloudNetwork, provider *SCloudprovider) ([]SNetwork, []cloudprovider.ICloudNetwork, compare.SyncResult) {
+func (manager *SNetworkManager) SyncNetworks(
+	ctx context.Context,
+	userCred mcclient.TokenCredential,
+	wire *SWire,
+	nets []cloudprovider.ICloudNetwork,
+	provider *SCloudprovider,
+	xor bool,
+) ([]SNetwork, []cloudprovider.ICloudNetwork, compare.SyncResult) {
 	syncOwnerId := provider.GetOwnerId()
 
-	lockman.LockRawObject(ctx, "networks", wire.Id)
-	defer lockman.ReleaseRawObject(ctx, "networks", wire.Id)
+	lockman.LockRawObject(ctx, manager.Keyword(), wire.Id)
+	defer lockman.ReleaseRawObject(ctx, manager.Keyword(), wire.Id)
 
 	localNets := make([]SNetwork, 0)
 	remoteNets := make([]cloudprovider.ICloudNetwork, 0)
@@ -591,11 +598,13 @@ func (manager *SNetworkManager) SyncNetworks(ctx context.Context, userCred mccli
 			syncResult.Delete()
 		}
 	}
-	for i := 0; i < len(commondb); i += 1 {
-		err = commondb[i].SyncWithCloudNetwork(ctx, userCred, commonext[i], syncOwnerId, provider)
-		if err != nil {
-			syncResult.UpdateError(err)
-		} else {
+	if !xor {
+		for i := 0; i < len(commondb); i += 1 {
+			err = commondb[i].SyncWithCloudNetwork(ctx, userCred, commonext[i], syncOwnerId, provider)
+			if err != nil {
+				syncResult.UpdateError(err)
+				continue
+			}
 			localNets = append(localNets, commondb[i])
 			remoteNets = append(remoteNets, commonext[i])
 			syncResult.Update()
@@ -766,7 +775,7 @@ func (net *SNetwork) IsAddressInNet(address netutils.IPV4Addr) bool {
 }
 
 func (self *SNetwork) isAddressUsed(address string) (bool, error) {
-	q := self.getUsedAddressQuery(nil, rbacscope.ScopeSystem, true)
+	q := self.getUsedAddressQuery(nil, nil, rbacscope.ScopeSystem, true)
 	q = q.Equals("ip_addr", address)
 	count, err := q.CountWithError()
 	if err != nil && errors.Cause(err) != sql.ErrNoRows {
@@ -2293,6 +2302,12 @@ func (manager *SNetworkManager) OrderByExtraFields(
 		return nil, errors.Wrap(err, "SWireResourceBaseManager.OrderByExtraFields")
 	}
 
+	if db.NeedOrderQuery([]string{input.OrderByIpStart}) {
+		q = db.OrderByFields(q, []string{input.OrderByIpStart}, []sqlchemy.IQueryField{sqlchemy.INET_ATON(q.Field("guest_ip_start"))})
+	}
+	if db.NeedOrderQuery([]string{input.OrderByIpEnd}) {
+		q = db.OrderByFields(q, []string{input.OrderByIpEnd}, []sqlchemy.IQueryField{sqlchemy.INET_ATON(q.Field("guest_ip_end"))})
+	}
 	return q, nil
 }
 
@@ -2811,10 +2826,11 @@ func (network *SNetwork) PerformChangeOwner(ctx context.Context, userCred mcclie
 	return ret, nil
 }
 
-func (network *SNetwork) getUsedAddressQuery(owner mcclient.IIdentityProvider, scope rbacscope.TRbacScope, addrOnly bool) *sqlchemy.SQuery {
+func (network *SNetwork) getUsedAddressQuery(userCred mcclient.TokenCredential, owner mcclient.IIdentityProvider, scope rbacscope.TRbacScope, addrOnly bool) *sqlchemy.SQuery {
 	var (
 		args = &usedAddressQueryArgs{
 			network:  network,
+			userCred: userCred,
 			owner:    owner,
 			scope:    scope,
 			addrOnly: addrOnly,
@@ -2855,7 +2871,7 @@ func (network *SNetwork) GetDetailsAddresses(ctx context.Context, userCred mccli
 	}
 
 	netAddrs := make([]api.SNetworkUsedAddress, 0)
-	q := network.getUsedAddressQuery(userCred, scope, false)
+	q := network.getUsedAddressQuery(userCred, userCred, scope, false)
 	err := q.All(&netAddrs)
 	if err != nil {
 		return output, httperrors.NewGeneralError(err)

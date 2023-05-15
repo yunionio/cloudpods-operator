@@ -177,6 +177,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		SuggestionComponentType:      nHP(&obj.Suggestion.DeploymentSpec, useHyperImage),
 		ScheduledtaskComponentType:   nHP(&obj.Scheduledtask.DeploymentSpec, useHyperImage),
 		ReportComponentType:          nHP(&obj.Report.DeploymentSpec, useHyperImage),
+		APIMapComponentType:          nHP(&obj.APIMap.DeploymentSpec, useHyperImage),
 	} {
 		SetDefaults_DeploymentSpec(spec.DeploymentSpec, getImage(
 			obj.ImageRepository, spec.Repository,
@@ -400,6 +401,7 @@ func setDefaults_Components_ServicePort(obj *OnecloudClusterSpec) {
 		newSP(&obj.Influxdb.Service, constants.InfluxdbPort),
 		newSP(&obj.Monitor.Service, constants.MonitorPort),
 		newSP(&obj.Scheduledtask.Service, constants.ScheduledtaskPort),
+		newSP(&obj.APIMap.Service, constants.APIMapPort),
 		newSP(&obj.Report.Service, constants.ReportPort),
 		newSP(&obj.APIGateway.APIService, constants.APIGatewayPort),
 		newSP(&obj.APIGateway.WSService, constants.APIWebsocketPort),

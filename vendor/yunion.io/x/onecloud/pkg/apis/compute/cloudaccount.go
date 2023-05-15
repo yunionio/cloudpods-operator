@@ -254,6 +254,13 @@ type CloudaccountListInput struct {
 	ProxySetting string `json:"proxy_setting"`
 	// swagger:ignore
 	ProxySettingId string `json:"proxy_setting_id" yunion-deprecated-by:"proxy_setting"`
+
+	// 按宿主机数量排序
+	// pattern:asc|desc
+	OrderByHostCount string `json:"order_by_host_count"`
+	// 按虚拟机数量排序
+	// pattern:asc|desc
+	OrderByGuestCount string `json:"order_by_guest_count"`
 }
 
 type ProviderProject struct {
@@ -330,6 +337,9 @@ type CloudaccountDetail struct {
 	ProxySetting proxyapi.SProxySetting `json:"proxy_setting"`
 
 	ProjectMappingResourceInfo
+
+	// 上次同步耗时
+	LastSyncCost string
 }
 
 func (self CloudaccountDetail) GetMetricTags() map[string]string {
@@ -513,6 +523,10 @@ type CloudaccountSyncSkusInput struct {
 }
 
 type CloudaccountProjectMappingInput struct {
+	AutoCreateProject bool `json:"auto_create_project"`
+
+	ProjectId string `json:"project_id"`
+
 	// 同步策略Id, 若不传此参数则解绑
 	// 绑定同步策略要求当前云账号此刻未绑定其他同步策略
 	ProjectMappingId string `json:"project_mapping_id"`
@@ -525,6 +539,8 @@ type SyncRangeInput struct {
 	Force    bool `json:"force"`
 	FullSync bool `json:"full_sync"`
 	DeepSync bool `json:"deep_sync"`
+	// 极速模式(差量更新)
+	Xor bool `json:"xor"`
 
 	Region []string `json:"region"`
 	Zone   []string `json:"zone"`

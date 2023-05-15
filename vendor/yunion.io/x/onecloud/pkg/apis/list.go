@@ -52,7 +52,7 @@ type DomainizedResourceListInput struct {
 
 	// ignore
 	// domain tags filters imposed by policy
-	PolicyDomainTags tagutils.TTagSetList `json:"policy_domain_tags"`
+	// PolicyDomainTags tagutils.TTagSetList `json:"policy_domain_tags"`
 }
 
 type ProjectizedResourceListInput struct {
@@ -224,7 +224,7 @@ type MetadataResourceListInput struct {
 
 	// ignore
 	// 策略规定的标签过滤器
-	PolicyObjectTags tagutils.TTagSetList `json:"policy_object_tags"`
+	// PolicyObjectTags tagutils.TTagSetList `json:"policy_object_tags"`
 
 	// 通过标签排序
 	OrderByTag string `json:"order_by_tag"`
@@ -347,6 +347,11 @@ type EnabledStatusInfrasResourceBaseListInput struct {
 }
 
 type MultiArchResourceBaseListInput struct {
+	// 通过操作系统架构过滤
+	// x86会过滤出os_arch为空或os_arch=i386或以x86开头的资源
+	// arm会过滤出os_arch=aarch64或os_arch=aarch32或者以arm开头的资源
+	// 其他的输入会过滤出以输入字符开头的资源
+	// enmu: x86, arm
 	OsArch string `json:"os_arch"`
 }
 

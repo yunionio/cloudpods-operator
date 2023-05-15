@@ -379,13 +379,18 @@ func (sp *SSnapshotPolicy) GetCloudproviderId() string {
 	return ""
 }
 
-// ==================================================== sync ===========================================================
-func (manager *SSnapshotPolicyManager) SyncSnapshotPolicies(ctx context.Context, userCred mcclient.TokenCredential,
-	provider *SCloudprovider, region *SCloudregion, cloudSPs []cloudprovider.ICloudSnapshotPolicy,
-	syncOwnerId mcclient.IIdentityProvider) compare.SyncResult {
+func (manager *SSnapshotPolicyManager) SyncSnapshotPolicies(
+	ctx context.Context,
+	userCred mcclient.TokenCredential,
+	provider *SCloudprovider,
+	region *SCloudregion,
+	cloudSPs []cloudprovider.ICloudSnapshotPolicy,
+	syncOwnerId mcclient.IIdentityProvider,
+	xor bool,
+) compare.SyncResult {
 
-	lockman.LockRawObject(ctx, "snapshotpolicies", fmt.Sprintf("%s-%s", provider.Id, region.Id))
-	defer lockman.ReleaseRawObject(ctx, "snapshotpolicies", fmt.Sprintf("%s-%s", provider.Id, region.Id))
+	lockman.LockRawObject(ctx, manager.Keyword(), fmt.Sprintf("%s-%s", provider.Id, region.Id))
+	defer lockman.ReleaseRawObject(ctx, manager.Keyword(), fmt.Sprintf("%s-%s", provider.Id, region.Id))
 	syncResult := compare.SyncResult{}
 
 	// Fetch allsnapshotpolicy caches
@@ -459,19 +464,21 @@ func (manager *SSnapshotPolicyManager) SyncSnapshotPolicies(ctx context.Context,
 
 	syncResult = manager.allNewFromCloudSnapshotPolicy(ctx, userCred, added, region, syncOwnerId, provider, syncResult)
 
-	for i := range commondb {
-		_, err = db.Update(commondb[i], func() error {
-			commondb[i].Status = api.SNAPSHOT_POLICY_CACHE_STATUS_READY
-			if len(commonext[i].GetName()) == 0 {
-				commondb[i].Name = commonext[i].GetId()
-			} else {
-				commondb[i].Name = commonext[i].GetName()
+	if !xor {
+		for i := range commondb {
+			_, err = db.Update(commondb[i], func() error {
+				commondb[i].Status = api.SNAPSHOT_POLICY_CACHE_STATUS_READY
+				if len(commonext[i].GetName()) == 0 {
+					commondb[i].Name = commonext[i].GetId()
+				} else {
+					commondb[i].Name = commonext[i].GetName()
+				}
+				return nil
+			})
+			if err != nil {
+				syncResult.UpdateError(err)
+				continue
 			}
-			return nil
-		})
-		if err != nil {
-			syncResult.UpdateError(err)
-		} else {
 			syncResult.Update()
 		}
 	}
@@ -959,7 +966,14 @@ func (manager *SSnapshotPolicyManager) OrderByExtraFields(
 	if err != nil {
 		return nil, errors.Wrap(err, "SVirtualResourceBaseManager.OrderByExtraFields")
 	}
-
+	if db.NeedOrderQuery([]string{input.OrderByBindDiskCount}) {
+		sdQ := SnapshotPolicyDiskManager.Query()
+		sdSQ := sdQ.AppendField(sdQ.Field("snapshotpolicy_id"), sqlchemy.COUNT("disk_count")).GroupBy("snapshotpolicy_id").SubQuery()
+		q = q.LeftJoin(sdSQ, sqlchemy.Equals(sdSQ.Field("snapshotpolicy_id"), q.Field("id")))
+		q = q.AppendField(q.QueryFields()...)
+		q = q.AppendField(sdSQ.Field("disk_count"))
+		q = db.OrderByFields(q, []string{input.OrderByBindDiskCount}, []sqlchemy.IQueryField{q.Field("disk_count")})
+	}
 	return q, nil
 }
 

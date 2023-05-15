@@ -194,7 +194,7 @@ type ICloudRegion interface {
 
 	GetIModelartsPools() ([]ICloudModelartsPool, error)
 	GetIModelartsPoolById(id string) (ICloudModelartsPool, error)
-	CreateIModelartsPool(pool *ModelartsPoolCreateOption) (ICloudModelartsPool, error)
+	CreateIModelartsPool(pool *ModelartsPoolCreateOption, callback func(externalId string)) (ICloudModelartsPool, error)
 	GetIModelartsPoolSku() ([]ICloudModelartsPoolSku, error)
 
 	GetIMiscResources() ([]ICloudMiscResource, error)
@@ -469,10 +469,10 @@ type ICloudSecurityGroup interface {
 	IVirtualResource
 
 	GetDescription() string
+	// 返回的优先级字段(priority)要求数字越大优先级越高, 若有默认不可修改的allow规则依然需要返回
 	GetRules() ([]SecurityRule, error)
 	GetVpcId() string
 
-	SyncRules(common, inAdds, outAdds, inDels, outDels []SecurityRule) error
 	GetReferences() ([]SecurityGroupReference, error)
 	Delete() error
 }

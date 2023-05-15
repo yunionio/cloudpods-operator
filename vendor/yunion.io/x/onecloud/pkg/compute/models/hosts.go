@@ -1805,13 +1805,13 @@ func (manager *SHostManager) getHostsByZoneProvider(zone *SZone, provider *SClou
 	return hosts, nil
 }
 
-func (manager *SHostManager) SyncHosts(ctx context.Context, userCred mcclient.TokenCredential, provider *SCloudprovider, zone *SZone, hosts []cloudprovider.ICloudHost) ([]SHost, []cloudprovider.ICloudHost, compare.SyncResult) {
+func (manager *SHostManager) SyncHosts(ctx context.Context, userCred mcclient.TokenCredential, provider *SCloudprovider, zone *SZone, hosts []cloudprovider.ICloudHost, xor bool) ([]SHost, []cloudprovider.ICloudHost, compare.SyncResult) {
 	key := provider.Id
 	if zone != nil {
 		key = fmt.Sprintf("%s-%s", zone.Id, provider.Id)
 	}
-	lockman.LockRawObject(ctx, "hosts", key)
-	defer lockman.ReleaseRawObject(ctx, "hosts", key)
+	lockman.LockRawObject(ctx, manager.Keyword(), key)
+	defer lockman.ReleaseRawObject(ctx, manager.Keyword(), key)
 
 	localHosts := make([]SHost, 0)
 	remoteHosts := make([]cloudprovider.ICloudHost, 0)
@@ -1846,14 +1846,15 @@ func (manager *SHostManager) SyncHosts(ctx context.Context, userCred mcclient.To
 		}
 	}
 	for i := 0; i < len(commondb); i += 1 {
-		err = commondb[i].syncWithCloudHost(ctx, userCred, commonext[i], provider)
-		if err != nil {
-			syncResult.UpdateError(err)
-		} else {
-			localHosts = append(localHosts, commondb[i])
-			remoteHosts = append(remoteHosts, commonext[i])
-			syncResult.Update()
+		if !xor {
+			err = commondb[i].syncWithCloudHost(ctx, userCred, commonext[i], provider)
+			if err != nil {
+				syncResult.UpdateError(err)
+			}
 		}
+		localHosts = append(localHosts, commondb[i])
+		remoteHosts = append(remoteHosts, commonext[i])
+		syncResult.Update()
 	}
 	for i := 0; i < len(added); i += 1 {
 		new, err := manager.NewFromCloudHost(ctx, userCred, added[i], provider, zone)
@@ -1944,6 +1945,7 @@ func (self *SHost) syncWithCloudHost(ctx context.Context, userCred mcclient.Toke
 		SyncCloudDomain(userCred, self, provider.GetOwnerId())
 		self.SyncShareState(ctx, userCred, provider.getAccountShareInfo())
 	}
+	syncMetadata(ctx, userCred, self, extHost)
 
 	if err := self.syncSchedtags(ctx, userCred, extHost); err != nil {
 		log.Errorf("syncSchedtags fail:  %v", err)
@@ -2116,16 +2118,16 @@ func (manager *SHostManager) NewFromCloudHost(ctx context.Context, userCred mccl
 		accessIp := extHost.GetAccessIp()
 		if len(accessIp) == 0 {
 			msg := fmt.Sprintf("fail to find wire for host %s: empty host access ip", extHost.GetName())
-			log.Errorf(msg)
 			return nil, fmt.Errorf(msg)
 		}
 		wire, err := WireManager.GetOnPremiseWireOfIp(accessIp)
 		if err != nil {
-			msg := fmt.Sprintf("fail to find wire for host %s %s: %s", extHost.GetName(), accessIp, err)
-			log.Errorf(msg)
-			return nil, fmt.Errorf(msg)
+			return nil, errors.Wrapf(err, "GetOnPremiseWireOfIp for host %s with ip %s", extHost.GetName(), accessIp)
 		}
-		izone, _ = wire.GetZone()
+		izone, err = wire.GetZone()
+		if err != nil {
+			return nil, errors.Wrapf(err, "get zone for wire %s", wire.Name)
+		}
 	}
 
 	host.ExternalId = extHost.GetGlobalId()
@@ -2214,7 +2216,7 @@ func (manager *SHostManager) NewFromCloudHost(ctx context.Context, userCred mccl
 	return &host, nil
 }
 
-func (self *SHost) SyncHostStorages(ctx context.Context, userCred mcclient.TokenCredential, storages []cloudprovider.ICloudStorage, provider *SCloudprovider) ([]SStorage, []cloudprovider.ICloudStorage, compare.SyncResult) {
+func (self *SHost) SyncHostStorages(ctx context.Context, userCred mcclient.TokenCredential, storages []cloudprovider.ICloudStorage, provider *SCloudprovider, xor bool) ([]SStorage, []cloudprovider.ICloudStorage, compare.SyncResult) {
 	lockman.LockRawObject(ctx, "storages", self.Id)
 	defer lockman.ReleaseRawObject(ctx, "storages", self.Id)
 
@@ -2263,15 +2265,16 @@ func (self *SHost) SyncHostStorages(ctx context.Context, userCred mcclient.Token
 	}
 
 	for i := 0; i < len(commondb); i += 1 {
-		log.Infof("host %s is still connected with %s, to update ...", self.Id, commondb[i].Id)
-		err := self.syncWithCloudHostStorage(ctx, userCred, &commondb[i], commonext[i], provider)
-		if err != nil {
-			syncResult.UpdateError(err)
-		} else {
-			localStorages = append(localStorages, commondb[i])
-			remoteStorages = append(remoteStorages, commonext[i])
-			syncResult.Update()
+		if !xor {
+			log.Infof("host %s is still connected with %s, to update ...", self.Id, commondb[i].Id)
+			err := self.syncWithCloudHostStorage(ctx, userCred, &commondb[i], commonext[i], provider)
+			if err != nil {
+				syncResult.UpdateError(err)
+			}
 		}
+		localStorages = append(localStorages, commondb[i])
+		remoteStorages = append(remoteStorages, commonext[i])
+		syncResult.Update()
 	}
 
 	for i := 0; i < len(added); i += 1 {
@@ -2494,9 +2497,9 @@ func IsNeedSkipSync(ext cloudprovider.ICloudResource) (bool, string) {
 	return false, ""
 }
 
-func (self *SHost) SyncHostVMs(ctx context.Context, userCred mcclient.TokenCredential, iprovider cloudprovider.ICloudProvider, vms []cloudprovider.ICloudVM, syncOwnerId mcclient.IIdentityProvider) ([]SGuestSyncResult, compare.SyncResult) {
-	lockman.LockRawObject(ctx, "guests", self.Id)
-	defer lockman.ReleaseRawObject(ctx, "guests", self.Id)
+func (self *SHost) SyncHostVMs(ctx context.Context, userCred mcclient.TokenCredential, iprovider cloudprovider.ICloudProvider, vms []cloudprovider.ICloudVM, syncOwnerId mcclient.IIdentityProvider, xor bool) ([]SGuestSyncResult, compare.SyncResult) {
+	lockman.LockRawObject(ctx, GuestManager.Keyword(), self.Id)
+	defer lockman.ReleaseRawObject(ctx, GuestManager.Keyword(), self.Id)
 
 	syncVMPairs := make([]SGuestSyncResult, 0)
 	syncResult := compare.SyncResult{}
@@ -2535,30 +2538,32 @@ func (self *SHost) SyncHostVMs(ctx context.Context, userCred mcclient.TokenCrede
 		}
 	}
 
-	for i := 0; i < len(commondb); i += 1 {
-		skip, key := IsNeedSkipSync(commonext[i])
-		if skip {
-			log.Infof("delete server %s(%s) with system tag key: %s", commonext[i].GetName(), commonext[i].GetGlobalId(), key)
-			err := commondb[i].purge(ctx, userCred)
-			if err != nil {
-				syncResult.DeleteError(err)
+	if !xor {
+		for i := 0; i < len(commondb); i += 1 {
+			skip, key := IsNeedSkipSync(commonext[i])
+			if skip {
+				log.Infof("delete server %s(%s) with system tag key: %s", commonext[i].GetName(), commonext[i].GetGlobalId(), key)
+				err := commondb[i].purge(ctx, userCred)
+				if err != nil {
+					syncResult.DeleteError(err)
+					continue
+				}
+				syncResult.Delete()
 				continue
 			}
-			syncResult.Delete()
-			continue
+			err := commondb[i].syncWithCloudVM(ctx, userCred, iprovider, self, commonext[i], syncOwnerId, true)
+			if err != nil {
+				syncResult.UpdateError(err)
+				continue
+			}
+			syncVMPair := SGuestSyncResult{
+				Local:  &commondb[i],
+				Remote: commonext[i],
+				IsNew:  false,
+			}
+			syncVMPairs = append(syncVMPairs, syncVMPair)
+			syncResult.Update()
 		}
-		err := commondb[i].syncWithCloudVM(ctx, userCred, iprovider, self, commonext[i], syncOwnerId, true)
-		if err != nil {
-			syncResult.UpdateError(err)
-			continue
-		}
-		syncVMPair := SGuestSyncResult{
-			Local:  &commondb[i],
-			Remote: commonext[i],
-			IsNew:  false,
-		}
-		syncVMPairs = append(syncVMPairs, syncVMPair)
-		syncResult.Update()
 	}
 
 	for i := 0; i < len(added); i += 1 {
@@ -2637,7 +2642,7 @@ func (self *SHost) SyncHostVMs(ctx context.Context, userCred mcclient.TokenCrede
 func (self *SHost) getNetworkOfIPOnHost(ipAddr string) (*SNetwork, error) {
 	netInterfaces := self.GetNetInterfaces()
 	for _, netInterface := range netInterfaces {
-		network, err := netInterface.GetCandidateNetworkForIp(nil, rbacscope.ScopeNone, ipAddr)
+		network, err := netInterface.GetCandidateNetworkForIp(nil, nil, rbacscope.ScopeNone, ipAddr)
 		if err == nil && network != nil {
 			return network, nil
 		}
@@ -3212,6 +3217,9 @@ func (self *SHost) GetDevsReservedResource(devs []SIsolatedDevice) *api.Isolated
 		ReservedCpu:     &reservedCpu,
 	}
 	for _, dev := range devs {
+		if !utils.IsInStringArray(dev.DevType, api.VALID_GPU_TYPES) {
+			continue
+		}
 		reservedCpu += dev.ReservedCpu
 		reservedMem += dev.ReservedMemory
 		reservedStorage += dev.ReservedStorage
@@ -3606,7 +3614,7 @@ func (manager *SHostManager) ValidateCreateData(
 					wire := wireObj.(*SWire)
 					lockman.LockObject(ctx, wire)
 					defer lockman.ReleaseObject(ctx, wire)
-					net, err := wire.GetCandidatePrivateNetwork(userCred, NetworkManager.AllowScope(userCred), false, []string{api.NETWORK_TYPE_PXE, api.NETWORK_TYPE_BAREMETAL, api.NETWORK_TYPE_GUEST})
+					net, err := wire.GetCandidatePrivateNetwork(userCred, userCred, NetworkManager.AllowScope(userCred), false, []string{api.NETWORK_TYPE_PXE, api.NETWORK_TYPE_BAREMETAL, api.NETWORK_TYPE_GUEST})
 					if err != nil {
 						return input, httperrors.NewGeneralError(err)
 					}
@@ -4487,7 +4495,7 @@ func (self *SHost) addNetif(ctx context.Context, userCred mcclient.TokenCredenti
 				return httperrors.NewInputParameterError("invalid ipaddr %s", ipAddr)
 			}
 			findAddr := false
-			swNets, err := sw.getNetworks(userCred, NetworkManager.AllowScope(userCred))
+			swNets, err := sw.getNetworks(userCred, userCred, NetworkManager.AllowScope(userCred))
 			if err != nil {
 				return httperrors.NewInputParameterError("no networks on wire %s", wire)
 			}
@@ -4663,7 +4671,7 @@ func (self *SHost) EnableNetif(ctx context.Context, userCred mcclient.TokenCrede
 	var net *SNetwork
 	var err error
 	if len(ipAddr) > 0 {
-		net, err = netif.GetCandidateNetworkForIp(userCred, NetworkManager.AllowScope(userCred), ipAddr)
+		net, err = netif.GetCandidateNetworkForIp(userCred, userCred, NetworkManager.AllowScope(userCred), ipAddr)
 		if net != nil {
 			log.Infof("find network %s for ip %s", net.GetName(), ipAddr)
 		} else if requireDesignatedIp {
@@ -4710,12 +4718,12 @@ func (self *SHost) EnableNetif(ctx context.Context, userCred mcclient.TokenCrede
 			} else {
 				netTypes = []string{api.NETWORK_TYPE_BAREMETAL}
 			}
-			net, err = wire.GetCandidatePrivateNetwork(userCred, NetworkManager.AllowScope(userCred), false, netTypes)
+			net, err = wire.GetCandidatePrivateNetwork(userCred, userCred, NetworkManager.AllowScope(userCred), false, netTypes)
 			if err != nil {
 				return fmt.Errorf("fail to find private network %s", err)
 			}
 			if net == nil {
-				net, err = wire.GetCandidateAutoAllocNetwork(userCred, NetworkManager.AllowScope(userCred), false, netTypes)
+				net, err = wire.GetCandidateAutoAllocNetwork(userCred, userCred, NetworkManager.AllowScope(userCred), false, netTypes)
 				if err != nil {
 					return fmt.Errorf("fail to find public network %s", err)
 				}
@@ -4905,12 +4913,6 @@ func (self *SHost) RemoveNetif(ctx context.Context, userCred mcclient.TokenCrede
 	if err != nil {
 		return errors.Wrap(err, "netif.Remove")
 	}
-	if nicType == api.NIC_TYPE_ADMIN && self.AccessMac == mac {
-		err := self.setAccessMac(userCred, "")
-		if err != nil {
-			return errors.Wrap(err, "self.setAccessMac")
-		}
-	}
 	if wire != nil {
 		others := self.GetNetifsOnWire(wire)
 		if len(others) == 0 {
@@ -4918,8 +4920,38 @@ func (self *SHost) RemoveNetif(ctx context.Context, userCred mcclient.TokenCrede
 			if hw != nil {
 				db.OpsLog.LogDetachEvent(ctx, self, wire, userCred, jsonutils.NewString(fmt.Sprintf("disable netif %s", self.AccessMac)))
 				log.Debugf("Detach host wire because of remove netif %s", netif.Mac)
-				return hw.Delete(ctx, userCred)
+				err := hw.Delete(ctx, userCred)
+				if err != nil {
+					return errors.Wrap(err, "remove host wire")
+				}
 			}
+		}
+	}
+	// is this a converted host?
+	if self.HostType == api.HOST_TYPE_HYPERVISOR && self.IsBaremetal {
+		guests, err := self.GetGuests()
+		if err != nil {
+			return errors.Wrap(err, "GetGuests")
+		}
+		for i := range guests {
+			guest := &guests[i]
+			if guest.Hypervisor == api.HYPERVISOR_BAREMETAL {
+				gn, err := guest.GetGuestnetworkByMac(netif.Mac)
+				if err != nil && errors.Cause(err) != sql.ErrNoRows {
+					return errors.Wrap(err, "GetGuestnetworkByMac")
+				} else if gn != nil {
+					err = gn.Detach(ctx, userCred)
+					if err != nil {
+						return errors.Wrap(err, "detach guest nic")
+					}
+				}
+			}
+		}
+	}
+	if nicType == api.NIC_TYPE_ADMIN && self.AccessMac == mac {
+		err := self.setAccessMac(userCred, "")
+		if err != nil {
+			return errors.Wrap(err, "setAccessMac")
 		}
 	}
 	self.ClearSchedDescCache()

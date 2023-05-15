@@ -19,7 +19,6 @@ import (
 	"strconv"
 
 	"yunion.io/x/jsonutils"
-	"yunion.io/x/log"
 	"yunion.io/x/pkg/gotypes"
 	"yunion.io/x/pkg/utils"
 )
@@ -121,6 +120,11 @@ type IColumnSpec interface {
 	IsString() bool
 
 	IsDateTime() bool
+
+	// index of column, to preserve the column position
+	GetColIndex() int
+	// setter of column index
+	SetColIndex(idx int)
 }
 
 // SBaseColumn is the base structure represents a column
@@ -136,6 +140,7 @@ type SBaseColumn struct {
 	isIndex       bool
 	isAllowZero   bool
 	tags          map[string]string
+	colIndex      int
 }
 
 // IsPointer implementation of SBaseColumn for IColumnSpec
@@ -279,6 +284,14 @@ func (c *SBaseColumn) IsDateTime() bool {
 	return false
 }
 
+func (c *SBaseColumn) GetColIndex() int {
+	return c.colIndex
+}
+
+func (c *SBaseColumn) SetColIndex(idx int) {
+	c.colIndex = idx
+}
+
 // NewBaseColumn returns an instance of SBaseColumn
 func NewBaseColumn(name string, sqltype string, tagmap map[string]string, isPointer bool) SBaseColumn {
 	var val string
@@ -333,6 +346,7 @@ func NewBaseColumn(name string, sqltype string, tagmap map[string]string, isPoin
 		tags:          tagmap,
 		isPointer:     isPointer,
 		isAllowZero:   isAllowZero,
+		colIndex:      -1,
 	}
 }
 
@@ -370,7 +384,6 @@ type SBaseCompoundColumn struct{}
 func (c *SBaseCompoundColumn) ConvertFromString(str string) interface{} {
 	json, err := jsonutils.ParseString(str)
 	if err != nil {
-		log.Errorf("ParseString fail %s", err)
 		json = jsonutils.JSONNull
 	}
 	return json.String()

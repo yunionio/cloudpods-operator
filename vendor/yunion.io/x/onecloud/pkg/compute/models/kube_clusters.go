@@ -132,7 +132,13 @@ func (self *SCloudregion) GetKubeClusters(managerId string) ([]SKubeCluster, err
 	return clusters, nil
 }
 
-func (self *SCloudregion) SyncKubeClusters(ctx context.Context, userCred mcclient.TokenCredential, provider *SCloudprovider, clusters []cloudprovider.ICloudKubeCluster) ([]SKubeCluster, []cloudprovider.ICloudKubeCluster, compare.SyncResult) {
+func (self *SCloudregion) SyncKubeClusters(
+	ctx context.Context,
+	userCred mcclient.TokenCredential,
+	provider *SCloudprovider,
+	clusters []cloudprovider.ICloudKubeCluster,
+	xor bool,
+) ([]SKubeCluster, []cloudprovider.ICloudKubeCluster, compare.SyncResult) {
 	lockman.LockRawObject(ctx, KubeClusterManager.KeywordPlural(), fmt.Sprintf("%s-%s", provider.Id, self.Id))
 	defer lockman.ReleaseRawObject(ctx, KubeClusterManager.KeywordPlural(), fmt.Sprintf("%s-%s", provider.Id, self.Id))
 
@@ -165,15 +171,17 @@ func (self *SCloudregion) SyncKubeClusters(ctx context.Context, userCred mcclien
 			result.Delete()
 		}
 	}
-	for i := 0; i < len(commondb); i += 1 {
-		err = commondb[i].SyncWithCloudKubeCluster(ctx, userCred, commonext[i], provider)
-		if err != nil {
-			result.UpdateError(err)
-			continue
+	if !xor {
+		for i := 0; i < len(commondb); i += 1 {
+			err = commondb[i].SyncWithCloudKubeCluster(ctx, userCred, commonext[i], provider)
+			if err != nil {
+				result.UpdateError(err)
+				continue
+			}
+			localClusters = append(localClusters, commondb[i])
+			remoteClusters = append(remoteClusters, commonext[i])
+			result.Update()
 		}
-		localClusters = append(localClusters, commondb[i])
-		remoteClusters = append(remoteClusters, commonext[i])
-		result.Update()
 	}
 	for i := 0; i < len(added); i += 1 {
 		newKubeCluster, err := self.newFromCloudKubeCluster(ctx, userCred, added[i], provider)
@@ -210,37 +218,47 @@ func (self *SKubeCluster) ImportOrUpdate(ctx context.Context, userCred mcclient.
 }
 
 func (self *SKubeCluster) doRemoteImport(ctx context.Context, s *mcclient.ClientSession, userCred mcclient.TokenCredential, ext cloudprovider.ICloudKubeCluster) error {
-	config, err := ext.GetKubeConfig(false, 0)
-	if err != nil {
-		return errors.Wrapf(err, "GetKubeConfig")
-	}
+	var importFunc = func(isPrivate bool) error {
+		config, err := ext.GetKubeConfig(isPrivate, 0)
+		if err != nil {
+			return errors.Wrapf(err, "GetKubeConfig")
+		}
 
-	params := map[string]interface{}{
-		"name":                self.Name,
-		"project_domain_id":   self.DomainId,
-		"domain_id":           self.DomainId,
-		"mode":                "import",
-		"external_cluster_id": self.GetId(),
-		"resource_type":       "guest",
-		"import_data": map[string]interface{}{
-			"kubeconfig": config.Config,
-		},
-	}
-	resp, err := k8s.KubeClusters.Create(s, jsonutils.Marshal(params))
-	if err != nil {
-		return errors.Wrapf(err, "Create")
-	}
-	id, err := resp.GetString("id")
-	if err != nil {
-		return errors.Wrapf(err, "resp.GetId")
-	}
-	if _, err := db.Update(self, func() error {
-		self.ExternalClusterId = id
+		params := map[string]interface{}{
+			"name":                self.Name,
+			"project_domain_id":   self.DomainId,
+			"domain_id":           self.DomainId,
+			"mode":                "import",
+			"external_cluster_id": self.GetId(),
+			"resource_type":       "guest",
+			"import_data": map[string]interface{}{
+				"kubeconfig": config.Config,
+			},
+		}
+		resp, err := k8s.KubeClusters.Create(s, jsonutils.Marshal(params))
+		if err != nil {
+			return errors.Wrapf(err, "Create")
+		}
+		id, err := resp.GetString("id")
+		if err != nil {
+			return errors.Wrapf(err, "resp.GetId")
+		}
+		if _, err := db.Update(self, func() error {
+			self.ExternalClusterId = id
+			return nil
+		}); err != nil {
+			return errors.Wrapf(err, "db.Update")
+		}
 		return nil
-	}); err != nil {
-		return errors.Wrapf(err, "db.Update")
 	}
-	return nil
+	var err error
+	for _, isPrivate := range []bool{true, false} {
+		err = importFunc(isPrivate)
+		if err == nil {
+			return nil
+		}
+	}
+	return err
 }
 
 func (self *SKubeCluster) doRemoteUpdate(ctx context.Context, s *mcclient.ClientSession, userCred mcclient.TokenCredential, ext cloudprovider.ICloudKubeCluster) error {

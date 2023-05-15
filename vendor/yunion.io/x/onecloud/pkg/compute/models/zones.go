@@ -143,7 +143,7 @@ func (zone *SZone) getStorageCount() (int, error) {
 }
 
 func (zone *SZone) getNetworkCount() (int, error) {
-	return getNetworkCount(nil, rbacscope.ScopeSystem, nil, zone)
+	return getNetworkCount(nil, nil, rbacscope.ScopeSystem, nil, zone)
 }
 
 func (manager *SZoneManager) FetchCustomizeColumns(
@@ -280,7 +280,13 @@ func (zone *SZone) GetI18N(ctx context.Context) *jsonutils.JSONDict {
 	return zone.GetModelI18N(ctx, zone)
 }
 
-func (manager *SZoneManager) SyncZones(ctx context.Context, userCred mcclient.TokenCredential, region *SCloudregion, zones []cloudprovider.ICloudZone) ([]SZone, []cloudprovider.ICloudZone, compare.SyncResult) {
+func (manager *SZoneManager) SyncZones(
+	ctx context.Context,
+	userCred mcclient.TokenCredential,
+	region *SCloudregion,
+	zones []cloudprovider.ICloudZone,
+	xor bool,
+) ([]SZone, []cloudprovider.ICloudZone, compare.SyncResult) {
 	lockman.LockRawObject(ctx, "zones", region.Id)
 	defer lockman.ReleaseRawObject(ctx, "zones", region.Id)
 
@@ -314,26 +320,25 @@ func (manager *SZoneManager) SyncZones(ctx context.Context, userCred mcclient.To
 		}
 	}
 	for i := 0; i < len(commondb); i += 1 {
-		err = commondb[i].syncWithCloudZone(ctx, userCred, commonext[i], region)
-		if err != nil {
-			syncResult.UpdateError(err)
-		} else {
-			syncMetadata(ctx, userCred, &commondb[i], commonext[i])
-			localZones = append(localZones, commondb[i])
-			remoteZones = append(remoteZones, commonext[i])
-			syncResult.Update()
+		if !xor {
+			err = commondb[i].syncWithCloudZone(ctx, userCred, commonext[i], region)
+			if err != nil {
+				syncResult.UpdateError(err)
+			}
 		}
+		localZones = append(localZones, commondb[i])
+		remoteZones = append(remoteZones, commonext[i])
+		syncResult.Update()
 	}
 	for i := 0; i < len(added); i += 1 {
-		new, err := manager.newFromCloudZone(ctx, userCred, added[i], region)
+		zone, err := manager.newFromCloudZone(ctx, userCred, added[i], region)
 		if err != nil {
 			syncResult.AddError(err)
-		} else {
-			syncMetadata(ctx, userCred, new, added[i])
-			localZones = append(localZones, *new)
-			remoteZones = append(remoteZones, added[i])
-			syncResult.Add()
+			continue
 		}
+		localZones = append(localZones, *zone)
+		remoteZones = append(remoteZones, added[i])
+		syncResult.Add()
 	}
 
 	return localZones, remoteZones, syncResult
@@ -347,7 +352,7 @@ func (self *SZone) syncRemoveCloudZone(ctx context.Context, userCred mcclient.To
 	if err != nil {
 		return errors.Wrapf(err, "ValidateDeleteCondition")
 	}
-	self.RemoveI18ns(ctx, userCred, self)
+	// self.RemoveI18ns(ctx, userCred, self)
 	return self.Delete(ctx, userCred)
 }
 
@@ -370,6 +375,7 @@ func (self *SZone) syncWithCloudZone(ctx context.Context, userCred mcclient.Toke
 		log.Errorf("syncWithCloudZone error %s", err)
 		return err
 	}
+	syncMetadata(ctx, userCred, self, extZone)
 	db.OpsLog.LogSyncUpdate(self, diff, userCred)
 	return nil
 }
@@ -405,6 +411,7 @@ func (manager *SZoneManager) newFromCloudZone(ctx context.Context, userCred mccl
 	if err != nil {
 		return nil, errors.Wrap(err, "SyncI18ns")
 	}
+	syncMetadata(ctx, userCred, &zone, extZone)
 
 	db.OpsLog.LogEvent(&zone, db.ACT_CREATE, zone.GetShortDesc(ctx), userCred)
 	return &zone, nil
@@ -807,6 +814,60 @@ func (manager *SZoneManager) OrderByExtraFields(
 		return nil, errors.Wrap(err, "SCloudregionResourceBaseManager.OrderByExtraFields")
 	}
 
+	if db.NeedOrderQuery([]string{query.OrderByWires}) {
+		wireQ := WireManager.Query()
+		wireQ = wireQ.AppendField(wireQ.Field("zone_id"), sqlchemy.COUNT("wire_count", wireQ.Field("zone_id")))
+		wireQ = wireQ.GroupBy(wireQ.Field("zone_id"))
+		wireSQ := wireQ.SubQuery()
+		q = q.LeftJoin(wireSQ, sqlchemy.Equals(wireSQ.Field("zone_id"), q.Field("id")))
+		q = q.AppendField(q.QueryFields()...)
+		q = q.AppendField(wireSQ.Field("wire_count"))
+		q = db.OrderByFields(q, []string{query.OrderByWires}, []sqlchemy.IQueryField{q.Field("wire_count")})
+	}
+	if db.NeedOrderQuery([]string{query.OrderByHosts}) {
+		hostQ := HostManager.Query()
+		hostQ = hostQ.AppendField(hostQ.Field("zone_id"), sqlchemy.COUNT("host_count", hostQ.Field("zone_id")))
+		hostQ = hostQ.GroupBy(hostQ.Field("zone_id"))
+		hostSQ := hostQ.SubQuery()
+		q = q.LeftJoin(hostSQ, sqlchemy.Equals(hostSQ.Field("zone_id"), q.Field("id")))
+		q = q.AppendField(q.QueryFields()...)
+		q = q.AppendField(hostSQ.Field("host_count"))
+		q = db.OrderByFields(q, []string{query.OrderByHosts}, []sqlchemy.IQueryField{q.Field("host_count")})
+	}
+	if db.NeedOrderQuery([]string{query.OrderByHostsEnabled}) {
+		hostQ := HostManager.Query()
+		hostQ = hostQ.Filter(sqlchemy.Equals(hostQ.Field("enabled"), true))
+		hostQ = hostQ.AppendField(hostQ.Field("zone_id"), sqlchemy.COUNT("host_count", hostQ.Field("zone_id")))
+		hostQ = hostQ.GroupBy(hostQ.Field("zone_id"))
+		hostSQ := hostQ.SubQuery()
+		q = q.LeftJoin(hostSQ, sqlchemy.Equals(hostSQ.Field("zone_id"), q.Field("id")))
+		q = q.AppendField(q.QueryFields()...)
+		q = q.AppendField(hostSQ.Field("host_count"))
+		q = db.OrderByFields(q, []string{query.OrderByHostsEnabled}, []sqlchemy.IQueryField{q.Field("host_count")})
+	}
+	if db.NeedOrderQuery([]string{query.OrderByBaremetals}) {
+		hostQ := HostManager.Query()
+		hostQ = hostQ.Filter(sqlchemy.Equals(hostQ.Field("is_baremetal"), true))
+		hostQ = hostQ.AppendField(hostQ.Field("zone_id"), sqlchemy.COUNT("host_count", hostQ.Field("zone_id")))
+		hostQ = hostQ.GroupBy(hostQ.Field("zone_id"))
+		hostSQ := hostQ.SubQuery()
+		q = q.LeftJoin(hostSQ, sqlchemy.Equals(hostSQ.Field("zone_id"), q.Field("id")))
+		q = q.AppendField(q.QueryFields()...)
+		q = q.AppendField(hostSQ.Field("host_count"))
+		q = db.OrderByFields(q, []string{query.OrderByBaremetals}, []sqlchemy.IQueryField{q.Field("host_count")})
+	}
+	if db.NeedOrderQuery([]string{query.OrderByBaremetalsEnabled}) {
+		hostQ := HostManager.Query()
+		hostQ = hostQ.Filter(sqlchemy.Equals(hostQ.Field("is_baremetal"), true))
+		hostQ = hostQ.Filter(sqlchemy.Equals(hostQ.Field("enabled"), true))
+		hostQ = hostQ.AppendField(hostQ.Field("zone_id"), sqlchemy.COUNT("host_count", hostQ.Field("zone_id")))
+		hostQ = hostQ.GroupBy(hostQ.Field("zone_id"))
+		hostSQ := hostQ.SubQuery()
+		q = q.LeftJoin(hostSQ, sqlchemy.Equals(hostSQ.Field("zone_id"), q.Field("id")))
+		q = q.AppendField(q.QueryFields()...)
+		q = q.AppendField(hostSQ.Field("host_count"))
+		q = db.OrderByFields(q, []string{query.OrderByBaremetalsEnabled}, []sqlchemy.IQueryField{q.Field("host_count")})
+	}
 	return q, nil
 }
 
