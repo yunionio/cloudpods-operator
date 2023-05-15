@@ -124,6 +124,7 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 		components.Meter(),
 		components.EsxiAgent(),
 		components.OvnNorth(),
+		components.APIMap(),
 		components.VpcAgent(),
 		components.HostDeployer(),
 		components.HostImage(),

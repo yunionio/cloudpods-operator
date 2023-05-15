@@ -131,6 +131,8 @@ const (
 
 	ScheduledtaskComponentType ComponentType = "scheduledtask"
 
+	APIMapComponentType ComponentType = "apimap"
+
 	MonitorStackComponentType ComponentType = "monitor-stack"
 
 	ReportComponentType ComponentType = "report"
@@ -308,6 +310,7 @@ type OnecloudClusterSpec struct {
 	MonitorStack MonitorStackSpec `json:"monitorStack"`
 
 	Scheduledtask DeploymentServicePortSpec `json:"scheduledtask"`
+	APIMap        DeploymentServicePortSpec `json:"apiMap"`
 
 	Report     DeploymentServicePortSpec `json:"report"`
 	EChartsSSR EChartsSSRSpec            `json:"echartsSSR"`
@@ -348,6 +351,7 @@ type OnecloudClusterStatus struct {
 	Cloudmon       DeploymentStatus     `json:"cloudmon,omitempty"`
 	MonitorStack   MonitorStackStatus   `json:"monitorStack,omitempty"`
 	Scheduledtask  DeploymentStatus     `json:"scheduledtask,omitempty"`
+	APIMap         DeploymentStatus     `json:"apiMap,omitempty"`
 	Report         DeploymentStatus     `json:"report,omitempty"`
 	ECharts        DeploymentStatus     `json:"echarts,omitempty"`
 }

@@ -1384,6 +1384,10 @@ func (m *ComponentManager) Scheduler() manager.Manager {
 	return newSchedulerManager(m)
 }
 
+func (m *ComponentManager) APIMap() manager.Manager {
+	return newAPIMapManager(m)
+}
+
 func (m *ComponentManager) Influxdb() manager.Manager {
 	return newInfluxdbManager(m)
 }

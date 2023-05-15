@@ -56,6 +56,7 @@ func init() {
 	}
 	DBInstanceSkuManager.SetVirtualObject(DBInstanceSkuManager)
 	DBInstanceSkuManager.NameRequireAscii = false
+	DBInstanceSkuManager.TableSpec().AddIndex(false, "cloudregion_id", "provider", "deleted")
 }
 
 type SDBInstanceSku struct {
@@ -479,9 +480,15 @@ func (manager *SDBInstanceSkuManager) GetDBInstanceSkus(provider, cloudregionId,
 	return skus, nil
 }
 
-func (manager *SDBInstanceSkuManager) SyncDBInstanceSkus(ctx context.Context, userCred mcclient.TokenCredential, region *SCloudregion, meta *SSkuResourcesMeta) compare.SyncResult {
-	lockman.LockRawObject(ctx, "dbinstance-skus", region.Id)
-	defer lockman.ReleaseRawObject(ctx, "dbinstance-skus", region.Id)
+func (manager *SDBInstanceSkuManager) SyncDBInstanceSkus(
+	ctx context.Context,
+	userCred mcclient.TokenCredential,
+	region *SCloudregion,
+	meta *SSkuResourcesMeta,
+	xor bool,
+) compare.SyncResult {
+	lockman.LockRawObject(ctx, manager.Keyword(), region.Id)
+	defer lockman.ReleaseRawObject(ctx, manager.Keyword(), region.Id)
 
 	syncResult := compare.SyncResult{}
 
@@ -516,12 +523,14 @@ func (manager *SDBInstanceSkuManager) SyncDBInstanceSkus(ctx context.Context, us
 			syncResult.Delete()
 		}
 	}
-	for i := 0; i < len(commondb); i += 1 {
-		err = commondb[i].syncWithCloudSku(ctx, userCred, commonext[i])
-		if err != nil {
-			syncResult.UpdateError(err)
-		} else {
-			syncResult.Update()
+	if !xor {
+		for i := 0; i < len(commondb); i += 1 {
+			err = commondb[i].syncWithCloudSku(ctx, userCred, commonext[i])
+			if err != nil {
+				syncResult.UpdateError(err)
+			} else {
+				syncResult.Update()
+			}
 		}
 	}
 	for i := 0; i < len(added); i += 1 {
@@ -559,7 +568,7 @@ func (manager *SDBInstanceSkuManager) newFromCloudSku(ctx context.Context, userC
 	return manager.TableSpec().Insert(ctx, sku)
 }
 
-func SyncRegionDBInstanceSkus(ctx context.Context, userCred mcclient.TokenCredential, regionId string, isStart bool) {
+func SyncRegionDBInstanceSkus(ctx context.Context, userCred mcclient.TokenCredential, regionId string, isStart, xor bool) {
 	if isStart {
 		q := DBInstanceSkuManager.Query()
 		if len(regionId) > 0 {
@@ -594,21 +603,47 @@ func SyncRegionDBInstanceSkus(ctx context.Context, userCred mcclient.TokenCreden
 		return
 	}
 
+	index, err := meta.getSkuIndex(meta.DBInstanceBase)
+	if err != nil {
+		log.Errorf("get rds sku index error: %v", err)
+		return
+	}
+
 	for _, region := range cloudregions {
 		if !region.GetDriver().IsSupportedDBInstance() {
-			log.Infof("region %s(%s) not support dbinstance, skip sync", region.Name, region.Id)
+			log.Debugf("region %s(%s) not support dbinstance, skip sync", region.Name, region.Id)
 			continue
 		}
-		result := DBInstanceSkuManager.SyncDBInstanceSkus(ctx, userCred, &region, meta)
+		skuMeta := &SDBInstanceSku{}
+		skuMeta.SetModelManager(DBInstanceSkuManager, skuMeta)
+		skuMeta.Id = region.ExternalId
+
+		oldMd5 := db.Metadata.GetStringValue(ctx, skuMeta, db.SKU_METADAT_KEY, userCred)
+		newMd5, ok := index[region.ExternalId]
+		if ok {
+			db.Metadata.SetValue(ctx, skuMeta, db.SKU_METADAT_KEY, newMd5, userCred)
+		}
+
+		if newMd5 == EMPTY_MD5 {
+			log.Debugf("%s DBInstance skus is empty skip syncing", region.Name)
+			continue
+		}
+
+		if len(oldMd5) > 0 && newMd5 == oldMd5 {
+			log.Debugf("%s DBInstance skus not changed skip syncing", region.Name)
+			continue
+		}
+
+		result := DBInstanceSkuManager.SyncDBInstanceSkus(ctx, userCred, &region, meta, xor)
 		msg := result.Result()
 		notes := fmt.Sprintf("sync rds sku for region %s result: %s", region.Name, msg)
-		log.Infof(notes)
+		log.Debugf(notes)
 	}
 
 }
 
 func SyncDBInstanceSkus(ctx context.Context, userCred mcclient.TokenCredential, isStart bool) {
-	SyncRegionDBInstanceSkus(ctx, userCred, "", isStart)
+	SyncRegionDBInstanceSkus(ctx, userCred, "", isStart, false)
 }
 
 func (manager *SDBInstanceSkuManager) ListItemExportKeys(ctx context.Context,
@@ -674,7 +709,12 @@ func (self *SCloudregion) GetDBInstanceSkus() ([]SDBInstanceSku, error) {
 	return skus, nil
 }
 
-func (self *SCloudregion) SyncDBInstanceSkus(ctx context.Context, userCred mcclient.TokenCredential, provider *SCloudprovider, exts []cloudprovider.ICloudDBInstanceSku) compare.SyncResult {
+func (self *SCloudregion) SyncDBInstanceSkus(
+	ctx context.Context,
+	userCred mcclient.TokenCredential,
+	provider *SCloudprovider,
+	exts []cloudprovider.ICloudDBInstanceSku,
+) compare.SyncResult {
 	lockman.LockRawObject(ctx, DBInstanceSkuManager.Keyword(), self.Id)
 	defer lockman.ReleaseRawObject(ctx, DBInstanceSkuManager.Keyword(), self.Id)
 

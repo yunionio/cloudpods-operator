@@ -264,11 +264,11 @@ func (self *SMountTarget) GetOwnerId() mcclient.IIdentityProvider {
 	return &db.SOwnerId{DomainId: fs.DomainId}
 }
 
-func (manager *SMountTargetManager) FilterByOwner(q *sqlchemy.SQuery, userCred mcclient.IIdentityProvider, scope rbacscope.TRbacScope) *sqlchemy.SQuery {
-	if userCred != nil {
+func (manager *SMountTargetManager) FilterByOwner(q *sqlchemy.SQuery, man db.FilterByOwnerProvider, userCred mcclient.TokenCredential, owner mcclient.IIdentityProvider, scope rbacscope.TRbacScope) *sqlchemy.SQuery {
+	if owner != nil {
 		sq := FileSystemManager.Query("id")
-		if scope == rbacscope.ScopeDomain && len(userCred.GetProjectDomainId()) > 0 {
-			sq = sq.Equals("domain_id", userCred.GetProjectDomainId())
+		if scope == rbacscope.ScopeDomain && len(owner.GetProjectDomainId()) > 0 {
+			sq = sq.Equals("domain_id", owner.GetProjectDomainId())
 			return q.In("file_system_id", sq)
 		}
 	}
@@ -386,7 +386,12 @@ func (self *SFileSystem) GetMountTargets() ([]SMountTarget, error) {
 	return mounts, nil
 }
 
-func (self *SFileSystem) SyncMountTargets(ctx context.Context, userCred mcclient.TokenCredential, extMounts []cloudprovider.ICloudMountTarget) compare.SyncResult {
+func (self *SFileSystem) SyncMountTargets(
+	ctx context.Context,
+	userCred mcclient.TokenCredential,
+	extMounts []cloudprovider.ICloudMountTarget,
+	xor bool,
+) compare.SyncResult {
 	lockman.LockRawObject(ctx, self.Id, MountTargetManager.KeywordPlural())
 	lockman.ReleaseRawObject(ctx, self.Id, MountTargetManager.KeywordPlural())
 
@@ -416,13 +421,15 @@ func (self *SFileSystem) SyncMountTargets(ctx context.Context, userCred mcclient
 		}
 		result.Delete()
 	}
-	for i := 0; i < len(commondb); i += 1 {
-		err = commondb[i].SyncWithMountTarget(ctx, userCred, self.ManagerId, commonext[i])
-		if err != nil {
-			result.UpdateError(err)
-			continue
+	if !xor {
+		for i := 0; i < len(commondb); i += 1 {
+			err = commondb[i].SyncWithMountTarget(ctx, userCred, self.ManagerId, commonext[i])
+			if err != nil {
+				result.UpdateError(err)
+				continue
+			}
+			result.Update()
 		}
-		result.Update()
 	}
 	for i := 0; i < len(added); i += 1 {
 		err := self.newFromCloudMountTarget(ctx, userCred, added[i])

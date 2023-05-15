@@ -313,12 +313,12 @@ func (self *SServerSkuManager) ValidateCreateData(ctx context.Context, userCred 
 		region, _ = zone.GetRegion()
 	}
 
-	if input.CpuCoreCount < 1 || input.CpuCoreCount > 256 {
-		return input, httperrors.NewOutOfRangeError("cpu_core_count should be range of 1~256")
+	if input.CpuCoreCount < 1 || input.CpuCoreCount > options.Options.SkuMaxCpuCount {
+		return input, httperrors.NewOutOfRangeError("cpu_core_count should be range of 1~%d", options.Options.SkuMaxCpuCount)
 	}
 
-	if input.MemorySizeMB < 512 || input.MemorySizeMB > 1024*512 {
-		return input, httperrors.NewOutOfRangeError("memory_size_mb, shoud be range of 512~%d", 1024*512)
+	if input.MemorySizeMB < 512 || input.MemorySizeMB > 1024*options.Options.SkuMaxMemSize {
+		return input, httperrors.NewOutOfRangeError("memory_size_mb, shoud be range of 512~%d", 1024*options.Options.SkuMaxMemSize)
 	}
 
 	if len(input.InstanceTypeCategory) == 0 {
@@ -639,18 +639,36 @@ func (self *SServerSku) StartServerSkuDeleteTask(ctx context.Context, userCred m
 	return nil
 }
 
+func (self *SServerSku) GetGuestCount() (int, error) {
+	guestsQ := GuestManager.Query().SubQuery()
+	hostsQ := HostManager.Query().SubQuery()
+	zonesQ := ZoneManager.Query().SubQuery()
+	q := guestsQ.Query().
+		Join(hostsQ, sqlchemy.Equals(guestsQ.Field("host_id"), hostsQ.Field("id"))).
+		Join(zonesQ, sqlchemy.Equals(hostsQ.Field("zone_id"), zonesQ.Field("id"))).
+		Filter(sqlchemy.Equals(guestsQ.Field("instance_type"), self.Name))
+	if len(self.ZoneId) > 0 {
+		q = q.Filter(sqlchemy.Equals(hostsQ.Field("zone_id"), self.ZoneId))
+	} else {
+		q = q.Filter(sqlchemy.Equals(zonesQ.Field("cloudregion_id"), self.CloudregionId))
+	}
+	return q.CountWithError()
+}
+
 func (self *SServerSku) ValidateDeleteCondition(ctx context.Context, info *api.ServerSkuDetails) error {
-	if info.TotalGuestCount > 0 {
+	totalGuestCnt := 0
+	if info != nil {
+		totalGuestCnt = info.TotalGuestCount
+	} else {
+		totalGuestCnt, _ = self.GetGuestCount()
+	}
+	if totalGuestCnt > 0 {
 		return httperrors.NewNotEmptyError("now allow to delete inuse instance_type.please remove related servers first: %s", self.Name)
 	}
 
 	if !inWhiteList(self.Provider) {
 		return httperrors.NewForbiddenError("not allow to delete public cloud instance_type: %s", self.Name)
 	}
-	/*count := GuestManager.Query().Equals("instance_type", self.Id).Count()
-	if count > 0 {
-		return httperrors.NewNotEmptyError("instance_type used by servers")
-	}*/
 	return nil
 }
 
@@ -833,6 +851,16 @@ func (manager *SServerSkuManager) OrderByExtraFields(
 		return nil, errors.Wrap(err, "SCloudregionResourceBaseManager.OrderByExtraFields")
 	}
 
+	if db.NeedOrderQuery([]string{query.OrderByTotalGuestCount}) {
+		guestQ := GuestManager.Query()
+		guestQ = guestQ.AppendField(guestQ.Field("instance_type"), sqlchemy.COUNT("total_guest_count"))
+		guestQ = guestQ.GroupBy(guestQ.Field("instance_type"))
+		guestSQ := guestQ.SubQuery()
+		q = q.Join(guestSQ, sqlchemy.Equals(guestSQ.Field("instance_type"), q.Field("name")))
+		q = q.AppendField(q.QueryFields()...)
+		q = q.AppendField(guestSQ.Field("total_guest_count"))
+		q = db.OrderByFields(q, []string{query.OrderByTotalGuestCount}, []sqlchemy.IQueryField{q.Field("total_guest_count")})
+	}
 	return q, nil
 }
 
@@ -997,9 +1025,15 @@ func (manager *SServerSkuManager) PendingDeleteInvalidSku() error {
 	return nil
 }
 
-func (manager *SServerSkuManager) SyncPrivateCloudSkus(ctx context.Context, userCred mcclient.TokenCredential, region *SCloudregion, skus []cloudprovider.ICloudSku) compare.SyncResult {
-	lockman.LockRawObject(ctx, "serverskus", region.Id)
-	defer lockman.ReleaseRawObject(ctx, "serverskus", region.Id)
+func (manager *SServerSkuManager) SyncPrivateCloudSkus(
+	ctx context.Context,
+	userCred mcclient.TokenCredential,
+	region *SCloudregion,
+	skus []cloudprovider.ICloudSku,
+	xor bool,
+) compare.SyncResult {
+	lockman.LockRawObject(ctx, manager.Keyword(), region.Id)
+	defer lockman.ReleaseRawObject(ctx, manager.Keyword(), region.Id)
 
 	result := compare.SyncResult{}
 
@@ -1029,12 +1063,14 @@ func (manager *SServerSkuManager) SyncPrivateCloudSkus(ctx context.Context, user
 		result.Delete()
 	}
 
-	for i := 0; i < len(commondb); i += 1 {
-		err = commondb[i].SyncWithPrivateCloudSku(ctx, userCred, commonext[i])
-		if err != nil {
-			result.UpdateError(err)
+	if !xor {
+		for i := 0; i < len(commondb); i += 1 {
+			err = commondb[i].SyncWithPrivateCloudSku(ctx, userCred, commonext[i])
+			if err != nil {
+				result.UpdateError(err)
+			}
+			result.Update()
 		}
-		result.Update()
 	}
 
 	for i := 0; i < len(added); i += 1 {
@@ -1176,9 +1212,9 @@ func (manager *SServerSkuManager) FetchSkusByRegion(regionID string) ([]SServerS
 	return skus, nil
 }
 
-func (manager *SServerSkuManager) SyncServerSkus(ctx context.Context, userCred mcclient.TokenCredential, region *SCloudregion, extSkuMeta *SSkuResourcesMeta) compare.SyncResult {
-	lockman.LockRawObject(ctx, "serverskus", region.Id)
-	defer lockman.ReleaseRawObject(ctx, "serverskus", region.Id)
+func (manager *SServerSkuManager) SyncServerSkus(ctx context.Context, userCred mcclient.TokenCredential, region *SCloudregion, extSkuMeta *SSkuResourcesMeta, xor bool) compare.SyncResult {
+	lockman.LockRawObject(ctx, manager.Keyword(), region.Id)
+	defer lockman.ReleaseRawObject(ctx, manager.Keyword(), region.Id)
 
 	syncResult := compare.SyncResult{}
 
@@ -1206,19 +1242,26 @@ func (manager *SServerSkuManager) SyncServerSkus(ctx context.Context, userCred m
 	}
 
 	for i := 0; i < len(removed); i += 1 {
-		err = removed[i].MarkAsSoldout(ctx)
+		cnt, err := removed[i].GetGuestCount()
+		if err != nil || cnt > 0 {
+			err = removed[i].MarkAsSoldout(ctx)
+		} else {
+			err = removed[i].RealDelete(ctx, userCred)
+		}
 		if err != nil {
 			syncResult.DeleteError(err)
 		} else {
 			syncResult.Delete()
 		}
 	}
-	for i := 0; i < len(commondb); i += 1 {
-		err = commondb[i].syncWithCloudSku(ctx, userCred, commonext[i])
-		if err != nil {
-			syncResult.UpdateError(err)
-		} else {
-			syncResult.Update()
+	if !xor {
+		for i := 0; i < len(commondb); i += 1 {
+			err = commondb[i].syncWithCloudSku(ctx, userCred, commonext[i])
+			if err != nil {
+				syncResult.UpdateError(err)
+			} else {
+				syncResult.Update()
+			}
 		}
 	}
 	for i := 0; i < len(added); i += 1 {

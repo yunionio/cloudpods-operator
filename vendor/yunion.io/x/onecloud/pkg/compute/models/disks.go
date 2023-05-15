@@ -77,6 +77,7 @@ func init() {
 		),
 	}
 	DiskManager.SetVirtualObject(DiskManager)
+	DiskManager.TableSpec().AddIndex(false, "storage_id", "deleted", "status", "disk_size")
 }
 
 type SDisk struct {
@@ -97,7 +98,7 @@ type SDisk struct {
 	// example: 10240
 	DiskSize int `nullable:"false" list:"user" json:"disk_size"`
 	// 磁盘路径
-	AccessPath string `width:"256" charset:"ascii" nullable:"true" get:"user" json:"access_path"`
+	AccessPath string `width:"256" charset:"utf8" nullable:"true" get:"user" json:"access_path"`
 
 	// 存储Id
 	// StorageId       string `width:"128" charset:"ascii" nullable:"true" list:"admin" create:"optional"`
@@ -457,6 +458,14 @@ func (self *SDisk) ValidateUpdateData(ctx context.Context, userCred mcclient.Tok
 	}
 
 	return input, nil
+}
+
+func (man *SDiskManager) BatchCreateValidateCreateData(ctx context.Context, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, query jsonutils.JSONObject, input api.DiskCreateInput) (*jsonutils.JSONDict, error) {
+	input, err := man.ValidateCreateData(ctx, userCred, ownerId, query, input)
+	if err != nil {
+		return nil, err
+	}
+	return input.JSON(input), nil
 }
 
 func diskCreateInput2ComputeQuotaKeys(input api.DiskCreateInput, ownerId mcclient.IIdentityProvider) SComputeResourceKeys {
@@ -1451,11 +1460,9 @@ func (manager *SDiskManager) findOrCreateDisk(ctx context.Context, userCred mccl
 	return diskObj.(*SDisk), nil
 }
 
-func (manager *SDiskManager) SyncDisks(ctx context.Context, userCred mcclient.TokenCredential, provider cloudprovider.ICloudProvider, storage *SStorage, disks []cloudprovider.ICloudDisk, syncOwnerId mcclient.IIdentityProvider) ([]SDisk, []cloudprovider.ICloudDisk, compare.SyncResult) {
-	// syncOwnerId := projectId
-
-	lockman.LockRawObject(ctx, "disks", storage.Id)
-	defer lockman.ReleaseRawObject(ctx, "disks", storage.Id)
+func (manager *SDiskManager) SyncDisks(ctx context.Context, userCred mcclient.TokenCredential, provider cloudprovider.ICloudProvider, storage *SStorage, disks []cloudprovider.ICloudDisk, syncOwnerId mcclient.IIdentityProvider, xor bool) ([]SDisk, []cloudprovider.ICloudDisk, compare.SyncResult) {
+	lockman.LockRawObject(ctx, manager.Keyword(), storage.Id)
+	defer lockman.ReleaseRawObject(ctx, manager.Keyword(), storage.Id)
 
 	localDisks := make([]SDisk, 0)
 	remoteDisks := make([]cloudprovider.ICloudDisk, 0)
@@ -1499,10 +1506,12 @@ func (manager *SDiskManager) SyncDisks(ctx context.Context, userCred mcclient.To
 			syncResult.Delete()
 			continue
 		}
-		err = commondb[i].syncWithCloudDisk(ctx, userCred, provider, commonext[i], -1, syncOwnerId, storage.ManagerId)
-		if err != nil {
-			syncResult.UpdateError(err)
-			continue
+		if !xor {
+			err = commondb[i].syncWithCloudDisk(ctx, userCred, provider, commonext[i], -1, syncOwnerId, storage.ManagerId)
+			if err != nil {
+				syncResult.UpdateError(err)
+				continue
+			}
 		}
 		localDisks = append(localDisks, commondb[i])
 		remoteDisks = append(remoteDisks, commonext[i])
@@ -1930,11 +1939,12 @@ func parseDiskInfo(ctx context.Context, userCred mcclient.TokenCredential, info 
 			return nil, errors.Wrap(err, "invaild existing path")
 		}
 	}
+
 	// XXX: do not set default disk size here, set it by each hypervisor driver
 	// if len(diskConfig.ImageId) > 0 && diskConfig.SizeMb == 0 {
 	// 	diskConfig.SizeMb = options.Options.DefaultDiskSize // MB
 	// else
-	if len(info.ImageId) == 0 && info.SizeMb == 0 && info.ExistingPath == "" {
+	if len(info.ImageId) == 0 && info.SizeMb == 0 && info.ExistingPath == "" && info.NVMEDevice == nil {
 		return nil, httperrors.NewInputParameterError("Diskinfo index %d: both imageID and size are absent", info.Index)
 	}
 	return info, nil
@@ -2080,6 +2090,9 @@ func fillDiskConfigByStorage(userCred mcclient.TokenCredential,
 	}
 	if storage.Status != api.STORAGE_ONLINE {
 		return errors.Wrap(httperrors.ErrInvalidStatus, "storage not online")
+	}
+	if storage.StorageType == api.STORAGE_NVME_PT {
+		return httperrors.NewBadRequestError("storage type %s require assign isolated device", api.STORAGE_NVME_PT)
 	}
 	diskConfig.Storage = storage.Id
 	diskConfig.Backend = storage.StorageType

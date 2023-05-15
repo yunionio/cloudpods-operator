@@ -176,6 +176,12 @@ const (
 	// 宿主机网络出速率
 	// 支持平台: esxi
 	HOST_METRIC_TYPE_NET_BPS_TX TMetricType = "net.bps_sent"
+	//宿主机磁盘读IOPS
+	// 支持平台: bingocloud
+	HOST_METRIC_TYPE_DISK_IO_READ_IOPS TMetricType = "diskio.read_iops"
+	//宿主机磁盘写IOPS
+	// 支持平台: bingocloud
+	HOST_METRIC_TYPE_DISK_IO_WRITE_IOPS TMetricType = "diskio.write_iops"
 
 	// Redis CPU使用率
 	// 支持平台: huawei, aliyun, azure, apsara, aws, qcloud
@@ -222,10 +228,13 @@ const (
 	// 支持平台: aliyun, apsara
 	LB_METRIC_TYPE_NET_PACKET_TX TMetricType = "haproxy.packet_tx"
 	// 非活跃连接数
-	// 支持平台: apsara, aliyun
+	// 支持平台: apsara, aliyun, huawei
 	LB_METRIC_TYPE_NET_INACTIVE_CONNECTION = "haproxy.inactive_connection"
+	// 活跃连接数
+	// 支持平台: apsara, aliyun, huawei
+	LB_METRIC_TYPE_NET_ACTIVE_CONNECTION = "haproxy.active_connection"
 	// 最大并发数
-	// 支持平台: apsara, aliyun
+	// 支持平台: apsara, aliyun, huawei
 	LB_METRIC_TYPE_MAX_CONNECTION = "haproxy.max_connection"
 	// 后端异常ECS实例个数
 	// 支持平台: apsara, aliyun
@@ -462,6 +471,9 @@ type MetricListOptions struct {
 	Interval int
 	// rds
 	Engine string
+
+	// azure 内存,磁盘使用率监控需要查询table storage,会产生额外的存储费用，默认关闭
+	IsSupportAzureTableStorageMetric bool
 }
 
 type MetricValue struct {

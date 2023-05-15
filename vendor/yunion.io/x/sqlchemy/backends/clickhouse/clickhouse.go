@@ -24,6 +24,7 @@ import (
 	"yunion.io/x/pkg/errors"
 	"yunion.io/x/pkg/gotypes"
 	"yunion.io/x/pkg/tristate"
+	"yunion.io/x/pkg/util/stringutils"
 	"yunion.io/x/pkg/utils"
 
 	"yunion.io/x/sqlchemy"
@@ -173,7 +174,7 @@ func (click *SClickhouseBackend) FetchTableColumnSpecs(ts sqlchemy.ITableSpec) (
 	if err != nil {
 		return nil, errors.Wrap(err, "show create table")
 	}
-	primaries, orderbys, partition, ttl := parseCreateTable(defStr)
+	primaries, orderbys, partitions, ttl := parseCreateTable(defStr)
 	var ttlCfg sColumnTTL
 	if len(ttl) > 0 {
 		ttlCfg, err = parseTTLExpression(ttl)
@@ -189,8 +190,10 @@ func (click *SClickhouseBackend) FetchTableColumnSpecs(ts sqlchemy.ITableSpec) (
 			if utils.IsInStringArray(clickSpec.Name(), orderbys) {
 				clickSpec.SetOrderBy(true)
 			}
-			if strings.Contains(partition, clickSpec.Name()) {
-				clickSpec.SetPartitionBy(partition)
+			for _, part := range partitions {
+				if stringutils.ContainsWord(part, clickSpec.Name()) {
+					clickSpec.SetPartitionBy(part)
+				}
 			}
 			if ttlCfg.ColName == clickSpec.Name() {
 				clickSpec.SetTTL(ttlCfg.Count, ttlCfg.Unit)
@@ -204,7 +207,7 @@ func (click *SClickhouseBackend) FetchTableColumnSpecs(ts sqlchemy.ITableSpec) (
 func (click *SClickhouseBackend) GetColumnSpecByFieldType(table *sqlchemy.STableSpec, fieldType reflect.Type, fieldname string, tagmap map[string]string, isPointer bool) sqlchemy.IColumnSpec {
 	switch fieldType {
 	case tristate.TriStateType:
-		col := NewTristateColumn(fieldname, tagmap, isPointer)
+		col := NewTristateColumn(table.Name(), fieldname, tagmap, isPointer)
 		return &col
 	case gotypes.TimeType:
 		col := NewDateTimeColumn(fieldname, tagmap, isPointer)
@@ -254,6 +257,9 @@ func (click *SClickhouseBackend) GetColumnSpecByFieldType(table *sqlchemy.STable
 			return &col
 		}
 		col := NewFloatColumn(fieldname, "Float64", tagmap, isPointer)
+		return &col
+	case reflect.Map, reflect.Slice:
+		col := NewCompoundColumn(fieldname, tagmap, isPointer)
 		return &col
 	}
 	if fieldType.Implements(gotypes.ISerializableType) {
