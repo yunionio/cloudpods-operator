@@ -681,6 +681,7 @@ func (in *HostAgentSpec) DeepCopyInto(out *HostAgentSpec) {
 	in.DaemonSetSpec.DeepCopyInto(&out.DaemonSetSpec)
 	in.SdnAgent.DeepCopyInto(&out.SdnAgent)
 	in.OvnController.DeepCopyInto(&out.OvnController)
+	in.HostHealth.DeepCopyInto(&out.HostHealth)
 	if in.HostCpuPassthrough != nil {
 		in, out := &in.HostCpuPassthrough, &out.HostCpuPassthrough
 		*out = new(bool)
@@ -1423,6 +1424,7 @@ func (in *OnecloudClusterSpec) DeepCopyInto(out *OnecloudClusterSpec) {
 	in.Suggestion.DeepCopyInto(&out.Suggestion)
 	in.MonitorStack.DeepCopyInto(&out.MonitorStack)
 	in.Scheduledtask.DeepCopyInto(&out.Scheduledtask)
+	in.APIMap.DeepCopyInto(&out.APIMap)
 	in.Report.DeepCopyInto(&out.Report)
 	in.EChartsSSR.DeepCopyInto(&out.EChartsSSR)
 	return
@@ -1472,6 +1474,7 @@ func (in *OnecloudClusterStatus) DeepCopyInto(out *OnecloudClusterStatus) {
 	in.Cloudmon.DeepCopyInto(&out.Cloudmon)
 	in.MonitorStack.DeepCopyInto(&out.MonitorStack)
 	in.Scheduledtask.DeepCopyInto(&out.Scheduledtask)
+	in.APIMap.DeepCopyInto(&out.APIMap)
 	in.Report.DeepCopyInto(&out.Report)
 	in.ECharts.DeepCopyInto(&out.ECharts)
 	return
