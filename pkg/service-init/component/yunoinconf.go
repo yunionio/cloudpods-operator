@@ -131,6 +131,7 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 			"s3",
 			"ceph",
 			"xsky",
+			"proxmox",
 		}
 		setupKeysEdge := []string{
 			"onecloud",
