@@ -767,6 +767,7 @@ func (m *ComponentManager) newDeployment(
 					Volumes:          vols,
 					HostNetwork:      hostNetwork,
 					DNSPolicy:        dnsPolicy,
+					DNSConfig:        spec.DNSConfig,
 					ImagePullSecrets: spec.ImagePullSecrets,
 				},
 			},
@@ -787,6 +788,7 @@ func (m *ComponentManager) newDeployment(
 	if hostNetwork {
 		appDeploy.Spec.Strategy = apps.DeploymentStrategy{Type: apps.RecreateDeploymentStrategyType}
 	}
+
 	return appDeploy, nil
 }
 
