@@ -327,6 +327,11 @@ func (in *DeploymentServiceSpec) DeepCopy() *DeploymentServiceSpec {
 func (in *DeploymentSpec) DeepCopyInto(out *DeploymentSpec) {
 	*out = *in
 	in.ContainerSpec.DeepCopyInto(&out.ContainerSpec)
+	if in.DNSConfig != nil {
+		in, out := &in.DNSConfig, &out.DNSConfig
+		*out = new(v1.PodDNSConfig)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.Affinity != nil {
 		in, out := &in.Affinity, &out.Affinity
 		*out = new(v1.Affinity)

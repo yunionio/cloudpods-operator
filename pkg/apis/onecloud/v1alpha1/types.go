@@ -540,6 +540,7 @@ type Minio struct {
 // DeploymentSpec constains defails of deployment resource service
 type DeploymentSpec struct {
 	ContainerSpec
+	DNSConfig        *corev1.PodDNSConfig          `json:"dnsConfig"`
 	Disable          bool                          `json:"disable"`
 	Replicas         int32                         `json:"replicas"`
 	Affinity         *corev1.Affinity              `json:"affinity,omitempty"`
