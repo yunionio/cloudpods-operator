@@ -477,6 +477,17 @@ func SetDefaults_RegionSpec(
 	if obj.DNSDomain == "" {
 		obj.DNSDomain = DefaultOnecloudRegionDNSDomain
 	}
+	if obj.DNSConfig == nil {
+		ndotVal2 := "2"
+		obj.DNSConfig = &corev1.PodDNSConfig{
+			Options: []corev1.PodDNSConfigOption{
+				{
+					Name:  "ndots",
+					Value: &ndotVal2,
+				},
+			},
+		}
+	}
 }
 
 func SetDefaults_RegionDNSSpec(obj *RegionDNSSpec, imageRepo, version string) {
