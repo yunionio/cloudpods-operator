@@ -45,7 +45,8 @@ const (
 
 	IMAGE_METADATA = "X-Image-Meta-Metadata"
 
-	IMAGE_META_COPY_FROM = "x-glance-api-copy-from"
+	IMAGE_META_COPY_FROM       = "x-glance-api-copy-from"
+	IMAGE_META_COMPRESS_FORMAT = "x-glance-compress-format"
 )
 
 func decodeMeta(str string) string {
@@ -251,22 +252,16 @@ func setImageMeta(params jsonutils.JSONObject) (http.Header, error) {
 		return header, e
 	}
 	for k, v := range p {
-		if ok, _ := utils.InStringArray(k, []string{"copy_from"}); ok {
+		if k == "copy_from" || k == "properties" || k == "compress_format" {
 			continue
 		}
-		if k == "properties" {
-			pp, e := v.(*jsonutils.JSONDict).GetMap()
-			if e != nil {
-				return header, e
-			}
-			for kk, vv := range pp {
-				vvs, _ := vv.GetString()
-				header.Add(fmt.Sprintf("%s%s", IMAGE_META_PROPERTY, utils.Capitalize(kk)), vvs)
-			}
-		} else {
-			vs, _ := v.GetString()
-			header.Add(fmt.Sprintf("%s%s", IMAGE_META, utils.Capitalize(k)), vs)
-		}
+		vs, _ := v.GetString()
+		header.Add(fmt.Sprintf("%s%s", IMAGE_META, utils.Capitalize(k)), vs)
+	}
+	properties := map[string]string{}
+	params.Unmarshal(properties, "properties")
+	for k, v := range properties {
+		header.Add(fmt.Sprintf("%s%s", IMAGE_META_PROPERTY, utils.Capitalize(k)), v)
 	}
 	return header, nil
 }
@@ -440,17 +435,6 @@ func (this *ImageManager) Upload(s *mcclient.ClientSession, params jsonutils.JSO
 }
 
 func (this *ImageManager) _create(s *mcclient.ClientSession, params jsonutils.JSONObject, body io.Reader, size int64) (jsonutils.JSONObject, error) {
-	/*format, _ := params.GetString("disk-format")
-	if len(format) == 0 {
-		format, _ = params.GetString("disk_format")
-		if len(format) == 0 {
-			return nil, httperrors.NewMissingParameterError("disk_format")
-		}
-	}
-	exists, _ := utils.InStringArray(format, []string{"qcow2", "raw", "vhd", "vmdk", "iso", "docker"})
-	if !exists {
-		return nil, fmt.Errorf("Unsupported image format %s", format)
-	}*/
 	imageId, _ := params.GetString("image_id")
 	path := fmt.Sprintf("/%s", this.URLPath())
 	method := httputils.POST
@@ -467,6 +451,7 @@ func (this *ImageManager) _create(s *mcclient.ClientSession, params jsonutils.JS
 		return nil, e
 	}
 	copyFromUrl, _ := params.GetString("copy_from")
+	compressFormat, _ := params.GetString("compress_format")
 	if len(copyFromUrl) != 0 {
 		if size != 0 {
 			return nil, fmt.Errorf("Can't use copy_from and upload file at the same time")
@@ -474,6 +459,7 @@ func (this *ImageManager) _create(s *mcclient.ClientSession, params jsonutils.JS
 		body = nil
 		size = 0
 		headers.Set(IMAGE_META_COPY_FROM, copyFromUrl)
+		headers.Set(IMAGE_META_COMPRESS_FORMAT, compressFormat)
 	}
 	if body != nil {
 		headers.Add("Content-Type", "application/octet-stream")

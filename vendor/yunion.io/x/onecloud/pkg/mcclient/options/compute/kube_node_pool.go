@@ -22,6 +22,7 @@ import (
 
 type KubeNodePoolListOptions struct {
 	options.BaseListOptions
+	CloudKubeClusterId string `json:"cloud_kube_cluster_id"`
 }
 
 func (opts *KubeNodePoolListOptions) Params() (jsonutils.JSONObject, error) {
@@ -38,4 +39,20 @@ func (opts *KubeNodePoolIdOption) GetId() string {
 
 func (opts *KubeNodePoolIdOption) Params() (jsonutils.JSONObject, error) {
 	return nil, nil
+}
+
+type KubeNodePoolCreateOptions struct {
+	options.BaseCreateOptions
+	NetworkIds           []string `metavar:"NETWORK"`
+	InstanceTypes        []string `metavar:"INSTANCE_TYPE"`
+	MinInstanceCount     int
+	MaxInstanceCount     int
+	DesiredInstanceCount int
+	RootDiskSizeGb       int
+	CloudKubeClusterId   string `metavar:"CLUSTER"`
+	KeypairId            string
+}
+
+func (opts *KubeNodePoolCreateOptions) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.Marshal(opts), nil
 }

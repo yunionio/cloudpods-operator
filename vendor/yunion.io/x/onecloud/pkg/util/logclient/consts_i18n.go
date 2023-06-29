@@ -1386,4 +1386,14 @@ func init() {
 		EN("Dissociate").
 		CN("解除关联"),
 	)
+
+	o.Set(ACT_BIND, i18n.NewTableEntry().
+		EN("Bind").
+		CN("关联"),
+	)
+
+	o.Set(ACT_PROGRESS, i18n.NewTableEntry().
+		EN("Progress").
+		CN("进展"),
+	)
 }

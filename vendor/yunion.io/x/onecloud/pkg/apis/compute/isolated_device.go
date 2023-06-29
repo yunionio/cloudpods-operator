@@ -112,3 +112,65 @@ type IsolatedDeviceJsonDesc struct {
 	DiskIndex           int8   `json:"disk_index"`
 	NvmeSizeMB          int    `json:"nvme_size_mb"`
 }
+
+type IsolatedDeviceModelCreateInput struct {
+	apis.StandaloneAnonResourceCreateInput
+
+	// 设备类型
+	// example: NPU
+	DevType string `json:"dev_type"`
+
+	// 设备型号
+	Model string `json:"model"`
+
+	// 设备VendorId
+	VendorId string `json:"vendor_id"`
+
+	// 设备DeviceId
+	DeviceId string `json:"device_id"`
+
+	// 支持热插拔 HotPluggable
+	HotPluggable bool `json:"hot_pluggable"`
+
+	// hosts scan isolated device after isolated_device_model created
+	Hosts []string `json:"hosts"`
+}
+
+type IsolatedDeviceModelUpdateInput struct {
+	apis.StandaloneAnonResourceBaseUpdateInput
+	// 设备类型
+	// example: NPU
+	DevType string `json:"dev_type"`
+
+	// 设备型号
+	Model string `json:"model"`
+
+	// 设备VendorId
+	VendorId string `json:"vendor_id"`
+
+	// 设备DeviceId
+	DeviceId string `json:"device_id"`
+
+	// 支持热插拔 HotPluggable
+	HotPluggable bool `json:"hot_pluggable"`
+}
+
+type IsolatedDeviceModelListInput struct {
+	apis.StandaloneAnonResourceListInput
+
+	// 设备类型
+	// example: NPU
+	DevType []string `json:"dev_type"`
+
+	// 设备型号
+	Model []string `json:"model"`
+
+	// 设备VendorId
+	VendorId string `json:"vendor_id"`
+
+	// 设备DeviceId
+	DeviceId string `json:"device_id"`
+
+	// 支持热插拔 HotPluggable
+	HotPluggable bool `json:"hot_pluggable"`
+}

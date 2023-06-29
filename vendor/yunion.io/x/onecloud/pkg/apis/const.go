@@ -57,7 +57,9 @@ const (
 	USER_TAG_PREFIX      = "user:"
 	SYS_CLOUD_TAG_PREFIX = "sys:"
 	// Such tags have inherited and isolated properties
-	CLASS_TAT_PREFIX = "cls:"
+	CLASS_TAG_PREFIX = "cls:"
+
+	ORGANIZATION_TAG_PREFIX = "org:"
 
 	SKU_STATUS_AVAILABLE = "available"
 	SKU_STATUS_SOLDOUT   = "soldout"
@@ -75,6 +77,11 @@ var (
 		SERVICE_TYPE_ETCD,
 		SERVICE_TYPE_INFLUXDB,
 	}
+)
+
+const (
+	COMPRESS_FORMAT_GZIP   = "gzip"
+	COMPRESS_FORMAT_TAR_GZ = "tar.gz"
 )
 
 const (

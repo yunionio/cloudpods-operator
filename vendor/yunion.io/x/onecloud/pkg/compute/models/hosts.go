@@ -270,14 +270,24 @@ func (manager *SHostManager) ListItemFilter(
 		}
 	}
 	if len(query.AnyIp) > 0 {
-		hn := HostnetworkManager.Query("baremetal_id").Contains("ip_addr", query.AnyIp).SubQuery()
+		hnQ := HostnetworkManager.Query("baremetal_id") //.Contains("ip_addr", query.AnyIp).SubQuery()
+		conditions := []sqlchemy.ICondition{}
+		for _, ip := range query.AnyIp {
+			conditions = append(conditions, sqlchemy.Contains(hnQ.Field("ip_addr"), ip))
+		}
+		hn := hnQ.Filter(
+			sqlchemy.OR(conditions...),
+		)
+		conditions = []sqlchemy.ICondition{}
+		for _, ip := range query.AnyIp {
+			conditions = append(conditions, sqlchemy.Contains(q.Field("access_ip"), ip))
+			conditions = append(conditions, sqlchemy.Contains(q.Field("ipmi_ip"), ip))
+		}
+		conditions = append(conditions, sqlchemy.In(q.Field("id"), hn))
 		q = q.Filter(sqlchemy.OR(
-			sqlchemy.Contains(q.Field("access_ip"), query.AnyIp),
-			sqlchemy.Contains(q.Field("ipmi_ip"), query.AnyIp),
-			sqlchemy.In(q.Field("id"), hn),
+			conditions...,
 		))
 	}
-	// var scopeQuery *sqlchemy.SSubQuery
 
 	schedTagStr := query.SchedtagId
 	if len(schedTagStr) > 0 {
@@ -880,6 +890,13 @@ func (self *SHost) GetHoststorages() []SHoststorage {
 		return nil
 	}
 	return hoststorages
+}
+
+func (self *SHost) GetStorages() ([]SStorage, error) {
+	sq := HoststorageManager.Query("storage_id").Equals("host_id", self.Id).SubQuery()
+	q := StorageManager.Query().In("id", sq)
+	storages := []SStorage{}
+	return storages, db.FetchModelObjects(StorageManager, q, &storages)
 }
 
 func (self *SHost) GetHoststorageOfId(storageId string) *SHoststorage {
@@ -3315,6 +3332,14 @@ func (manager *SHostManager) GetHostsByManagerAndRegion(managerId string, region
 	return ret
 }
 
+func (self *SHost) RequestScanIsolatedDevices(ctx context.Context, userCred mcclient.TokenCredential) error {
+	_, err := self.Request(ctx, userCred, "POST", fmt.Sprintf("/hosts/%s/probe-isolated-devices", self.Id), mcclient.GetTokenHeaders(userCred), nil)
+	if err != nil {
+		return errors.Wrapf(err, "request host %s probe isolaed devices", self.Id)
+	}
+	return nil
+}
+
 func (self *SHost) Request(ctx context.Context, userCred mcclient.TokenCredential, method httputils.THttpMethod, url string, headers http.Header, body jsonutils.JSONObject) (jsonutils.JSONObject, error) {
 	s := auth.GetSession(ctx, userCred, "")
 	_, ret, err := s.JSONRequest(self.ManagerUri, "", method, url, headers, body)
@@ -3719,7 +3744,7 @@ func (self *SHost) ValidateUpdateData(ctx context.Context, userCred mcclient.Tok
 		return input, errors.Wrap(err, "inputUniquenessCheck")
 	}
 
-	if self.IsHugePage() && input.MemCmtbound != nil {
+	if self.IsHugePage() && input.MemCmtbound != nil && *input.MemCmtbound != self.MemCmtbound {
 		return input, errors.Errorf("host mem is hugepage, cannot update mem_cmtbound")
 	}
 
@@ -4109,7 +4134,7 @@ func (self *SHost) PerformAutoMigrateOnHostDown(
 		meta[api.HOSTMETA_AUTO_MIGRATE_ON_HOST_DOWN] = "disable"
 		data.Set("shutdown_servers", jsonutils.JSONFalse)
 	}
-	_, err := self.Request(ctx, userCred, "POST", "/hosts/shutdown-servers-on-host-down",
+	_, err := self.Request(ctx, userCred, "POST", fmt.Sprintf("/hosts/%s/shutdown-servers-on-host-down", self.Id),
 		mcclient.GetTokenHeaders(userCred), data)
 	if err != nil {
 		return nil, err
