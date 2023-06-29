@@ -135,7 +135,7 @@ github.com/hako/durafmt
 ## explicit
 github.com/hashicorp/golang-lru
 github.com/hashicorp/golang-lru/simplelru
-# github.com/jaypipes/ghw v0.10.1-0.20230329185050-227643e14380 => github.com/zexi/ghw v0.9.1
+# github.com/jaypipes/ghw v0.11.0 => github.com/zexi/ghw v0.9.1
 ## explicit; go 1.15
 github.com/jaypipes/ghw/pkg/context
 github.com/jaypipes/ghw/pkg/cpu
@@ -402,7 +402,7 @@ golang.org/x/oauth2/internal
 # golang.org/x/sync v0.1.0
 ## explicit
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.7.0
+# golang.org/x/sys v0.9.0
 ## explicit; go 1.17
 golang.org/x/sys/cpu
 golang.org/x/sys/internal/unsafeheader
@@ -843,7 +843,7 @@ sigs.k8s.io/structured-merge-diff/v4/value
 # sigs.k8s.io/yaml v1.2.0
 ## explicit; go 1.12
 sigs.k8s.io/yaml
-# yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20230505085927-bd8d7dd99d4f
+# yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20230629091727-2add12cd95c0
 ## explicit; go 1.18
 yunion.io/x/cloudmux/pkg/apis
 yunion.io/x/cloudmux/pkg/apis/billing
@@ -857,14 +857,14 @@ yunion.io/x/cloudmux/pkg/multicloud/esxi/vcenter
 ## explicit; go 1.12
 yunion.io/x/executor/apis
 yunion.io/x/executor/client
-# yunion.io/x/jsonutils v1.0.1-0.20230428104347-7c2fdff8e8e7
-## explicit; go 1.12
+# yunion.io/x/jsonutils v1.0.1-0.20230613121553-0f3b41e2ef19
+## explicit; go 1.18
 yunion.io/x/jsonutils
 # yunion.io/x/log v1.0.1-0.20230411060016-feb3f46ab361
 ## explicit; go 1.12
 yunion.io/x/log
 yunion.io/x/log/hooks
-# yunion.io/x/onecloud v0.3.10-0-alpha2.0.20230515064727-eda5d3223f02
+# yunion.io/x/onecloud v0.3.10-0-alpha2.0.20230629122115-61401b2aa472
 ## explicit; go 1.18
 yunion.io/x/onecloud/cmd/climc/shell
 yunion.io/x/onecloud/locales
@@ -1003,12 +1003,12 @@ yunion.io/x/onecloud/pkg/util/ssh
 yunion.io/x/onecloud/pkg/util/stringutils2
 yunion.io/x/onecloud/pkg/util/sysutils
 yunion.io/x/onecloud/pkg/util/tagutils
-yunion.io/x/onecloud/pkg/util/validate
 yunion.io/x/onecloud/pkg/util/winutils
+yunion.io/x/onecloud/pkg/util/yunionmeta
 yunion.io/x/onecloud/pkg/vpcagent/options
 yunion.io/x/onecloud/pkg/webconsole/options
 yunion.io/x/onecloud/pkg/yunionconf/options
-# yunion.io/x/pkg v1.0.1-0.20230504073602-0a74096f836a
+# yunion.io/x/pkg v1.0.1-0.20230613081559-f38e2cb344b4
 ## explicit; go 1.18
 yunion.io/x/pkg/appctx
 yunion.io/x/pkg/errors
@@ -1055,7 +1055,7 @@ yunion.io/x/pkg/utils
 # yunion.io/x/s3cli v0.0.0-20190917004522-13ac36d8687e
 ## explicit; go 1.12
 yunion.io/x/s3cli
-# yunion.io/x/sqlchemy v1.1.2-0.20230504021010-f3e76263d633
+# yunion.io/x/sqlchemy v1.1.2-0.20230615091740-63854d9b514e
 ## explicit; go 1.17
 yunion.io/x/sqlchemy
 yunion.io/x/sqlchemy/backends/clickhouse

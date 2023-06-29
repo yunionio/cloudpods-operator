@@ -352,6 +352,7 @@ func (self *SElasticip) GetShortDesc(ctx context.Context) *jsonutils.JSONDict {
 	desc.Add(jsonutils.NewInt(int64(self.Bandwidth)), "bandwidth")
 	desc.Add(jsonutils.NewString(self.Mode), "mode")
 	desc.Add(jsonutils.NewString(self.IpAddr), "ip_addr")
+	desc.Add(jsonutils.NewString(self.BgpType), "bgp_type")
 
 	// region := self.GetRegion()
 	// if len(region.ExternalId) > 0 {
@@ -600,6 +601,9 @@ func (manager *SElasticipManager) newFromCloudEip(ctx context.Context, userCred 
 	eip.CloudregionId = region.Id
 	eip.ChargeType = extEip.GetInternetChargeType()
 	eip.AssociateType = extEip.GetAssociationType()
+	if !extEip.GetCreatedAt().IsZero() {
+		eip.CreatedAt = extEip.GetCreatedAt()
+	}
 	if len(eip.ChargeType) == 0 {
 		eip.ChargeType = api.EIP_CHARGE_TYPE_BY_TRAFFIC
 	}

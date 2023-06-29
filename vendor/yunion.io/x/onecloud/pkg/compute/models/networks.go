@@ -117,9 +117,6 @@ type SNetwork struct {
 
 	VlanId int `nullable:"false" default:"1" list:"user" update:"user" create:"optional"`
 
-	// 二层网络Id
-	// WireId string `width:"36" charset:"ascii" nullable:"false" list:"user" create:"required"`
-
 	// 服务器类型
 	// example: server
 	ServerType string `width:"16" charset:"ascii" default:"guest" nullable:"true" list:"user" create:"optional"`
@@ -1896,7 +1893,7 @@ func (self *SNetwork) PostCreate(ctx context.Context, userCred mcclient.TokenCre
 	self.SSharableVirtualResourceBase.PostCreate(ctx, userCred, ownerId, query, data)
 	vpc, _ := self.GetVpc()
 	if vpc != nil && vpc.IsManaged() {
-		task, err := taskman.TaskManager.NewTask(ctx, "NetworkCreateTask", self, userCred, nil, "", "", nil)
+		task, err := taskman.TaskManager.NewTask(ctx, "NetworkCreateTask", self, userCred, data.(*jsonutils.JSONDict), "", "", nil)
 		if err != nil {
 			log.Errorf("networkcreateTask create fail: %s", err)
 		} else {
@@ -2142,39 +2139,45 @@ func (manager *SNetworkManager) ListItemFilter(
 		}
 	}
 
-	ip := ""
+	ips := []string{}
 	exactIpMatch := false
 	if len(input.Ip) > 0 {
 		exactIpMatch = true
-		ip = input.Ip
+		ips = input.Ip
 	} else if len(input.IpMatch) > 0 {
-		ip = input.IpMatch
+		ips = input.IpMatch
 	}
 
-	if len(ip) > 0 {
-		ipIa, err := parseIpToIntArray(ip)
-		if err != nil {
-			return nil, err
+	if len(ips) > 0 {
+		conditions := []sqlchemy.ICondition{}
+		for _, ip := range ips {
+			if len(ip) == 0 {
+				continue
+			}
+			ipIa, err := parseIpToIntArray(ip)
+			if err != nil {
+				return nil, err
+			}
+
+			ipSa := []string{"0", "0", "0", "0"}
+			for i := range ipIa {
+				ipSa[i] = strconv.Itoa(ipIa[i])
+			}
+			fullIp := strings.Join(ipSa, ".")
+
+			ipField := sqlchemy.INET_ATON(sqlchemy.NewStringField(fullIp))
+			ipStart := sqlchemy.INET_ATON(q.Field("guest_ip_start"))
+			ipEnd := sqlchemy.INET_ATON(q.Field("guest_ip_end"))
+
+			var ipCondtion sqlchemy.ICondition
+			if exactIpMatch {
+				ipCondtion = sqlchemy.Between(ipField, ipStart, ipEnd)
+			} else {
+				ipCondtion = sqlchemy.OR(sqlchemy.Between(ipField, ipStart, ipEnd), sqlchemy.Contains(q.Field("guest_ip_start"), ip), sqlchemy.Contains(q.Field("guest_ip_end"), ip))
+			}
+			conditions = append(conditions, ipCondtion)
 		}
-
-		ipSa := []string{"0", "0", "0", "0"}
-		for i := range ipIa {
-			ipSa[i] = strconv.Itoa(ipIa[i])
-		}
-		fullIp := strings.Join(ipSa, ".")
-
-		ipField := sqlchemy.INET_ATON(sqlchemy.NewStringField(fullIp))
-		ipStart := sqlchemy.INET_ATON(q.Field("guest_ip_start"))
-		ipEnd := sqlchemy.INET_ATON(q.Field("guest_ip_end"))
-
-		var ipCondtion sqlchemy.ICondition
-		if exactIpMatch {
-			ipCondtion = sqlchemy.Between(ipField, ipStart, ipEnd)
-		} else {
-			ipCondtion = sqlchemy.OR(sqlchemy.Between(ipField, ipStart, ipEnd), sqlchemy.Contains(q.Field("guest_ip_start"), ip), sqlchemy.Contains(q.Field("guest_ip_end"), ip))
-		}
-
-		q = q.Filter(ipCondtion)
+		q = q.Filter(sqlchemy.OR(conditions...))
 	}
 
 	if len(input.SchedtagId) > 0 {

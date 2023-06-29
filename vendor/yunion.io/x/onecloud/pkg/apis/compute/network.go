@@ -93,11 +93,11 @@ type NetworkListInput struct {
 
 	// description: Exact matching ip address in network.
 	// example: 10.168.222.1
-	Ip string `json:"ip"`
+	Ip []string `json:"ip"`
 
 	// description: Fuzzy matching ip address in network.
 	// example: 10.168.222.1
-	IpMatch string `json:"ip_match"`
+	IpMatch []string `json:"ip_match"`
 
 	IfnameHint []string `json:"ifname_hint"`
 	// 起始IP地址
@@ -241,6 +241,9 @@ type NetworkCreateInput struct {
 
 	// 线路类型
 	BgpType string `json:"bgp_type"`
+
+	// 是否申请ip时自动挂载公网ip，仅对aws生效
+	AssignPublicIp bool `json:"assign_public_ip"`
 }
 
 type SNetworkNics struct {

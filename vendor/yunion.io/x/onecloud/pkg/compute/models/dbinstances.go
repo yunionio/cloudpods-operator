@@ -235,7 +235,18 @@ func (man *SDBInstanceManager) ListItemFilter(
 	}
 
 	if len(query.IpAddr) > 0 {
-		dn := DBInstanceNetworkManager.Query("dbinstance_id").Contains("ip_addr", query.IpAddr)
+		dn := DBInstanceNetworkManager.Query("dbinstance_id")
+		conditions := []sqlchemy.ICondition{}
+		for _, ipAddr := range query.IpAddr {
+			if len(ipAddr) == 0 {
+				continue
+			}
+			condition := sqlchemy.Contains(dn.Field("ip_addr"), ipAddr)
+			conditions = append(conditions, condition)
+		}
+		if len(conditions) > 0 {
+			dn = dn.Filter(sqlchemy.OR(conditions...))
+		}
 		q = q.Filter(sqlchemy.In(q.Field("id"), dn.SubQuery()))
 	}
 
@@ -1150,6 +1161,7 @@ func (self *SDBInstance) GetShortDesc(ctx context.Context) *jsonutils.JSONDict {
 	desc.Set("vcpu_count", jsonutils.NewInt(int64(self.VcpuCount)))
 	desc.Set("vmem_size_mb", jsonutils.NewInt(int64(self.VmemSizeMb)))
 	desc.Set("disk_size_gb", jsonutils.NewInt(int64(self.DiskSizeGB)))
+	desc.Set("iops", jsonutils.NewInt(int64(self.Iops)))
 	desc.Update(jsonutils.Marshal(&info))
 	return desc
 }

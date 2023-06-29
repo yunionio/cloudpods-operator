@@ -371,7 +371,7 @@ func (self *SStorage) PerformOnline(ctx context.Context, userCred mcclient.Token
 
 func (self *SStorage) PerformOffline(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
 	if self.Status != api.STORAGE_OFFLINE {
-		err := self.SetStatus(userCred, api.STORAGE_OFFLINE, "")
+		err := self.SetStatus(userCred, api.STORAGE_OFFLINE, data.String())
 		if err != nil {
 			return nil, err
 		}
@@ -411,6 +411,8 @@ func (self *SStorage) IsLocal() bool {
 func (self *SStorage) GetStorageCachePath(mountPoint, imageCachePath string) string {
 	if utils.IsInStringArray(self.StorageType, api.SHARED_FILE_STORAGE) {
 		return path.Join(mountPoint, imageCachePath)
+	} else if self.StorageType == api.STORAGE_LVM {
+		return mountPoint
 	} else {
 		return imageCachePath
 	}
