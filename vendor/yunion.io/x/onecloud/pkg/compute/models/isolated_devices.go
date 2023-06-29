@@ -16,6 +16,7 @@ package models
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 	"time"
@@ -142,12 +143,22 @@ func (manager *SIsolatedDeviceManager) ValidateCreateData(ctx context.Context,
 		return input, httperrors.NewNotEmptyError("dev_type is empty")
 	}
 	if !utils.IsInStringArray(input.DevType, api.VALID_PASSTHROUGH_TYPES) {
-		return input, httperrors.NewInputParameterError("device type %q not supported", input.DevType)
+		if _, err := IsolatedDeviceModelManager.GetByDevType(input.DevType); err != nil {
+			return input, httperrors.NewInputParameterError("device type %q not supported", input.DevType)
+		}
 	}
 
 	input.StandaloneResourceCreateInput, err = manager.SStandaloneResourceBaseManager.ValidateCreateData(ctx, userCred, ownerId, query, input.StandaloneResourceCreateInput)
 	if err != nil {
 		return input, errors.Wrap(err, "SStandaloneResourceBaseManager.ValidateCreateData")
+	}
+
+	if input.HostId != "" && input.Addr != "" {
+		if hasDevAddr, err := manager.hostHasDevAddr(input.HostId, input.Addr); err != nil {
+			return input, errors.Wrap(err, "check hostHasDevAddr")
+		} else if hasDevAddr {
+			return input, httperrors.NewBadRequestError("dev addr %s registed", input.Addr)
+		}
 	}
 
 	// validate reserverd resource
@@ -199,12 +210,16 @@ func (self *SIsolatedDevice) ValidateUpdateData(
 	}
 	if input.DevType != "" && input.DevType != self.DevType {
 		if !utils.IsInStringArray(input.DevType, api.VALID_GPU_TYPES) {
-			return input, httperrors.NewInputParameterError("device type %q not support update", input.DevType)
-		}
-		if !self.IsGPU() {
-			return input, httperrors.NewInputParameterError("Can't update for device %q", self.DevType)
+			if _, err := IsolatedDeviceModelManager.GetByDevType(input.DevType); err != nil {
+				return input, httperrors.NewInputParameterError("device type %q not support update", input.DevType)
+			}
+		} else {
+			if !self.IsGPU() {
+				return input, httperrors.NewInputParameterError("Can't update for device %q", self.DevType)
+			}
 		}
 	}
+
 	return input, nil
 }
 
@@ -892,6 +907,51 @@ func (manager *SIsolatedDeviceManager) GetDevsOnHost(hostId string, model string
 		return nil, nil
 	}
 	return devs, nil
+}
+
+func (manager *SIsolatedDeviceManager) hostHasDevAddr(hostId, addr string) (bool, error) {
+	cnt, err := manager.Query().Equals("addr", addr).
+		Equals("host_id", hostId).CountWithError()
+	if err != nil {
+		return false, err
+	}
+	return cnt != 0, nil
+}
+
+func (manager *SIsolatedDeviceManager) CheckModelIsEmpty(model, vendor, device, devType string) (bool, error) {
+	cnt, err := manager.Query().Equals("model", model).
+		Equals("dev_type", devType).
+		Equals("vendor_device_id", fmt.Sprintf("%s:%s", vendor, device)).
+		IsNotEmpty("guest_id").CountWithError()
+	if err != nil {
+		return false, err
+	}
+	return cnt == 0, nil
+}
+
+func (manager *SIsolatedDeviceManager) GetHostsByModel(model, vendor, device, devType string) ([]string, error) {
+	q := manager.Query("host_id").Equals("model", model).
+		Equals("dev_type", devType).
+		Equals("vendor_device_id", fmt.Sprintf("%s:%s", vendor, device)).GroupBy("host_id")
+
+	rows, err := q.Rows()
+	if err != nil && err != sql.ErrNoRows {
+		return nil, errors.Wrap(err, "q.Rows")
+	}
+	if rows == nil {
+		return nil, nil
+	}
+	defer rows.Close()
+	ret := make([]string, 0)
+	for rows.Next() {
+		var hostId string
+		err = rows.Scan(&hostId)
+		if err != nil {
+			return nil, errors.Wrap(err, "rows.Scan")
+		}
+		ret = append(ret, hostId)
+	}
+	return ret, nil
 }
 
 func (self *SIsolatedDevice) GetUniqValues() jsonutils.JSONObject {

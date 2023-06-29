@@ -1177,7 +1177,19 @@ func (self *SGuest) StartGuestStopTask(ctx context.Context, userCred mcclient.To
 	if len(parentTaskId) > 0 {
 		params.Add(jsonutils.JSONTrue, "subtask")
 	}
-	return self.GetDriver().StartGuestStopTask(self, ctx, userCred, params, parentTaskId)
+	driver := self.GetDriver()
+	shutdownMode := api.VM_SHUTDOWN_MODE_KEEP_CHARGING
+	if stopCharging && driver.IsSupportShutdownMode() {
+		shutdownMode = api.VM_SHUTDOWN_MODE_STOP_CHARGING
+	}
+	_, err := db.Update(self, func() error {
+		self.ShutdownMode = shutdownMode
+		return nil
+	})
+	if err != nil {
+		return errors.Wrapf(err, "db.Update")
+	}
+	return driver.StartGuestStopTask(self, ctx, userCred, params, parentTaskId)
 }
 
 func (self *SGuest) insertIso(imageId string, cdromOrdinal int64) bool {
@@ -1618,6 +1630,10 @@ func (self *SGuest) PerformRebuildRoot(ctx context.Context, userCred mcclient.To
 		return nil, httperrors.NewInvalidStatusError("Cannot reset root in status %s", self.Status)
 	}
 
+	if self.Status == api.VM_READY && self.ShutdownMode == api.VM_SHUTDOWN_MODE_STOP_CHARGING {
+		return nil, httperrors.NewInvalidStatusError("Cannot reset root with %s", self.ShutdownMode)
+	}
+
 	autoStart := false
 	if input.AutoStart != nil {
 		autoStart = *input.AutoStart
@@ -1890,9 +1906,23 @@ func (self *SGuest) PerformDetachIsolatedDevice(ctx context.Context, userCred mc
 		lockman.LockObject(ctx, host)
 		defer lockman.ReleaseObject(ctx, host)
 		for i := 0; i < len(devs); i++ {
-			if devs[i].DevType == api.NIC_TYPE {
-				continue
+			// check first
+			dev := devs[i]
+			if !utils.IsInStringArray(dev.DevType, []string{api.GPU_HPC_TYPE, api.GPU_VGA_TYPE, api.USB_TYPE}) {
+				if devModel, err := IsolatedDeviceModelManager.GetByDevType(dev.DevType); err != nil {
+					msg := fmt.Sprintf("Can't separately detach dev type %s", dev.DevType)
+					logclient.AddActionLogWithContext(ctx, self, logclient.ACT_GUEST_DETACH_ISOLATED_DEVICE, msg, userCred, false)
+					return nil, httperrors.NewBadRequestError(msg)
+				} else {
+					if !devModel.HotPluggable.Bool() && self.GetStatus() == api.VM_RUNNING {
+						msg := fmt.Sprintf("dev type %s model %s unhotpluggable", dev.DevType, devModel.Model)
+						logclient.AddActionLogWithContext(ctx, self, logclient.ACT_GUEST_DETACH_ISOLATED_DEVICE, msg, userCred, false)
+						return nil, httperrors.NewBadRequestError(msg)
+					}
+				}
 			}
+		}
+		for i := 0; i < len(devs); i++ {
 			err := self.detachIsolateDevice(ctx, userCred, &devs[i])
 			if err != nil {
 				return nil, err
@@ -1911,12 +1941,20 @@ func (self *SGuest) startDetachIsolateDeviceWithoutNic(ctx context.Context, user
 		return httperrors.NewBadRequestError(msgFmt, device)
 	}
 	dev := iDev.(*SIsolatedDevice)
-	if dev.DevType == api.NIC_TYPE {
-		return httperrors.NewBadRequestError("Can't separately detach dev type %s", api.NIC_TYPE)
+	if !utils.IsInStringArray(dev.DevType, []string{api.GPU_HPC_TYPE, api.GPU_VGA_TYPE, api.USB_TYPE}) {
+		if devModel, err := IsolatedDeviceModelManager.GetByDevType(dev.DevType); err != nil {
+			msg := fmt.Sprintf("Can't separately detach dev type %s", dev.DevType)
+			logclient.AddActionLogWithContext(ctx, self, logclient.ACT_GUEST_DETACH_ISOLATED_DEVICE, msg, userCred, false)
+			return httperrors.NewBadRequestError(msg)
+		} else {
+			if !devModel.HotPluggable.Bool() && self.GetStatus() == api.VM_RUNNING {
+				msg := fmt.Sprintf("dev type %s model %s unhotpluggable", dev.DevType, devModel.Model)
+				logclient.AddActionLogWithContext(ctx, self, logclient.ACT_GUEST_DETACH_ISOLATED_DEVICE, msg, userCred, false)
+				return httperrors.NewBadRequestError(msg)
+			}
+		}
 	}
-	if dev.IsGPU() && !utils.IsInStringArray(self.GetStatus(), []string{api.VM_READY, api.VM_RUNNING}) {
-		return httperrors.NewInvalidStatusError("Can't detach GPU when status is %q", self.GetStatus())
-	}
+
 	host, _ := self.GetHost()
 	lockman.LockObject(ctx, host)
 	defer lockman.ReleaseObject(ctx, host)
@@ -1996,6 +2034,17 @@ func (self *SGuest) startAttachIsolatedDevices(ctx context.Context, userCred mcc
 	if len(devs) == 0 || len(devs) != count {
 		return httperrors.NewBadRequestError("guest %s host %s isolated device not enough", self.GetName(), host.GetName())
 	}
+	dev := devs[0]
+	if !utils.IsInStringArray(dev.DevType, []string{api.GPU_HPC_TYPE, api.GPU_VGA_TYPE, api.USB_TYPE}) {
+		if devModel, err := IsolatedDeviceModelManager.GetByDevType(dev.DevType); err != nil {
+			return httperrors.NewBadRequestError("Can't separately attach dev type %s", dev.DevType)
+		} else {
+			if !devModel.HotPluggable.Bool() && self.GetStatus() == api.VM_RUNNING {
+				return httperrors.NewBadRequestError("dev type %s model %s unhotpluggable", dev.DevType, devModel.Model)
+			}
+		}
+	}
+
 	defer func() { go host.ClearSchedDescCache() }()
 	for i := 0; i < len(devs); i++ {
 		err = self.attachIsolatedDevice(ctx, userCred, &devs[i], nil, nil)
@@ -2007,14 +2056,14 @@ func (self *SGuest) startAttachIsolatedDevices(ctx context.Context, userCred mcc
 }
 
 func (self *SGuest) StartAttachIsolatedDeviceGpuOrUsb(ctx context.Context, userCred mcclient.TokenCredential, device string, autoStart bool) error {
-	if err := self.startAttachIsolatedDevGpuOrUsb(ctx, userCred, device); err != nil {
+	if err := self.startAttachIsolatedDevGeneral(ctx, userCred, device); err != nil {
 		return err
 	}
 	// perform post attach task
 	return self.startIsolatedDevicesSyncTask(ctx, userCred, autoStart, "")
 }
 
-func (self *SGuest) startAttachIsolatedDevGpuOrUsb(ctx context.Context, userCred mcclient.TokenCredential, device string) error {
+func (self *SGuest) startAttachIsolatedDevGeneral(ctx context.Context, userCred mcclient.TokenCredential, device string) error {
 	iDev, err := IsolatedDeviceManager.FetchByIdOrName(userCred, device)
 	if err != nil {
 		msgFmt := "Isolated device %s not found"
@@ -2024,7 +2073,13 @@ func (self *SGuest) startAttachIsolatedDevGpuOrUsb(ctx context.Context, userCred
 	}
 	dev := iDev.(*SIsolatedDevice)
 	if !utils.IsInStringArray(dev.DevType, []string{api.GPU_HPC_TYPE, api.GPU_VGA_TYPE, api.USB_TYPE}) {
-		return httperrors.NewBadRequestError("Can't separately attach dev type %s", dev.DevType)
+		if devModel, err := IsolatedDeviceModelManager.GetByDevType(dev.DevType); err != nil {
+			return httperrors.NewBadRequestError("Can't separately attach dev type %s", dev.DevType)
+		} else {
+			if !devModel.HotPluggable.Bool() && self.GetStatus() == api.VM_RUNNING {
+				return httperrors.NewBadRequestError("dev type %s model %s unhotpluggable", dev.DevType, devModel.Model)
+			}
+		}
 	}
 	if !utils.IsInStringArray(self.GetStatus(), []string{api.VM_READY, api.VM_RUNNING}) {
 		return httperrors.NewInvalidStatusError("Can't attach GPU when status is %q", self.GetStatus())
@@ -2113,7 +2168,7 @@ func (self *SGuest) PerformSetIsolatedDevice(ctx context.Context, userCred mccli
 		}
 	}
 	for i := 0; i < len(addDevs); i++ {
-		err := self.startAttachIsolatedDevGpuOrUsb(ctx, userCred, addDevs[i])
+		err := self.startAttachIsolatedDevGeneral(ctx, userCred, addDevs[i])
 		if err != nil {
 			return nil, err
 		}
@@ -2552,6 +2607,10 @@ func (self *SGuest) PerformChangeConfig(ctx context.Context, userCred mcclient.T
 	}
 	if !utils.IsInStringArray(self.Status, changeStatus) {
 		return nil, httperrors.NewInvalidStatusError("Cannot change config in %s for %s, requires %s", self.Status, self.GetHypervisor(), changeStatus)
+	}
+
+	if self.Status == api.VM_READY && self.ShutdownMode == api.VM_SHUTDOWN_MODE_STOP_CHARGING {
+		return nil, httperrors.NewInvalidStatusError("Cannot change config with %s", self.ShutdownMode)
 	}
 
 	_, err = self.GetHost()

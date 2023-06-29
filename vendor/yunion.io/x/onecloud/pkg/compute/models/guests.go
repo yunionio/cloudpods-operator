@@ -133,6 +133,10 @@ type SGuest struct {
 	// example: stop
 	ShutdownBehavior string `width:"16" charset:"ascii" default:"stop" list:"user" update:"user" create:"optional"`
 
+	// 关机收费模式
+	// example: keep_charging, stop_charging
+	ShutdownMode string `width:"16" charset:"ascii" default:"keep_charging" list:"user"`
+
 	// 秘钥对Id
 	KeypairId string `width:"36" charset:"ascii" nullable:"true" list:"user" create:"optional"`
 
@@ -240,6 +244,7 @@ func (manager *SGuestManager) ListItemFilter(
 	if err != nil {
 		return nil, errors.Wrap(err, "SVirtualResourceBaseManager.ListItemFilter")
 	}
+
 	q, err = manager.SMultiArchResourceBaseManager.ListItemFilter(ctx, q, userCred, query.MultiArchResourceBaseListInput)
 	if err != nil {
 		return nil, errors.Wrap(err, "MultiArchResourceBaseListInput.ListItemFilter")
@@ -410,20 +415,40 @@ func (manager *SGuestManager) ListItemFilter(
 		q = q.In("host_id", sq)
 	}
 
-	if len(query.IpAddr) > 0 {
+	if len(query.IpAddrs) > 0 {
 		grpnets := GroupnetworkManager.Query().SubQuery()
 		vipq := GroupguestManager.Query("guest_id")
-		vipq = vipq.Join(grpnets, sqlchemy.Equals(grpnets.Field("group_id"), vipq.Field("group_id")))
-		vipq = vipq.Contains("ip_addr", query.IpAddr)
+		conditions := []sqlchemy.ICondition{}
+		for _, ipAddr := range query.IpAddrs {
+			conditions = append(conditions, sqlchemy.Contains(grpnets.Field("ip_addr"), ipAddr))
+		}
+		vipq = vipq.Join(grpnets, sqlchemy.Equals(grpnets.Field("group_id"), vipq.Field("group_id"))).Filter(
+			sqlchemy.OR(conditions...),
+		)
 
 		grpeips := ElasticipManager.Query().Equals("associate_type", api.EIP_ASSOCIATE_TYPE_INSTANCE_GROUP).SubQuery()
+		conditions = []sqlchemy.ICondition{}
+		for _, ipAddr := range query.IpAddrs {
+			conditions = append(conditions, sqlchemy.Contains(grpeips.Field("ip_addr"), ipAddr))
+		}
 		vipeipq := GroupguestManager.Query("guest_id")
-		vipeipq = vipeipq.Join(grpeips, sqlchemy.Equals(grpeips.Field("associate_id"), vipeipq.Field("group_id")))
-		vipeipq = vipeipq.Contains("ip_addr", query.IpAddr)
+		vipeipq = vipeipq.Join(grpeips, sqlchemy.Equals(grpeips.Field("associate_id"), vipeipq.Field("group_id"))).Filter(
+			sqlchemy.OR(conditions...),
+		)
 
-		gn := GuestnetworkManager.Query("guest_id").Contains("ip_addr", query.IpAddr)
+		gnQ := GuestnetworkManager.Query("guest_id")
+		conditions = []sqlchemy.ICondition{}
+		for _, ipAddr := range query.IpAddrs {
+			conditions = append(conditions, sqlchemy.Contains(gnQ.Field("ip_addr"), ipAddr))
+		}
+		gn := gnQ.Filter(sqlchemy.OR(conditions...))
 
-		guestEip := ElasticipManager.Query("associate_id").Equals("associate_type", api.EIP_ASSOCIATE_TYPE_SERVER).Contains("ip_addr", query.IpAddr)
+		guestEipQ := ElasticipManager.Query("associate_id").Equals("associate_type", api.EIP_ASSOCIATE_TYPE_SERVER)
+		conditions = []sqlchemy.ICondition{}
+		for _, ipAddr := range query.IpAddrs {
+			conditions = append(conditions, sqlchemy.Contains(guestEipQ.Field("ip_addr"), ipAddr))
+		}
+		guestEip := guestEipQ.Filter(sqlchemy.OR(conditions...))
 
 		q = q.Filter(sqlchemy.OR(
 			sqlchemy.In(q.Field("id"), gn.SubQuery()),
@@ -495,21 +520,27 @@ func (manager *SGuestManager) ListItemFilter(
 
 	if len(query.ServerType) > 0 {
 		var trueVal, falseVal = true, false
-		switch query.ServerType {
-		case "normal":
-			query.Gpu = &falseVal
+		for _, serverType := range query.ServerType {
+			switch serverType {
+			case "normal":
+				query.Normal = &falseVal
+				query.Backup = &falseVal
+			case "gpu":
+				query.Gpu = &trueVal
+				query.Backup = &falseVal
+			case "backup":
+				query.Gpu = &falseVal
+				query.Backup = &trueVal
+			case "usb":
+				query.Usb = &trueVal
+				query.Backup = &falseVal
+			default:
+				query.CustomDevType = serverType
+				query.Backup = &falseVal
+			}
+		}
+		if query.Backup == nil {
 			query.Backup = &falseVal
-		case "gpu":
-			query.Gpu = &trueVal
-			query.Backup = &falseVal
-		case "backup":
-			query.Gpu = &falseVal
-			query.Backup = &trueVal
-		case "usb":
-			query.Usb = &trueVal
-			query.Backup = &falseVal
-		default:
-			return nil, httperrors.NewInputParameterError("unknown server type %s", query.ServerType)
 		}
 	}
 
@@ -520,15 +551,14 @@ func (manager *SGuestManager) ListItemFilter(
 			q = q.IsEmpty("backup_host_id")
 		}
 	}
-
-	devTypeQ := func(q *sqlchemy.SQuery, checkType *bool, dType string) *sqlchemy.SQuery {
+	devTypeQ := func(q *sqlchemy.SQuery, checkType *bool, dType string, conditions []sqlchemy.ICondition) []sqlchemy.ICondition {
 		if checkType != nil {
-			conditions := []sqlchemy.ICondition{}
 			isodev := IsolatedDeviceManager.Query().SubQuery()
-			sgq := isodev.Query(isodev.Field("guest_id")).
-				Filter(sqlchemy.AND(
-					sqlchemy.IsNotNull(isodev.Field("guest_id")),
-					sqlchemy.Startswith(isodev.Field("dev_type"), dType)))
+			isodevCons := []sqlchemy.ICondition{sqlchemy.IsNotNull(isodev.Field("guest_id"))}
+			if len(dType) > 0 {
+				isodevCons = append(isodevCons, sqlchemy.Startswith(isodev.Field("dev_type"), dType))
+			}
+			sgq := isodev.Query(isodev.Field("guest_id")).Filter(sqlchemy.AND(isodevCons...))
 			cond := sqlchemy.NotIn
 			if *checkType {
 				cond = sqlchemy.In
@@ -538,13 +568,23 @@ func (manager *SGuestManager) ListItemFilter(
 				conditions = append(conditions, cond(q.Field("instance_type"), sq))
 			}
 			conditions = append(conditions, cond(q.Field("id"), sgq))
-			return q.Filter(sqlchemy.OR(conditions...))
+			return conditions
 		}
-		return q
+		return conditions
 	}
 
-	q = devTypeQ(q, query.Gpu, "GPU")
-	q = devTypeQ(q, query.Usb, api.USB_TYPE)
+	conditions := []sqlchemy.ICondition{}
+
+	conditions = devTypeQ(q, query.Normal, "", conditions)
+	conditions = devTypeQ(q, query.Gpu, "GPU", conditions)
+	conditions = devTypeQ(q, query.Usb, api.USB_TYPE, conditions)
+	if len(query.CustomDevType) > 0 {
+		ct := true
+		conditions = devTypeQ(q, &ct, query.CustomDevType, conditions)
+	}
+	if len(conditions) > 0 {
+		q = q.Filter(sqlchemy.OR(conditions...))
+	}
 
 	groupFilter := query.GroupId
 	if len(groupFilter) != 0 {
@@ -1573,10 +1613,6 @@ func (manager *SGuestManager) validateCreateData(
 		{
 			if rootDiskConfig.NVMEDevice != nil {
 				return nil, httperrors.NewBadRequestError("NVMe device can't assign as root disk")
-			}
-			if rootDiskConfig.Backend == api.STORAGE_LVM {
-				// TODO: support lvm root disk
-				return nil, httperrors.NewBadRequestError("LVM disk can't as root disk")
 			}
 			if input.ResourceType != api.HostResourceTypePrepaidRecycle {
 				if len(rootDiskConfig.Backend) == 0 {
@@ -4261,7 +4297,7 @@ func (self *SGuest) createDiskOnHost(
 
 func (self *SGuest) CreateIsolatedDeviceOnHost(ctx context.Context, userCred mcclient.TokenCredential, host *SHost, devs []*api.IsolatedDeviceConfig, pendingUsage quotas.IQuota) error {
 	for _, devConfig := range devs {
-		if devConfig.DevType == api.NIC_TYPE {
+		if devConfig.DevType == api.NIC_TYPE || devConfig.DevType == api.NVME_PT_TYPE {
 			continue
 		}
 		err := self.createIsolatedDeviceOnHost(ctx, userCred, host, devConfig, pendingUsage)
@@ -5111,6 +5147,10 @@ func (self *SGuest) GetShortDesc(ctx context.Context) *jsonutils.JSONDict {
 	desc.Set("cpu", jsonutils.NewInt(int64(self.VcpuCount)))
 
 	desc.Set("status", jsonutils.NewString(self.Status))
+	desc.Set("shutdown_mode", jsonutils.NewString(self.ShutdownMode))
+	if len(self.InstanceType) > 0 {
+		desc.Set("instance_type", jsonutils.NewString(self.InstanceType))
+	}
 
 	address := jsonutils.NewString(strings.Join(self.GetRealIPs(), ","))
 	desc.Set("ip_addr", address)

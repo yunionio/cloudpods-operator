@@ -84,6 +84,7 @@ type SGuestHardwareDesc struct {
 	// supported machine type: pc, q35, virt
 	Machine     string
 	MachineDesc *SGuestMachine `json:",omitempty"`
+	NoHpet      *bool          `json:",omitempty"` // i386 target only
 
 	VirtioSerial *SGuestVirtioSerial
 
@@ -144,8 +145,6 @@ type PCIController struct {
 	*PCIDevice
 
 	CType PCI_CONTROLLER_TYPE
-	//HotPlug bool
-	//Bus     string
 }
 
 type SGuestMachine struct {
