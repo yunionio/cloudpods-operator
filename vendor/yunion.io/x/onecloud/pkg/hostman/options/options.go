@@ -33,6 +33,7 @@ type SHostBaseOptions struct {
 	LiveMigrateCpuThrottleMax int64 `default:"99" help:"live migrate auto converge cpu throttle max"`
 
 	DefaultQemuVersion string `help:"Default qemu version" default:"4.2.0"`
+	NoHpet             bool   `help:"disable qemu hpet timer" default:"false"`
 
 	CdromCount  int `help:"cdrom count" default:"1"`
 	FloppyCount int `help:"floppy count" default:"1"`
@@ -168,11 +169,12 @@ type SHostOptions struct {
 
 	DisableKVM bool `help:"force disable KVM" default:"false" json:"disable_kvm"`
 
-	DisableGPU     bool     `help:"force disable GPU detect" default:"false" json:"disable_gpu"`
-	DisableUSB     bool     `help:"force disable USB detect" default:"true" json:"disable_usb"`
-	SRIOVNics      []string `help:"nics enable sriov" json:"sriov_nics"`
-	OvsOffloadNics []string `help:"nics enable ovs offload" json:"ovs_offload_nics"`
-	PTNVMEConfigs  []string `help:"passthrough nvme disk pci address and size"`
+	DisableGPU          bool     `help:"force disable GPU detect" default:"false" json:"disable_gpu"`
+	DisableCustomDevice bool     `help:"force disable custom pci device detect" default:"false" json:"disable_custom_device"`
+	DisableUSB          bool     `help:"force disable USB detect" default:"true" json:"disable_usb"`
+	SRIOVNics           []string `help:"nics enable sriov" json:"sriov_nics"`
+	OvsOffloadNics      []string `help:"nics enable ovs offload" json:"ovs_offload_nics"`
+	PTNVMEConfigs       []string `help:"passthrough nvme disk pci address and size"`
 
 	EthtoolEnableGso bool `help:"use ethtool to turn on or off GSO(generic segment offloading)" default:"false" json:"ethtool_enable_gso"`
 

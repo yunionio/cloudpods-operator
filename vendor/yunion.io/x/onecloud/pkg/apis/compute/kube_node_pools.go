@@ -22,9 +22,33 @@ type KubeNodePoolListInput struct {
 
 	RegionalFilterListInput
 	ManagedResourceListInput
+
+	CloudKubeClusterId string `json:"cloud_kube_cluster_id"`
 }
 
 type KubeNodePoolCreateInput struct {
+	apis.StatusStandaloneResourceCreateInput
+
+	NetworkIds    SKubeNetworkIds `json:"network_ids"`
+	InstanceTypes SInstanceTypes  `json:"instance_types"`
+
+	// default: 2
+	MinInstanceCount int `json:"min_instance_count"`
+	// default: 2
+	MaxInstanceCount int `json:"max_instance_count"`
+	// 预期节点数量, 不得小于min_instance_count
+	// default: 2
+	DesiredInstanceCount int `json:"desired_instance_count"`
+
+	RootDiskSizeGb int `json:"root_disk_size_gb"`
+
+	CloudKubeClusterId string `json:"cloud_kube_cluster_id"`
+
+	// 秘钥id，若不传，则使用系统级秘钥
+	KeypairId string `json:"keypair_id"`
+
+	// swagger: ignore
+	PublicKey string `json:"public_key"`
 }
 
 type KubeNodePoolDetails struct {

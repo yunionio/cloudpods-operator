@@ -12,28 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package validate
+package identity
 
 import (
-	"fmt"
-	"sort"
+	"yunion.io/x/onecloud/pkg/mcclient/modulebase"
+	"yunion.io/x/onecloud/pkg/mcclient/modules"
 )
 
-// DaysValidate sort days and check if days is out of range [min, max] or has repeated member
-func DaysCheck(days []int, min, max int) ([]int, error) {
-	if len(days) == 0 {
-		return days, nil
-	}
-	sort.Ints(days)
+type OrganizationNodeManager struct {
+	modulebase.ResourceManager
+}
 
-	if days[0] < min || days[len(days)-1] > max {
-		return days, fmt.Errorf("Out of range")
-	}
+var (
+	OrganizationNodes OrganizationNodeManager
+)
 
-	for i := 1; i < len(days); i++ {
-		if days[i] == days[i-1] {
-			return days, fmt.Errorf("Has repeat day %v", days)
-		}
-	}
-	return days, nil
+func init() {
+	OrganizationNodes = OrganizationNodeManager{modules.NewIdentityV3Manager("organization_node", "organization_nodes",
+		[]string{},
+		[]string{"ID", "Name", "Description", "Full_Label", "Level", "Tags"},
+	)}
+
+	modules.Register(&OrganizationNodes)
 }

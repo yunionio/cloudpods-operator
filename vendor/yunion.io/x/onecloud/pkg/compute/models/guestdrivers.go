@@ -55,6 +55,7 @@ type IGuestDriver interface {
 
 	IsSupportedBillingCycle(bc billing.SBillingCycle) bool
 	IsSupportPostpaidExpire() bool
+	IsSupportShutdownMode() bool
 
 	RequestRenewInstance(ctx context.Context, guest *SGuest, bc billing.SBillingCycle) (time.Time, error)
 
@@ -137,6 +138,7 @@ type IGuestDriver interface {
 	GetDetachDiskStatus() ([]string, error)
 	GetAttachDiskStatus() ([]string, error)
 	GetRebuildRootStatus() ([]string, error)
+	IsAllowSaveImageOnRunning() bool
 	GetChangeConfigStatus(guest *SGuest) ([]string, error)
 	GetDeployStatus() ([]string, error)
 	ValidateResizeDisk(guest *SGuest, disk *SDisk, storage *SStorage) error

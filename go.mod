@@ -19,10 +19,10 @@ require (
 	k8s.io/apimachinery v0.19.3
 	k8s.io/client-go v0.19.3
 	k8s.io/klog v0.3.3
-	yunion.io/x/jsonutils v1.0.1-0.20230428104347-7c2fdff8e8e7
+	yunion.io/x/jsonutils v1.0.1-0.20230613121553-0f3b41e2ef19
 	yunion.io/x/log v1.0.1-0.20230411060016-feb3f46ab361
-	yunion.io/x/onecloud v0.0.0-20230515064824-e0c47dd5df8c
-	yunion.io/x/pkg v1.0.1-0.20230504073602-0a74096f836a
+	yunion.io/x/onecloud v0.0.0-20230629122107-356488d3cf03
+	yunion.io/x/pkg v1.0.1-0.20230613081559-f38e2cb344b4
 	yunion.io/x/structarg v0.0.0-20220312084958-9c6c79c7d1c6
 )
 
@@ -57,7 +57,7 @@ require (
 	github.com/googleapis/gnostic v0.4.1 // indirect
 	github.com/hako/durafmt v0.0.0-20180520121703-7b7ae1e72ead // indirect
 	github.com/hashicorp/golang-lru v0.5.1 // indirect
-	github.com/jaypipes/ghw v0.10.1-0.20230329185050-227643e14380 // indirect
+	github.com/jaypipes/ghw v0.11.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid v1.3.1 // indirect
 	github.com/leodido/go-urn v1.2.0 // indirect
@@ -104,7 +104,7 @@ require (
 	golang.org/x/crypto v0.8.0 // indirect
 	golang.org/x/net v0.9.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20210514164344-f6687ab2804c // indirect
-	golang.org/x/sys v0.7.0 // indirect
+	golang.org/x/sys v0.9.0 // indirect
 	golang.org/x/term v0.7.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
 	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba // indirect
@@ -123,10 +123,10 @@ require (
 	moul.io/http2curl/v2 v2.3.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect
 	sigs.k8s.io/yaml v1.2.0 // indirect
-	yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20230505085927-bd8d7dd99d4f // indirect
+	yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20230629091727-2add12cd95c0 // indirect
 	yunion.io/x/executor v0.0.0-20211018100936-39a2cd966656 // indirect
 	yunion.io/x/s3cli v0.0.0-20190917004522-13ac36d8687e // indirect
-	yunion.io/x/sqlchemy v1.1.2-0.20230504021010-f3e76263d633 // indirect
+	yunion.io/x/sqlchemy v1.1.2-0.20230615091740-63854d9b514e // indirect
 )
 
 replace (

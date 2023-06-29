@@ -78,6 +78,9 @@ type ProjectizedResourceListInput struct {
 	// filter by no project tags
 	NoProjectTags tagutils.TTagSetList `json:"no_project_tags"`
 
+	// filter by project organizations
+	ProjectOrganizations []string `json:"project_organizations"`
+
 	// ignore
 	// project tag fitlers imposed by policy
 	PolicyProjectTags tagutils.TTagSetList `json:"policy_project_tags"`
@@ -352,7 +355,7 @@ type MultiArchResourceBaseListInput struct {
 	// arm会过滤出os_arch=aarch64或os_arch=aarch32或者以arm开头的资源
 	// 其他的输入会过滤出以输入字符开头的资源
 	// enmu: x86, arm
-	OsArch string `json:"os_arch"`
+	OsArch []string `json:"os_arch"`
 }
 
 type AutoDeleteResourceBaseListInput struct {
