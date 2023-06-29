@@ -283,6 +283,7 @@ func (m *ComponentManager) syncConfigMap(
 		return err
 	}
 	if forceUpdate {
+		log.Infof("forceUpdate configMap %s", cfgMap.GetName())
 		return m.configer.CreateOrUpdateConfigMap(oc, cfgMap)
 	}
 	oldCfgMap, err := m.configer.Lister().ConfigMaps(oc.GetNamespace()).Get(cfgMap.GetName())

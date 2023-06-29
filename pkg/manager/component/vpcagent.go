@@ -17,10 +17,12 @@ package component
 import (
 	"fmt"
 	"path"
+	"strings"
 
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
+	"yunion.io/x/log"
 	"yunion.io/x/onecloud/pkg/vpcagent/options"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
@@ -78,7 +80,19 @@ func (m *vpcAgentManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 	opts.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
 	opts.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
 	opts.Port = constants.VpcAgentPort
-	return m.newServiceConfigMap(v1alpha1.VpcAgentComponentType, "", oc, opts), false, nil
+	// return m.newServiceConfigMap(v1alpha1.VpcAgentComponentType, "", oc, opts), false, nil
+	return m.shouldSyncConfigmap(oc, v1alpha1.VpcAgentComponentType, opts, func(oldOpt string) bool {
+		for _, k := range []string{
+			"fetch_data_from_compute_service: false",
+		} {
+			if strings.Contains(oldOpt, k) {
+				// hack: force update old configmap if fetch_data_from_compute_service is false
+				log.Infof("default-vpcagent oldOpt constains: %q", k)
+				return true
+			}
+		}
+		return false
+	})
 }
 
 func (m *vpcAgentManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
