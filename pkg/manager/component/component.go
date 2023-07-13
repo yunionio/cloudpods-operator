@@ -268,6 +268,10 @@ func (m *ComponentManager) syncConfigMap(
 				}
 				return nil
 			}); err != nil {
+				if controller.StopServices {
+					log.Warningf("RunWithSession when stop-services: %s", err)
+					return nil
+				}
 				return errorswrap.Wrap(err, "RunWithSession")
 			}
 		}
@@ -433,12 +437,12 @@ func (m *ComponentManager) syncDeployment(
 	ns := oc.GetNamespace()
 	cfg, err := m.configer.GetClusterConfig(oc)
 	if err != nil {
-		return err
+		return errorswrap.Wrapf(err, "GetClusterConfig for component: %s", f.getComponentType())
 	}
 	deploymentFactory := f.getDeployment
 	newDeploy, err := deploymentFactory(oc, cfg, zone)
 	if err != nil {
-		return err
+		return errorswrap.Wrapf(err, "deploymentFactory for component: %s", f.getComponentType())
 	}
 	if newDeploy == nil {
 		return nil
@@ -464,6 +468,7 @@ func (m *ComponentManager) syncDeployment(
 
 	oldDeployTmp, err := m.deployLister.Deployments(ns).Get(newDeploy.GetName())
 	if err != nil {
+		log.Errorf("get old deployment error for component %s: %s", f.getComponentType(), err)
 		if errors.IsNotFound(err) {
 			if !inPV || shouldStop {
 				return nil
