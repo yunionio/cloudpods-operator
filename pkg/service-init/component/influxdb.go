@@ -43,6 +43,9 @@ const (
   # The directory where the TSM storage engine stores WAL files.
   wal-dir = "/var/lib/influxdb/wal"
 
+  max-series-per-database = 0
+  max-values-per-tag = 0
+
 [http]
   https-enabled = true
   https-certificate = "{{.CertPath}}"
