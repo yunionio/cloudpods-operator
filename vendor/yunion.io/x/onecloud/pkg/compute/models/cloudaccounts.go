@@ -29,6 +29,7 @@ import (
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
 	"yunion.io/x/pkg/errors"
+	"yunion.io/x/pkg/gotypes"
 	"yunion.io/x/pkg/tristate"
 	"yunion.io/x/pkg/util/compare"
 	"yunion.io/x/pkg/util/httputils"
@@ -164,6 +165,16 @@ type SCloudaccount struct {
 
 	// 缺失的权限，云账号操作资源时自动更新
 	LakeOfPermissions *api.SAccountPermissions `length:"medium" get:"user" list:"user"`
+
+	// 跳过部分资源同步
+	SkipSyncResources *api.SkipSyncResources `length:"medium" get:"user" update:"domain" list:"user"`
+}
+
+func (self *SCloudaccount) IsNotSkipSyncResource(res lockman.ILockedClass) bool {
+	if self.SkipSyncResources != nil && utils.IsInStringArray(res.Keyword(), *self.SkipSyncResources) {
+		return false
+	}
+	return true
 }
 
 func (self *SCloudaccount) GetCloudproviders() []SCloudprovider {
@@ -281,6 +292,29 @@ func (self *SCloudaccount) ValidateUpdateData(
 			optionsJson.Update(input.Options)
 		}
 		input.Options = optionsJson
+	}
+
+	skipSyncResources := &api.SkipSyncResources{}
+	if self.SkipSyncResources != nil {
+		for _, res := range *self.SkipSyncResources {
+			skipSyncResources.Add(res)
+		}
+	}
+	if input.SkipSyncResources != nil {
+		skipSyncResources = input.SkipSyncResources
+	}
+	for _, res := range input.AddSkipSyncResources {
+		skipSyncResources.Add(res)
+	}
+	for _, res := range input.RemoveSkipSyncResources {
+		skipSyncResources.Remove(res)
+	}
+	input.SkipSyncResources = skipSyncResources
+	if len(*skipSyncResources) == 0 {
+		db.Update(self, func() error {
+			self.SkipSyncResources = nil
+			return nil
+		})
 	}
 
 	factory, err := self.GetProviderFactory()
@@ -622,6 +656,12 @@ func (self *SCloudaccount) PerformSync(ctx context.Context, userCred mcclient.To
 	if syncRange.FullSync || len(syncRange.Region) > 0 || len(syncRange.Zone) > 0 || len(syncRange.Host) > 0 || len(syncRange.Resources) > 0 {
 		syncRange.DeepSync = true
 	}
+	syncRange.SkipSyncResources = []string{}
+	if self.SkipSyncResources != nil {
+		for _, res := range *self.SkipSyncResources {
+			syncRange.SkipSyncResources = append(syncRange.SkipSyncResources, res)
+		}
+	}
 	if self.CanSync() || syncRange.Force {
 		return nil, self.StartSyncCloudAccountInfoTask(ctx, userCred, &syncRange, "", nil)
 	}
@@ -797,9 +837,18 @@ func (self *SCloudaccount) StartSyncCloudAccountInfoTask(ctx context.Context, us
 	if data != nil {
 		params.Update(data)
 	}
-	if syncRange != nil {
-		params.Add(jsonutils.Marshal(syncRange), "sync_range")
+	if gotypes.IsNil(syncRange) {
+		syncRange = &SSyncRange{}
+		syncRange.FullSync = true
+		syncRange.DeepSync = true
 	}
+	syncRange.SkipSyncResources = []string{}
+	if self.SkipSyncResources != nil {
+		for _, res := range *self.SkipSyncResources {
+			syncRange.SkipSyncResources = append(syncRange.SkipSyncResources, res)
+		}
+	}
+	params.Add(jsonutils.Marshal(syncRange), "sync_range")
 
 	task, err := taskman.TaskManager.NewTask(ctx, "CloudAccountSyncInfoTask", self, userCred, params, "", "", nil)
 	if err != nil {

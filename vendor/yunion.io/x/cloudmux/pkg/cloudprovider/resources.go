@@ -189,6 +189,7 @@ type ICloudRegion interface {
 
 	GetICloudKubeClusters() ([]ICloudKubeCluster, error)
 	GetICloudKubeClusterById(id string) (ICloudKubeCluster, error)
+	CreateIKubeCluster(opts *KubeClusterCreateOptions) (ICloudKubeCluster, error)
 
 	GetICloudTablestores() ([]ICloudTablestore, error)
 
@@ -231,6 +232,8 @@ type ICloudImage interface {
 
 	GetPublicScope() rbacscope.TRbacScope
 	GetSubImages() []SSubImage
+
+	Export(opts *SImageExportOptions) ([]SImageExportInfo, error)
 }
 
 type ICloudStoragecache interface {
@@ -243,8 +246,6 @@ type ICloudStoragecache interface {
 	GetIImageById(extId string) (ICloudImage, error)
 
 	GetPath() string
-
-	DownloadImage(imageId string, extId string, path string) (jsonutils.JSONObject, error)
 
 	UploadImage(ctx context.Context, image *SImageCreateOption, callback func(float32)) (string, error)
 }
@@ -1608,7 +1609,12 @@ type ICloudKubeCluster interface {
 
 	GetKubeConfig(private bool, expireMinutes int) (*SKubeconfig, error)
 
+	GetVersion() string
+	GetVpcId() string
+	GetNetworkIds() []string
+
 	GetIKubeNodePools() ([]ICloudKubeNodePool, error)
+	CreateIKubeNodePool(opts *KubeNodePoolCreateOptions) (ICloudKubeNodePool, error)
 	GetIKubeNodes() ([]ICloudKubeNode, error)
 
 	Delete(isRetain bool) error
@@ -1622,6 +1628,16 @@ type ICloudKubeNode interface {
 
 type ICloudKubeNodePool interface {
 	ICloudResource
+
+	GetMinInstanceCount() int
+	GetMaxInstanceCount() int
+	GetDesiredInstanceCount() int
+	GetRootDiskSizeGb() int
+
+	GetInstanceTypes() []string
+	GetNetworkIds() []string
+
+	Delete() error
 }
 
 type ICloudTablestore interface {

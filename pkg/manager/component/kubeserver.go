@@ -78,18 +78,7 @@ func (m *kubeManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.One
 }
 
 func (m *kubeManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
-	cf := func(volMounts []corev1.VolumeMount) []corev1.Container {
-		return []corev1.Container{
-			{
-				Name:            "server",
-				Image:           oc.Spec.KubeServer.Image,
-				ImagePullPolicy: oc.Spec.KubeServer.ImagePullPolicy,
-				Command:         []string{"/opt/yunion/bin/kube-server", "--config", "/etc/yunion/kubeserver.conf"},
-				VolumeMounts:    volMounts,
-			},
-		}
-	}
-	deploy, err := m.newDefaultDeploymentNoInit(v1alpha1.KubeServerComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.KubeServerComponentType), v1alpha1.KubeServerComponentType), &oc.Spec.KubeServer.DeploymentSpec, cf)
+	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.KubeServerComponentType, "", oc, &oc.Spec.KubeServer.DeploymentSpec, int32(cfg.KubeServer.Port), true, true)
 	if err != nil {
 		return nil, err
 	}
