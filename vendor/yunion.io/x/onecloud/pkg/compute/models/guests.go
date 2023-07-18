@@ -450,11 +450,23 @@ func (manager *SGuestManager) ListItemFilter(
 		}
 		guestEip := guestEipQ.Filter(sqlchemy.OR(conditions...))
 
+		metadataQ := db.Metadata.Query("obj_id")
+		conditions = []sqlchemy.ICondition{}
+		for _, ipAddr := range query.IpAddrs {
+			conditions = append(conditions, sqlchemy.AND(
+				sqlchemy.Contains(metadataQ.Field("value"), ipAddr),
+				sqlchemy.Equals(metadataQ.Field("key"), "sync_ips"),
+				sqlchemy.Equals(metadataQ.Field("obj_type"), "server"),
+			))
+		}
+		metadataQ = metadataQ.Filter(sqlchemy.OR(conditions...))
+
 		q = q.Filter(sqlchemy.OR(
 			sqlchemy.In(q.Field("id"), gn.SubQuery()),
 			sqlchemy.In(q.Field("id"), guestEip.SubQuery()),
 			sqlchemy.In(q.Field("id"), vipq.SubQuery()),
 			sqlchemy.In(q.Field("id"), vipeipq.SubQuery()),
+			sqlchemy.In(q.Field("id"), metadataQ.SubQuery()),
 		))
 	}
 
@@ -518,6 +530,52 @@ func (manager *SGuestManager) ListItemFilter(
 		q = q.In("id", sq)
 	}
 
+	devTypeQ := func(q *sqlchemy.SQuery, checkType, backup *bool, dType string, conditions []sqlchemy.ICondition) []sqlchemy.ICondition {
+		if checkType != nil {
+			isodev := IsolatedDeviceManager.Query().SubQuery()
+			isodevCons := []sqlchemy.ICondition{sqlchemy.IsNotNull(isodev.Field("guest_id"))}
+			if len(dType) > 0 {
+				isodevCons = append(isodevCons, sqlchemy.Startswith(isodev.Field("dev_type"), dType))
+			}
+			sgq := isodev.Query(isodev.Field("guest_id")).Filter(sqlchemy.AND(isodevCons...))
+			cond := sqlchemy.NotIn
+			if *checkType {
+				cond = sqlchemy.In
+			}
+			if dType == "GPU" {
+				sq := ServerSkuManager.Query("name").GT("gpu_count", 0).Distinct().SubQuery()
+				if backup != nil {
+					afterAnd := sqlchemy.AND
+					if *backup {
+						backupCond := sqlchemy.IsNotEmpty(q.Field("backup_host_id"))
+						conditions = append(conditions, afterAnd(cond(q.Field("instance_type"), sq), backupCond))
+					} else {
+						backupCond := sqlchemy.IsEmpty(q.Field("backup_host_id"))
+						conditions = append(conditions, afterAnd(cond(q.Field("instance_type"), sq), backupCond))
+					}
+				} else {
+					conditions = append(conditions, cond(q.Field("instance_type"), sq))
+				}
+			} else {
+				if backup != nil {
+					afterAnd := sqlchemy.AND
+					if *backup {
+						backupCond := sqlchemy.IsNotEmpty(q.Field("backup_host_id"))
+						conditions = append(conditions, afterAnd(cond(q.Field("id"), sgq), backupCond))
+					} else {
+						backupCond := sqlchemy.IsEmpty(q.Field("backup_host_id"))
+						conditions = append(conditions, afterAnd(cond(q.Field("id"), sgq), backupCond))
+					}
+				} else {
+					conditions = append(conditions, cond(q.Field("id"), sgq))
+				}
+			}
+			return conditions
+		}
+		return conditions
+	}
+
+	conditions := []sqlchemy.ICondition{}
 	if len(query.ServerType) > 0 {
 		var trueVal, falseVal = true, false
 		for _, serverType := range query.ServerType {
@@ -538,50 +596,20 @@ func (manager *SGuestManager) ListItemFilter(
 				query.CustomDevType = serverType
 				query.Backup = &falseVal
 			}
-		}
-		if query.Backup == nil {
-			query.Backup = &falseVal
+
+			conditions = devTypeQ(q, query.Normal, query.Backup, "", conditions)
+			conditions = devTypeQ(q, query.Gpu, query.Backup, "GPU", conditions)
+			conditions = devTypeQ(q, query.Usb, query.Backup, api.USB_TYPE, conditions)
+			if len(query.CustomDevType) > 0 {
+				ct := true
+				conditions = devTypeQ(q, &ct, query.Backup, query.CustomDevType, conditions)
+			}
+			query.Normal = nil
+			query.Gpu = nil
+			query.Backup = nil
 		}
 	}
 
-	if query.Backup != nil {
-		if *query.Backup {
-			q = q.IsNotEmpty("backup_host_id")
-		} else {
-			q = q.IsEmpty("backup_host_id")
-		}
-	}
-	devTypeQ := func(q *sqlchemy.SQuery, checkType *bool, dType string, conditions []sqlchemy.ICondition) []sqlchemy.ICondition {
-		if checkType != nil {
-			isodev := IsolatedDeviceManager.Query().SubQuery()
-			isodevCons := []sqlchemy.ICondition{sqlchemy.IsNotNull(isodev.Field("guest_id"))}
-			if len(dType) > 0 {
-				isodevCons = append(isodevCons, sqlchemy.Startswith(isodev.Field("dev_type"), dType))
-			}
-			sgq := isodev.Query(isodev.Field("guest_id")).Filter(sqlchemy.AND(isodevCons...))
-			cond := sqlchemy.NotIn
-			if *checkType {
-				cond = sqlchemy.In
-			}
-			if dType == "GPU" {
-				sq := ServerSkuManager.Query("name").GT("gpu_count", 0).Distinct().SubQuery()
-				conditions = append(conditions, cond(q.Field("instance_type"), sq))
-			}
-			conditions = append(conditions, cond(q.Field("id"), sgq))
-			return conditions
-		}
-		return conditions
-	}
-
-	conditions := []sqlchemy.ICondition{}
-
-	conditions = devTypeQ(q, query.Normal, "", conditions)
-	conditions = devTypeQ(q, query.Gpu, "GPU", conditions)
-	conditions = devTypeQ(q, query.Usb, api.USB_TYPE, conditions)
-	if len(query.CustomDevType) > 0 {
-		ct := true
-		conditions = devTypeQ(q, &ct, query.CustomDevType, conditions)
-	}
 	if len(conditions) > 0 {
 		q = q.Filter(sqlchemy.OR(conditions...))
 	}
@@ -3989,16 +4017,43 @@ func (self *SGuest) CreateNetworksOnHost(
 		if err != nil {
 			return errors.Wrap(err, "self.attach2NetworkDesc")
 		}
-		net := gns[0].GetNetwork()
 		if netConfig.SriovDevice != nil {
-			netConfig.SriovDevice.NetworkIndex = &gns[0].Index
-			netConfig.SriovDevice.WireId = net.WireId
-			err = self.createIsolatedDeviceOnHost(ctx, userCred, host, netConfig.SriovDevice, pendingUsageZone)
+			err = self.allocSriovNicDevice(ctx, userCred, host, &gns[0], netConfig, pendingUsageZone)
 			if err != nil {
-				return errors.Wrap(err, "self.createIsolatedDeviceOnHost")
+				return errors.Wrap(err, "self.allocSriovNicDevice")
 			}
 		}
 
+	}
+	return nil
+}
+
+func (self *SGuest) allocSriovNicDevice(
+	ctx context.Context,
+	userCred mcclient.TokenCredential,
+	host *SHost,
+	gn *SGuestnetwork, netConfig *api.NetworkConfig,
+	pendingUsageZone quotas.IQuota,
+) error {
+	net := gn.GetNetwork()
+	netConfig.SriovDevice.NetworkIndex = &gn.Index
+	netConfig.SriovDevice.WireId = net.WireId
+	err := self.createIsolatedDeviceOnHost(ctx, userCred, host, netConfig.SriovDevice, pendingUsageZone)
+	if err != nil {
+		return errors.Wrap(err, "self.createIsolatedDeviceOnHost")
+	}
+	dev, err := self.GetIsolatedDeviceByNetworkIndex(gn.Index)
+	if err != nil {
+		return errors.Wrap(err, "self.GetIsolatedDeviceByNetworkIndex")
+	}
+	if dev.OvsOffloadInterface != "" {
+		_, err = db.Update(gn, func() error {
+			gn.Ifname = dev.OvsOffloadInterface
+			return nil
+		})
+		if err != nil {
+			return errors.Wrap(err, "update sriov network ifname")
+		}
 	}
 	return nil
 }
@@ -4070,7 +4125,11 @@ func (self *SGuest) attach2NamedNetworkDesc(ctx context.Context, userCred mcclie
 				}
 				sriovWires = wires
 			}
-			if !utils.IsInStringArray(net.WireId, sriovWires) {
+			vpc, err := net.GetVpc()
+			if err != nil {
+				return nil, errors.Wrap(err, "attach2NamedNetworkDesc get vpc by network")
+			}
+			if vpc.Id == api.DEFAULT_VPC_ID && !utils.IsInStringArray(net.WireId, sriovWires) {
 				return nil, fmt.Errorf("no available sriov nic for wire %s", net.WireId)
 			}
 		}
@@ -5694,11 +5753,22 @@ func (self *SGuest) GetIVM(ctx context.Context) (cloudprovider.ICloudVM, error) 
 	if err != nil {
 		return nil, errors.Wrapf(err, "GetHost")
 	}
-	ihost, err := host.GetIHost(ctx)
+	iregion, err := host.GetIRegion(ctx)
+	if err != nil {
+		return nil, err
+	}
+	ihost, err := iregion.GetIHostById(host.ExternalId)
 	if err != nil {
 		return nil, errors.Wrapf(err, "GetIHost")
 	}
-	return ihost.GetIVMById(self.ExternalId)
+	ivm, err := ihost.GetIVMById(self.ExternalId)
+	if err != nil {
+		if errors.Cause(err) != cloudprovider.ErrNotFound {
+			return nil, err
+		}
+		return iregion.GetIVMById(self.ExternalId)
+	}
+	return ivm, nil
 }
 
 func (self *SGuest) PendingDetachScalingGroup() error {

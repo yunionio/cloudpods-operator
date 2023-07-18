@@ -159,6 +159,7 @@ func NewTelegrafVolume(
 		volumes:      make([]corev1.Volume, 0),
 		volumeMounts: make([]corev1.VolumeMount, 0),
 	}
+	var bidirectional = corev1.MountPropagationBidirectional
 	h.volumeMounts = append(h.volumeMounts, []corev1.VolumeMount{
 		{
 			Name:      "etc-telegraf",
@@ -189,6 +190,12 @@ func NewTelegrafVolume(
 			Name:      "dev",
 			ReadOnly:  false,
 			MountPath: "/dev",
+		},
+		{
+			Name:             "cloud",
+			ReadOnly:         false,
+			MountPath:        "/opt/cloud",
+			MountPropagation: &bidirectional,
 		},
 	}...)
 
@@ -245,6 +252,15 @@ func NewTelegrafVolume(
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: "/dev",
+					Type: &hostPathDirectory,
+				},
+			},
+		},
+		{
+			Name: "cloud",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/opt/cloud",
 					Type: &hostPathDirectory,
 				},
 			},

@@ -838,9 +838,20 @@ type ServerQgaCommand struct {
 	ServerIdOptions
 
 	COMMAND string `help:"qga command"`
+	Timeout int    `help:"qga command execute timeout (ms)"`
 }
 
 func (o *ServerQgaCommand) Params() (jsonutils.JSONObject, error) {
+	return options.StructToParams(o)
+}
+
+type ServerQgaPing struct {
+	ServerIdOptions
+
+	Timeout int `help:"qga command execute timeout (ms)"`
+}
+
+func (o *ServerQgaPing) Params() (jsonutils.JSONObject, error) {
 	return options.StructToParams(o)
 }
 
@@ -1252,6 +1263,7 @@ type ServerMakeSshableOptions struct {
 	User       string `help:"ssh username for ssh connection" default:"root"`
 	PrivateKey string `help:"ssh privatekey for ssh connection"`
 	Password   string `help:"ssh password for ssh connection"`
+	Port       int    `help:"ssh port for ssh connection"`
 }
 
 func (opts *ServerMakeSshableOptions) Params() (jsonutils.JSONObject, error) {
