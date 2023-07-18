@@ -340,6 +340,8 @@ func (manager *SDiskManager) QueryDistinctExtraField(q *sqlchemy.SQuery, field s
 
 func (self *SDisk) GetGuestDiskCount() (int, error) {
 	guestdisks := GuestdiskManager.Query()
+	guests := GuestManager.Query().SubQuery()
+	guestdisks = guestdisks.Join(guests, sqlchemy.Equals(guestdisks.Field("guest_id"), guests.Field("id")))
 	return guestdisks.Equals("disk_id", self.Id).CountWithError()
 }
 
@@ -3030,6 +3032,14 @@ func (self *SDisk) syncSnapshots(ctx context.Context, userCred mcclient.TokenCre
 		return
 	}
 	region, _ := storage.GetRegion()
+
+	account, err := provider.GetCloudaccount()
+	if err != nil {
+		return
+	}
+	if account != nil && !account.IsNotSkipSyncResource(SnapshotManager) {
+		return
+	}
 
 	extSnapshots, err := extDisk.GetISnapshots()
 	if err != nil {

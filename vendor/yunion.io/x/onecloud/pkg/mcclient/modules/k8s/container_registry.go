@@ -28,28 +28,28 @@ import (
 )
 
 var (
-	Repos *RepoManager
+	ContainerRegistries *ContainerRegistryManager
 )
 
 func init() {
-	Repos = NewRepoManager()
-	modules.Register(Repos)
+	ContainerRegistries = NewContainerRegistryManager()
+	modules.Register(ContainerRegistries)
 }
 
-type RepoManager struct {
+type ContainerRegistryManager struct {
 	*ResourceManager
 }
 
-func NewRepoManager() *RepoManager {
-	return &RepoManager{
-		ResourceManager: NewResourceManager("repo", "repos",
-			NewResourceCols("Url", "Is_Public", "Source", "Type", "Backend"),
+func NewContainerRegistryManager() *ContainerRegistryManager {
+	return &ContainerRegistryManager{
+		ResourceManager: NewResourceManager("container_registry", "container_registries",
+			NewResourceCols("Url", "Type"),
 			NewColumns()),
 	}
 }
 
-func (m *RepoManager) UploadChart(s *mcclient.ClientSession, id string, params jsonutils.JSONObject, body io.Reader, size int64) (jsonutils.JSONObject, error) {
-	path := fmt.Sprintf("/%s/%s/upload-chart?%s", m.URLPath(), id, params.QueryString())
+func (m *ContainerRegistryManager) UploadImage(s *mcclient.ClientSession, id string, params jsonutils.JSONObject, body io.Reader, size int64) (jsonutils.JSONObject, error) {
+	path := fmt.Sprintf("/%s/%s/upload-image", m.URLPath(), id)
 	headers := http.Header{}
 	headers.Add("Content-Type", "application/octet-stream")
 	if size > 0 {
