@@ -140,6 +140,8 @@ type SCloudAccountCreateBaseOptions struct {
 	ProjectMappingId   string
 	EnableProjectSync  bool
 	EnableResourceSync bool
+
+	SkipSyncResources []string `help:"Skip sync resource, etc snapshot"`
 }
 
 type SVMwareCloudAccountCreateOptions struct {
@@ -308,6 +310,8 @@ type SHCSOAccountCreateOptions struct {
 	SCloudAccountCreateBaseOptions
 	cloudprovider.SHCSOEndpoints
 	SAccessKeyCredential
+
+	DefaultRegion string `json:"default_region"`
 }
 
 func (opts *SHCSOAccountCreateOptions) Params() (jsonutils.JSONObject, error) {
@@ -625,6 +629,10 @@ type SCloudAccountUpdateBaseOptions struct {
 	ReadOnly *bool `help:"is account read only" negative:"no_read_only"`
 
 	CleanLakeOfPermissions bool `help:"clean lake of permissions"`
+
+	SkipSyncResources       []string
+	AddSkipSyncResources    []string
+	RemoveSkipSyncResources []string
 
 	Desc string `help:"Description" json:"description" token:"desc"`
 }
@@ -1162,6 +1170,10 @@ type SNutanixCloudAccountUpdateOptions struct {
 	SCloudAccountUpdateBaseOptions
 }
 
+func (opts *SNutanixCloudAccountUpdateOptions) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.Marshal(opts), nil
+}
+
 type SBingoCloudAccountCreateOptions struct {
 	SCloudAccountCreateBaseOptions
 	Endpoint string
@@ -1176,6 +1188,10 @@ func (opts *SBingoCloudAccountCreateOptions) Params() (jsonutils.JSONObject, err
 
 type SBingoCloudAccountUpdateOptions struct {
 	SCloudAccountUpdateBaseOptions
+}
+
+func (opts *SBingoCloudAccountUpdateOptions) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.Marshal(opts), nil
 }
 
 type SBingoCloudAccountUpdateCredentialOptions struct {
@@ -1203,6 +1219,10 @@ type SInCloudSphereAccountUpdateOptions struct {
 	SCloudAccountUpdateBaseOptions
 }
 
+func (opts *SInCloudSphereAccountUpdateOptions) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.Marshal(opts), nil
+}
+
 type SInCloudSphereAccountUpdateCredentialOptions struct {
 	SCloudAccountIdOptions
 	SAccessKeyCredential
@@ -1225,6 +1245,10 @@ func (opts *SProxmoxAccountCreateOptions) Params() (jsonutils.JSONObject, error)
 
 type SProxmoxAccountUpdateOptions struct {
 	SCloudAccountUpdateBaseOptions
+}
+
+func (opts *SProxmoxAccountUpdateOptions) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.Marshal(opts), nil
 }
 
 type SProxmoxAccountUpdateCredentialOptions struct {
