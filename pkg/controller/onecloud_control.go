@@ -1433,7 +1433,8 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		ConditionType: "nodata_query",
 		From:          "3m",
 		Interval:      "1m",
-		Description:   "监测部署节点是否下线",
+		Description:   "监测节点启动时间",
+		Level:         "important",
 	}
 
 	defunctProcessTem := onecloud.CommonAlertTem{
