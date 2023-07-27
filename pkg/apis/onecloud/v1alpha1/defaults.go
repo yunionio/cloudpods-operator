@@ -637,7 +637,7 @@ func setDefaults_MonitorStackSpec(obj *MonitorStackSpec) {
 		grafana.AdminUser = "admin"
 	}
 	if grafana.AdminPassword == "" {
-		grafana.AdminPassword = "admin@123"
+		grafana.AdminPassword = passwd.GeneratePassword()
 	}
 	if grafana.Subpath == "" {
 		grafana.Subpath = "grafana"
