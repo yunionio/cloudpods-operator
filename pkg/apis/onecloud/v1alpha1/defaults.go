@@ -178,6 +178,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		ScheduledtaskComponentType:   nHP(&obj.Scheduledtask.DeploymentSpec, useHyperImage),
 		ReportComponentType:          nHP(&obj.Report.DeploymentSpec, useHyperImage),
 		APIMapComponentType:          nHP(&obj.APIMap.DeploymentSpec, useHyperImage),
+		BastionHostComponentType:     nHP(&obj.BastionHost.DeploymentSpec, useHyperImage),
 	} {
 		SetDefaults_DeploymentSpec(spec.DeploymentSpec, getImage(
 			obj.ImageRepository, spec.Repository,
@@ -408,6 +409,7 @@ func setDefaults_Components_ServicePort(obj *OnecloudClusterSpec) {
 		newSP(&obj.ServiceOperator.Service, constants.ServiceOperatorPort),
 		newSP(&obj.Yunionagent.Service, constants.YunionAgentPort),
 		newSP(&obj.VpcAgent.Service, constants.VpcAgentPort),
+		newSP(&obj.BastionHost.Service, constants.BastionHostPort),
 	} {
 		SetDefaults_ServiceSpec(spec.spec, spec.defaultPort)
 	}
@@ -723,6 +725,7 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		&obj.Webconsole:                          {constants.WebconsoleAdminUser, constants.WebconsolePort, constants.WebconsoleDB, constants.WebconsoleDBUser},
 		&obj.Report:                              {constants.ReportAdminUser, constants.ReportPort, constants.ReportDB, constants.ReportDBUser},
 		&obj.AutoUpdate:                          {constants.AutoUpdateAdminUser, constants.AutoUpdatePort, constants.AutoUpdateDB, constants.AutoUpdateDBUser},
+		&obj.BastionHost:                         {constants.BastionHostAdminUser, constants.BastionHostPort, constants.BastionHostDB, constants.BastionHostDBUser},
 	} {
 		if user, ok := registryPorts[tmp.port]; ok {
 			log.Fatalf("port %d has been registered by %s", tmp.port, user)

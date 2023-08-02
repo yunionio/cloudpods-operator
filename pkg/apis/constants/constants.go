@@ -407,6 +407,14 @@ const (
 	ServiceNameEChartsSSR = "echarts-ssr"
 	ServiceTypeEChartsSSR = "echarts-ssr"
 	EChartsSSRPort        = 8081
+
+	ServiceNameBastionHost  = "bastionhost"
+	ServiceTypeBastionHost  = "bastionhost"
+	BastionHostAdminUser    = "bastionhost"
+	BastionHostAdminProject = SysAdminProject
+	BastionHostPort         = 30983
+	BastionHostDB           = "bastionhost"
+	BastionHostDBUser       = "bastionhost"
 )
 
 var (
