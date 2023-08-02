@@ -142,6 +142,8 @@ const (
 	EChartsSSRComponentType ComponentType = "echarts-ssr"
 
 	HostHealthComponentType ComponentType = "host-health"
+
+	BastionHostComponentType ComponentType = "bastionHost"
 )
 
 // ComponentPhase is the current state of component
@@ -314,6 +316,8 @@ type OnecloudClusterSpec struct {
 
 	Report     DeploymentServicePortSpec `json:"report"`
 	EChartsSSR EChartsSSRSpec            `json:"echartsSSR"`
+
+	BastionHost DeploymentServicePortSpec `json:"bastionHost"`
 }
 
 // OnecloudClusterStatus describes cluster status
@@ -354,6 +358,7 @@ type OnecloudClusterStatus struct {
 	APIMap         DeploymentStatus     `json:"apiMap,omitempty"`
 	Report         DeploymentStatus     `json:"report,omitempty"`
 	ECharts        DeploymentStatus     `json:"echarts,omitempty"`
+	BastionHost    DeploymentStatus     `json:"bastionHost,omitempty"`
 }
 
 type EtcdClusterSpec struct {
@@ -1107,4 +1112,5 @@ type OnecloudClusterConfig struct {
 	CloudId         ServiceDBCommonOptions `json:"cloudid"`
 	Report          ServiceDBCommonOptions `json:"report"`
 	Grafana         GrafanaConfig          `json:"grafana"`
+	BastionHost     ServiceDBCommonOptions `json:"bastionHost"`
 }
