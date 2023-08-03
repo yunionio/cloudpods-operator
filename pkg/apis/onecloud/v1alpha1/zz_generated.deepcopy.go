@@ -1313,6 +1313,7 @@ func (in *OnecloudClusterConfig) DeepCopyInto(out *OnecloudClusterConfig) {
 	out.CloudId = in.CloudId
 	out.Report = in.Report
 	out.Grafana = in.Grafana
+	out.BastionHost = in.BastionHost
 	return
 }
 
@@ -1432,6 +1433,7 @@ func (in *OnecloudClusterSpec) DeepCopyInto(out *OnecloudClusterSpec) {
 	in.APIMap.DeepCopyInto(&out.APIMap)
 	in.Report.DeepCopyInto(&out.Report)
 	in.EChartsSSR.DeepCopyInto(&out.EChartsSSR)
+	in.BastionHost.DeepCopyInto(&out.BastionHost)
 	return
 }
 
@@ -1482,6 +1484,7 @@ func (in *OnecloudClusterStatus) DeepCopyInto(out *OnecloudClusterStatus) {
 	in.APIMap.DeepCopyInto(&out.APIMap)
 	in.Report.DeepCopyInto(&out.Report)
 	in.ECharts.DeepCopyInto(&out.ECharts)
+	in.BastionHost.DeepCopyInto(&out.BastionHost)
 	return
 }
 
