@@ -163,6 +163,7 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 		components.Report(),
 		components.Lbgent(),
 		components.EChartsSSR(),
+		components.BastionHost(),
 	}
 	var grp errgroup.Group
 	for _, component := range dependComponents {
