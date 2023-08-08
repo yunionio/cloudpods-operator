@@ -192,6 +192,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	for cType, spec := range map[ComponentType]*hyperImagePair{
 		APIGatewayComponentType: nHP(&obj.APIGateway.DeploymentSpec, useHyperImage),
 		ClimcComponentType:      nHP(&obj.Climc, false),
+		CloudmuxComponentType:   nHP(obj.Cloudmux.ToDeploymentSpec(), false),
 		WebComponentType:        nHP(&obj.Web.DeploymentSpec, false),
 		CloudmonComponentType:   nHP(&obj.Cloudmon.DeploymentSpec, useHyperImage),
 	} {
@@ -362,6 +363,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	setDefaults_Components_ServicePort(obj)
 
 	setDefaults_EChartsSpec(obj, &obj.EChartsSSR)
+	setDefaults_Cloudmux(obj, &obj.Cloudmux)
 }
 
 type serviceSpecPair struct {
@@ -798,6 +800,20 @@ func setDefaults_EChartsSpec(spec *OnecloudClusterSpec, obj *EChartsSSRSpec) {
 		spec.ImageRepository, dSpec.Repository,
 		EChartsSSRComponentType, dSpec.ImageName,
 		DefaultEChartSSRVersion, dSpec.Tag,
+		false, false))
+	obj.FillBySpec(dSpec)
+}
+
+func setDefaults_Cloudmux(spec *OnecloudClusterSpec, obj *CloudmuxSpec) {
+	if obj.Disable == nil {
+		trueVar := true
+		obj.Disable = &trueVar
+	}
+	dSpec := obj.ToDeploymentSpec()
+	SetDefaults_DeploymentSpec(dSpec, getImage(
+		spec.ImageRepository, dSpec.Repository,
+		CloudmuxComponentType, dSpec.ImageName,
+		spec.Version, dSpec.Tag,
 		false, false))
 	obj.FillBySpec(dSpec)
 }

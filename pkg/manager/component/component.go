@@ -1380,6 +1380,10 @@ func (m *ComponentManager) Climc() manager.Manager {
 	return newClimcComponentManager(m)
 }
 
+func (m *ComponentManager) Cloudmux() manager.Manager {
+	return newCloudmuxComponentManager(m)
+}
+
 func (m *ComponentManager) Glance() manager.Manager {
 	return newGlanceManager(m)
 }
