@@ -150,6 +150,8 @@ server {
     location /api/v1/imageutils/upload {
         proxy_pass {{.APIGatewayURL}};
         client_max_body_size 0;
+        client_body_timeout 300;
+        client_header_timeout 120;
         proxy_http_version 1.1;
         proxy_request_buffering off;
         proxy_buffering off;
@@ -161,6 +163,8 @@ server {
     location /api/v1/s3uploads {
         proxy_pass {{.APIGatewayURL}};
         client_max_body_size 0;
+        client_body_timeout 300;
+        client_header_timeout 120;
         proxy_http_version 1.1;
         proxy_request_buffering off;
         proxy_buffering off;
@@ -197,6 +201,7 @@ server {
         proxy_set_header Connection "upgrade";
 
         proxy_read_timeout 86400;
+        proxy_write_timeout 86400;
     }
 
     location /web-console {
