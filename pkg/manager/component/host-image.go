@@ -58,7 +58,9 @@ func (m *hostImageManager) newHostPrivilegedDaemonSet(
 					Command: []string{
 						"sh", "-ce", fmt.Sprintf(`
 mkdir -p /etc/resolvconf/run && cp /etc/resolv.conf /etc/resolvconf/run
+mkdir -p /run/systemd/resolve && cp /etc/resolv.conf /run/systemd/resolve
 mount --bind -o ro /etc/hosts %s/etc/hosts
+test -d %s/run/systemd/resolve && mount --rbind /run/systemd/resolve %s/run/systemd/resolve
 mount --bind -o ro /etc/resolv.conf %s/etc/resolv.conf
 test -d %s/etc/resolvconf && mount --rbind /etc/resolvconf %s/etc/resolvconf
 mkdir -p %s/etc/yunion/common
@@ -69,6 +71,7 @@ mkdir -p %s/opt/yunion/bin
 mount --bind /opt/yunion/bin %s/opt/yunion/bin
 chroot %s /opt/yunion/bin/%s --config /etc/yunion/%s.conf --common-config-file /etc/yunion/common/common.conf`,
 							YUNION_HOST_ROOT,
+							YUNION_HOST_ROOT, YUNION_HOST_ROOT,
 							YUNION_HOST_ROOT,
 							YUNION_HOST_ROOT, YUNION_HOST_ROOT,
 							YUNION_HOST_ROOT,

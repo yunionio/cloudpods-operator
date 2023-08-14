@@ -152,6 +152,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	SetDefaults_KeystoneSpec(&obj.Keystone, obj.ImageRepository, obj.Version, useHyperImage, isEE)
 	SetDefaults_RegionSpec(&obj.RegionServer, obj.ImageRepository, obj.Version, useHyperImage, isEE)
 	SetDefaults_RegionDNSSpec(&obj.RegionDNS, obj.ImageRepository, obj.Version)
+	setDefaults_Cloudmux(obj, &obj.Cloudmux)
 
 	nHP := newHyperImagePair
 
@@ -363,7 +364,6 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	setDefaults_Components_ServicePort(obj)
 
 	setDefaults_EChartsSpec(obj, &obj.EChartsSSR)
-	setDefaults_Cloudmux(obj, &obj.Cloudmux)
 }
 
 type serviceSpecPair struct {
