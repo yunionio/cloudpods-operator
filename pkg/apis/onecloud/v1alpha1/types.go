@@ -143,7 +143,7 @@ const (
 
 	HostHealthComponentType ComponentType = "host-health"
 
-	BastionHostComponentType ComponentType = "bastionHost"
+	BastionHostComponentType ComponentType = "bastionhost"
 	CloudmuxComponentType    ComponentType = "cloudmux"
 )
 
