@@ -93,7 +93,7 @@ func NewOnecloudRCAdminConfig(oc *v1alpha1.OnecloudCluster, debug bool) *Oneclou
 		Password:      oc.Spec.Keystone.BootstrapPassword,
 		DomainName:    constants.DefaultDomain,
 		ProjectName:   constants.SysAdminProject,
-		ProjectDomain: "",
+		ProjectDomain: constants.DefaultDomain,
 		Insecure:      true,
 		Debug:         debug,
 		Timeout:       600,
