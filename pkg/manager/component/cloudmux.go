@@ -49,7 +49,7 @@ func (m *cloudmuxManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 }
 
 func (m *cloudmuxManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
-	spec := oc.Spec.EChartsSSR.ToDeploymentSpec()
+	spec := oc.Spec.Cloudmux.ToDeploymentSpec()
 	containersF := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		return []corev1.Container{
 			{
