@@ -69,7 +69,7 @@ buildx_and_push() {
     local path=$3
     local arch=$4
     docker buildx build -t "$tag" --platform "linux/$arch" -f "$2" "$3" --push
-    docker pull "$tag"
+    docker pull --platform "linux/$arch" "$tag"
 }
 
 push_image() {
@@ -130,11 +130,9 @@ make_manifest_image() {
         echo "[$(readlink -f ${BASH_SOURCE}):${LINENO} ${FUNCNAME[0]}] return for DRY_RUN"
         return
     fi
-    docker manifest create --amend $img_name \
+    docker buildx imagetools create -t $img_name \
         $img_name-amd64 \
         $img_name-arm64
-    docker manifest annotate $img_name $img_name-arm64 --arch arm64
-    docker manifest push $img_name
 }
 
 cd $SRC_DIR

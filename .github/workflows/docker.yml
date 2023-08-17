@@ -3,35 +3,49 @@ name: Docker image
 on:
   push:
     branches:
-    - master
-    - releases/*
+      - 'releases/**'
+      - 'main'
+      - 'master'
+    paths:
+      - 'cmd/**.go'
+      - 'pkg/**.go'
+      - 'vendor/**.go'
 
 jobs:
-
-  build:
-    name: Build
+  build_operator:
     runs-on: ubuntu-latest
     steps:
-
-    - name: Set up Go 1.18
-      uses: actions/setup-go@v1
+    - uses: actions/checkout@v3
       with:
-        go-version: 1.18
-      id: go
+        fetch-depth: 8
 
-    - name: Check out code into the Go module directory
-      uses: actions/checkout@v1
+    - uses: actions/setup-go@v4
+      with:
+        go-version: '1.18'
 
-    - name: Build
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v2
+
+    - name: Set up Docker Buildx
+      id: buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Login to Aliyun Container Registry (ACR)
+      uses: docker/login-action@v2
+      with:
+        registry: https://registry.us-west-1.aliyuncs.com
+        username: ${{ secrets.ACR_USERNAME }}
+        password: ${{ secrets.ACR_PASSWORD }}
+
+    - name: Build And Push Docker Image
+      shell: bash
       run: |
-        make build
-
-    - name: Image onecloud-operator
-      uses: elgohr/Publish-Docker-Github-Action@master
-      with:
-        name: registry.cn-beijing.aliyuncs.com/yunionio/onecloud-operator
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
-        registry: registry.cn-beijing.aliyuncs.com
-        snapshot: true
-        dockerfile: images/onecloud-operator/Dockerfile
+          set -o xtrace
+          export GO111MODULE=on
+          branch="${GITHUB_REF#refs/heads/}"
+          timestamp=`TZ="Asia/Shanghai" date +"%Y%m%d%H%M%S"`
+          export VERSION="$branch-$timestamp-solo"
+          export GOOS=linux
+          export ARCH=all
+          export REGISTRY=registry.us-west-1.aliyuncs.com/yunion-dev
+          make image
