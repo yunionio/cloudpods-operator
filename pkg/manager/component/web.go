@@ -49,10 +49,12 @@ func (m *webManager) getProductVersions() []v1alpha1.ProductVersion {
 }
 
 func (m *webManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if IsEnterpriseEdition(oc) {
-		oc.Spec.Web.ImageName = constants.WebEEImageName
-	} else {
-		oc.Spec.Web.ImageName = constants.WebCEImageName
+	if len(oc.Spec.Web.ImageName) == 0 {
+		if IsEnterpriseEdition(oc) {
+			oc.Spec.Web.ImageName = constants.WebEEImageName
+		} else {
+			oc.Spec.Web.ImageName = constants.WebCEImageName
+		}
 	}
 	return syncComponent(m, oc, oc.Spec.Web.Disable, "")
 }
