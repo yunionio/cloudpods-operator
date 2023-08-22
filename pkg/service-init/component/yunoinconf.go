@@ -122,7 +122,7 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 			"openstack",
 			// "dstack",
 			// "zstack",
-			"apsara",
+			// "apsara",
 			"cloudpods",
 			// "hcso",
 			"nutanix",
