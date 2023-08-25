@@ -96,7 +96,7 @@ server {
     client_max_body_size 8m;
     large_client_header_buffers 2 16k;
     client_body_timeout 20s;
-    client_header_timeout 20s;
+    client_header_timeout 120s;
 
 {{.EditionConfig}}
 
@@ -151,7 +151,6 @@ server {
         proxy_pass {{.APIGatewayURL}};
         client_max_body_size 0;
         client_body_timeout 300;
-        client_header_timeout 120;
         proxy_http_version 1.1;
         proxy_request_buffering off;
         proxy_buffering off;
@@ -164,7 +163,6 @@ server {
         proxy_pass {{.APIGatewayURL}};
         client_max_body_size 0;
         client_body_timeout 300;
-        client_header_timeout 120;
         proxy_http_version 1.1;
         proxy_request_buffering off;
         proxy_buffering off;
@@ -201,7 +199,7 @@ server {
         proxy_set_header Connection "upgrade";
 
         proxy_read_timeout 86400;
-        proxy_write_timeout 86400;
+        proxy_send_timeout 86400;
     }
 
     location /web-console {
