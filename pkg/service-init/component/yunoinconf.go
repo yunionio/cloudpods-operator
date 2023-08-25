@@ -1,11 +1,15 @@
 package component
 
 import (
+	"fmt"
+
 	"yunion.io/x/jsonutils"
+	"yunion.io/x/log"
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/mcclient/modules/yunionconf"
 	"yunion.io/x/onecloud/pkg/yunionconf/options"
 	"yunion.io/x/pkg/errors"
+	"yunion.io/x/pkg/util/sets"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -88,6 +92,27 @@ func (pc *yunionconfPC) Setup() error {
 	return nil
 }
 
+type GlobalSettingsValue struct {
+	SetupKeys                []string `json:"setupKeys"`
+	SetupKeysVersion         string   `json:"setupKeysVersion"`
+	SetupOneStackInitialized bool     `json:"setupOneStackInitialized"`
+}
+
+func (v GlobalSettingsValue) Equal(o GlobalSettingsValue) bool {
+	vk := sets.NewString(v.SetupKeys...)
+	ok := sets.NewString(o.SetupKeys...)
+	if !vk.Equal(ok) {
+		return false
+	}
+	if v.SetupKeysVersion != o.SetupKeysVersion {
+		return false
+	}
+	if v.SetupOneStackInitialized != o.SetupOneStackInitialized {
+		return false
+	}
+	return true
+}
+
 func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 	// register parameter of services
 	// 1. init global-settings parameter if not created
@@ -100,8 +125,22 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 		if err != nil {
 			return errors.Wrapf(err, "search %s", gsName)
 		}
+		needUpdate := false
+		needCreate := true
+		var currentValue *GlobalSettingsValue = nil
+		var currentId int64
 		if len(items.Data) != 0 {
-			return nil
+			curConfig := items.Data[0]
+			if id, err := curConfig.Int("id"); err != nil {
+				return errors.Wrapf(err, "get id from %s", curConfig.PrettyString())
+			} else {
+				currentId = id
+			}
+			currentValue = new(GlobalSettingsValue)
+			if err := curConfig.Unmarshal(currentValue, "value"); err != nil {
+				return errors.Wrapf(err, "unmarshal %s to GlobalSettingsValue", curConfig.PrettyString())
+			}
+			needCreate = false
 		}
 		var setupKeys []string
 		setupKeysCmp := []string{
@@ -170,18 +209,35 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 			setupKeys = append(setupKeys, "k8s", "bill")
 		}
 		setupKeys = append(setupKeys, "default")
+		inputValue := GlobalSettingsValue{
+			SetupKeys:                setupKeys,
+			SetupKeysVersion:         "3.0",
+			SetupOneStackInitialized: oneStackInited,
+		}
+
+		if currentValue != nil {
+			needUpdate = !currentValue.Equal(inputValue)
+		}
+
 		input := map[string]interface{}{
 			"name":       gsName,
 			"service_id": constants.ServiceNameYunionAgent,
-			"value": map[string]interface{}{
-				"setupKeys":                setupKeys,
-				"setupKeysVersion":         "3.0",
-				"setupOneStackInitialized": oneStackInited,
-			},
+			"value":      inputValue,
 		}
 		params := jsonutils.Marshal(input)
-		if _, err := yunionconf.Parameters.Create(s, params); err != nil {
-			return errors.Wrap(err, "ensure global-settings")
+		if needCreate {
+			if _, err := yunionconf.Parameters.Create(s, params); err != nil {
+				return errors.Wrapf(err, "create global-settings with %s", params)
+			}
+			log.Infof("create global-settings with: %s", params.String())
+			return nil
+		}
+		if needUpdate {
+			if _, err := yunionconf.Parameters.Update(s, fmt.Sprintf("%d", currentId), params); err != nil {
+				return errors.Wrapf(err, "update global-settings with id %d: %s", currentId, params)
+			}
+			log.Infof("update global-settings with: %s", params.String())
+			return nil
 		}
 		return nil
 	}); err != nil {
