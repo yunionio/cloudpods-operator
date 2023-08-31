@@ -1301,6 +1301,10 @@ func (m *ComponentManager) Notify() manager.Manager {
 	return newNotifyManager(m)
 }
 
+func (m *ComponentManager) Repo() manager.Manager {
+	return newRepoManager(m)
+}
+
 func (m *ComponentManager) Baremetal() manager.Manager {
 	return newBaremetalManager(m)
 }
