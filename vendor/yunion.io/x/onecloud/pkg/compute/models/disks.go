@@ -738,15 +738,15 @@ func (disk *SDisk) PostCreate(ctx context.Context, userCred mcclient.TokenCreden
 	}
 }
 
-func (manager *SDiskManager) OnCreateComplete(ctx context.Context, items []db.IModel, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, query jsonutils.JSONObject, data jsonutils.JSONObject) {
+func (manager *SDiskManager) OnCreateComplete(ctx context.Context, items []db.IModel, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, query jsonutils.JSONObject, data []jsonutils.JSONObject) {
 	input := api.DiskCreateInput{}
-	err := data.Unmarshal(&input)
+	err := data[0].Unmarshal(&input)
 	if err != nil {
 		log.Errorf("!!!data.Unmarshal api.DiskCreateInput fail %s", err)
 	}
 
 	pendingUsage := getDiskResourceRequirements(ctx, userCred, ownerId, input, len(items))
-	parentTaskId, _ := data.GetString("parent_task_id")
+	parentTaskId, _ := data[0].GetString("parent_task_id")
 	RunBatchCreateTask(ctx, items, userCred, data, pendingUsage, SRegionQuota{}, "DiskBatchCreateTask", parentTaskId)
 }
 
@@ -1095,8 +1095,7 @@ func (self *SDisk) GetIDisk(ctx context.Context) (cloudprovider.ICloudDisk, erro
 	}
 	iStorage, err := self.GetIStorage(ctx)
 	if err != nil {
-		log.Errorf("fail to find iStorage: %v", err)
-		return nil, err
+		return nil, errors.Wrapf(err, "GetIStorage")
 	}
 	return iStorage.GetIDiskById(self.GetExternalId())
 }
@@ -1496,7 +1495,7 @@ func (manager *SDiskManager) SyncDisks(ctx context.Context, userCred mcclient.To
 		skip, key := IsNeedSkipSync(commonext[i])
 		if skip {
 			log.Infof("delete disk %s(%s) with tag key: %s", commonext[i].GetName(), commonext[i].GetGlobalId(), key)
-			err := commondb[i].purge(ctx, userCred)
+			err := commondb[i].RealDelete(ctx, userCred)
 			if err != nil {
 				syncResult.DeleteError(err)
 				continue
@@ -1633,11 +1632,6 @@ func (self *SDisk) syncRemoveCloudDisk(ctx context.Context, userCred mcclient.To
 	err = self.ValidatePurgeCondition(ctx)
 	if err != nil {
 		self.SetStatus(userCred, api.DISK_UNKNOWN, "missing original disk after sync")
-		return err
-	}
-	// detach joint modle aboutsnapshotpolicy and disk
-	err = SnapshotPolicyDiskManager.SyncDetachByDisk(ctx, userCred, nil, self)
-	if err != nil {
 		return err
 	}
 	err = self.RealDelete(ctx, userCred)
@@ -2212,9 +2206,19 @@ func (self *SDisk) Delete(ctx context.Context, userCred mcclient.TokenCredential
 }
 
 func (self *SDisk) RealDelete(ctx context.Context, userCred mcclient.TokenCredential) error {
-	err := self.DetachAllSnapshotpolicies(ctx, userCred)
-	if err != nil {
-		log.Errorf("unable to DetachAllSnapshotpolicies: %v", err)
+	diskbackups := DiskBackupManager.Query("id").Equals("disk_id", self.Id)
+	guestdisks := GuestdiskManager.Query("row_id").Equals("disk_id", self.Id)
+	diskpolicies := SnapshotPolicyDiskManager.Query("row_id").Equals("disk_id", self.Id)
+	pairs := []purgePair{
+		{manager: DiskBackupManager, key: "id", q: diskbackups},
+		{manager: GuestdiskManager, key: "row_id", q: guestdisks},
+		{manager: SnapshotPolicyDiskManager, key: "row_id", q: diskpolicies},
+	}
+	for i := range pairs {
+		err := pairs[i].purgeAll()
+		if err != nil {
+			return err
+		}
 	}
 	return self.SVirtualResourceBase.Delete(ctx, userCred)
 }
@@ -2467,6 +2471,11 @@ func (manager *SDiskManager) FetchCustomizeColumns(
 			rows[i].MaxManualSnapshotCount = options.Options.DefaultMaxManualSnapshotCount
 			snps, _ := snapshots[diskIds[i]]
 			rows[i].ManualSnapshotCount = len(snps)
+		}
+		disk := objs[i].(*SDisk)
+		if len(disk.StorageId) == 0 && disk.Status == api.VM_SCHEDULE_FAILED {
+			rows[i].Brand = "Unknown"
+			rows[i].Provider = "Unknown"
 		}
 	}
 

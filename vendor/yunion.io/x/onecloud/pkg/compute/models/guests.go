@@ -1339,6 +1339,33 @@ func parseInstanceBackup(input *api.ServerCreateInput) (*api.ServerCreateInput, 
 	return input, nil
 }
 
+func (manager *SGuestManager) ExpandBatchCreateData(
+	ctx context.Context,
+	userCred mcclient.TokenCredential,
+	ownerId mcclient.IIdentityProvider,
+	query jsonutils.JSONObject,
+	data *jsonutils.JSONDict,
+	index int,
+) (*api.ServerCreateInput, error) {
+	input, err := cmdline.FetchServerCreateInputByJSON(data)
+	if err != nil {
+		return nil, err
+	}
+	for i := range input.Networks {
+		if index < len(input.Networks[i].Macs) {
+			input.Networks[i].Mac = input.Networks[i].Macs[index]
+		}
+		if index < len(input.Networks[i].Addresses) {
+			input.Networks[i].Address = input.Networks[i].Addresses[index]
+		}
+		if index < len(input.Networks[i].Addresses6) {
+			input.Networks[i].Address6 = input.Networks[i].Addresses6[index]
+		}
+	}
+	log.Debugf("ExpandBatchCreateData %s", jsonutils.Marshal(input))
+	return input, nil
+}
+
 func (manager *SGuestManager) validateCreateData(
 	ctx context.Context, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider,
 	query jsonutils.JSONObject, data *jsonutils.JSONDict) (*api.ServerCreateInput, error) {
@@ -1579,6 +1606,13 @@ func (manager *SGuestManager) validateCreateData(
 		return nil, httperrors.NewBadRequestError("Miss operating system???")
 	}
 
+	if input.Hypervisor == api.HYPERVISOR_KVM {
+		if input.IsDaemon == nil && options.Options.SetKVMServerAsDaemonOnCreate {
+			setDaemon := true
+			input.IsDaemon = &setDaemon
+		}
+	}
+
 	hypervisor = input.Hypervisor
 	if hypervisor != api.HYPERVISOR_CONTAINER {
 		// support sku here
@@ -1794,6 +1828,23 @@ func (manager *SGuestManager) validateCreateData(
 		input.IsolatedDevices[idx] = devConfig
 	}
 
+	nvidiaVgpuCnt := 0
+	gpuCnt := 0
+	for i := 0; i < len(input.IsolatedDevices); i++ {
+		if input.IsolatedDevices[i].DevType == api.LEGACY_VGPU_TYPE {
+			nvidiaVgpuCnt += 1
+		} else if utils.IsInStringArray(input.IsolatedDevices[i].DevType, api.VALID_GPU_TYPES) {
+			gpuCnt += 1
+		}
+	}
+
+	if nvidiaVgpuCnt > 1 {
+		return nil, httperrors.NewBadRequestError("Nvidia vgpu count exceed > 1")
+	}
+	if nvidiaVgpuCnt > 0 && gpuCnt > 0 {
+		return nil, httperrors.NewBadRequestError("Nvidia vgpu can't passthrough with other gpus")
+	}
+
 	keypairId := input.KeypairId
 	if len(keypairId) > 0 {
 		keypairObj, err := KeypairManager.FetchByIdOrName(userCred, keypairId)
@@ -1867,7 +1918,8 @@ func (manager *SGuestManager) validateCreateData(
 		return nil, err
 	}
 
-	if err := userdata.ValidateUserdata(input.UserData); err != nil {
+	// validate UserData
+	if err := userdata.ValidateUserdata(input.UserData, input.OsType); err != nil {
 		return nil, httperrors.NewInputParameterError("Invalid userdata: %v", err)
 	}
 
@@ -2279,9 +2331,9 @@ func (manager *SGuestManager) SetPropertiesWithInstanceSnapshot(
 	}
 }
 
-func (manager *SGuestManager) OnCreateComplete(ctx context.Context, items []db.IModel, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, query jsonutils.JSONObject, data jsonutils.JSONObject) {
+func (manager *SGuestManager) OnCreateComplete(ctx context.Context, items []db.IModel, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, query jsonutils.JSONObject, data []jsonutils.JSONObject) {
 	input := api.ServerCreateInput{}
-	data.Unmarshal(&input)
+	data[0].Unmarshal(&input)
 	if len(input.InstanceSnapshotId) > 0 {
 		manager.SetPropertiesWithInstanceSnapshot(ctx, userCred, input.InstanceSnapshotId, items)
 	}
@@ -2927,105 +2979,86 @@ func (guest *SGuest) SyncAllWithCloudVM(ctx context.Context, userCred mcclient.T
 }
 
 func (g *SGuest) SyncOsInfo(ctx context.Context, userCred mcclient.TokenCredential, extVM cloudprovider.IOSInfo) error {
-	// save os info
-	osinfo := map[string]interface{}{}
-	for k, v := range map[string]string{
-		"os_full_name":    extVM.GetFullOsName(),
-		"os_name":         string(extVM.GetOsType()),
-		"os_arch":         extVM.GetOsArch(),
-		"os_type":         string(extVM.GetOsType()),
-		"os_distribution": extVM.GetOsDist(),
-		"os_version":      extVM.GetOsVersion(),
-		"os_language":     extVM.GetOsLang(),
-	} {
-		if len(v) == 0 {
-			continue
-		}
-		osinfo[k] = v
-	}
-	if len(osinfo) > 0 {
-		err := g.SetAllMetadata(ctx, osinfo, userCred)
-		if err != nil {
-			return errors.Wrap(err, "SetAllMetadata")
-		}
-	}
-	return nil
+	return g.GetDriver().SyncOsInfo(ctx, userCred, g, extVM)
 }
 
-func (self *SGuest) syncWithCloudVM(ctx context.Context, userCred mcclient.TokenCredential, provider cloudprovider.ICloudProvider, host *SHost, extVM cloudprovider.ICloudVM, syncOwnerId mcclient.IIdentityProvider, syncStatus bool) error {
+func (g *SGuest) syncWithCloudVM(ctx context.Context, userCred mcclient.TokenCredential, provider cloudprovider.ICloudProvider, host *SHost, extVM cloudprovider.ICloudVM, syncOwnerId mcclient.IIdentityProvider, syncStatus bool) error {
 	recycle := false
 
-	if provider.GetFactory().IsSupportPrepaidResources() && self.IsPrepaidRecycle() {
+	if provider.GetFactory().IsSupportPrepaidResources() && g.IsPrepaidRecycle() {
 		recycle = true
 	}
 
-	diff, err := db.UpdateWithLock(ctx, self, func() error {
+	diff, err := db.UpdateWithLock(ctx, g, func() error {
 		if options.Options.EnableSyncName && !recycle {
-			newName, _ := db.GenerateAlterName(self, extVM.GetName())
-			if len(newName) > 0 && newName != self.Name {
-				self.Name = newName
+			newName, _ := db.GenerateAlterName(g, extVM.GetName())
+			if len(newName) > 0 && newName != g.Name {
+				g.Name = newName
 			}
 		}
 		hostname := pinyinutils.Text2Pinyin(extVM.GetHostname())
-		if extVM.GetName() != hostname {
-			self.Hostname = hostname
+		if len(hostname) > 128 {
+			hostname = hostname[:128]
 		}
-		if !self.IsFailureStatus() && syncStatus {
-			self.Status = extVM.GetStatus()
-			self.PowerStates = extVM.GetPowerStates()
-			self.inferPowerStates()
+		if extVM.GetName() != hostname {
+			g.Hostname = hostname
+		}
+		if !g.IsFailureStatus() && syncStatus {
+			g.Status = extVM.GetStatus()
+			g.PowerStates = extVM.GetPowerStates()
+			g.inferPowerStates()
 		}
 
-		self.VcpuCount = extVM.GetVcpuCount()
-		self.BootOrder = extVM.GetBootOrder()
-		self.Vga = extVM.GetVga()
-		self.Vdi = extVM.GetVdi()
+		g.VcpuCount = extVM.GetVcpuCount()
+		g.BootOrder = extVM.GetBootOrder()
+		g.Vga = extVM.GetVga()
+		g.Vdi = extVM.GetVdi()
 		if len(extVM.GetOsArch()) > 0 {
-			self.OsArch = extVM.GetOsArch()
+			g.OsArch = extVM.GetOsArch()
 		}
-		if len(self.OsType) == 0 {
-			self.OsType = string(extVM.GetOsType())
+		if len(g.OsType) == 0 {
+			g.OsType = string(extVM.GetOsType())
 		}
-		if len(self.Bios) == 0 {
-			self.Bios = string(extVM.GetBios())
+		if len(g.Bios) == 0 {
+			g.Bios = string(extVM.GetBios())
 		}
-		self.Machine = extVM.GetMachine()
+		g.Machine = extVM.GetMachine()
 		if !recycle {
-			self.HostId = host.Id
+			g.HostId = host.Id
 		}
-		self.InternetMaxBandwidthOut = extVM.GetInternetMaxBandwidthOut()
-		self.Throughput = extVM.GetThroughput()
+		g.InternetMaxBandwidthOut = extVM.GetInternetMaxBandwidthOut()
+		g.Throughput = extVM.GetThroughput()
 
 		instanceType := extVM.GetInstanceType()
 
 		if len(instanceType) > 0 {
-			self.InstanceType = instanceType
+			g.InstanceType = instanceType
 		}
 
 		memSizeMb := extVM.GetVmemSizeMB()
-		if self.VmemSize == 0 || self.VmemSize != memSizeMb {
+		if g.VmemSize == 0 || g.VmemSize != memSizeMb {
 			if memSizeMb > 0 {
-				self.VmemSize = memSizeMb
+				g.VmemSize = memSizeMb
 			} else {
 				sku, _ := ServerSkuManager.FetchSkuByNameAndProvider(instanceType, provider.GetFactory().GetName(), false)
 				if sku != nil && sku.MemorySizeMB > 0 {
-					self.VmemSize = sku.MemorySizeMB
+					g.VmemSize = sku.MemorySizeMB
 				}
 			}
 		}
 
-		self.Hypervisor = extVM.GetHypervisor()
+		g.Hypervisor = extVM.GetHypervisor()
 
-		if len(self.Description) == 0 {
-			self.Description = extVM.GetDescription()
+		if len(g.Description) == 0 {
+			g.Description = extVM.GetDescription()
 		}
-		self.IsEmulated = extVM.IsEmulated()
+		g.IsEmulated = extVM.IsEmulated()
 
 		if provider.GetFactory().IsSupportPrepaidResources() && !recycle {
-			self.BillingType = extVM.GetBillingType()
-			self.ExpiredAt = extVM.GetExpiredAt()
-			if self.GetDriver().IsSupportSetAutoRenew() {
-				self.AutoRenew = extVM.IsAutoRenew()
+			g.BillingType = extVM.GetBillingType()
+			g.ExpiredAt = extVM.GetExpiredAt()
+			if g.GetDriver().IsSupportSetAutoRenew() {
+				g.AutoRenew = extVM.IsAutoRenew()
 			}
 		}
 		return nil
@@ -3035,22 +3068,22 @@ func (self *SGuest) syncWithCloudVM(ctx context.Context, userCred mcclient.Token
 		return err
 	}
 
-	db.OpsLog.LogSyncUpdate(self, diff, userCred)
+	db.OpsLog.LogSyncUpdate(g, diff, userCred)
 
 	if len(diff) > 0 {
 		notifyclient.EventNotify(ctx, userCred, notifyclient.SEventNotifyParam{
-			Obj:    self,
+			Obj:    g,
 			Action: notifyclient.ActionSyncUpdate,
 		})
 	}
 
-	self.SyncOsInfo(ctx, userCred, extVM)
+	g.SyncOsInfo(ctx, userCred, extVM)
 
-	syncVirtualResourceMetadata(ctx, userCred, self, extVM)
-	SyncCloudProject(ctx, userCred, self, syncOwnerId, extVM, host.ManagerId)
+	syncVirtualResourceMetadata(ctx, userCred, g, extVM)
+	SyncCloudProject(ctx, userCred, g, syncOwnerId, extVM, host.ManagerId)
 
 	if provider.GetFactory().IsSupportPrepaidResources() && recycle {
-		vhost, _ := self.GetHost()
+		vhost, _ := g.GetHost()
 		err = vhost.syncWithCloudPrepaidVM(extVM, host)
 		if err != nil {
 			return err
@@ -3272,10 +3305,12 @@ type Attach2NetworkArgs struct {
 	RequireDesignatedIP bool
 	UseDesignatedIP     bool
 
-	BwLimit   int
-	NicDriver string
-	NumQueues int
-	NicConfs  []SNicConfig
+	BwLimit        int
+	NicDriver      string
+	NumQueues      int
+	RxTrafficLimit int64
+	TxTrafficLimit int64
+	NicConfs       []SNicConfig
 
 	Virtual bool
 
@@ -3295,10 +3330,12 @@ func (args *Attach2NetworkArgs) onceArgs(i int) attach2NetworkOnceArgs {
 		requireDesignatedIP: args.RequireDesignatedIP,
 		useDesignatedIP:     args.UseDesignatedIP,
 
-		bwLimit:   args.BwLimit,
-		nicDriver: args.NicDriver,
-		numQueues: args.NumQueues,
-		nicConf:   args.NicConfs[i],
+		bwLimit:        args.BwLimit,
+		nicDriver:      args.NicDriver,
+		numQueues:      args.NumQueues,
+		txTrafficLimit: args.TxTrafficLimit,
+		rxTrafficLimit: args.RxTrafficLimit,
+		nicConf:        args.NicConfs[i],
 
 		virtual: args.Virtual,
 
@@ -3327,11 +3364,13 @@ type attach2NetworkOnceArgs struct {
 	requireDesignatedIP bool
 	useDesignatedIP     bool
 
-	bwLimit     int
-	nicDriver   string
-	numQueues   int
-	nicConf     SNicConfig
-	teamWithMac string
+	bwLimit        int
+	nicDriver      string
+	numQueues      int
+	nicConf        SNicConfig
+	teamWithMac    string
+	rxTrafficLimit int64
+	txTrafficLimit int64
 
 	virtual bool
 
@@ -3396,12 +3435,14 @@ func (self *SGuest) attach2NetworkOnce(
 		requireDesignatedIP: args.requireDesignatedIP,
 		useDesignatedIP:     args.useDesignatedIP,
 
-		ifname:      args.nicConf.Ifname,
-		macAddr:     args.nicConf.Mac,
-		bwLimit:     args.bwLimit,
-		nicDriver:   nicDriver,
-		numQueues:   args.numQueues,
-		teamWithMac: args.teamWithMac,
+		ifname:         args.nicConf.Ifname,
+		macAddr:        args.nicConf.Mac,
+		bwLimit:        args.bwLimit,
+		nicDriver:      nicDriver,
+		numQueues:      args.numQueues,
+		teamWithMac:    args.teamWithMac,
+		rxTrafficLimit: args.rxTrafficLimit,
+		txTrafficLimit: args.txTrafficLimit,
 
 		virtual: args.virtual,
 	}
@@ -4143,6 +4184,8 @@ func (self *SGuest) attach2NamedNetworkDesc(ctx context.Context, userCred mcclie
 			NicDriver:           netConfig.Driver,
 			NumQueues:           netConfig.NumQueues,
 			BwLimit:             netConfig.BwLimit,
+			RxTrafficLimit:      netConfig.RxTrafficLimit,
+			TxTrafficLimit:      netConfig.TxTrafficLimit,
 			Virtual:             netConfig.Vip,
 			TryReserved:         netConfig.Reserved,
 			AllocDir:            allocDir,
@@ -4349,7 +4392,7 @@ func (self *SGuest) createDiskOnHost(
 	if autoAttach {
 		err = self.attach2Disk(ctx, disk, userCred, diskConfig.Driver, diskConfig.Cache, diskConfig.Mountpoint, diskConfig.BootIndex)
 	}
-	err = self.InheritTo(ctx, disk)
+	err = self.InheritTo(ctx, userCred, disk)
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to inherit from guest %s to disk %s", self.GetId(), disk.GetId())
 	}
@@ -4562,21 +4605,7 @@ func (self *SGuest) GetLoadbalancerBackends() ([]SLoadbalancerBackend, error) {
 }
 
 func (self *SGuest) RealDelete(ctx context.Context, userCred mcclient.TokenCredential) error {
-	err := self.CleanTapRecords(ctx, userCred)
-	if err != nil {
-		return errors.Wrap(err, "CleanTapRecords")
-	}
-	backends, err := self.GetLoadbalancerBackends()
-	if err != nil {
-		return errors.Wrapf(err, "GetLoadbalancerBackends")
-	}
-	for i := range backends {
-		err := backends[i].RealDelete(ctx, userCred)
-		if err != nil {
-			return errors.Wrapf(err, "backend real delete %s", backends[i].Id)
-		}
-	}
-	return self.SVirtualResourceBase.Delete(ctx, userCred)
+	return self.purge(ctx, userCred)
 }
 
 func (self *SGuest) AllowDeleteItem(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) bool {
@@ -5013,7 +5042,7 @@ func (self *SGuest) GetJsonDescAtBaremetal(ctx context.Context, host *SHost) *ap
 
 	desc.DiskConfig = host.getDiskConfig()
 
-	netifs := host.GetNetInterfaces()
+	netifs := host.GetAllNetInterfaces()
 	desc.Domain = options.Options.DNSDomain
 
 	for _, nic := range netifs {

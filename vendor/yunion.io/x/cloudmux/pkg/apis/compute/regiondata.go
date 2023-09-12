@@ -38,10 +38,22 @@ var (
 		City:        CITY_SHANG_HAI,
 		CountryCode: COUNTRY_CODE_CN,
 	}
+	RegionQingYang = cloudprovider.SGeographicInfo{
+		Latitude:    35.73,
+		Longitude:   107.61,
+		City:        CITY_QING_YANG,
+		CountryCode: COUNTRY_CODE_CN,
+	}
 	RegionGuangzhou = cloudprovider.SGeographicInfo{
 		Latitude:    23.12911,
 		Longitude:   113.264385,
 		City:        CITY_GUANG_ZHOU,
+		CountryCode: COUNTRY_CODE_CN,
+	}
+	RegionSuzhou = cloudprovider.SGeographicInfo{
+		Latitude:    31.328,
+		Longitude:   120.479,
+		City:        CITY_SU_ZHOU,
 		CountryCode: COUNTRY_CODE_CN,
 	}
 	RegionDalian = cloudprovider.SGeographicInfo{
@@ -68,6 +80,12 @@ var (
 		City:        CITY_QING_DAO,
 		CountryCode: COUNTRY_CODE_CN,
 	}
+	RegionBaoDing = cloudprovider.SGeographicInfo{
+		Latitude:    38.871,
+		Longitude:   115.393,
+		City:        CITY_BAO_DING,
+		CountryCode: COUNTRY_CODE_CN,
+	}
 	RegionZhangjiakou = cloudprovider.SGeographicInfo{
 		Latitude:    40.767544,
 		Longitude:   114.886337,
@@ -84,6 +102,12 @@ var (
 		Latitude:    30.274084,
 		Longitude:   120.155067,
 		City:        CITY_HANG_ZHOU,
+		CountryCode: COUNTRY_CODE_CN,
+	}
+	RegionWuhan = cloudprovider.SGeographicInfo{
+		Latitude:    30.568,
+		Longitude:   114.136,
+		City:        CITY_WU_HAN,
 		CountryCode: COUNTRY_CODE_CN,
 	}
 	RegionShenzhen = cloudprovider.SGeographicInfo{

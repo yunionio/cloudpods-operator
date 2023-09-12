@@ -206,8 +206,8 @@ const (
 	ACT_SEND_VERIFICATION = "send_verification"
 	ACT_REPULL_SUBCONTACT = "repull_subcontact"
 
-	ACT_SYNC_VPCS        = "sync_vpcs"
-	ACT_SYNC_RECORD_SETS = "sync_record_sets"
+	ACT_ADD_VPCS    = "add_vpcs"
+	ACT_REMOVE_VPCS = "remove_vpcs"
 
 	ACT_DETACH_ALERTRESOURCE          = "detach_alertresoruce"
 	ACT_NETWORK_ADD_VPC               = "network_add_vpc"
@@ -256,4 +256,8 @@ const (
 
 	ACT_BIND     = "bind"
 	ACT_PROGRESS = "progress"
+
+	ACT_ADD_BASTION_SERVER = "add_bastion_server"
+
+	ACT_SYNC_TRAFFIC_LIMIT = "sync_traffic_limit"
 )

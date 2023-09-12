@@ -40,6 +40,10 @@ const (
 	CLOUD_PROVIDER_PROXMOX        = "Proxmox"
 	CLOUD_PROVIDER_REMOTEFILE     = "RemoteFile"
 	CLOUD_PROVIDER_H3C            = "H3C"
+	CLOUD_PROVIDER_KSYUN          = "Ksyun"
+	CLOUD_PROVIDER_BAIDU          = "Baidu"
+	CLOUD_PROVIDER_CUCLOUD        = "ChinaUnion"
+	CLOUD_PROVIDER_QINGCLOUD      = "QingCloud"
 
 	CLOUD_PROVIDER_GENERICS3 = "S3"
 	CLOUD_PROVIDER_CEPH      = "Ceph"

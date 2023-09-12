@@ -89,6 +89,12 @@ type SGuestnetwork struct {
 	NumQueues int `nullable:"true" default:"1" list:"user" update:"user"`
 	// 带宽限制，单位mbps
 	BwLimit int `nullable:"false" default:"0" list:"user"`
+	// 下行流量限制，单位 bytes
+	RxTrafficLimit int64 `nullable:"false" default:"0" list:"user"`
+	RxTrafficUsed  int64 `nullable:"false" default:"0" list:"user"`
+	// 上行流量限制，单位 bytes
+	TxTrafficLimit int64 `nullable:"false" default:"0" list:"user"`
+	TxTrafficUsed  int64 `nullable:"false" default:"0" list:"user"`
 	// 网卡序号
 	Index int8 `nullable:"false" default:"0" list:"user" update:"user"`
 	// 是否为虚拟接口（无IP）
@@ -229,12 +235,14 @@ type newGuestNetworkArgs struct {
 	requireDesignatedIP bool
 	useDesignatedIP     bool
 
-	ifname      string
-	macAddr     string
-	bwLimit     int
-	nicDriver   string
-	numQueues   int
-	teamWithMac string
+	ifname         string
+	macAddr        string
+	bwLimit        int
+	nicDriver      string
+	numQueues      int
+	teamWithMac    string
+	rxTrafficLimit int64
+	txTrafficLimit int64
 
 	virtual bool
 }
@@ -274,6 +282,8 @@ func (manager *SGuestnetworkManager) newGuestNetwork(
 	}
 	gn.Driver = driver
 	gn.NumQueues = numQueues
+	gn.RxTrafficLimit = args.rxTrafficLimit
+	gn.TxTrafficLimit = args.txTrafficLimit
 	if bwLimit >= 0 {
 		gn.BwLimit = bwLimit
 	}
@@ -449,26 +459,24 @@ func (self *SGuestnetwork) GetTeamGuestnetwork() (*SGuestnetwork, error) {
 
 func (self *SGuestnetwork) getJsonDescAtBaremetal(host *SHost) *api.GuestnetworkJsonDesc {
 	net := self.GetNetwork()
-	hostwire := host.getHostwireOfIdAndMac(net.WireId, self.MacAddr)
-	return self.getJsonDescHostwire(hostwire)
+	netif := guestGetHostNetifFromNetwork(host, net)
+	if netif == nil {
+		log.Errorf("fail to find a valid net interface on baremetal %s for network %s", host.String(), net.String())
+	}
+	return self.getJsonDescHostwire(netif)
 }
 
-func guestGetHostWireFromNetwork(host *SHost, network *SNetwork) (*SHostwire, error) {
-	hostwires := host.getHostwiresOfId(network.WireId)
-	var hostWire *SHostwire
-	for i := 0; i < len(hostwires); i++ {
-		if netInter, _ := NetInterfaceManager.FetchByMac(hostwires[i].MacAddr); netInter != nil {
-			if netInter.NicType != api.NIC_TYPE_IPMI {
-				hostWire = &hostwires[i]
-				break
+func guestGetHostNetifFromNetwork(host *SHost, network *SNetwork) *SNetInterface {
+	netifs := host.getNetifsOnWire(network.WireId)
+	var netif *SNetInterface
+	for i := range netifs {
+		if netifs[i].NicType != api.NIC_TYPE_IPMI {
+			if netif == nil || netif.NicType != api.NIC_TYPE_ADMIN {
+				netif = &netifs[i]
 			}
 		}
 	}
-	if hostWire == nil {
-		return nil, fmt.Errorf("Host %s has no net interface on wire %s as guest network %s",
-			host.Name, network.WireId, api.NIC_TYPE_ADMIN)
-	}
-	return hostWire, nil
+	return netif
 }
 
 func (self *SGuestnetwork) getJsonDescAtHost(ctx context.Context, host *SHost) *api.GuestnetworkJsonDesc {
@@ -479,11 +487,19 @@ func (self *SGuestnetwork) getJsonDescAtHost(ctx context.Context, host *SHost) *
 	if network.isOneCloudVpcNetwork() {
 		ret = self.getJsonDescOneCloudVpc(network)
 	} else {
-		hostWire, err := guestGetHostWireFromNetwork(host, network)
-		if err != nil {
-			log.Errorln(err)
+		netifs := host.getNetifsOnWire(network.WireId)
+		var netif *SNetInterface
+		for i := range netifs {
+			if len(netifs[i].Bridge) > 0 {
+				netif = &netifs[i]
+				break
+			}
 		}
-		ret = self.getJsonDescHostwire(hostWire)
+		if netif == nil && len(netifs) > 0 {
+			log.Errorf("fail to find a bridged net_interface on host %s for network %s?????", host.String(), network.String())
+			netif = &netifs[0]
+		}
+		ret = self.getJsonDescHostwire(netif)
 	}
 	{
 		ipnets, err := NetworkAddressManager.fetchAddressesByGuestnetworkId(ctx, self.RowId)
@@ -497,12 +513,12 @@ func (self *SGuestnetwork) getJsonDescAtHost(ctx context.Context, host *SHost) *
 	return ret
 }
 
-func (self *SGuestnetwork) getJsonDescHostwire(hostwire *SHostwire) *api.GuestnetworkJsonDesc {
+func (self *SGuestnetwork) getJsonDescHostwire(netif *SNetInterface) *api.GuestnetworkJsonDesc {
 	desc := self.getJsonDesc()
-	if hostwire != nil {
-		desc.Bridge = hostwire.Bridge
-		desc.WireId = hostwire.WireId
-		desc.Interface = hostwire.Interface
+	if netif != nil {
+		desc.Bridge = netif.Bridge
+		desc.WireId = netif.WireId
+		desc.Interface = netif.Interface
 	}
 	return desc
 }
@@ -573,6 +589,8 @@ func (self *SGuestnetwork) getJsonDesc() *api.GuestnetworkJsonDesc {
 	desc.Masklen = net.GuestIpMask
 	desc.Driver = self.Driver
 	desc.NumQueues = self.NumQueues
+	desc.RxTrafficLimit = self.RxTrafficLimit
+	desc.TxTrafficLimit = self.TxTrafficLimit
 	desc.Vlan = net.VlanId
 	desc.Bw = self.getBandwidth()
 	desc.Mtu = self.getMtu(net)
@@ -598,6 +616,28 @@ func (self *SGuestnetwork) IsSriovWithoutOffload() bool {
 		return false
 	}
 	return true
+}
+
+func (self *SGuestnetwork) UpdateNicTrafficUsed(rx, tx int64) error {
+	_, err := db.Update(self, func() error {
+		self.RxTrafficUsed = rx
+		self.TxTrafficUsed = tx
+		return nil
+	})
+	return err
+}
+
+func (self *SGuestnetwork) UpdateNicTrafficLimit(rx, tx *int64) error {
+	_, err := db.Update(self, func() error {
+		if rx != nil {
+			self.RxTrafficLimit = *rx
+		}
+		if tx != nil {
+			self.TxTrafficLimit = *tx
+		}
+		return nil
+	})
+	return err
 }
 
 func (manager *SGuestnetworkManager) GetGuestByAddress(address string) *SGuest {
@@ -829,7 +869,7 @@ func (self *SGuestnetwork) getBandwidth() int {
 	}
 }
 
-func (self *SGuestnetwork) getMtu(net *SNetwork) int {
+func (self *SGuestnetwork) getMtu(net *SNetwork) int16 {
 	return net.getMtu()
 }
 
@@ -954,9 +994,15 @@ func (manager *SGuestnetworkManager) FetchByIdsAndIpMac(guestId string, netId st
 }
 
 func (manager *SGuestnetworkManager) FetchByGuestId(guestId string) ([]SGuestnetwork, error) {
-	q := manager.Query().
-		Equals("guest_id", guestId)
-	q = q.Asc(q.Field("index"))
+	return manager.fetchGuestNetworks(func(q *sqlchemy.SQuery) *sqlchemy.SQuery {
+		q = q.Equals("guest_id", guestId).Asc(q.Field("index"))
+		return q
+	})
+}
+
+func (manager *SGuestnetworkManager) fetchGuestNetworks(filter func(q *sqlchemy.SQuery) *sqlchemy.SQuery) ([]SGuestnetwork, error) {
+	q := manager.Query()
+	q = filter(q)
 	var rets []SGuestnetwork
 	if err := db.FetchModelObjects(manager, q, &rets); err != nil {
 		return nil, errors.Wrap(err, "FetchModelObjects")

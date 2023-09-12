@@ -1909,7 +1909,7 @@ func (self *SGuest) PerformDetachIsolatedDevice(ctx context.Context, userCred mc
 		for i := 0; i < len(devs); i++ {
 			// check first
 			dev := devs[i]
-			if !utils.IsInStringArray(dev.DevType, []string{api.GPU_HPC_TYPE, api.GPU_VGA_TYPE, api.USB_TYPE}) {
+			if !utils.IsInStringArray(dev.DevType, api.VALID_ATTACH_TYPES) {
 				if devModel, err := IsolatedDeviceModelManager.GetByDevType(dev.DevType); err != nil {
 					msg := fmt.Sprintf("Can't separately detach dev type %s", dev.DevType)
 					logclient.AddActionLogWithContext(ctx, self, logclient.ACT_GUEST_DETACH_ISOLATED_DEVICE, msg, userCred, false)
@@ -1942,7 +1942,7 @@ func (self *SGuest) startDetachIsolateDeviceWithoutNic(ctx context.Context, user
 		return httperrors.NewBadRequestError(msgFmt, device)
 	}
 	dev := iDev.(*SIsolatedDevice)
-	if !utils.IsInStringArray(dev.DevType, []string{api.GPU_HPC_TYPE, api.GPU_VGA_TYPE, api.USB_TYPE}) {
+	if !utils.IsInStringArray(dev.DevType, api.VALID_ATTACH_TYPES) {
 		if devModel, err := IsolatedDeviceModelManager.GetByDevType(dev.DevType); err != nil {
 			msg := fmt.Sprintf("Can't separately detach dev type %s", dev.DevType)
 			logclient.AddActionLogWithContext(ctx, self, logclient.ACT_GUEST_DETACH_ISOLATED_DEVICE, msg, userCred, false)
@@ -2036,12 +2036,26 @@ func (self *SGuest) startAttachIsolatedDevices(ctx context.Context, userCred mcc
 		return httperrors.NewBadRequestError("guest %s host %s isolated device not enough", self.GetName(), host.GetName())
 	}
 	dev := devs[0]
-	if !utils.IsInStringArray(dev.DevType, []string{api.GPU_HPC_TYPE, api.GPU_VGA_TYPE, api.USB_TYPE}) {
+	if !utils.IsInStringArray(dev.DevType, api.VALID_ATTACH_TYPES) {
 		if devModel, err := IsolatedDeviceModelManager.GetByDevType(dev.DevType); err != nil {
 			return httperrors.NewBadRequestError("Can't separately attach dev type %s", dev.DevType)
 		} else {
 			if !devModel.HotPluggable.Bool() && self.GetStatus() == api.VM_RUNNING {
 				return httperrors.NewBadRequestError("dev type %s model %s unhotpluggable", dev.DevType, devModel.Model)
+			}
+		}
+	}
+
+	if dev.DevType == api.LEGACY_VGPU_TYPE {
+		devs, err := self.GetIsolatedDevices()
+		if err != nil {
+			return errors.Wrap(err, "get isolated devices")
+		}
+		for i := range devs {
+			if devs[i].DevType == api.LEGACY_VGPU_TYPE {
+				return httperrors.NewBadRequestError("Nvidia vgpu count exceed > 1")
+			} else if utils.IsInStringArray(devs[i].DevType, api.VALID_GPU_TYPES) {
+				return httperrors.NewBadRequestError("Nvidia vgpu can't passthrough with other gpus")
 			}
 		}
 	}
@@ -2073,7 +2087,7 @@ func (self *SGuest) startAttachIsolatedDevGeneral(ctx context.Context, userCred 
 		return httperrors.NewBadRequestError(msgFmt, device)
 	}
 	dev := iDev.(*SIsolatedDevice)
-	if !utils.IsInStringArray(dev.DevType, []string{api.GPU_HPC_TYPE, api.GPU_VGA_TYPE, api.USB_TYPE}) {
+	if !utils.IsInStringArray(dev.DevType, api.VALID_ATTACH_TYPES) {
 		if devModel, err := IsolatedDeviceModelManager.GetByDevType(dev.DevType); err != nil {
 			return httperrors.NewBadRequestError("Can't separately attach dev type %s", dev.DevType)
 		} else {
@@ -2085,6 +2099,21 @@ func (self *SGuest) startAttachIsolatedDevGeneral(ctx context.Context, userCred 
 	if !utils.IsInStringArray(self.GetStatus(), []string{api.VM_READY, api.VM_RUNNING}) {
 		return httperrors.NewInvalidStatusError("Can't attach GPU when status is %q", self.GetStatus())
 	}
+
+	if dev.DevType == api.LEGACY_VGPU_TYPE {
+		devs, err := self.GetIsolatedDevices()
+		if err != nil {
+			return errors.Wrap(err, "get isolated devices")
+		}
+		for i := range devs {
+			if devs[i].DevType == api.LEGACY_VGPU_TYPE {
+				return httperrors.NewBadRequestError("Nvidia vgpu count exceed > 1")
+			} else if utils.IsInStringArray(devs[i].DevType, api.VALID_GPU_TYPES) {
+				return httperrors.NewBadRequestError("Nvidia vgpu can't passthrough with other gpus")
+			}
+		}
+	}
+
 	host, _ := self.GetHost()
 	lockman.LockObject(ctx, host)
 	defer lockman.ReleaseObject(ctx, host)
@@ -3322,7 +3351,7 @@ func (self *SGuest) PerformCreateEip(ctx context.Context, userCred mcclient.Toke
 }
 
 func (self *SGuest) setUserData(ctx context.Context, userCred mcclient.TokenCredential, data string) error {
-	if err := userdata.ValidateUserdata(data); err != nil {
+	if err := userdata.ValidateUserdata(data, self.OsType); err != nil {
 		return err
 	}
 	encodeData, err := userdata.Encode(data)
@@ -4657,34 +4686,64 @@ func (guest *SGuest) StartGuestDiskResizeTask(ctx context.Context, userCred mccl
 	return nil
 }
 
-func (self *SGuest) PerformIoThrottle(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
+func (self *SGuest) PerformIoThrottle(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input *api.ServerSetDiskIoThrottleInput) (jsonutils.JSONObject, error) {
 	if self.Hypervisor != api.HYPERVISOR_KVM {
 		return nil, httperrors.NewBadRequestError("Hypervisor %s can't do io throttle", self.Hypervisor)
 	}
-	if self.Status != api.VM_RUNNING {
+	if self.Status != api.VM_RUNNING && self.Status != api.VM_READY {
 		return nil, httperrors.NewServerStatusError("Cannot do io throttle in status %s", self.Status)
 	}
-	bpsMb, err := data.Int("bps")
-	if err != nil {
-		return nil, httperrors.NewMissingParameterError("bps")
+
+	for diskId, bpsMb := range input.Bps {
+		if bpsMb < 0 {
+			return nil, httperrors.NewInputParameterError("disk %s bps must > 0", diskId)
+		}
+		disk := DiskManager.FetchDiskById(diskId)
+		if disk == nil {
+			return nil, httperrors.NewNotFoundError("disk %s not found", diskId)
+		}
 	}
-	if bpsMb < 0 {
-		return nil, httperrors.NewInputParameterError("bps must > 0")
+
+	for diskId, iops := range input.IOPS {
+		if iops < 0 {
+			return nil, httperrors.NewInputParameterError("disk %s iops must > 0", diskId)
+		}
+		disk := DiskManager.FetchDiskById(diskId)
+		if disk == nil {
+			return nil, httperrors.NewNotFoundError("disk %s not found", diskId)
+		}
 	}
-	iops, err := data.Int("iops")
-	if err != nil {
-		return nil, httperrors.NewMissingParameterError("iops")
+
+	if err := self.UpdateIoThrottle(input); err != nil {
+		return nil, errors.Wrap(err, "update io throttles")
 	}
-	if iops < 0 {
-		return nil, httperrors.NewInputParameterError("iops must > 0")
-	}
-	return nil, self.StartBlockIoThrottleTask(ctx, userCred, bpsMb, iops)
+	return nil, self.StartBlockIoThrottleTask(ctx, userCred, input)
 }
 
-func (self *SGuest) StartBlockIoThrottleTask(ctx context.Context, userCred mcclient.TokenCredential, bpsMb, iops int64) error {
-	params := jsonutils.NewDict()
-	params.Set("bps", jsonutils.NewInt(bpsMb))
-	params.Set("iops", jsonutils.NewInt(iops))
+func (self *SGuest) UpdateIoThrottle(input *api.ServerSetDiskIoThrottleInput) error {
+	gds, err := self.GetGuestDisks()
+	if err != nil {
+		return err
+	}
+	for i := 0; i < len(gds); i++ {
+		_, err := db.Update(&gds[i], func() error {
+			if bps, ok := input.Bps[gds[i].DiskId]; ok {
+				gds[i].Bps = bps
+			}
+			if iops, ok := input.IOPS[gds[i].DiskId]; ok {
+				gds[i].Iops = iops
+			}
+			return nil
+		})
+		if err != nil {
+			return nil
+		}
+	}
+	return nil
+}
+
+func (self *SGuest) StartBlockIoThrottleTask(ctx context.Context, userCred mcclient.TokenCredential, input *api.ServerSetDiskIoThrottleInput) error {
+	params := jsonutils.Marshal(input).(*jsonutils.JSONDict)
 	params.Set("old_status", jsonutils.NewString(self.Status))
 	self.SetStatus(userCred, api.VM_IO_THROTTLE, "start block io throttle task")
 	task, err := taskman.TaskManager.NewTask(ctx, "GuestBlockIoThrottleTask", self, userCred, params, "", "", nil)
@@ -4968,7 +5027,7 @@ func (self *SGuest) PerformInstanceSnapshot(
 			ctx, userCred, pendingUsage, pendingUsage, false)
 		return nil, httperrors.NewInternalServerError("create instance snapshot failed: %s", err)
 	}
-	err = self.InheritTo(ctx, instanceSnapshot)
+	err = self.InheritTo(ctx, userCred, instanceSnapshot)
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to inherit from guest %s to instance snapshot %s", self.GetId(), instanceSnapshot.GetId())
 	}
@@ -5019,7 +5078,7 @@ func (self *SGuest) PerformInstanceBackup(
 	if err != nil {
 		return nil, httperrors.NewInternalServerError("create instance backup failed: %s", err)
 	}
-	err = self.InheritTo(ctx, instanceBackup)
+	err = self.InheritTo(ctx, userCred, instanceBackup)
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to inherit from guest %s to instance backup %s", self.GetId(), instanceBackup.GetId())
 	}
@@ -5264,6 +5323,54 @@ func (guest *SGuest) StartDeleteGuestSnapshots(ctx context.Context, userCred mcc
 	}
 	task.ScheduleRun(nil)
 	return nil
+}
+
+func (self *SGuest) PerformResetNicTrafficLimit(ctx context.Context, userCred mcclient.TokenCredential,
+	query jsonutils.JSONObject, input *api.ServerNicTrafficLimit) (jsonutils.JSONObject, error) {
+
+	if !utils.IsInStringArray(self.Status, []string{api.VM_READY, api.VM_RUNNING}) {
+		return nil, httperrors.NewUnsupportOperationError("The guest status need be %s or %s, current is %s", api.VM_READY, api.VM_RUNNING, self.Status)
+	}
+	input.Mac = strings.ToLower(input.Mac)
+	_, err := self.GetGuestnetworkByMac(input.Mac)
+	if err != nil {
+		return nil, errors.Wrap(err, "get guest network by mac")
+	}
+
+	params := jsonutils.Marshal(input).(*jsonutils.JSONDict)
+	params.Set("old_status", jsonutils.NewString(self.Status))
+	self.SetStatus(userCred, api.VM_SYNC_TRAFFIC_LIMIT, "PerformResetNicTrafficLimit")
+	task, err := taskman.TaskManager.NewTask(ctx, "GuestResetNicTrafficsTask", self, userCred, params, "", "", nil)
+	if err != nil {
+		return nil, err
+	}
+	task.ScheduleRun(nil)
+	return nil, nil
+}
+
+func (self *SGuest) PerformSetNicTrafficLimit(ctx context.Context, userCred mcclient.TokenCredential,
+	query jsonutils.JSONObject, input *api.ServerNicTrafficLimit) (jsonutils.JSONObject, error) {
+
+	if !utils.IsInStringArray(self.Status, []string{api.VM_READY, api.VM_RUNNING}) {
+		return nil, httperrors.NewUnsupportOperationError("The guest status need be %s or %s, current is %s", api.VM_READY, api.VM_RUNNING, self.Status)
+	}
+	if input.RxTrafficLimit == nil && input.TxTrafficLimit == nil {
+		return nil, httperrors.NewBadRequestError("rx/tx traffic not provider")
+	}
+	input.Mac = strings.ToLower(input.Mac)
+	_, err := self.GetGuestnetworkByMac(input.Mac)
+	if err != nil {
+		return nil, errors.Wrap(err, "get guest network by mac")
+	}
+	params := jsonutils.Marshal(input).(*jsonutils.JSONDict)
+	params.Set("old_status", jsonutils.NewString(self.Status))
+	self.SetStatus(userCred, api.VM_SYNC_TRAFFIC_LIMIT, "GuestSetNicTrafficsTask")
+	task, err := taskman.TaskManager.NewTask(ctx, "GuestSetNicTrafficsTask", self, userCred, params, "", "", nil)
+	if err != nil {
+		return nil, err
+	}
+	task.ScheduleRun(nil)
+	return nil, nil
 }
 
 func (self *SGuest) PerformBindGroups(ctx context.Context, userCred mcclient.TokenCredential,

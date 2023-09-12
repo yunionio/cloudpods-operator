@@ -642,13 +642,13 @@ func init() {
 		CN("发送验证消息"),
 	)
 
-	t.Set(ACT_SYNC_VPCS, i18n.NewTableEntry().
-		EN("Sync Vpcs").
-		CN("同步VPC"),
+	t.Set(ACT_ADD_VPCS, i18n.NewTableEntry().
+		EN("Add Vpcs").
+		CN("添加VPC"),
 	)
-	t.Set(ACT_SYNC_RECORD_SETS, i18n.NewTableEntry().
-		EN("Sync Record Sets").
-		CN("同步解析列表"),
+	t.Set(ACT_REMOVE_VPCS, i18n.NewTableEntry().
+		EN("Remove Vpcs").
+		CN("移除VPC"),
 	)
 
 	t.Set(ACT_FREEZE, i18n.NewTableEntry().
@@ -1396,4 +1396,10 @@ func init() {
 		EN("Progress").
 		CN("进展"),
 	)
+
+	o.Set(ACT_ADD_BASTION_SERVER, i18n.NewTableEntry().
+		EN("Add Bastionhost Server").
+		CN("添加实例到堡垒机"),
+	)
+
 }

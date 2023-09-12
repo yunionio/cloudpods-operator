@@ -305,6 +305,9 @@ func (self ServerDetails) GetMetricTags() map[string]string {
 	}
 	for k, v := range self.Metadata {
 		if strings.HasPrefix(k, db.USER_TAG_PREFIX) {
+			if strings.Contains(k, "login_key") || strings.Contains(v, "=") {
+				continue
+			}
 			ret[k] = v
 		}
 	}
@@ -856,6 +859,13 @@ type ServerSetBootIndexInput struct {
 	Cdroms map[string]int8 `json:"cdroms"`
 }
 
+type ServerSetDiskIoThrottleInput struct {
+	// key disk id, value bps
+	Bps map[string]int `json:"bps"`
+	// key disk id, value iops
+	IOPS map[string]int `json:"iops"`
+}
+
 type ServerChangeStorageInput struct {
 	TargetStorageId string `json:"target_storage_id"`
 	KeepOriginDisk  bool   `json:"keep_origin_disk"`
@@ -1012,4 +1022,10 @@ type ServerEjectVfdInput struct {
 type ServerSetLiveMigrateParamsInput struct {
 	MaxBandwidthMB  *int64
 	DowntimeLimitMS *int64
+}
+
+type ServerNicTrafficLimit struct {
+	Mac            string `json:"mac"`
+	RxTrafficLimit *int64 `json:"rx_traffic_limit"`
+	TxTrafficLimit *int64 `json:"tx_traffic_limit"`
 }
