@@ -160,7 +160,6 @@ func (w *SWindowsRootFs) GetArch(hostCpuArch string) string {
 		return apis.OS_ARCH_X86_64
 	} else if w.rootFs.Exists("/program files (arm)", true) {
 		return apis.OS_ARCH_AARCH64
-
 	}
 	if hostCpuArch == apis.OS_ARCH_AARCH32 {
 		return apis.OS_ARCH_AARCH32
@@ -326,7 +325,7 @@ func (w *SWindowsRootFs) DeployNetworkingScripts(rootfs IDiskPartition, nics []*
 			dnslist := netutils2.GetNicDns(snic)
 			if len(dnslist) > 0 {
 				lines = append(lines, fmt.Sprintf(
-					`      netsh interface ip set dns name="%%%%b" source=static addr=%s ddns=disabled suffix=interface`, dnslist[0]))
+					`      netsh interface ip set dns name="%%%%b" source=static addr=%s`, dnslist[0]))
 				if len(dnslist) > 1 {
 					for i := 1; i < len(dnslist); i++ {
 						lines = append(lines, fmt.Sprintf(`      netsh interface ip add dns "%%%%b" %s index=%d`, dnslist[i], i+1))

@@ -282,7 +282,7 @@ type ICloudHost interface {
 	GetIVMs() ([]ICloudVM, error)
 	GetIVMById(id string) (ICloudVM, error)
 
-	GetIWires() ([]ICloudWire, error)
+	// GetIWires() ([]ICloudWire, error)
 	GetIStorages() ([]ICloudStorage, error)
 	GetIStorageById(id string) (ICloudStorage, error)
 
@@ -649,12 +649,14 @@ type ICloudHostNetInterface interface {
 	GetDevice() string
 	GetDriver() string
 	GetMac() string
+	GetVlanId() int
 	GetIndex() int8
 	IsLinkUp() tristate.TriState
 	GetIpAddr() string
 	GetMtu() int32
 	GetNicType() string
 	GetBridge() string
+	GetIWire() ICloudWire
 }
 
 type ICloudLoadbalancer interface {
@@ -1263,24 +1265,25 @@ type ICloudgroup interface {
 }
 
 type ICloudDnsZone interface {
-	ICloudResource
+	IVirtualResource
 
 	GetZoneType() TDnsZoneType
-	GetOptions() *jsonutils.JSONDict
 
 	GetICloudVpcIds() ([]string, error)
 	AddVpc(*SPrivateZoneVpc) error
 	RemoveVpc(*SPrivateZoneVpc) error
 
-	GetIDnsRecordSets() ([]ICloudDnsRecordSet, error)
-	SyncDnsRecordSets(common, add, del, update []DnsRecordSet) error
+	GetIDnsRecords() ([]ICloudDnsRecord, error)
+	GetIDnsRecordById(id string) (ICloudDnsRecord, error)
+
+	AddDnsRecord(*DnsRecord) (string, error)
 
 	Delete() error
 
 	GetDnsProductType() TDnsProductType
 }
 
-type ICloudDnsRecordSet interface {
+type ICloudDnsRecord interface {
 	GetGlobalId() string
 
 	GetDnsName() string
@@ -1291,9 +1294,14 @@ type ICloudDnsRecordSet interface {
 	GetTTL() int64
 	GetMxPriority() int64
 
+	Update(*DnsRecord) error
+
+	Enable() error
+	Disable() error
+
 	GetPolicyType() TDnsPolicyType
 	GetPolicyValue() TDnsPolicyValue
-	GetPolicyOptions() *jsonutils.JSONDict
+	Delete() error
 }
 
 type ICloudVpcPeeringConnection interface {

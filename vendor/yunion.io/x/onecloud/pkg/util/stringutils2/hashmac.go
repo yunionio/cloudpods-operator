@@ -12,21 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package compute
+package stringutils2
 
 import (
-	"yunion.io/x/onecloud/pkg/mcclient/modulebase"
-	"yunion.io/x/onecloud/pkg/mcclient/modules"
+	"crypto/sha256"
+	"fmt"
+	"strings"
 )
 
-var (
-	DnsTrafficPolicies modulebase.ResourceManager
-)
-
-func init() {
-	DnsTrafficPolicies = modules.NewComputeManager("dns_trafficpolicy", "dns_trafficpolicies",
-		[]string{},
-		[]string{})
-
-	modules.RegisterCompute(&DnsTrafficPolicies)
+func HashIdsMac(ids ...string) string {
+	h := sha256.New()
+	for _, id := range ids {
+		h.Write([]byte(id))
+	}
+	sum := h.Sum(nil)
+	hexStr := make([]string, 6)
+	hexStr[0] = "ff"
+	for i := 1; i < 6; i++ {
+		hexStr[i] = fmt.Sprintf("%02x", sum[i])
+	}
+	return strings.Join(hexStr, ":")
 }

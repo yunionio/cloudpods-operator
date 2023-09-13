@@ -271,7 +271,7 @@ func (manager *SModelBaseManager) ValidateCreateData(ctx context.Context, userCr
 	return input, nil
 }
 
-func (manager *SModelBaseManager) OnCreateComplete(ctx context.Context, items []IModel, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, query jsonutils.JSONObject, data jsonutils.JSONObject) {
+func (manager *SModelBaseManager) OnCreateComplete(ctx context.Context, items []IModel, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, query jsonutils.JSONObject, data []jsonutils.JSONObject) {
 	// do nothing
 }
 
@@ -604,11 +604,6 @@ func (model *SModelBase) GetShortDesc(ctx context.Context) *jsonutils.JSONDict {
 
 func (model *SModelBase) GetShortDescV2(ctx context.Context) *apis.ModelBaseShortDescDetail {
 	return &apis.ModelBaseShortDescDetail{ResName: model.Keyword()}
-}
-
-// get hooks
-func (model *SModelBase) AllowGetDetails(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject) bool {
-	return false
 }
 
 func (model *SModelBase) GetExtraDetailsHeaders(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject) map[string]string {
