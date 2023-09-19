@@ -96,6 +96,7 @@ type GlobalSettingsValue struct {
 	SetupKeys                []string `json:"setupKeys"`
 	SetupKeysVersion         string   `json:"setupKeysVersion"`
 	SetupOneStackInitialized bool     `json:"setupOneStackInitialized"`
+	ProductVersion           string   `json:"productVersion"`
 }
 
 func (v GlobalSettingsValue) Equal(o GlobalSettingsValue) bool {
@@ -108,6 +109,9 @@ func (v GlobalSettingsValue) Equal(o GlobalSettingsValue) bool {
 		return false
 	}
 	if v.SetupOneStackInitialized != o.SetupOneStackInitialized {
+		return false
+	}
+	if v.ProductVersion != o.ProductVersion {
 		return false
 	}
 	return true
@@ -213,9 +217,10 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 			SetupKeys:                setupKeys,
 			SetupKeysVersion:         "3.0",
 			SetupOneStackInitialized: oneStackInited,
+			ProductVersion:           string(oc.Spec.ProductVersion),
 		}
 
-		if currentValue != nil {
+		if currentValue != nil && currentValue.ProductVersion != inputValue.ProductVersion {
 			needUpdate = !currentValue.Equal(inputValue)
 		}
 
