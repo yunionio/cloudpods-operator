@@ -58,7 +58,7 @@ func (m *hostImageManager) newHostPrivilegedDaemonSet(
 					Command: []string{
 						"sh", "-ce", fmt.Sprintf(`
 mkdir -p /etc/resolvconf/run && cp /etc/resolv.conf /etc/resolvconf/run
-mkdir -p /run/systemd/resolve && cp /etc/resolv.conf /run/systemd/resolve
+mkdir -p /run/systemd/resolve && cp /etc/resolv.conf /run/systemd/resolve && cp /etc/resolv.conf /run/systemd/resolve/stub-resolv.conf
 mount --bind -o ro /etc/hosts %s/etc/hosts
 test -d %s/run/systemd/resolve && mount --rbind /run/systemd/resolve %s/run/systemd/resolve
 mount --bind -o ro /etc/resolv.conf %s/etc/resolv.conf
