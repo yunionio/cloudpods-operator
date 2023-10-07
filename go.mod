@@ -21,8 +21,8 @@ require (
 	k8s.io/klog v0.3.3
 	yunion.io/x/jsonutils v1.0.1-0.20230613121553-0f3b41e2ef19
 	yunion.io/x/log v1.0.1-0.20230411060016-feb3f46ab361
-	yunion.io/x/onecloud v0.3.10-0-alpha2.0.20230718094212-602e63a165f1
-	yunion.io/x/pkg v1.0.1-0.20230711090507-0aafe0f0c9db
+	yunion.io/x/onecloud v0.3.10-0-alpha2.0.20231007103642-af92494e521a
+	yunion.io/x/pkg v1.0.1-0.20230912084455-1393f31347db
 	yunion.io/x/structarg v0.0.0-20220312084958-9c6c79c7d1c6
 )
 
@@ -123,10 +123,10 @@ require (
 	moul.io/http2curl/v2 v2.3.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect
 	sigs.k8s.io/yaml v1.2.0 // indirect
-	yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20230714020436-02f1bfcc8e8e // indirect
+	yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20231007084407-3c4066522631 // indirect
 	yunion.io/x/executor v0.0.0-20230705125604-c5ac3141db32 // indirect
 	yunion.io/x/s3cli v0.0.0-20190917004522-13ac36d8687e // indirect
-	yunion.io/x/sqlchemy v1.1.2-0.20230712025503-b1892bc5944c // indirect
+	yunion.io/x/sqlchemy v1.1.2-0.20231007084448-f8ee76b8ed79 // indirect
 )
 
 replace (

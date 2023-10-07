@@ -15,6 +15,8 @@
 package compute
 
 import (
+	"time"
+
 	"yunion.io/x/jsonutils"
 
 	"yunion.io/x/onecloud/pkg/apis"
@@ -97,8 +99,10 @@ type HostListInput struct {
 	CpuCount []int `json:"cpu_count"`
 	// 内存大小,单位Mb
 	MemSize []int `json:"mem_size"`
-	// 存储类型
+	// 存储类型(磁盘类型，sdd, rotate, hybrid)
 	StorageType []string `json:"storage_type"`
+	// 宿主机绑定存储类型
+	HostStorageType []string `json:"host_storage_type"`
 	// IPMI地址
 	IpmiIp []string `json:"ipmi_ip"`
 	// 宿主机状态
@@ -526,4 +530,25 @@ type HostReserveCpusInput struct {
 type HostAutoMigrateInput struct {
 	AutoMigrateOnHostDown     string `json:"auto_migrate_on_host_down"`
 	AutoMigrateOnHostShutdown string `json:"auto_migrate_on_host_shutdown"`
+}
+
+type HostError struct {
+	Type    string
+	Id      string
+	Name    string
+	Content string
+	Time    time.Time
+}
+
+type HostSyncErrorsInput struct {
+	HostErrors []HostError
+}
+
+type HostLoginInfoInput struct {
+}
+
+type HostLoginInfoOutput struct {
+	Ip       string `json:"ip"`
+	Username string `json:"username"`
+	Password string `json:"password"`
 }

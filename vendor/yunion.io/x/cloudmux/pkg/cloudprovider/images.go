@@ -124,13 +124,3 @@ type SImageCreateOption struct {
 	// 镜像临时存储位置
 	TmpPath string
 }
-
-type SImageExportOptions struct {
-	BucketName string
-}
-
-type SImageExportInfo struct {
-	DownloadUrl    string
-	Name           string
-	CompressFormat string
-}

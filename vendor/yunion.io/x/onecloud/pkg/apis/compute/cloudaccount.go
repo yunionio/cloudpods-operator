@@ -132,6 +132,11 @@ type CloudaccountResourceInfo struct {
 	// 云账号名称
 	// example: google-account
 	Account string `json:"account,omitempty"`
+
+	// 云账号状态
+	AccountStatus string `json:"account_status,omitempty"`
+	// 云账号监控状态
+	AccountHealthStatus string `json:"account_health_status,omitempty"`
 }
 
 type CloudaccountCreateInput struct {
@@ -214,6 +219,10 @@ type CloudaccountCreateInput struct {
 
 	// 跳过指定资源同步
 	SkipSyncResources SkipSyncResources `json:"skip_sync_resources"`
+
+	// 货币类型
+	// enmu: CNY, USD
+	Currency string `json:"currency"`
 }
 
 type SProjectMappingResourceInput struct {
@@ -276,31 +285,7 @@ type ProviderProject struct {
 	TenantId string `json:"tenant_id"`
 }
 
-type CloudaccountDetail struct {
-	apis.EnabledStatusInfrasResourceBaseDetails
-	SCloudaccount
-
-	// 子订阅项目信息
-	Projects []ProviderProject `json:"projects"`
-
-	// 同步时间间隔
-	// example: 3600
-	SyncIntervalSeconds int `json:"sync_interval_seconds"`
-
-	// 同步状态
-	SyncStatus2 string `json:"sync_stauts2"`
-
-	// 云账号环境类型
-	// public: 公有云
-	// private: 私有云
-	// onpremise: 本地IDC
-	// example: public
-	CloudEnv string `json:"cloud_env"`
-
-	// 云账号项目名称
-	// example: system
-	Tenant string `json:"tenant"`
-
+type SAccountUsage struct {
 	// 弹性公网Ip数量
 	// example: 2
 	EipCount int `json:"eip_count,allowempty"`
@@ -329,6 +314,10 @@ type CloudaccountDetail struct {
 	// example: 1
 	ProviderCount int `json:"provider_count,allowempty"`
 
+	// 启用的子订阅数量
+	// example: 1
+	EnabledProviderCount int `json:"enabled_provider_count,allowempty"`
+
 	// 路由表数量
 	// example: 0
 	RoutetableCount int `json:"routetable_count,allowempty"`
@@ -336,6 +325,32 @@ type CloudaccountDetail struct {
 	// 存储缓存数量
 	// example: 10
 	StoragecacheCount int `json:"storagecache_count,allowempty"`
+
+	// 并发同步数量
+	SyncCount int `json:"sync_count,allowempty"`
+}
+
+type CloudaccountDetail struct {
+	apis.EnabledStatusInfrasResourceBaseDetails
+	SCloudaccount
+
+	// 同步时间间隔
+	// example: 3600
+	SyncIntervalSeconds int `json:"sync_interval_seconds"`
+
+	// 同步状态
+	SyncStatus2 string `json:"sync_stauts2"`
+
+	// 云账号环境类型
+	// public: 公有云
+	// private: 私有云
+	// onpremise: 本地IDC
+	// example: public
+	CloudEnv string `json:"cloud_env"`
+
+	apis.ProjectizedResourceInfo
+
+	SAccountUsage
 
 	ProxySetting proxyapi.SProxySetting `json:"proxy_setting"`
 
@@ -353,6 +368,7 @@ func (self CloudaccountDetail) GetMetricTags() map[string]string {
 		"brand":             self.Brand,
 		"domain_id":         self.DomainId,
 		"project_domain":    self.ProjectDomain,
+		"currency":          self.Currency,
 	}
 	return ret
 }
@@ -384,6 +400,8 @@ type CloudaccountUpdateInput struct {
 	RemoveSkipSyncResources []string           `json:"remove_skip_sync_resources"`
 
 	ReadOnly bool `json:"read_only"`
+
+	Currency string `json:"currency"`
 }
 
 type CloudaccountPerformPublicInput struct {
@@ -530,7 +548,8 @@ type CloudaccountSyncSkusInput struct {
 }
 
 type CloudaccountProjectMappingInput struct {
-	AutoCreateProject bool `json:"auto_create_project"`
+	AutoCreateProject            bool `json:"auto_create_project"`
+	AutoCreateProjectForProvider bool `json:"auto_create_project_for_provider"`
 
 	ProjectId string `json:"project_id"`
 

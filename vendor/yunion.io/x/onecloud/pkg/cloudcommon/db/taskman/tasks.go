@@ -124,10 +124,6 @@ func (manager *STaskManager) FilterByName(q *sqlchemy.SQuery, name string) *sqlc
 	return q
 }
 
-func (manager *STaskManager) AllowPerformAction(ctx context.Context, userCred mcclient.TokenCredential, action string, query jsonutils.JSONObject, data jsonutils.JSONObject) bool {
-	return true
-}
-
 func (manager *STaskManager) PerformAction(ctx context.Context, userCred mcclient.TokenCredential, taskId string, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
 	err := runTask(taskId, data)
 	if err != nil {
@@ -170,10 +166,6 @@ func (manager *STaskManager) FilterByOwner(q *sqlchemy.SQuery, man db.FilterByOw
 
 func (manager *STaskManager) FetchTaskById(taskId string) *STask {
 	return manager.fetchTask(taskId)
-}
-
-func (self *STask) AllowGetDetails(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject) bool {
-	return db.IsAdminAllowGet(ctx, userCred, self) || userCred.GetProjectId() == self.UserCred.GetProjectId()
 }
 
 func (self *STask) AllowUpdateItem(ctx context.Context, userCred mcclient.TokenCredential) bool {

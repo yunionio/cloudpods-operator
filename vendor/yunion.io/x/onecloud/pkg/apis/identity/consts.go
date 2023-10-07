@@ -113,6 +113,7 @@ var (
 			"global_https_proxy",
 			"ignore_nonrunning_guests",
 			"platform_name",
+			"enable_cloud_shell",
 			"platform_names",
 		},
 	}
@@ -151,6 +152,7 @@ var (
 
 			"is_slave_node",
 			"config_sync_period_seconds",
+			"enable_app_profiling",
 
 			// ############################
 			// db blacklist options

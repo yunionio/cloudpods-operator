@@ -281,7 +281,7 @@ func (manager *SVpcManager) GetOrCreateVpcForClassicNetwork(ctx context.Context,
 		return _vpc.(*SVpc), nil
 	}
 	if errors.Cause(err) != sql.ErrNoRows {
-		return nil, errors.Wrap(err, "db.FetchByExternalId")
+		return nil, errors.Wrapf(err, "db.FetchByExternalId %s", externalId)
 	}
 	vpc := &SVpc{}
 	vpc.IsDefault = false
@@ -324,7 +324,7 @@ func (self *SVpc) GetNetworkByExtId(extId string) (*SNetwork, error) {
 		return q
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "GetNetworkByExtId(%s)", extId)
 	}
 	return network.(*SNetwork), nil
 }
@@ -607,21 +607,12 @@ func (self *SVpc) syncRemoveCloudVpc(ctx context.Context, userCred mcclient.Toke
 		return nil
 	}
 
-	err := self.ValidateDeleteCondition(ctx, nil)
-	if err != nil { // cannot delete
-		self.markAllNetworksUnknown(userCred)
-		_, err = self.PerformDisable(ctx, userCred, nil, apis.PerformDisableInput{})
-		if err == nil {
-			err = self.SetStatus(userCred, api.VPC_STATUS_UNKNOWN, "sync to delete")
-		}
-	} else {
-		err = self.Purge(ctx, userCred)
-		if err == nil {
-			notifyclient.EventNotify(ctx, userCred, notifyclient.SEventNotifyParam{
-				Obj:    self,
-				Action: notifyclient.ActionSyncDelete,
-			})
-		}
+	err := self.purge(ctx, userCred)
+	if err == nil {
+		notifyclient.EventNotify(ctx, userCred, notifyclient.SEventNotifyParam{
+			Obj:    self,
+			Action: notifyclient.ActionSyncDelete,
+		})
 	}
 	return err
 }
@@ -1016,48 +1007,8 @@ func (self *SVpc) CustomizeDelete(ctx context.Context, userCred mcclient.TokenCr
 func (self *SVpc) RealDelete(ctx context.Context, userCred mcclient.TokenCredential) error {
 	db.OpsLog.LogEvent(self, db.ACT_DELOCATE, self.GetShortDesc(ctx), userCred)
 	self.SetStatus(userCred, api.VPC_STATUS_DELETED, "real delete")
-	routes := self.GetRouteTables()
-	var err error
-	for i := 0; i < len(routes); i++ {
-		err = routes[i].RealDelete(ctx, userCred)
-		if err != nil {
-			return errors.Wrapf(err, "delete route table %s failed", routes[i].GetId())
-		}
-	}
-	natgateways, err := self.GetNatgateways()
-	if err != nil {
-		return errors.Wrap(err, "fetch natgateways failed")
-	}
-	for i := range natgateways {
-		err = natgateways[i].RealDelete(ctx, userCred)
-		if err != nil {
-			return errors.Wrapf(err, "delete natgateway %s failed", natgateways[i].GetId())
-		}
-	}
 
-	dnsZones, err := self.GetDnsZones()
-	if err != nil {
-		return errors.Wrapf(err, "self.GetDnsZones")
-	}
-	for i := range dnsZones {
-		err = dnsZones[i].RemoveVpc(ctx, self.Id)
-		if err != nil {
-			return errors.Wrapf(err, "remove vpc from dns zone %s", dnsZones[i].Id)
-		}
-	}
-
-	vpcNetwork, err := self.GetInterVpcNetworks()
-	if err != nil {
-		return errors.Wrapf(err, "self.GetInterVpcNetwork")
-	}
-	for i := range vpcNetwork {
-		err = vpcNetwork[i].RemoveVpc(ctx, self.Id)
-		if err != nil {
-			return errors.Wrapf(err, "remove vpc from InterVpcNetwork %s", vpcNetwork[i].Id)
-		}
-	}
-
-	return self.SEnabledStatusInfrasResourceBase.Delete(ctx, userCred)
+	return self.purge(ctx, userCred)
 }
 
 func (self *SVpc) StartDeleteVpcTask(ctx context.Context, userCred mcclient.TokenCredential) error {
@@ -1709,7 +1660,7 @@ func (self *SVpc) GetVpcPeeringConnectionByExtId(extId string) (*SVpcPeeringConn
 		return q.Equals("vpc_id", self.Id)
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "FetchByExternalIdAndManagerId %s", extId)
 	}
 	return peer.(*SVpcPeeringConnection), nil
 }
@@ -1719,7 +1670,7 @@ func (self *SVpc) GetAccepterVpcPeeringConnectionByExtId(extId string) (*SVpcPee
 		return q.Equals("peer_vpc_id", self.Id)
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "FetchByExternalIdAndManagerId %s", extId)
 	}
 	return peer.(*SVpcPeeringConnection), nil
 }

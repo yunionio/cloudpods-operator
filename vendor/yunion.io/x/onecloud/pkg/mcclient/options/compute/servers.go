@@ -253,6 +253,7 @@ type ServerConfigs struct {
 	ResourceType                 string `help:"Resource type" choices:"shared|prepaid|dedicated"`
 	Backup                       bool   `help:"Create server with backup server"`
 	AutoSwitchToBackupOnHostDown bool   `help:"Auto switch to backup server on host down"`
+	Daemon                       *bool  `help:"Set as a daemon server" json:"is_daemon"`
 
 	Schedtag []string `help:"Schedule policy, key = aggregate name, value = require|exclude|prefer|avoid" metavar:"<KEY:VALUE>"`
 	Disk     []string `help:"
@@ -297,6 +298,7 @@ func (o ServerConfigs) Data() (*computeapi.ServerConfigs, error) {
 		ResourceType:     o.ResourceType,
 		Backup:           o.Backup,
 		Count:            o.Count,
+		IsDaemon:         o.Daemon,
 	}
 	for i, d := range o.Disk {
 		disk, err := cmdline.ParseDiskConfig(d, i)
@@ -855,6 +857,22 @@ func (o *ServerQgaPing) Params() (jsonutils.JSONObject, error) {
 	return options.StructToParams(o)
 }
 
+type ServerQgaGuestInfoTask struct {
+	ServerIdOptions
+}
+
+func (o *ServerQgaGuestInfoTask) Params() (jsonutils.JSONObject, error) {
+	return options.StructToParams(o)
+}
+
+type ServerQgaGetNetwork struct {
+	ServerIdOptions
+}
+
+func (o *ServerQgaGetNetwork) Params() (jsonutils.JSONObject, error) {
+	return options.StructToParams(o)
+}
+
 type ServerSetPasswordOptions struct {
 	ServerIdOptions
 
@@ -888,6 +906,17 @@ func (o *ServerSetBootIndexOptions) Params() (jsonutils.JSONObject, error) {
 		}
 	}
 
+	return options.StructToParams(o)
+}
+
+type ServerNicTrafficLimitOptions struct {
+	ServerIdOptions
+	MAC            string `help:"guest network mac address"`
+	RxTrafficLimit *int64 `help:" rx traffic limit, unit Byte"`
+	TxTrafficLimit *int64 `help:" tx traffic limit, unit Byte"`
+}
+
+func (o *ServerNicTrafficLimitOptions) Params() (jsonutils.JSONObject, error) {
 	return options.StructToParams(o)
 }
 
@@ -1182,8 +1211,9 @@ func (o *ServerPrepaidRecycleOptions) Params() (jsonutils.JSONObject, error) {
 
 type ServerIoThrottle struct {
 	ServerIdOptions
-	BPS  int `help:"bps(MB) of throttle" json:"bps"`
-	IOPS int `help:"iops of throttle" json:"iops"`
+
+	DiskBps  map[string]int `help:"disk bps of throttle, input diskId=BPS" json:"bps"`
+	DiskIOPS map[string]int `help:"disk iops of throttle, input diskId=IOPS" json:"iops"`
 }
 
 func (o *ServerIoThrottle) Params() (jsonutils.JSONObject, error) {
@@ -1375,5 +1405,15 @@ type ServerIsoOptions struct {
 }
 
 func (o *ServerIsoOptions) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.Marshal(o), nil
+}
+
+type ServerAddSubIpsOptions struct {
+	ServerIdOptions
+
+	computeapi.GuestAddSubIpsInput
+}
+
+func (o *ServerAddSubIpsOptions) Params() (jsonutils.JSONObject, error) {
 	return jsonutils.Marshal(o), nil
 }

@@ -1579,6 +1579,13 @@ func (manager *SGuestManager) validateCreateData(
 		return nil, httperrors.NewBadRequestError("Miss operating system???")
 	}
 
+	if input.Hypervisor == api.HYPERVISOR_KVM {
+		if input.IsDaemon == nil && options.Options.SetKVMServerAsDaemonOnCreate {
+			setDaemon := true
+			input.IsDaemon = &setDaemon
+		}
+	}
+
 	hypervisor = input.Hypervisor
 	if hypervisor != api.HYPERVISOR_CONTAINER {
 		// support sku here
@@ -1794,6 +1801,23 @@ func (manager *SGuestManager) validateCreateData(
 		input.IsolatedDevices[idx] = devConfig
 	}
 
+	nvidiaVgpuCnt := 0
+	gpuCnt := 0
+	for i := 0; i < len(input.IsolatedDevices); i++ {
+		if input.IsolatedDevices[i].DevType == api.LEGACY_VGPU_TYPE {
+			nvidiaVgpuCnt += 1
+		} else if utils.IsInStringArray(input.IsolatedDevices[i].DevType, api.VALID_GPU_TYPES) {
+			gpuCnt += 1
+		}
+	}
+
+	if nvidiaVgpuCnt > 1 {
+		return nil, httperrors.NewBadRequestError("Nvidia vgpu count exceed > 1")
+	}
+	if nvidiaVgpuCnt > 0 && gpuCnt > 0 {
+		return nil, httperrors.NewBadRequestError("Nvidia vgpu can't passthrough with other gpus")
+	}
+
 	keypairId := input.KeypairId
 	if len(keypairId) > 0 {
 		keypairObj, err := KeypairManager.FetchByIdOrName(userCred, keypairId)
@@ -1867,7 +1891,8 @@ func (manager *SGuestManager) validateCreateData(
 		return nil, err
 	}
 
-	if err := userdata.ValidateUserdata(input.UserData); err != nil {
+	// validate UserData
+	if err := userdata.ValidateUserdata(input.UserData, input.OsType); err != nil {
 		return nil, httperrors.NewInputParameterError("Invalid userdata: %v", err)
 	}
 
@@ -2369,11 +2394,13 @@ func (self *SGuest) moreExtraInfo(
 
 	if len(self.BackupHostId) > 0 && (len(fields) == 0 || fields.Contains("backup_host_name") || fields.Contains("backup_host_status")) {
 		backupHost := HostManager.FetchHostById(self.BackupHostId)
-		if len(fields) == 0 || fields.Contains("backup_host_name") {
-			out.BackupHostName = backupHost.Name
-		}
-		if len(fields) == 0 || fields.Contains("backup_host_status") {
-			out.BackupHostStatus = backupHost.HostStatus
+		if backupHost != nil {
+			if len(fields) == 0 || fields.Contains("backup_host_name") {
+				out.BackupHostName = backupHost.Name
+			}
+			if len(fields) == 0 || fields.Contains("backup_host_status") {
+				out.BackupHostStatus = backupHost.HostStatus
+			}
 		}
 		out.BackupGuestSyncStatus = self.GetGuestBackupMirrorJobStatus(ctx, userCred)
 	}
@@ -2965,6 +2992,9 @@ func (self *SGuest) syncWithCloudVM(ctx context.Context, userCred mcclient.Token
 			}
 		}
 		hostname := pinyinutils.Text2Pinyin(extVM.GetHostname())
+		if len(hostname) > 128 {
+			hostname = hostname[:128]
+		}
 		if extVM.GetName() != hostname {
 			self.Hostname = hostname
 		}
@@ -3270,10 +3300,12 @@ type Attach2NetworkArgs struct {
 	RequireDesignatedIP bool
 	UseDesignatedIP     bool
 
-	BwLimit   int
-	NicDriver string
-	NumQueues int
-	NicConfs  []SNicConfig
+	BwLimit        int
+	NicDriver      string
+	NumQueues      int
+	RxTrafficLimit int64
+	TxTrafficLimit int64
+	NicConfs       []SNicConfig
 
 	Virtual bool
 
@@ -3293,10 +3325,12 @@ func (args *Attach2NetworkArgs) onceArgs(i int) attach2NetworkOnceArgs {
 		requireDesignatedIP: args.RequireDesignatedIP,
 		useDesignatedIP:     args.UseDesignatedIP,
 
-		bwLimit:   args.BwLimit,
-		nicDriver: args.NicDriver,
-		numQueues: args.NumQueues,
-		nicConf:   args.NicConfs[i],
+		bwLimit:        args.BwLimit,
+		nicDriver:      args.NicDriver,
+		numQueues:      args.NumQueues,
+		txTrafficLimit: args.TxTrafficLimit,
+		rxTrafficLimit: args.RxTrafficLimit,
+		nicConf:        args.NicConfs[i],
 
 		virtual: args.Virtual,
 
@@ -3325,11 +3359,13 @@ type attach2NetworkOnceArgs struct {
 	requireDesignatedIP bool
 	useDesignatedIP     bool
 
-	bwLimit     int
-	nicDriver   string
-	numQueues   int
-	nicConf     SNicConfig
-	teamWithMac string
+	bwLimit        int
+	nicDriver      string
+	numQueues      int
+	nicConf        SNicConfig
+	teamWithMac    string
+	rxTrafficLimit int64
+	txTrafficLimit int64
 
 	virtual bool
 
@@ -3394,12 +3430,14 @@ func (self *SGuest) attach2NetworkOnce(
 		requireDesignatedIP: args.requireDesignatedIP,
 		useDesignatedIP:     args.useDesignatedIP,
 
-		ifname:      args.nicConf.Ifname,
-		macAddr:     args.nicConf.Mac,
-		bwLimit:     args.bwLimit,
-		nicDriver:   nicDriver,
-		numQueues:   args.numQueues,
-		teamWithMac: args.teamWithMac,
+		ifname:         args.nicConf.Ifname,
+		macAddr:        args.nicConf.Mac,
+		bwLimit:        args.bwLimit,
+		nicDriver:      nicDriver,
+		numQueues:      args.numQueues,
+		teamWithMac:    args.teamWithMac,
+		rxTrafficLimit: args.rxTrafficLimit,
+		txTrafficLimit: args.txTrafficLimit,
 
 		virtual: args.virtual,
 	}
@@ -3486,7 +3524,7 @@ func getCloudNicNetwork(ctx context.Context, vnic cloudprovider.ICloudNic, host 
 			Filter(sqlchemy.Equals(vpc.Field("manager_id"), host.ManagerId))
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Cannot find network of external_id %s: %v", vnetId, err)
+		return nil, errors.Wrapf(err, "Cannot find network of external_id %s", vnetId)
 	}
 	localNet := localNetObj.(*SNetwork)
 	return localNet, nil
@@ -3784,6 +3822,9 @@ func (self *SGuest) fixSysDiskIndex() error {
 	sysDisk.SetModelManager(GuestdiskManager, sysDisk)
 	err := sysQ.First(sysDisk)
 	if err != nil {
+		if errors.Cause(err) == sql.ErrNoRows {
+			return nil
+		}
 		return err
 	}
 	if sysDisk.Index == 0 {
@@ -4141,6 +4182,8 @@ func (self *SGuest) attach2NamedNetworkDesc(ctx context.Context, userCred mcclie
 			NicDriver:           netConfig.Driver,
 			NumQueues:           netConfig.NumQueues,
 			BwLimit:             netConfig.BwLimit,
+			RxTrafficLimit:      netConfig.RxTrafficLimit,
+			TxTrafficLimit:      netConfig.TxTrafficLimit,
 			Virtual:             netConfig.Vip,
 			TryReserved:         netConfig.Reserved,
 			AllocDir:            allocDir,
@@ -4560,21 +4603,7 @@ func (self *SGuest) GetLoadbalancerBackends() ([]SLoadbalancerBackend, error) {
 }
 
 func (self *SGuest) RealDelete(ctx context.Context, userCred mcclient.TokenCredential) error {
-	err := self.CleanTapRecords(ctx, userCred)
-	if err != nil {
-		return errors.Wrap(err, "CleanTapRecords")
-	}
-	backends, err := self.GetLoadbalancerBackends()
-	if err != nil {
-		return errors.Wrapf(err, "GetLoadbalancerBackends")
-	}
-	for i := range backends {
-		err := backends[i].RealDelete(ctx, userCred)
-		if err != nil {
-			return errors.Wrapf(err, "backend real delete %s", backends[i].Id)
-		}
-	}
-	return self.SVirtualResourceBase.Delete(ctx, userCred)
+	return self.purge(ctx, userCred)
 }
 
 func (self *SGuest) AllowDeleteItem(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) bool {

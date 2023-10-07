@@ -108,6 +108,9 @@ const (
 	VM_SYNC_CONFIG = compute.VM_SYNC_CONFIG
 	VM_SYNC_FAIL   = "sync_fail"
 
+	VM_SYNC_TRAFFIC_LIMIT        = "sync_traffic_limit"
+	VM_SYNC_TRAFFIC_LIMIT_FAILED = "sync_traffic_limit_failed"
+
 	VM_START_RESIZE_DISK  = "start_resize_disk"
 	VM_RESIZE_DISK        = "resize_disk"
 	VM_RESIZE_DISK_FAILED = "resize_disk_fail"
@@ -163,6 +166,9 @@ const (
 	VM_QGA_SET_PASSWORD        = "qga_set_password"
 	VM_QGA_COMMAND_EXECUTING   = "qga_command_executing"
 	VM_QGA_EXEC_COMMAND_FAILED = "qga_exec_command_failed"
+
+	VM_QGA_SET_NETWORK        = "qga_set_network"
+	VM_QGA_SET_NETWORK_FAILED = "qga_set_network_failed"
 
 	SHUTDOWN_STOP      = "stop"
 	SHUTDOWN_TERMINATE = "terminate"
