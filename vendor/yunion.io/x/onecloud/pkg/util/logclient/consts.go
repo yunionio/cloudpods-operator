@@ -227,6 +227,10 @@ const (
 
 	ACT_RESTART_NETWORK = "restart_network"
 
+	ACT_QGA_NETWORK_INPUT   = "qga_network_input"
+	ACT_QGA_STATUS_UPDATE   = "qga_status_update"
+	ACT_QGA_NETWORK_SUCCESS = "qga_network_success"
+
 	ACT_RECOVERY = "recovery"
 	ACT_PACK     = "pack"
 	ACT_UNPACK   = "unpack"
@@ -260,4 +264,9 @@ const (
 	ACT_ADD_BASTION_SERVER = "add_bastion_server"
 
 	ACT_SYNC_TRAFFIC_LIMIT = "sync_traffic_limit"
+
+	ACT_GENERATE_REPORT     = "generate_report"
+	ACT_REPORT_COLLECT_DATA = "report_collect_data"
+	ACT_REPORT_SEND         = "report_send"
+	ACT_REPORT_TEMPLATE     = "report_template"
 )

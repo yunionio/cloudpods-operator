@@ -332,6 +332,15 @@ func (manager *SHostManager) ListItemFilter(
 		}
 	}
 
+	hostStorageType := query.HostStorageType
+	if len(hostStorageType) > 0 {
+		hoststorages := HoststorageManager.Query()
+		storages := StorageManager.Query().In("storage_type", hostStorageType).SubQuery()
+		hq := hoststorages.Join(storages, sqlchemy.Equals(hoststorages.Field("storage_id"), storages.Field("id"))).SubQuery()
+		scopeQuery := hq.Query(hq.Field("host_id")).SubQuery()
+		q = q.In("id", scopeQuery)
+	}
+
 	hypervisorStr := query.Hypervisor
 	if len(hypervisorStr) > 0 {
 		hostType, ok := api.HYPERVISOR_HOSTTYPE[hypervisorStr]
@@ -772,6 +781,14 @@ func (hh *SHost) validateDeleteCondition(ctx context.Context, purge bool) error 
 	if cnt > 0 {
 		return httperrors.NewNotEmptyError("Not an empty host")
 	}
+	cnt, err = hh.GetBackupGuestCount()
+	if err != nil {
+		return httperrors.NewInternalServerError("GetBackupGuestCount fail %s", err)
+	}
+	if cnt > 0 {
+		return httperrors.NewNotEmptyError("Not an empty host")
+	}
+
 	for _, hoststorage := range hh.GetHoststorages() {
 		storage := hoststorage.GetStorage()
 		if storage != nil && storage.IsLocal() {
@@ -1612,6 +1629,11 @@ func (hh *SHost) GetGuestsBackupOnThisHost() []SGuest {
 	return guests
 }
 
+func (hh *SHost) GetBackupGuestCount() (int, error) {
+	q := GuestManager.Query().Equals("backup_host_id", hh.Id)
+	return q.CountWithError()
+}
+
 func (hh *SHost) GetGuestCount() (int, error) {
 	q := hh.GetGuestsQuery()
 	return q.CountWithError()
@@ -2318,7 +2340,7 @@ func (hh *SHost) newCloudHostStorage(ctx context.Context, userCred mcclient.Toke
 		return q.Equals("manager_id", provider.Id)
 	})
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Cause(err) == sql.ErrNoRows {
 			// no cloud storage found, this may happen for on-premise host
 			// create the storage right now
 			zone, _ := hh.GetZone()
@@ -2553,7 +2575,7 @@ func (hh *SHost) SyncHostVMs(ctx context.Context, userCred mcclient.TokenCredent
 			sq := HostManager.Query().SubQuery()
 			return q.Join(sq, sqlchemy.Equals(sq.Field("id"), q.Field("host_id"))).Filter(sqlchemy.Equals(sq.Field("manager_id"), hh.ManagerId))
 		})
-		if err != nil && err != sql.ErrNoRows {
+		if err != nil && errors.Cause(err) != sql.ErrNoRows {
 			log.Errorf("failed to found guest by externalId %s error: %v", added[i].GetGlobalId(), err)
 			continue
 		}
@@ -4261,8 +4283,13 @@ func (hh *SHost) PerformReserveCpus(
 		return nil, err
 	}
 
-	if !sets.NewInt(allCores...).HasAll(cs.ToSlice()...) {
+	hSets := sets.NewInt(allCores...)
+	cSlice := cs.ToSlice()
+	if !hSets.HasAll(cSlice...) {
 		return nil, httperrors.NewInputParameterError("Host cores not contains input %v", input.Cpus)
+	}
+	if hSets.Len() == len(cSlice) {
+		return nil, httperrors.NewInputParameterError("Can't reserve host all cpus")
 	}
 
 	if input.Mems != "" {

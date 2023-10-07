@@ -52,6 +52,7 @@ import (
 	"yunion.io/x/onecloud/pkg/httperrors"
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/mcclient/auth"
+	"yunion.io/x/onecloud/pkg/mcclient/modules/image"
 	"yunion.io/x/onecloud/pkg/util/logclient"
 	"yunion.io/x/onecloud/pkg/util/stringutils2"
 )
@@ -634,6 +635,13 @@ func (self *SCloudaccount) PostCreate(ctx context.Context, userCred mcclient.Tok
 		self.StartSyncCloudAccountInfoTask(ctx, userCred, nil, "", data)
 	} else {
 		self.SubmitSyncAccountTask(ctx, userCred, nil)
+	}
+
+	if self.Brand == api.CLOUD_PROVIDER_VMWARE {
+		_, err := image.Images.PerformClassAction(auth.GetAdminSession(ctx, options.Options.Region), "vmware-account-added", nil)
+		if err != nil {
+			log.Errorf("failed inform glance vmware account added: %s", err)
+		}
 	}
 }
 
@@ -2216,10 +2224,10 @@ func (manager *SCloudaccountManager) AutoSyncCloudaccountStatusTask(ctx context.
 					delete(cloudaccountProbe, id)
 				}()
 				log.Debugf("syncAccountStatus %s %s", id, name)
-				ctx = context.WithValue(ctx, "id", id)
-				lockman.LockObject(ctx, account)
-				defer lockman.ReleaseObject(ctx, account)
-				err := account.syncAccountStatus(ctx, userCred)
+				idctx := context.WithValue(ctx, "id", id)
+				lockman.LockObject(idctx, account)
+				defer lockman.ReleaseObject(idctx, account)
+				err := account.syncAccountStatus(idctx, userCred)
 				if err != nil {
 					log.Errorf("unable to syncAccountStatus for cloudaccount %s: %s", account.Id, err.Error())
 				}
