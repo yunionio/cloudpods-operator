@@ -12,33 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package identity
+package models
 
-import "time"
+import (
+	"context"
 
-type SUserExtended struct {
-	Id               string
-	Name             string
-	Enabled          bool
-	DefaultProjectId string
-	CreatedAt        time.Time
-	LastActiveAt     time.Time
-	DomainId         string
+	"yunion.io/x/jsonutils"
+	"yunion.io/x/pkg/util/printutils"
 
-	IsSystemAccount bool
+	"yunion.io/x/onecloud/pkg/mcclient"
+)
 
-	Displayname string
-	Email       string
-	Mobile      string
-
-	LocalId              int
-	LocalName            string
-	LocalFailedAuthCount int
-	DomainName           string
-	DomainEnabled        bool
-	IsLocal              bool
-	// IdpId         string
-	// IdpName       string
-
-	AuditIds []string
+func (h *SHost) GetDetailsNics(ctx context.Context, userCred mcclient.TokenCredential, input jsonutils.JSONObject) (*printutils.ListResult, error) {
+	ret := &printutils.ListResult{}
+	nics := h.GetNics()
+	for i := range nics {
+		ret.Data = append(ret.Data, jsonutils.Marshal(nics[i]))
+	}
+	return ret, nil
 }

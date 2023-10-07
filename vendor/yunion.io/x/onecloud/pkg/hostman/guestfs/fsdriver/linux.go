@@ -80,6 +80,35 @@ func getHostname(hostname, domain string) string {
 	}
 }
 
+func (l *sLinuxRootFs) DeployQgaBlackList(rootFs IDiskPartition) error {
+	etcSysconfigQemuga := "/etc/sysconfig/qemu-ga"
+	blackListContent := `# This is a systemd environment file, not a shell script.
+# It provides settings for \"/lib/systemd/system/qemu-guest-agent.service\".
+
+# Comma-separated blacklist of RPCs to disable, or empty list to enable all.
+#
+# You can get the list of RPC commands using \"qemu-ga --blacklist='?'\".
+# There should be no spaces between commas and commands in the blacklist.
+# BLACKLIST_RPC=guest-file-open,guest-file-close,guest-file-read,guest-file-write,guest-file-seek,guest-file-flush,guest-exec,guest-exec-status
+
+# Fsfreeze hook script specification.
+#
+# FSFREEZE_HOOK_PATHNAME=/dev/null           : disables the feature.
+#
+# FSFREEZE_HOOK_PATHNAME=/path/to/executable : enables the feature with the
+# specified binary or shell script.
+#
+# FSFREEZE_HOOK_PATHNAME=                    : enables the feature with the
+# default value (invoke \"qemu-ga --help\" to interrogate).
+FSFREEZE_HOOK_PATHNAME=/etc/qemu-ga/fsfreeze-hook"
+`
+
+	if err := rootFs.FilePutContents(etcSysconfigQemuga, blackListContent, false, false); err != nil {
+		return errors.Wrap(err, "etcSysconfigQemuga error")
+	}
+	return nil
+}
+
 func (l *sLinuxRootFs) DeployHosts(rootFs IDiskPartition, hostname, domain string, ips []string) error {
 	var etcHosts = "/etc/hosts"
 	var oldHostFile string
@@ -160,6 +189,37 @@ func (l *sLinuxRootFs) DeployPublicKey(rootFs IDiskPartition, selUsr string, pub
 	return DeployAuthorizedKeys(rootFs, usrDir, pubkeys, false)
 }
 
+func (d *SCoreOsRootFs) DeployQgaBlackList(rootFs IDiskPartition) error {
+	etcSysconfigQemuga := "/etc/sysconfig/qemu-ga"
+	blackListContent := `# This is a systemd environment file, not a shell script.
+# It provides settings for \"/lib/systemd/system/qemu-guest-agent.service\".
+
+# Comma-separated blacklist of RPCs to disable, or empty list to enable all.
+#
+# You can get the list of RPC commands using \"qemu-ga --blacklist='?'\".
+# There should be no spaces between commas and commands in the blacklist.
+# BLACKLIST_RPC=guest-file-open,guest-file-close,guest-file-read,guest-file-write,guest-file-seek,guest-file-flush,guest-exec,guest-exec-status
+
+# Fsfreeze hook script specification.
+#
+# FSFREEZE_HOOK_PATHNAME=/dev/null           : disables the feature.
+#
+# FSFREEZE_HOOK_PATHNAME=/path/to/executable : enables the feature with the
+# specified binary or shell script.
+#
+# FSFREEZE_HOOK_PATHNAME=                    : enables the feature with the
+# default value (invoke \"qemu-ga --help\" to interrogate).
+FSFREEZE_HOOK_PATHNAME=/etc/qemu-ga/fsfreeze-hook"
+`
+
+	if rootFs.Exists(etcSysconfigQemuga, false) {
+		if err := rootFs.FilePutContents(etcSysconfigQemuga, blackListContent, false, false); err != nil {
+			return errors.Wrap(err, "etcSysconfigQemuga error")
+		}
+	}
+	return nil
+}
+
 func (l *sLinuxRootFs) DeployYunionroot(rootFs IDiskPartition, pubkeys *deployapi.SSHKeys, isInit, enableCloudInit bool) error {
 	if !consts.AllowVmSELinux() {
 		l.DisableSelinux(rootFs)
@@ -168,11 +228,12 @@ func (l *sLinuxRootFs) DeployYunionroot(rootFs IDiskPartition, pubkeys *deployap
 		l.DisableCloudinit(rootFs)
 	}
 	var yunionroot = YUNIONROOT_USER
-	rootdir := path.Join(cloudrootDirectory, yunionroot)
+	var rootdir string // := path.Join(cloudrootDirectory, yunionroot)
 	var err error
 	if rootdir, err = rootFs.CheckOrAddUser(yunionroot, cloudrootDirectory, true); err != nil {
 		return errors.Wrap(err, "unable to CheckOrAddUser")
 	}
+	log.Infof("DeployYunionroot %s home %s", yunionroot, rootdir)
 	err = DeployAuthorizedKeys(rootFs, rootdir, pubkeys, true)
 	if err != nil {
 		log.Infof("DeployAuthorizedKeys error: %s", err.Error())
@@ -678,7 +739,12 @@ func (d *sLinuxRootFs) DeployTelegraf(config string) (bool, error) {
 	if err != nil {
 		return false, errors.Wrap(err, "chmod supervise run script")
 	}
-	// add crontab: start telegraf on guest boot
+	initCmd := fmt.Sprintf("%s/supervise %s", cloudMonitorPath, telegrafPath)
+	err = d.installInitScript("telegraf", initCmd)
+	if err != nil {
+		return false, errors.Wrap(err, "installInitScript")
+	}
+	/* // add crontab: start telegraf on guest boot
 	cronJob := fmt.Sprintf("@reboot %s/supervise %s", cloudMonitorPath, telegrafPath)
 	if procutils.NewCommand("chroot", part.GetMountPath(), "crontab", "-l", "|", "grep", cronJob).Run() == nil {
 		// if cronjob exist, return success
@@ -689,7 +755,7 @@ func (d *sLinuxRootFs) DeployTelegraf(config string) (bool, error) {
 	).Output()
 	if err != nil {
 		return false, errors.Wrapf(err, "add crontab %s", output)
-	}
+	}*/
 	return true, nil
 }
 
