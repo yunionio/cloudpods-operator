@@ -504,8 +504,7 @@ func (manager *SCloudregionManager) SyncRegions(
 	added := make([]cloudprovider.ICloudRegion, 0)
 	err = compare.CompareSets(dbRegions, regions, &removed, &commondb, &commonext, &added)
 	if err != nil {
-		log.Errorf("compare regions fail %s", err)
-		syncResult.Error(err)
+		syncResult.Error(errors.Wrapf(err, "CompareSets"))
 		return nil, nil, nil, syncResult
 	}
 	for i := 0; i < len(removed); i += 1 {
@@ -552,15 +551,7 @@ func (self *SCloudregion) syncRemoveCloudRegion(ctx context.Context, userCred mc
 	lockman.LockObject(ctx, self)
 	defer lockman.ReleaseObject(ctx, self)
 
-	// 不要设置region状态不可用, 同一个公有云，不同账号可能获取的region数量不一样
-	cpr := CloudproviderRegionManager.FetchByIds(cloudProvider.Id, self.Id)
-	if cpr != nil {
-		err := cpr.Detach(ctx, userCred)
-		if err == nil {
-			cpr.removeCapabilities(ctx, userCred)
-		}
-	}
-	return nil
+	return self.purgeAll(ctx, cloudProvider.Id)
 }
 
 func (self *SCloudregion) syncWithCloudRegion(ctx context.Context, userCred mcclient.TokenCredential, cloudRegion cloudprovider.ICloudRegion, provider *SCloudprovider) error {
@@ -1032,6 +1023,10 @@ func (self *SCloudregion) GetRegionInfo(ctx context.Context) api.CloudregionReso
 	}
 }
 
+func (self *SCloudregion) GetRegionExtId() string {
+	return fetchExternalId(self.ExternalId)
+}
+
 func (self *SCloudregion) ValidateUpdateCondition(ctx context.Context) error {
 	if len(self.ExternalId) > 0 && len(self.ManagerId) == 0 {
 		return httperrors.NewConflictError("Cannot update external resource")
@@ -1045,20 +1040,12 @@ func (self *SCloudregion) SyncVpcs(ctx context.Context, userCred mcclient.TokenC
 	return nil
 }
 
-func (self *SCloudregion) AllowGetDetailsCapability(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject) bool {
-	return true
-}
-
 func (self *SCloudregion) GetDetailsCapability(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject) (jsonutils.JSONObject, error) {
 	capa, err := GetCapabilities(ctx, userCred, query, self, nil)
 	if err != nil {
 		return nil, err
 	}
 	return jsonutils.Marshal(&capa), nil
-}
-
-func (self *SCloudregion) AllowGetDetailsDiskCapability(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject) bool {
-	return true
 }
 
 func (self *SCloudregion) GetDetailsDiskCapability(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject) (jsonutils.JSONObject, error) {
@@ -1110,6 +1097,16 @@ func (self *SCloudregion) GetDynamicConditionInput() *jsonutils.JSONDict {
 
 func (self *SCloudregion) PerformSetSchedtag(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
 	return PerformSetResourceSchedtag(self, ctx, userCred, query, data)
+}
+
+func (self *SCloudregion) PerformPurge(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input *api.CloudregionPurgeInput) (jsonutils.JSONObject, error) {
+	if self.Id == api.DEFAULT_REGION_ID {
+		return nil, httperrors.NewProtectedResourceError("not allow to delete default cloud region")
+	}
+	if len(input.ManagerId) == 0 {
+		return nil, httperrors.NewMissingParameterError("manager_id")
+	}
+	return nil, self.purgeAll(ctx, input.ManagerId)
 }
 
 func (self *SCloudregion) GetSchedtagJointManager() ISchedtagJointManager {
@@ -1283,6 +1280,16 @@ func (self *SCloudregion) StartSyncImagesTask(ctx context.Context, userCred mccl
 	}
 	task.ScheduleRun(nil)
 	return nil
+}
+
+func (self *SCloudregion) StartSyncSkusTask(ctx context.Context, userCred mcclient.TokenCredential, res string) error {
+	params := jsonutils.NewDict()
+	params.Set("resource", jsonutils.NewString(res))
+	task, err := taskman.TaskManager.NewTask(ctx, "CloudRegionSyncSkusTask", self, userCred, params, "", "", nil)
+	if err != nil {
+		return errors.Wrapf(err, "CloudRegionSyncSkusTask")
+	}
+	return task.ScheduleRun(nil)
 }
 
 func (self *SCloudregion) GetCloudprovider() (*SCloudprovider, error) {

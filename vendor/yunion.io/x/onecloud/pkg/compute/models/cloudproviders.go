@@ -1599,62 +1599,18 @@ func (self *SCloudprovider) Delete(ctx context.Context, userCred mcclient.TokenC
 }
 
 func (self *SCloudprovider) RealDelete(ctx context.Context, userCred mcclient.TokenCredential) error {
-	var err error
-
-	for _, manager := range []IPurgeableManager{
-		BucketManager,
-		HostManager,
-		SnapshotManager,
-		SnapshotPolicyManager,
-		StorageManager,
-		StoragecacheManager,
-		SecurityGroupCacheManager,
-		LoadbalancerManager,
-		LoadbalancerBackendGroupManager,
-		CachedLoadbalancerAclManager,
-		CachedLoadbalancerCertificateManager,
-		LoadbalancerCertificateManager,
-		NatGatewayManager,
-		DBInstanceManager,
-		DBInstanceBackupManager,
-		ElasticcacheManager,
-		AccessGroupCacheManager,
-		FileSystemManager,
-		WafRuleGroupCacheManager,
-		WafIPSetCacheManager,
-		WafRegexSetCacheManager,
-		WafInstanceManager,
-		AppManager,
-		VpcManager,
-		GlobalVpcManager,
-		ElasticipManager,
-		MongoDBManager,
-		ElasticSearchManager,
-		KafkaManager,
-		CDNDomainManager,
-		TablestoreManager,
-		NetworkInterfaceManager,
-		KubeClusterManager,
-		InterVpcNetworkManager,
-		CloudproviderRegionManager,
-		CloudregionManager,
-		CloudproviderQuotaManager,
-		ModelartsPoolManager,
-	} {
-		err = manager.purgeAll(ctx, userCred, self.Id)
-		if err != nil {
-			return errors.Wrapf(err, "purge %s", manager.Keyword())
-		}
-		log.Debugf("%s purgeall success!", manager.Keyword())
-	}
-
-	CloudproviderCapabilityManager.removeCapabilities(ctx, userCred, self.Id)
-	err = DnsZoneCacheManager.removeCaches(ctx, userCred, self.Id)
+	regions, err := self.GetRegions()
 	if err != nil {
-		return errors.Wrapf(err, "remove dns caches")
+		return errors.Wrapf(err, "GetRegions")
 	}
 
-	return self.SEnabledStatusStandaloneResourceBase.Delete(ctx, userCred)
+	for i := range regions {
+		err = regions[i].purgeAll(ctx, self.Id)
+		if err != nil {
+			return err
+		}
+	}
+	return self.purge(ctx, userCred)
 }
 
 func (self *SCloudprovider) CustomizeDelete(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) error {
@@ -1668,8 +1624,7 @@ func (self *SCloudprovider) StartCloudproviderDeleteTask(ctx context.Context, us
 		return errors.Wrapf(err, "NewTask")
 	}
 	self.SetStatus(userCred, api.CLOUD_PROVIDER_START_DELETE, "StartCloudproviderDeleteTask")
-	task.ScheduleRun(nil)
-	return nil
+	return task.ScheduleRun(nil)
 }
 
 func (self *SCloudprovider) GetRegionDriver() (IRegionDriver, error) {
@@ -1966,7 +1921,7 @@ func (self *SCloudprovider) GetExternalProjectsByProjectIdOrName(projectId, name
 			sqlchemy.Equals(q.Field("name"), name),
 			sqlchemy.Equals(q.Field("tenant_id"), projectId),
 		),
-	)
+	).Desc("priority")
 	err := db.FetchModelObjects(ExternalProjectManager, q, &projects)
 	if err != nil {
 		return nil, errors.Wrap(err, "db.FetchModelObjects")
@@ -2210,4 +2165,23 @@ func (self *SCloudprovider) PerformSetSyncing(ctx context.Context, userCred mccl
 		}
 	}
 	return nil, nil
+}
+
+func (self *SCloudprovider) SyncError(result compare.SyncResult, iNotes interface{}, userCred mcclient.TokenCredential) {
+	if result.IsError() {
+		account := &SCloudaccount{}
+		account.Id = self.CloudaccountId
+		account.Name = self.Account
+		if len(account.Name) == 0 {
+			account.Name = self.Name
+		}
+		account.SetModelManager(CloudaccountManager, account)
+		logclient.AddSimpleActionLog(account, logclient.ACT_CLOUD_SYNC, iNotes, userCred, false)
+	}
+}
+
+func (self *SCloudaccount) SyncError(result compare.SyncResult, iNotes interface{}, userCred mcclient.TokenCredential) {
+	if result.IsError() {
+		logclient.AddSimpleActionLog(self, logclient.ACT_CLOUD_SYNC, iNotes, userCred, false)
+	}
 }

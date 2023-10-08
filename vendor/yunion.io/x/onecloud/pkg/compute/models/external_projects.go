@@ -68,7 +68,9 @@ type SExternalProject struct {
 	db.SVirtualResourceBase
 	db.SExternalizedResourceBase
 	SManagedResourceBase
-
+	// 优先级，同一个本地项目映射多个云上项目，优先级高的优先选择
+	// 数值越高，优先级越大
+	Priority         int    `default:"0" list:"user" update:"user" list:"user"`
 	ExternalDomainId string `width:"36" charset:"ascii" nullable:"true" list:"user"`
 	// 归属云账号ID
 	CloudaccountId string `width:"36" charset:"ascii" nullable:"false" list:"user" create:"required"`
@@ -622,16 +624,26 @@ func (self *SExternalProject) PerformChangeProject(ctx context.Context, userCred
 		return nil, httperrors.NewForbiddenError("account %s not share for domain %s", account.Name, tenant.DomainId)
 	}
 
+	oldTenant, _ := db.TenantCacheManager.FetchTenantByIdOrNameInDomain(ctx, self.ProjectId, self.DomainId)
+	oldDomain, oldProject := "", ""
+	if oldTenant != nil {
+		oldDomain, oldProject = oldTenant.Domain, oldTenant.Name
+	}
+
 	notes := struct {
 		OldProjectId string
+		OldProject   string
 		OldDomainId  string
+		OldDomain    string
 		NewProjectId string
 		NewProject   string
 		NewDomainId  string
 		NewDomain    string
 	}{
 		OldProjectId: self.ProjectId,
+		OldProject:   oldProject,
 		OldDomainId:  self.DomainId,
+		OldDomain:    oldDomain,
 		NewProjectId: tenant.Id,
 		NewProject:   tenant.Name,
 		NewDomainId:  tenant.DomainId,

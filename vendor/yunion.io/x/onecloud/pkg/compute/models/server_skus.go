@@ -23,6 +23,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"yunion.io/x/cloudmux/pkg/cloudprovider"
 	"yunion.io/x/jsonutils"
@@ -33,6 +34,7 @@ import (
 	"yunion.io/x/pkg/utils"
 	"yunion.io/x/sqlchemy"
 
+	"yunion.io/x/onecloud/pkg/apis"
 	api "yunion.io/x/onecloud/pkg/apis/compute"
 	"yunion.io/x/onecloud/pkg/cloudcommon/db"
 	"yunion.io/x/onecloud/pkg/cloudcommon/db/lockman"
@@ -66,6 +68,8 @@ func init() {
 	}
 	ServerSkuManager.NameRequireAscii = false
 	ServerSkuManager.SetVirtualObject(ServerSkuManager)
+	// CREATE INDEX sku_index  ON serverskus_tbl (`deleted`, `is_emulated`, `provider`, `cloudregion_id`, `postpaid_status`, `prepaid_status`)
+	ServerSkuManager.TableSpec().AddIndex(false, "deleted", "is_emulated", "provider", "cloudregion_id", "postpaid_status", "prepaid_status")
 }
 
 // SServerSku 实际对应的是instance type清单. 这里的Sku实际指的是instance type。
@@ -110,6 +114,8 @@ type SServerSku struct {
 	GpuMaxCount   int               `nullable:"true" list:"user" create:"admin_optional" update:"admin"`
 
 	Provider string `width:"64" charset:"ascii" nullable:"true" list:"user" default:"OneCloud" create:"admin_optional"`
+
+	Md5 string `width:"32" charset:"utf8" nullable:"true"`
 }
 
 func (manager *SServerSkuManager) FetchUniqValues(ctx context.Context, data jsonutils.JSONObject) jsonutils.JSONObject {
@@ -620,7 +626,7 @@ func (self *SServerSku) Delete(ctx context.Context, userCred mcclient.TokenCrede
 
 func (self *SServerSku) RealDelete(ctx context.Context, userCred mcclient.TokenCredential) error {
 	ServerSkuManager.ClearSchedDescCache(true)
-	return self.SEnabledStatusStandaloneResourceBase.Delete(ctx, userCred)
+	return db.RealDeleteModel(ctx, userCred, self)
 }
 
 func (self *SServerSku) CustomizeDelete(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) error {
@@ -737,7 +743,7 @@ func (manager *SServerSkuManager) ListItemFilter(
 	}
 
 	if domainStr := query.ProjectDomainId; len(domainStr) > 0 {
-		domain, err := db.TenantCacheManager.FetchDomainByIdOrName(context.Background(), domainStr)
+		domain, err := db.TenantCacheManager.FetchDomainByIdOrName(ctx, domainStr)
 		if err != nil {
 			if errors.Cause(err) == sql.ErrNoRows {
 				return nil, httperrors.NewResourceNotFoundError2("domains", domainStr)
@@ -754,6 +760,32 @@ func (manager *SServerSkuManager) ListItemFilter(
 		if len(providers) == 1 && utils.IsInStringArray(providers[0], cloudprovider.GetPublicProviders()) {
 			publicCloud = true
 		}
+	}
+
+	conditions := []sqlchemy.ICondition{}
+	for _, arch := range query.CpuArch {
+		if len(arch) == 0 {
+			continue
+		}
+		if arch == apis.OS_ARCH_X86 {
+			conditions = append(conditions, sqlchemy.OR(
+				sqlchemy.Startswith(q.Field("cpu_arch"), arch),
+				sqlchemy.Equals(q.Field("cpu_arch"), apis.OS_ARCH_I386),
+				sqlchemy.IsNullOrEmpty(q.Field("cpu_arch")),
+			))
+		} else if arch == apis.OS_ARCH_ARM {
+			conditions = append(conditions, sqlchemy.OR(
+				sqlchemy.Startswith(q.Field("cpu_arch"), arch),
+				sqlchemy.Equals(q.Field("cpu_arch"), apis.OS_ARCH_AARCH32),
+				sqlchemy.Equals(q.Field("cpu_arch"), apis.OS_ARCH_AARCH64),
+				sqlchemy.IsNullOrEmpty(q.Field("cpu_arch")),
+			))
+		} else {
+			conditions = append(conditions, sqlchemy.Startswith(q.Field("cpu_arch"), arch))
+		}
+	}
+	if len(conditions) > 0 {
+		q = q.Filter(sqlchemy.OR(conditions...))
 	}
 
 	if query.Distinct {
@@ -812,7 +844,7 @@ func (manager *SServerSkuManager) ListItemFilter(
 		q = q.Equals("prepaid_status", query.PrepaidStatus)
 	}
 
-	conditions := []sqlchemy.ICondition{}
+	conditions = []sqlchemy.ICondition{}
 	for _, sizeMb := range query.MemorySizeMb {
 		// 按区间查询内存, 避免0.75G这样的套餐不好过滤
 		if sizeMb > 0 {
@@ -1199,10 +1231,37 @@ func (manager *SServerSkuManager) newPrivateCloudSku(ctx context.Context, userCr
 	return manager.TableSpec().Insert(ctx, sku)
 }
 
-func (self *SServerSku) syncWithCloudSku(ctx context.Context, userCred mcclient.TokenCredential, extSku SServerSku) error {
-	_, err := db.Update(self, func() error {
-		self.PrepaidStatus = extSku.PrepaidStatus
-		self.PostpaidStatus = extSku.PostpaidStatus
+func (self *SServerSku) syncWithCloudSku(ctx context.Context, userCred mcclient.TokenCredential, region *SCloudregion, extSku SServerSku) error {
+	if self.Md5 == extSku.Md5 {
+		return nil
+	}
+
+	meta, err := yunionmeta.FetchYunionmeta(ctx)
+	if err != nil {
+		return err
+	}
+
+	sku := &SServerSku{}
+	skuUrl := fmt.Sprintf("%s/%s/%s.json", meta.ServerBase, region.ExternalId, extSku.ExternalId)
+	err = meta.Get(skuUrl, sku)
+	if err != nil {
+		return errors.Wrapf(err, "Get")
+	}
+
+	_, err = db.Update(self, func() error {
+		self.PrepaidStatus = sku.PrepaidStatus
+		self.PostpaidStatus = sku.PostpaidStatus
+		self.SysDiskType = sku.SysDiskType
+		self.DataDiskTypes = sku.DataDiskTypes
+		self.CpuArch = sku.CpuArch
+		self.InstanceTypeFamily = sku.InstanceTypeFamily
+		self.InstanceTypeCategory = sku.InstanceTypeCategory
+		self.LocalCategory = sku.LocalCategory
+		self.NicType = sku.NicType
+		self.GpuAttachable = sku.GpuAttachable
+		self.GpuSpec = sku.GpuSpec
+		self.GpuCount = sku.GpuCount
+		self.Md5 = sku.Md5
 		return nil
 	})
 	return err
@@ -1282,7 +1341,7 @@ func (manager *SServerSkuManager) SyncServerSkus(ctx context.Context, userCred m
 	}
 	if !xor {
 		for i := 0; i < len(commondb); i += 1 {
-			err = commondb[i].syncWithCloudSku(ctx, userCred, commonext[i])
+			err = commondb[i].syncWithCloudSku(ctx, userCred, region, commonext[i])
 			if err != nil {
 				result.UpdateError(err)
 			} else {
@@ -1290,14 +1349,27 @@ func (manager *SServerSkuManager) SyncServerSkus(ctx context.Context, userCred m
 			}
 		}
 	}
+
+	ch := make(chan struct{}, options.Options.SkuBatchSync)
+	defer close(ch)
+	var wg sync.WaitGroup
 	for i := 0; i < len(added); i += 1 {
-		err = region.newPublicCloudSku(ctx, userCred, added[i])
-		if err != nil {
-			result.AddError(err)
-		} else {
-			result.Add()
-		}
+		ch <- struct{}{}
+		wg.Add(1)
+		go func(sku SServerSku) {
+			defer func() {
+				wg.Done()
+				<-ch
+			}()
+			err = region.newPublicCloudSku(ctx, userCred, sku)
+			if err != nil {
+				result.AddError(err)
+			} else {
+				result.Add()
+			}
+		}(added[i])
 	}
+	wg.Wait()
 
 	// notfiy sched manager
 	_, err = scheduler.SchedManager.SyncSku(auth.GetAdminSession(ctx, options.Options.Region), false)
@@ -1306,75 +1378,6 @@ func (manager *SServerSkuManager) SyncServerSkus(ctx context.Context, userCred m
 	}
 
 	return result
-}
-
-// sku标记为soldout状态。
-func (manager *SServerSkuManager) MarkAsSoldout(ctx context.Context, id string) error {
-	if len(id) == 0 {
-		log.Debugf("MarkAsSoldout sku id should not be emtpy")
-		return nil
-	}
-
-	isku, err := manager.FetchById(id)
-	if err != nil {
-		return err
-	}
-
-	sku, ok := isku.(*SServerSku)
-	if !ok {
-		return fmt.Errorf("%s is not a sku object", id)
-	}
-
-	_, err = manager.TableSpec().Update(ctx, sku, func() error {
-		sku.PrepaidStatus = api.SkuStatusSoldout
-		sku.PostpaidStatus = api.SkuStatusSoldout
-		return nil
-	})
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// sku标记为soldout状态。
-func (manager *SServerSkuManager) MarkAllAsSoldout(ctx context.Context, ids []string) error {
-	var err error
-	for _, id := range ids {
-		err = manager.MarkAsSoldout(ctx, id)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// 获取同一个zone下所有Available状态的sku id
-func (manager *SServerSkuManager) FetchAllAvailableSkuIdByZoneId(zoneId string) ([]string, error) {
-	q := manager.Query()
-	if len(zoneId) == 0 {
-		return nil, fmt.Errorf("FetchAllAvailableSkuIdByZoneId zone id should not be emtpy")
-	}
-
-	skus := make([]SServerSku, 0)
-	q = q.Equals("zone_id", zoneId)
-	q = q.Filter(sqlchemy.OR(
-		sqlchemy.Equals(q.Field("prepaid_status"), api.SkuStatusAvailable),
-		sqlchemy.Equals(q.Field("postpaid_status"), api.SkuStatusAvailable)))
-
-	err := db.FetchModelObjects(manager, q, &skus)
-	if err != nil {
-		return nil, err
-	}
-
-	ids := make([]string, len(skus))
-	for i := range skus {
-		ids[i] = skus[i].GetId()
-	}
-
-	return ids, nil
 }
 
 func (manager *SServerSkuManager) initializeSkuStatus() error {

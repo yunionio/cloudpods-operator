@@ -12,21 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package compute
+package models
 
 import (
-	"yunion.io/x/onecloud/pkg/mcclient/modulebase"
-	"yunion.io/x/onecloud/pkg/mcclient/modules"
+	"context"
+
+	"yunion.io/x/jsonutils"
+	"yunion.io/x/pkg/util/printutils"
+
+	"yunion.io/x/onecloud/pkg/mcclient"
 )
 
-var (
-	DnsTrafficPolicies modulebase.ResourceManager
-)
-
-func init() {
-	DnsTrafficPolicies = modules.NewComputeManager("dns_trafficpolicy", "dns_trafficpolicies",
-		[]string{},
-		[]string{})
-
-	modules.RegisterCompute(&DnsTrafficPolicies)
+func (h *SHost) GetDetailsNics(ctx context.Context, userCred mcclient.TokenCredential, input jsonutils.JSONObject) (*printutils.ListResult, error) {
+	ret := &printutils.ListResult{}
+	nics := h.GetNics()
+	for i := range nics {
+		ret.Data = append(ret.Data, jsonutils.Marshal(nics[i]))
+	}
+	return ret, nil
 }

@@ -21,7 +21,9 @@ import (
 	"crypto/sha1"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"io/ioutil"
+	olog "log"
 	"math/rand"
 	"net"
 	"net/http"
@@ -73,6 +75,8 @@ type Application struct {
 	exception func(method, path string, body jsonutils.JSONObject, err error)
 
 	isTLS bool
+
+	enableProfiling bool
 }
 
 const (
@@ -479,6 +483,9 @@ func (app *Application) initServer(addr string) *http.Server {
 		ReadHeaderTimeout: app.readHeaderTimeout,
 		WriteTimeout:      app.writeTimeout,
 		MaxHeaderBytes:    1 << 20,
+		// fix aliyun elb healt check tls error
+		// issue like: https://github.com/megaease/easegress/issues/481
+		ErrorLog: olog.New(io.Discard, "", olog.LstdFlags),
 	}
 	return s
 }
@@ -553,7 +560,9 @@ func (app *Application) ListenAndServeTLSWithCleanup2(addr string, certFile, key
 	httpSrv := app.initServer(addr)
 	if isMaster {
 		app.addDefaultHandlers()
-		AddPProfHandler("", app)
+		if app.enableProfiling {
+			addPProfHandler("", app)
+		}
 		app.httpServer = httpSrv
 		app.registerCleanShutdown(app.httpServer, onStop)
 	} else {
@@ -664,4 +673,8 @@ func FetchEnv(ctx context.Context, w http.ResponseWriter, r *http.Request) (para
 
 func (app *Application) GetContext() context.Context {
 	return app.context
+}
+
+func (app *Application) EnableProfiling() {
+	app.enableProfiling = true
 }

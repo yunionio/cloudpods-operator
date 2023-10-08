@@ -189,7 +189,6 @@ type ICloudRegion interface {
 
 	GetICloudKubeClusters() ([]ICloudKubeCluster, error)
 	GetICloudKubeClusterById(id string) (ICloudKubeCluster, error)
-	CreateIKubeCluster(opts *KubeClusterCreateOptions) (ICloudKubeCluster, error)
 
 	GetICloudTablestores() ([]ICloudTablestore, error)
 
@@ -232,8 +231,6 @@ type ICloudImage interface {
 
 	GetPublicScope() rbacscope.TRbacScope
 	GetSubImages() []SSubImage
-
-	Export(opts *SImageExportOptions) ([]SImageExportInfo, error)
 }
 
 type ICloudStoragecache interface {
@@ -246,6 +243,8 @@ type ICloudStoragecache interface {
 	GetIImageById(extId string) (ICloudImage, error)
 
 	GetPath() string
+
+	DownloadImage(imageId string, extId string, path string) (jsonutils.JSONObject, error)
 
 	UploadImage(ctx context.Context, image *SImageCreateOption, callback func(float32)) (string, error)
 }
@@ -1263,24 +1262,25 @@ type ICloudgroup interface {
 }
 
 type ICloudDnsZone interface {
-	ICloudResource
+	IVirtualResource
 
 	GetZoneType() TDnsZoneType
-	GetOptions() *jsonutils.JSONDict
 
 	GetICloudVpcIds() ([]string, error)
 	AddVpc(*SPrivateZoneVpc) error
 	RemoveVpc(*SPrivateZoneVpc) error
 
-	GetIDnsRecordSets() ([]ICloudDnsRecordSet, error)
-	SyncDnsRecordSets(common, add, del, update []DnsRecordSet) error
+	GetIDnsRecords() ([]ICloudDnsRecord, error)
+	GetIDnsRecordById(id string) (ICloudDnsRecord, error)
+
+	AddDnsRecord(*DnsRecord) (string, error)
 
 	Delete() error
 
 	GetDnsProductType() TDnsProductType
 }
 
-type ICloudDnsRecordSet interface {
+type ICloudDnsRecord interface {
 	GetGlobalId() string
 
 	GetDnsName() string
@@ -1291,9 +1291,14 @@ type ICloudDnsRecordSet interface {
 	GetTTL() int64
 	GetMxPriority() int64
 
+	Update(*DnsRecord) error
+
+	Enable() error
+	Disable() error
+
 	GetPolicyType() TDnsPolicyType
 	GetPolicyValue() TDnsPolicyValue
-	GetPolicyOptions() *jsonutils.JSONDict
+	Delete() error
 }
 
 type ICloudVpcPeeringConnection interface {
@@ -1609,12 +1614,7 @@ type ICloudKubeCluster interface {
 
 	GetKubeConfig(private bool, expireMinutes int) (*SKubeconfig, error)
 
-	GetVersion() string
-	GetVpcId() string
-	GetNetworkIds() []string
-
 	GetIKubeNodePools() ([]ICloudKubeNodePool, error)
-	CreateIKubeNodePool(opts *KubeNodePoolCreateOptions) (ICloudKubeNodePool, error)
 	GetIKubeNodes() ([]ICloudKubeNode, error)
 
 	Delete(isRetain bool) error
@@ -1628,16 +1628,6 @@ type ICloudKubeNode interface {
 
 type ICloudKubeNodePool interface {
 	ICloudResource
-
-	GetMinInstanceCount() int
-	GetMaxInstanceCount() int
-	GetDesiredInstanceCount() int
-	GetRootDiskSizeGb() int
-
-	GetInstanceTypes() []string
-	GetNetworkIds() []string
-
-	Delete() error
 }
 
 type ICloudTablestore interface {

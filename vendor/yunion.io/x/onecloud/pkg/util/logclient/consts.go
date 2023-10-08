@@ -206,8 +206,8 @@ const (
 	ACT_SEND_VERIFICATION = "send_verification"
 	ACT_REPULL_SUBCONTACT = "repull_subcontact"
 
-	ACT_SYNC_VPCS        = "sync_vpcs"
-	ACT_SYNC_RECORD_SETS = "sync_record_sets"
+	ACT_ADD_VPCS    = "add_vpcs"
+	ACT_REMOVE_VPCS = "remove_vpcs"
 
 	ACT_DETACH_ALERTRESOURCE          = "detach_alertresoruce"
 	ACT_NETWORK_ADD_VPC               = "network_add_vpc"
@@ -226,6 +226,10 @@ const (
 	ACT_MERGE_NETWORK = "merge_network"
 
 	ACT_RESTART_NETWORK = "restart_network"
+
+	ACT_QGA_NETWORK_INPUT   = "qga_network_input"
+	ACT_QGA_STATUS_UPDATE   = "qga_status_update"
+	ACT_QGA_NETWORK_SUCCESS = "qga_network_success"
 
 	ACT_RECOVERY = "recovery"
 	ACT_PACK     = "pack"
@@ -253,4 +257,8 @@ const (
 
 	ACT_ASSOCIATE  = "associate"
 	ACT_DISSOCIATE = "dissociate"
+
+	ACT_ADD_BASTION_SERVER = "add_bastion_server"
+
+	ACT_SYNC_TRAFFIC_LIMIT = "sync_traffic_limit"
 )

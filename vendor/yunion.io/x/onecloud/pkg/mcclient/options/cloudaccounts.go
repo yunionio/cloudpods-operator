@@ -118,8 +118,9 @@ type SCloudAccountCreateBaseOptions struct {
 	Desc  string `help:"Description" token:"desc" json:"description"`
 	Brand string `help:"Brand of cloud account" choices:"DStack"`
 
-	AutoCreateProject bool `help:"Enable the account with same name project"`
-	EnableAutoSync    bool `help:"Enable automatically synchronize resources of this account"`
+	AutoCreateProject            bool `help:"Enable the account with same name project"`
+	AutoCreateProjectForProvider bool `help:"Is Auto Create Project For Provider"`
+	EnableAutoSync               bool `help:"Enable automatically synchronize resources of this account"`
 
 	SyncIntervalSeconds int `help:"Interval to synchronize if auto sync is enable" metavar:"SECONDS"`
 
@@ -142,6 +143,8 @@ type SCloudAccountCreateBaseOptions struct {
 	EnableResourceSync bool
 
 	SkipSyncResources []string `help:"Skip sync resource, etc snapshot"`
+
+	Currency string `choices:"CNY|USD"`
 }
 
 type SVMwareCloudAccountCreateOptions struct {
@@ -463,6 +466,9 @@ func (opts *SCloudAccountIdOptions) Params() (jsonutils.JSONObject, error) {
 type SVMwareCloudAccountUpdateCredentialOptions struct {
 	SCloudAccountIdOptions
 	SUserPasswordCredential
+
+	Host string `help:"VMware VCenter/ESXi host"`
+	Port string `help:"VMware VCenter/ESXi host port" default:"443"`
 }
 
 func (opts *SVMwareCloudAccountUpdateCredentialOptions) Params() (jsonutils.JSONObject, error) {
@@ -635,6 +641,8 @@ type SCloudAccountUpdateBaseOptions struct {
 	RemoveSkipSyncResources []string
 
 	Desc string `help:"Description" json:"description" token:"desc"`
+
+	Currency string `choices:"CNY|USD"`
 }
 
 func (opts *SCloudAccountUpdateBaseOptions) Params() (jsonutils.JSONObject, error) {

@@ -1095,8 +1095,7 @@ func (self *SDisk) GetIDisk(ctx context.Context) (cloudprovider.ICloudDisk, erro
 	}
 	iStorage, err := self.GetIStorage(ctx)
 	if err != nil {
-		log.Errorf("fail to find iStorage: %v", err)
-		return nil, err
+		return nil, errors.Wrapf(err, "GetIStorage")
 	}
 	return iStorage.GetIDiskById(self.GetExternalId())
 }
@@ -1433,13 +1432,14 @@ func (manager *SDiskManager) getDisksByStorage(storage *SStorage) ([]SDisk, erro
 }
 
 func (manager *SDiskManager) findOrCreateDisk(ctx context.Context, userCred mcclient.TokenCredential, provider cloudprovider.ICloudProvider, vdisk cloudprovider.ICloudDisk, index int, syncOwnerId mcclient.IIdentityProvider, managerId string) (*SDisk, error) {
-	diskObj, err := db.FetchByExternalIdAndManagerId(manager, vdisk.GetGlobalId(), func(q *sqlchemy.SQuery) *sqlchemy.SQuery {
+	diskId := vdisk.GetGlobalId()
+	diskObj, err := db.FetchByExternalIdAndManagerId(manager, diskId, func(q *sqlchemy.SQuery) *sqlchemy.SQuery {
 		sq := StorageManager.Query().SubQuery()
 		return q.Join(sq, sqlchemy.Equals(sq.Field("id"), q.Field("storage_id"))).Filter(sqlchemy.Equals(sq.Field("manager_id"), managerId))
 	})
 	if err != nil {
 		if errors.Cause(err) != sql.ErrNoRows {
-			return nil, errors.Wrapf(err, "db.FetchByExternalIdAndManagerId")
+			return nil, errors.Wrapf(err, "db.FetchByExternalIdAndManagerId %s", diskId)
 		}
 		vstorage, err := vdisk.GetIStorage()
 		if err != nil {
@@ -1486,6 +1486,10 @@ func (manager *SDiskManager) SyncDisks(ctx context.Context, userCred mcclient.To
 	for i := 0; i < len(removed); i += 1 {
 		err = removed[i].syncRemoveCloudDisk(ctx, userCred)
 		if err != nil {
+			// vm not sync, so skip disk used by vm error
+			if errors.Cause(err) == httperrors.ErrNotEmpty {
+				continue
+			}
 			syncResult.DeleteError(err)
 		} else {
 			syncResult.Delete()
@@ -1496,7 +1500,7 @@ func (manager *SDiskManager) SyncDisks(ctx context.Context, userCred mcclient.To
 		skip, key := IsNeedSkipSync(commonext[i])
 		if skip {
 			log.Infof("delete disk %s(%s) with tag key: %s", commonext[i].GetName(), commonext[i].GetGlobalId(), key)
-			err := commondb[i].purge(ctx, userCred)
+			err := commondb[i].RealDelete(ctx, userCred)
 			if err != nil {
 				syncResult.DeleteError(err)
 				continue
@@ -1633,11 +1637,6 @@ func (self *SDisk) syncRemoveCloudDisk(ctx context.Context, userCred mcclient.To
 	err = self.ValidatePurgeCondition(ctx)
 	if err != nil {
 		self.SetStatus(userCred, api.DISK_UNKNOWN, "missing original disk after sync")
-		return err
-	}
-	// detach joint modle aboutsnapshotpolicy and disk
-	err = SnapshotPolicyDiskManager.SyncDetachByDisk(ctx, userCred, nil, self)
-	if err != nil {
 		return err
 	}
 	err = self.RealDelete(ctx, userCred)
@@ -2212,9 +2211,19 @@ func (self *SDisk) Delete(ctx context.Context, userCred mcclient.TokenCredential
 }
 
 func (self *SDisk) RealDelete(ctx context.Context, userCred mcclient.TokenCredential) error {
-	err := self.DetachAllSnapshotpolicies(ctx, userCred)
-	if err != nil {
-		log.Errorf("unable to DetachAllSnapshotpolicies: %v", err)
+	diskbackups := DiskBackupManager.Query("id").Equals("disk_id", self.Id)
+	guestdisks := GuestdiskManager.Query("row_id").Equals("disk_id", self.Id)
+	diskpolicies := SnapshotPolicyDiskManager.Query("row_id").Equals("disk_id", self.Id)
+	pairs := []purgePair{
+		{manager: DiskBackupManager, key: "id", q: diskbackups},
+		{manager: GuestdiskManager, key: "row_id", q: guestdisks},
+		{manager: SnapshotPolicyDiskManager, key: "row_id", q: diskpolicies},
+	}
+	for i := range pairs {
+		err := pairs[i].purgeAll(ctx)
+		if err != nil {
+			return err
+		}
 	}
 	return self.SVirtualResourceBase.Delete(ctx, userCred)
 }
@@ -2467,6 +2476,11 @@ func (manager *SDiskManager) FetchCustomizeColumns(
 			rows[i].MaxManualSnapshotCount = options.Options.DefaultMaxManualSnapshotCount
 			snps, _ := snapshots[diskIds[i]]
 			rows[i].ManualSnapshotCount = len(snps)
+		}
+		disk := objs[i].(*SDisk)
+		if len(disk.StorageId) == 0 && disk.Status == api.VM_SCHEDULE_FAILED {
+			rows[i].Brand = "Unknown"
+			rows[i].Provider = "Unknown"
 		}
 	}
 

@@ -529,10 +529,6 @@ func (model *SVirtualResourceBase) Delete(ctx context.Context, userCred mcclient
 	return DeleteModel(ctx, userCred, model.GetIVirtualModel())
 }
 
-func (model *SVirtualResourceBase) AllowPerformCancelDelete(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) bool {
-	return false
-}
-
 func (model *SVirtualResourceBase) PerformCancelDelete(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
 	if model.PendingDeleted && !model.Deleted {
 		err := model.DoCancelPendingDelete(ctx, userCred)
@@ -601,10 +597,19 @@ func (model *SVirtualResourceBase) GetShortDesc(ctx context.Context) *jsonutils.
 	tc, _ := TenantCacheManager.FetchTenantById(ctx, model.ProjectId)
 	if tc != nil {
 		desc.Add(jsonutils.NewString(tc.GetName()), "owner_tenant")
-		metadata, _ := GetVisiableMetadata(ctx, tc, nil)
+		metadata, _ := GetVisibleMetadata(ctx, tc, nil)
 		desc.Set("project_tags", jsonutils.Marshal(metadata))
 	}
 	return desc
+}
+
+func (model *SVirtualResourceBase) SetProjectSrc(src apis.TOwnerSource) {
+	if model.ProjectSrc != string(src) {
+		Update(model, func() error {
+			model.ProjectSrc = string(apis.OWNER_SOURCE_CLOUD)
+			return nil
+		})
+	}
 }
 
 func (model *SVirtualResourceBase) SyncCloudProjectId(userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider) {
