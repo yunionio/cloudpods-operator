@@ -21,6 +21,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/vmware/govmomi/nfc"
 	"github.com/vmware/govmomi/object"
@@ -294,8 +295,12 @@ func (svm *SVirtualMachine) rebuildDisk(ctx context.Context, disk *SVirtualDisk,
 	}, false)
 }
 
-func (svm *SVirtualMachine) UpdateVM(ctx context.Context, name string) error {
-	return svm.DoRename(ctx, name)
+func (svm *SVirtualMachine) UpdateVM(ctx context.Context, input cloudprovider.SInstanceUpdateOptions) error {
+	err := svm.SetConfig(ctx, input)
+	if err != nil {
+		return errors.Wrap(err, "set description")
+	}
+	return nil
 }
 
 // TODO: detach disk to a separate directory, so as to keep disk independent of VM
@@ -806,9 +811,15 @@ func (svm *SVirtualMachine) GetCreatedAt() time.Time {
 	}
 }
 
-func (svm *SVirtualMachine) GetDescription() string {
-	moVM := svm.getVirtualMachine()
-	return moVM.Config.Annotation
+func (svm *SVirtualMachine) SetConfig(ctx context.Context, input cloudprovider.SInstanceUpdateOptions) error {
+	setDescTask, err := svm.getVmObj().Reconfigure(ctx, types.VirtualMachineConfigSpec{
+		Name:       input.NAME,
+		Annotation: input.Description,
+	})
+	if err != nil {
+		return errors.Wrap(err, "set task")
+	}
+	return setDescTask.Wait(ctx)
 }
 
 func (svm *SVirtualMachine) GetExpiredAt() time.Time {
@@ -852,7 +863,10 @@ func (svm *SVirtualMachine) fetchHardwareInfo() error {
 
 		if reflectutils.StructContains(devType, etherType) {
 			vnic := NewVirtualNIC(svm, dev, len(svm.vnics))
-			svm.vnics = append(svm.vnics, vnic)
+			if len(vnic.GetIP()) > 0 {
+				// only nics with ip is valid
+				svm.vnics = append(svm.vnics, vnic)
+			}
 		} else if reflectutils.StructContains(devType, diskType) {
 			svm.vdisks = append(svm.vdisks, NewVirtualDisk(svm, dev, len(svm.vdisks)))
 		} else if reflectutils.StructContains(devType, vgaType) {
@@ -1395,20 +1409,30 @@ func (svm *SVirtualMachine) DoCustomize(ctx context.Context, params jsonutils.JS
 	spec.NicSettingMap = maps
 
 	var (
-		osName string
-		name   = "yunionhost"
+		osName   string
+		name     = "yunionhost"
+		hostname = name
 	)
 	if params.Contains("os_name") {
 		osName, _ = params.GetString("os_name")
 	}
 	if params.Contains("name") {
 		name, _ = params.GetString("name")
+		hostname = name
+	}
+	if params.Contains("hostname") {
+		hostname, _ = params.GetString("hostname")
 	}
 	// avoid spec.identity.hostName error
-	hostname := strings.ReplaceAll(name, "_", "")
-	if len(hostname) > 15 {
-		hostname = hostname[:15]
-	}
+	hostname = func() string {
+		ret := ""
+		for _, s := range hostname {
+			if unicode.IsDigit(s) || unicode.IsLetter(s) || s == '-' {
+				ret += string(s)
+			}
+		}
+		return ret
+	}()
 	if osName == "Linux" {
 		linuxPrep := types.CustomizationLinuxPrep{
 			HostName: &types.CustomizationFixedName{Name: hostname},
@@ -1417,6 +1441,9 @@ func (svm *SVirtualMachine) DoCustomize(ctx context.Context, params jsonutils.JS
 		}
 		spec.Identity = &linuxPrep
 	} else if osName == "Windows" {
+		if len(hostname) > 15 {
+			hostname = hostname[:15]
+		}
 		sysPrep := types.CustomizationSysprep{
 			GuiUnattended: types.CustomizationGuiUnattended{
 				TimeZone:  210,

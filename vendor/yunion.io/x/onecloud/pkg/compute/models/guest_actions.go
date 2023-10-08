@@ -647,11 +647,8 @@ func (self *SGuest) PerformCancelLiveMigrate(
 	if self.Status != api.VM_LIVE_MIGRATING {
 		return nil, httperrors.NewServerStatusError("cannot set migrate params in status %s", self.Status)
 	}
-	monitorInput := &api.ServerMonitorInput{
-		COMMAND: "migrate_cancel",
-		QMP:     false,
-	}
-	return self.SendMonitorCommand(ctx, userCred, monitorInput)
+
+	return nil, self.GetDriver().RequestCancelLiveMigrate(ctx, self, userCred)
 }
 
 func (self *SGuest) PerformClone(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
@@ -744,11 +741,10 @@ func (self *SGuest) PerformSetPassword(ctx context.Context, userCred mcclient.To
 		}
 		return self.PerformQgaSetPassword(ctx, userCred, query, inputQga)
 	} else {
-		inputDeploy := api.ServerDeployInput{
-			Password:      input.Password,
-			ResetPassword: input.ResetPassword,
-			AutoStart:     input.AutoStart,
-		}
+		inputDeploy := api.ServerDeployInput{}
+		inputDeploy.AutoStart = input.AutoStart
+		inputDeploy.Password = input.Password
+		inputDeploy.ResetPassword = input.ResetPassword
 		return self.PerformDeploy(ctx, userCred, query, inputDeploy)
 	}
 }
@@ -779,7 +775,12 @@ func (self *SGuest) GetOldPassword(ctx context.Context, userCred mcclient.TokenC
 	return password
 }
 
-func (self *SGuest) PerformDeploy(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input api.ServerDeployInput) (jsonutils.JSONObject, error) {
+func (self *SGuest) PerformDeploy(
+	ctx context.Context,
+	userCred mcclient.TokenCredential,
+	query jsonutils.JSONObject,
+	input api.ServerDeployInput,
+) (jsonutils.JSONObject, error) {
 	self.saveOldPassword(ctx, userCred)
 
 	if input.DeleteKeypair || len(input.KeypairId) > 0 {
@@ -937,6 +938,22 @@ func (self *SGuest) StartRestartNetworkTask(ctx context.Context, userCred mcclie
 	return nil
 }
 
+func (self *SGuest) StartQgaRestartNetworkTask(ctx context.Context, userCred mcclient.TokenCredential, parentTaskId string, device string, ipMask string, gateway string, prevIp string, inBlockStream bool) error {
+	data := jsonutils.NewDict()
+	data.Set("device", jsonutils.NewString(device))
+	data.Set("ip_mask", jsonutils.NewString(ipMask))
+	data.Set("gateway", jsonutils.NewString(gateway))
+	data.Set("prev_ip", jsonutils.NewString(prevIp))
+	data.Set("in_block_stream", jsonutils.NewBool(inBlockStream))
+	if task, err := taskman.TaskManager.NewTask(ctx, "GuestQgaRestartNetworkTask", self, userCred, data, parentTaskId, "", nil); err != nil {
+		log.Errorln(err)
+		return err
+	} else {
+		task.ScheduleRun(nil)
+	}
+	return nil
+}
+
 func (self *SGuest) startSyncTask(ctx context.Context, userCred mcclient.TokenCredential, firewallOnly bool, parentTaskId string, data *jsonutils.JSONDict) error {
 	if firewallOnly {
 		data.Add(jsonutils.JSONTrue, "fw_only")
@@ -948,15 +965,7 @@ func (self *SGuest) startSyncTask(ctx context.Context, userCred mcclient.TokenCr
 }
 
 func (self *SGuest) StartSyncTask(ctx context.Context, userCred mcclient.TokenCredential, firewallOnly bool, parentTaskId string) error {
-
-	data := jsonutils.NewDict()
-	if firewallOnly {
-		data.Add(jsonutils.JSONTrue, "fw_only")
-	} else if err := self.SetStatus(userCred, api.VM_SYNC_CONFIG, ""); err != nil {
-		log.Errorln(err)
-		return err
-	}
-	return self.doSyncTask(ctx, data, userCred, parentTaskId)
+	return self.startSyncTask(ctx, userCred, firewallOnly, parentTaskId, jsonutils.NewDict())
 }
 
 func (self *SGuest) StartSyncTaskWithoutSyncstatus(ctx context.Context, userCred mcclient.TokenCredential, fwOnly bool, parentTaskId string) error {
@@ -1559,8 +1568,12 @@ func (self *SGuest) setKeypairId(userCred mcclient.TokenCredential, keypairId st
 }
 
 // 重装系统(更换系统镜像)
-func (self *SGuest) PerformRebuildRoot(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input *api.ServerRebuildRootInput) (*api.SGuest, error) {
-
+func (self *SGuest) PerformRebuildRoot(
+	ctx context.Context,
+	userCred mcclient.TokenCredential,
+	query jsonutils.JSONObject,
+	input *api.ServerRebuildRootInput,
+) (*api.SGuest, error) {
 	input, err := self.GetDriver().ValidateRebuildRoot(ctx, userCred, self, input)
 	if err != nil {
 		return nil, err
@@ -1639,19 +1652,18 @@ func (self *SGuest) PerformRebuildRoot(ctx context.Context, userCred mcclient.To
 	if input.AutoStart != nil {
 		autoStart = *input.AutoStart
 	}
+
 	var needStop = false
 	if self.Status == api.VM_RUNNING {
 		needStop = true
 	}
-	resetPasswd := true
-	if input.ResetPassword != nil {
-		resetPasswd = *input.ResetPassword
-	}
+	resetPasswd := input.ResetPassword
+
 	passwd := input.Password
 	if len(passwd) > 0 {
 		err = seclib2.ValidatePassword(passwd)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "ValidatePassword")
 		}
 	}
 
@@ -1679,7 +1691,9 @@ func (self *SGuest) PerformRebuildRoot(ctx context.Context, userCred mcclient.To
 		allDisks = *input.AllDisks
 	}
 
-	return nil, self.StartRebuildRootTask(ctx, userCred, input.ImageId, needStop, autoStart, passwd, resetPasswd, allDisks)
+	input.ResetPassword = resetPasswd
+
+	return nil, self.StartRebuildRootTask(ctx, userCred, input.ImageId, needStop, autoStart, allDisks, &input.ServerDeployInputBase)
 }
 
 func (self *SGuest) GetTemplateId() string {
@@ -1690,7 +1704,7 @@ func (self *SGuest) GetTemplateId() string {
 	return ""
 }
 
-func (self *SGuest) StartRebuildRootTask(ctx context.Context, userCred mcclient.TokenCredential, imageId string, needStop, autoStart bool, passwd string, resetPasswd bool, allDisk bool) error {
+func (self *SGuest) StartRebuildRootTask(ctx context.Context, userCred mcclient.TokenCredential, imageId string, needStop, autoStart bool, allDisk bool, deployInput *api.ServerDeployInputBase) error {
 	data := jsonutils.NewDict()
 	if len(imageId) == 0 {
 		imageId = self.GetTemplateId()
@@ -1705,20 +1719,22 @@ func (self *SGuest) StartRebuildRootTask(ctx context.Context, userCred mcclient.
 	if autoStart {
 		data.Set("auto_start", jsonutils.JSONTrue)
 	}
-	if resetPasswd {
+	/*if resetPasswd {
 		data.Set("reset_password", jsonutils.JSONTrue)
 	} else {
 		data.Set("reset_password", jsonutils.JSONFalse)
 	}
 	if len(passwd) > 0 {
 		data.Set("password", jsonutils.NewString(passwd))
-	}
+	}*/
 
 	if allDisk {
 		data.Set("all_disks", jsonutils.JSONTrue)
 	} else {
 		data.Set("all_disks", jsonutils.JSONFalse)
 	}
+	data.Set("deploy_params", jsonutils.Marshal(deployInput))
+
 	self.SetStatus(userCred, api.VM_REBUILD_ROOT, "request start rebuild root")
 	task, err := taskman.TaskManager.NewTask(ctx, "GuestRebuildRootTask", self, userCred, data, "", "", nil)
 	if err != nil {
@@ -2368,6 +2384,14 @@ func (self *SGuest) PerformChangeIpaddr(ctx context.Context, userCred mcclient.T
 		return nil, err
 	}
 
+	//Get the detailed description of the NIC
+	networkJsonDesc := ngn[0].getJsonDesc()
+	newIpAddr := networkJsonDesc.Ip
+	newMacAddr := networkJsonDesc.Mac
+	newMaskLen := networkJsonDesc.Masklen
+	newGateway := networkJsonDesc.Gateway
+	ipMask := fmt.Sprintf("%s/%d", newIpAddr, newMaskLen)
+
 	notes := jsonutils.NewDict()
 	if gn != nil {
 		notes.Add(jsonutils.NewString(gn.IpAddr), "prev_ip")
@@ -2383,12 +2407,38 @@ func (self *SGuest) PerformChangeIpaddr(ctx context.Context, userCred mcclient.T
 	if self.Hypervisor == api.HYPERVISOR_KVM && restartNetwork && (self.Status == api.VM_RUNNING || self.Status == api.VM_BLOCK_STREAM) {
 		taskData.Set("restart_network", jsonutils.JSONTrue)
 		taskData.Set("prev_ip", jsonutils.NewString(gn.IpAddr))
+		taskData.Set("prev_mac", jsonutils.NewString(newMacAddr))
+		net := ngn[0].GetNetwork()
+		taskData.Set("is_vpc_network", jsonutils.NewBool(net.isOneCloudVpcNetwork()))
+		taskData.Set("ip_mask", jsonutils.NewString(ipMask))
+		taskData.Set("gateway", jsonutils.NewString(newGateway))
 		if self.Status == api.VM_BLOCK_STREAM {
 			taskData.Set("in_block_stream", jsonutils.JSONTrue)
 		}
 		self.SetStatus(userCred, api.VM_RESTART_NETWORK, "restart network")
 	}
-	return nil, self.startSyncTask(ctx, userCred, true, "", taskData)
+	return nil, self.startSyncTask(ctx, userCred, false, "", taskData)
+}
+
+func (self *SGuest) GetIfNameByMac(ctx context.Context, userCred mcclient.TokenCredential, mac string) (string, error) {
+	//Find the network card according to the mac address, if it is empty, it means no network card is found
+	ifnameData, err := self.PerformQgaGetNetwork(ctx, userCred, nil, nil)
+	if err != nil {
+		return "", err
+	}
+	//Get the name of the network card
+	var parsedData []api.IfnameDetail
+	if err := ifnameData.Unmarshal(&parsedData); err != nil {
+		return "", err
+	}
+	var ifnameDevice string
+	//Finding a network card by its mac address
+	for _, detail := range parsedData {
+		if detail.HardwareAddress == mac {
+			ifnameDevice = detail.Name
+		}
+	}
+	return ifnameDevice, nil
 }
 
 func (self *SGuest) PerformDetachnetwork(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input api.ServerDetachnetworkInput) (jsonutils.JSONObject, error) {
@@ -2637,10 +2687,6 @@ func (self *SGuest) PerformChangeConfig(ctx context.Context, userCred mcclient.T
 	}
 	if !utils.IsInStringArray(self.Status, changeStatus) {
 		return nil, httperrors.NewInvalidStatusError("Cannot change config in %s for %s, requires %s", self.Status, self.GetHypervisor(), changeStatus)
-	}
-
-	if self.Status == api.VM_READY && self.ShutdownMode == api.VM_SHUTDOWN_MODE_STOP_CHARGING {
-		return nil, httperrors.NewInvalidStatusError("Cannot change config with %s", self.ShutdownMode)
 	}
 
 	_, err = self.GetHost()

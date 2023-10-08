@@ -268,6 +268,10 @@ func init() {
 		EN("Migrate").
 		CN("迁移"),
 	)
+	t.Set(ACT_MIGRATING, i18n.NewTableEntry().
+		EN("Migrating").
+		CN("迁移中"),
+	)
 	t.Set(ACT_EIP_ASSOCIATE, i18n.NewTableEntry().
 		EN("Eip Associate").
 		CN("绑定弹性IP"),
@@ -1402,4 +1406,48 @@ func init() {
 		CN("添加实例到堡垒机"),
 	)
 
+	o.Set(ACT_SET_USER_PASSWORD, i18n.NewTableEntry().
+		EN("Set Password For User").
+		CN("设置用户密码"),
+	)
+
+	o.Set(ACT_DISK_CHANGE_STORAGE, i18n.NewTableEntry().
+		EN("Disk Change Storage").
+		CN("磁盘更换存储"),
+	)
+
+	o.Set(ACT_SYNC_TRAFFIC_LIMIT, i18n.NewTableEntry().
+		EN("Sync Nic Traffic Limit").
+		CN("同步网卡流量限制"),
+	)
+
+	o.Set(ACT_GENERATE_REPORT, i18n.NewTableEntry().
+		EN("Generate Report").
+		CN("生成报表"),
+	)
+
+	o.Set(ACT_REPORT_COLLECT_DATA, i18n.NewTableEntry().
+		EN("Collect Report Data").
+		CN("采集报表数据"),
+	)
+
+	o.Set(ACT_REPORT_SEND, i18n.NewTableEntry().
+		EN("Send Report").
+		CN("发送报表"),
+	)
+
+	o.Set(ACT_REPORT_TEMPLATE, i18n.NewTableEntry().
+		EN("Report Template").
+		CN("报表模板"),
+	)
+
+	o.Set(ACT_SAVE_IMAGE, i18n.NewTableEntry().
+		EN("Save Image").
+		CN("保存镜像"),
+	)
+
+	o.Set(ACT_CLOUD_SYNC, i18n.NewTableEntry().
+		EN("Sync Cloud Resource").
+		CN("同步云资源"),
+	)
 }
