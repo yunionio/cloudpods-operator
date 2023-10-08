@@ -857,6 +857,22 @@ func (o *ServerQgaPing) Params() (jsonutils.JSONObject, error) {
 	return options.StructToParams(o)
 }
 
+type ServerQgaGuestInfoTask struct {
+	ServerIdOptions
+}
+
+func (o *ServerQgaGuestInfoTask) Params() (jsonutils.JSONObject, error) {
+	return options.StructToParams(o)
+}
+
+type ServerQgaGetNetwork struct {
+	ServerIdOptions
+}
+
+func (o *ServerQgaGetNetwork) Params() (jsonutils.JSONObject, error) {
+	return options.StructToParams(o)
+}
+
 type ServerSetPasswordOptions struct {
 	ServerIdOptions
 
@@ -1389,5 +1405,15 @@ type ServerIsoOptions struct {
 }
 
 func (o *ServerIsoOptions) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.Marshal(o), nil
+}
+
+type ServerAddSubIpsOptions struct {
+	ServerIdOptions
+
+	computeapi.GuestAddSubIpsInput
+}
+
+func (o *ServerAddSubIpsOptions) Params() (jsonutils.JSONObject, error) {
 	return jsonutils.Marshal(o), nil
 }

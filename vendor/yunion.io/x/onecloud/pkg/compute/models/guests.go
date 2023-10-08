@@ -2091,7 +2091,7 @@ func (manager *SGuestManager) validateEip(userCred mcclient.TokenCredential, inp
 
 func (self *SGuest) PostUpdate(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) {
 	self.SVirtualResourceBase.PostUpdate(ctx, userCred, query, data)
-	if len(self.ExternalId) > 0 && (data.Contains("name") || data.Contains("__meta__")) {
+	if len(self.ExternalId) > 0 && (data.Contains("name") || data.Contains("__meta__") || data.Contains("description")) {
 		err := self.StartRemoteUpdateTask(ctx, userCred, false, "")
 		if err != nil {
 			log.Errorf("StartRemoteUpdateTask fail: %s", err)
@@ -3049,7 +3049,7 @@ func (g *SGuest) syncWithCloudVM(ctx context.Context, userCred mcclient.TokenCre
 
 		g.Hypervisor = extVM.GetHypervisor()
 
-		if len(g.Description) == 0 {
+		if len(extVM.GetDescription()) > 0 {
 			g.Description = extVM.GetDescription()
 		}
 		g.IsEmulated = extVM.IsEmulated()
@@ -3529,7 +3529,7 @@ func getCloudNicNetwork(ctx context.Context, vnic cloudprovider.ICloudNic, host 
 			Filter(sqlchemy.Equals(vpc.Field("manager_id"), host.ManagerId))
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Cannot find network of external_id %s: %v", vnetId, err)
+		return nil, errors.Wrapf(err, "Cannot find network of external_id %s", vnetId)
 	}
 	localNet := localNetObj.(*SNetwork)
 	return localNet, nil
@@ -3827,6 +3827,9 @@ func (self *SGuest) fixSysDiskIndex() error {
 	sysDisk.SetModelManager(GuestdiskManager, sysDisk)
 	err := sysQ.First(sysDisk)
 	if err != nil {
+		if errors.Cause(err) == sql.ErrNoRows {
+			return nil
+		}
 		return err
 	}
 	if sysDisk.Index == 0 {
