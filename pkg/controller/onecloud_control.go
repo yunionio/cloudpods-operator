@@ -529,12 +529,12 @@ func (c keystoneComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 
 	// refresh session when update identity url
 	return RunWithSession(oc, func(s *mcclient.ClientSession) error {
-		if err := doRegisterCloudMeta(s, region); err != nil {
-			return errors.Wrap(err, "register cloudmeta endpoint")
-		}
-		if err := doRegisterTracker(s, region); err != nil {
-			return errors.Wrap(err, "register tracker endpoint")
-		}
+		// if err := doRegisterCloudMeta(s, region); err != nil {
+		// 	return errors.Wrap(err, "register cloudmeta endpoint")
+		// }
+		// if err := doRegisterTracker(s, region); err != nil {
+		// 	return errors.Wrap(err, "register tracker endpoint")
+		// }
 		if err := doCreateExternalService(s); err != nil {
 			return errors.Wrap(err, "create external service")
 		}
