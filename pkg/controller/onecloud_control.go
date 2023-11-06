@@ -1357,18 +1357,10 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 	smartDevTem := onecloud.CommonAlertTem{
 		Database:    "telegraf",
 		Measurement: "smart_device",
-		Field:       []string{"exit_status"},
+		Field:       []string{"health_ok"},
 		FieldFunc:   "last",
 		Comparator:  "==",
 		Threshold:   0,
-		Filters: []monitor.MetricQueryTag{
-			{
-				Key:       "health_ok",
-				Operator:  "=",
-				Value:     "false",
-				Condition: "AND",
-			},
-		},
 		Name:        "smart_device.exit_status",
 		Reduce:      "last",
 		Description: "监测磁盘健康状态",
