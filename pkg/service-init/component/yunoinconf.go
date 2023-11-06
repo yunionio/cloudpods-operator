@@ -158,6 +158,7 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 			"google",
 			"huawei",
 			"qcloud",
+			"volcengine",
 			// "ucloud",
 			// "ecloud",
 			// "jdcloud",
