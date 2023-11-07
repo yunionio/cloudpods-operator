@@ -1404,6 +1404,10 @@ func (m *ComponentManager) Influxdb() manager.Manager {
 	return newInfluxdbManager(m)
 }
 
+func (m *ComponentManager) VictoriaMetrics() manager.Manager {
+	return newVictoriaMetricsManager(m)
+}
+
 func (m *ComponentManager) Yunionagent() manager.Manager {
 	return newYunionagentManager(m)
 }
