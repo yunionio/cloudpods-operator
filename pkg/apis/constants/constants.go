@@ -178,6 +178,10 @@ const (
 	InfluxdbPort      = 30086
 	InfluxdbDataStore = "/var/lib/influxdb"
 
+	VictoriaMetricsPort                    = 30428
+	VictoriaMetricsDefaultRententionPeriod = 93
+	VictoriaMetricsDataStore               = "/storage"
+
 	OvnNorthDbPort = 32241
 	OvnSouthDbPort = 32242
 
@@ -248,6 +252,9 @@ const (
 
 	ServiceNameInfluxdb = "influxdb"
 	ServiceTypeInfluxdb = "influxdb"
+
+	ServiceNameVictoriaMetrics = "victoria-metrics"
+	ServiceTypeVictoriaMetrics = "victoria-metrics"
 
 	ServiceNameMonitor = "monitor"
 	ServiceTypeMonitor = "monitor"

@@ -118,6 +118,14 @@ func (m *influxdbManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone
 }
 
 func getInfluxDBInternalURL(oc *v1alpha1.OnecloudCluster) string {
-	internalAddress := controller.NewClusterComponentName(oc.GetName(), v1alpha1.InfluxdbComponentType)
-	return fmt.Sprintf("https://%s:%d", internalAddress, constants.InfluxdbPort)
+	influxdb := oc.Spec.Influxdb
+	vm := oc.Spec.VictoriaMetrics
+	cType := v1alpha1.InfluxdbComponentType
+	port := constants.InfluxdbPort
+	if influxdb.Disable && !vm.Disable {
+		cType = v1alpha1.VictoriaMetricsComponentType
+		port = constants.VictoriaMetricsPort
+	}
+	internalAddress := controller.NewClusterComponentName(oc.GetName(), cType)
+	return fmt.Sprintf("https://%s:%d", internalAddress, port)
 }

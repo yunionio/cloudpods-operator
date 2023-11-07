@@ -1001,18 +1001,18 @@ func (c *registerEndpointComponent) Setup() error {
 	return c.RegisterCloudServiceEndpoint(c.cType, c.serviceName, c.serviceType, c.port, c.prefix, true)
 }
 
-type influxdbComponent struct {
+type tsdbComponent struct {
 	*registerEndpointComponent
 }
 
-func NewInfluxdbEndpointComponent(
+func NewTSDBEndpointComponent(
 	man ComponentManager,
 	ctype v1alpha1.ComponentType,
 	serviceName string,
 	serviceType string,
 	port int, prefix string,
 ) PhaseControl {
-	return &influxdbComponent{
+	return &tsdbComponent{
 		registerEndpointComponent: &registerEndpointComponent{
 			baseComponent: newBaseComponent(man),
 			cType:         ctype,
@@ -1024,7 +1024,7 @@ func NewInfluxdbEndpointComponent(
 	}
 }
 
-func (c *influxdbComponent) Setup() error {
+func (c *tsdbComponent) Setup() error {
 	oc := c.GetCluster()
 	s, err := getSession(oc)
 	if err != nil {
@@ -1047,7 +1047,7 @@ func (c *influxdbComponent) Setup() error {
 			return nil
 		}
 
-		log.Infof("influxdb service not exist, restart region service")
+		log.Infof("%s service not exist, restart region service", c.serviceName)
 		// restart region service to reload influxdb endpoint
 		err = c.manager.GetController().kubeCli.AppsV1().Deployments(oc.Namespace).Delete(context.Background(), regionName, metav1.DeleteOptions{})
 		if err != nil {
