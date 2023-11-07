@@ -15,18 +15,15 @@
 package component
 
 import (
-	"path"
-
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
-	"yunion.io/x/onecloud/pkg/ansibleserver/options"
+	"yunion.io/x/onecloud/pkg/cloudid/options"
 
-	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
-	"yunion.io/x/onecloud-operator/pkg/util/option"
+	"yunion.io/x/onecloud-operator/pkg/service-init/component"
 )
 
 type cloudidManager struct {
@@ -53,33 +50,22 @@ func (m *cloudidManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 }
 
 func (m *cloudidManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
-	return &cfg.CloudId.DB
+	return component.NewCloudId().GetDefaultDBConfig(cfg)
 }
 
 func (m *cloudidManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
-	return &cfg.CloudId.CloudUser
+	return component.NewCloudId().GetDefaultCloudUser(cfg)
 }
 
 func (m *cloudidManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
-	oc := man.GetCluster()
-	return controller.NewRegisterEndpointComponent(man, v1alpha1.CloudIdComponentType,
-		constants.ServiceNameCloudId, constants.ServiceTypeCloudId,
-		oc.Spec.CloudId.Service.NodePort, "")
+	return component.NewCloudId().GetPhaseControl(man)
 }
 
 func (m *cloudidManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
-	opt := &options.Options
-	if err := option.SetOptionsDefault(opt, constants.ServiceTypeCloudId); err != nil {
+	opt, err := component.NewCloudId().GetConfig(oc, cfg)
+	if err != nil {
 		return nil, false, err
 	}
-	config := cfg.CloudId
-	option.SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
-	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
-	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
-	opt.AutoSyncTable = true
-	opt.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
-	opt.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
-	opt.Port = config.Port
 	return m.newServiceConfigMap(v1alpha1.CloudIdComponentType, "", oc, opt), false, nil
 }
 
