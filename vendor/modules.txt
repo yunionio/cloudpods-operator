@@ -909,6 +909,7 @@ yunion.io/x/onecloud/pkg/cloudcommon/syncman/watcher
 yunion.io/x/onecloud/pkg/cloudcommon/types
 yunion.io/x/onecloud/pkg/cloudcommon/userdata
 yunion.io/x/onecloud/pkg/cloudcommon/validators
+yunion.io/x/onecloud/pkg/cloudid/options
 yunion.io/x/onecloud/pkg/cloudmon/misc
 yunion.io/x/onecloud/pkg/cloudmon/options
 yunion.io/x/onecloud/pkg/cloudnet/options
