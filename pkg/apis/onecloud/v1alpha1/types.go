@@ -69,6 +69,8 @@ const (
 	LoggerComponentType ComponentType = "logger"
 	// InfluxdbComponentType is influxdb component type
 	InfluxdbComponentType ComponentType = "influxdb"
+	// VictoriaMetricsComponentType is VictoriaMetrics component type
+	VictoriaMetricsComponentType ComponentType = "victoria-metrics"
 	// MonitorComponentType is alert monitor component type
 	MonitorComponentType ComponentType = "monitor"
 	// APIGatewayComponentType is apiGateway component type
@@ -250,6 +252,8 @@ type OnecloudClusterSpec struct {
 	Yunionagent YunionagentSpec `json:"yunionagent"`
 	// Influxdb holds configuration for influxdb
 	Influxdb InfluxdbSpec `json:"influxdb"`
+	// VictoriaMetrics holds configuration for VictoriaMetrics
+	VictoriaMetrics VictoriaMetricsSpec `json:"victoriaMetrics"`
 	// Telegraf holds configuration for telegraf
 	Telegraf TelegrafSpec `json:"telegraf"`
 	// Monitor holds configuration for monitor service
@@ -326,43 +330,44 @@ type OnecloudClusterSpec struct {
 
 // OnecloudClusterStatus describes cluster status
 type OnecloudClusterStatus struct {
-	ClusterID      string               `json:"clusterID,omitempty"`
-	SpecChecksum   string               `json:"specChecksum,omitempty"`
-	Keystone       KeystoneStatus       `json:"keystone,omitempty"`
-	RegionServer   RegionStatus         `json:"region,omitempty"`
-	Glance         GlanceStatus         `json:"glance,omitempty"`
-	Scheduler      DeploymentStatus     `json:"scheduler,omitempty"`
-	Webconsole     DeploymentStatus     `json:"webconsole,omitempty"`
-	Influxdb       DeploymentStatus     `json:"influxdb,omitempty"`
-	Monitor        DeploymentStatus     `json:"monitor,omitempty"`
-	Logger         DeploymentStatus     `json:"logger,omitempty"`
-	APIGateway     DeploymentStatus     `json:"apiGateway,omitempty"`
-	Web            DeploymentStatus     `json:"web,omitempty"`
-	Yunionconf     DeploymentStatus     `json:"yunionconf,omitempty"`
-	KubeServer     DeploymentStatus     `json:"kubeserver,omitempty"`
-	AnsibleServer  DeploymentStatus     `json:"ansibleserver,omitempty"`
-	Cloudnet       DeploymentStatus     `json:"cloudnet,omitempty"`
-	Cloudproxy     DeploymentStatus     `json:"cloudproxy,omitempty"`
-	Cloudevent     DeploymentStatus     `json:"cloudevent,omitempty"`
-	Notify         DeploymentStatus     `json:"notify,omitempty"`
-	BaremetalAgent BaremetalAgentStatus `json:"baremetalagent,omitempty"`
-	S3gateway      DeploymentStatus     `json:"s3gateway,omitempty"`
-	Devtool        DeploymentStatus     `json:"devtool,omitempty"`
-	Meter          MeterStatus          `json:"meter,omitempty"`
-	AutoUpdate     DeploymentStatus     `json:"autoupdate,omitempty"`
-	EsxiAgent      EsxiAgentStatus      `json:"esxiagent,omitempty"`
-	OvnNorth       DeploymentStatus     `json:"ovnNorth,omitempty"`
-	VpcAgent       DeploymentStatus     `json:"vpcAgent,omitempty"`
-	Etcd           EctdStatus           `json:"etcd,omitempty"`
-	Itsm           DeploymentStatus     `json:"itsm,omitempty"`
-	CloudId        DeploymentStatus     `json:"cloudid,omitempty"`
-	Cloudmon       DeploymentStatus     `json:"cloudmon,omitempty"`
-	MonitorStack   MonitorStackStatus   `json:"monitorStack,omitempty"`
-	Scheduledtask  DeploymentStatus     `json:"scheduledtask,omitempty"`
-	APIMap         DeploymentStatus     `json:"apiMap,omitempty"`
-	Report         DeploymentStatus     `json:"report,omitempty"`
-	ECharts        DeploymentStatus     `json:"echarts,omitempty"`
-	BastionHost    DeploymentStatus     `json:"bastionHost,omitempty"`
+	ClusterID       string               `json:"clusterID,omitempty"`
+	SpecChecksum    string               `json:"specChecksum,omitempty"`
+	Keystone        KeystoneStatus       `json:"keystone,omitempty"`
+	RegionServer    RegionStatus         `json:"region,omitempty"`
+	Glance          GlanceStatus         `json:"glance,omitempty"`
+	Scheduler       DeploymentStatus     `json:"scheduler,omitempty"`
+	Webconsole      DeploymentStatus     `json:"webconsole,omitempty"`
+	Influxdb        DeploymentStatus     `json:"influxdb,omitempty"`
+	VictoriaMetrics DeploymentStatus     `json:"victoriaMetrics,omitempty"`
+	Monitor         DeploymentStatus     `json:"monitor,omitempty"`
+	Logger          DeploymentStatus     `json:"logger,omitempty"`
+	APIGateway      DeploymentStatus     `json:"apiGateway,omitempty"`
+	Web             DeploymentStatus     `json:"web,omitempty"`
+	Yunionconf      DeploymentStatus     `json:"yunionconf,omitempty"`
+	KubeServer      DeploymentStatus     `json:"kubeserver,omitempty"`
+	AnsibleServer   DeploymentStatus     `json:"ansibleserver,omitempty"`
+	Cloudnet        DeploymentStatus     `json:"cloudnet,omitempty"`
+	Cloudproxy      DeploymentStatus     `json:"cloudproxy,omitempty"`
+	Cloudevent      DeploymentStatus     `json:"cloudevent,omitempty"`
+	Notify          DeploymentStatus     `json:"notify,omitempty"`
+	BaremetalAgent  BaremetalAgentStatus `json:"baremetalagent,omitempty"`
+	S3gateway       DeploymentStatus     `json:"s3gateway,omitempty"`
+	Devtool         DeploymentStatus     `json:"devtool,omitempty"`
+	Meter           MeterStatus          `json:"meter,omitempty"`
+	AutoUpdate      DeploymentStatus     `json:"autoupdate,omitempty"`
+	EsxiAgent       EsxiAgentStatus      `json:"esxiagent,omitempty"`
+	OvnNorth        DeploymentStatus     `json:"ovnNorth,omitempty"`
+	VpcAgent        DeploymentStatus     `json:"vpcAgent,omitempty"`
+	Etcd            EctdStatus           `json:"etcd,omitempty"`
+	Itsm            DeploymentStatus     `json:"itsm,omitempty"`
+	CloudId         DeploymentStatus     `json:"cloudid,omitempty"`
+	Cloudmon        DeploymentStatus     `json:"cloudmon,omitempty"`
+	MonitorStack    MonitorStackStatus   `json:"monitorStack,omitempty"`
+	Scheduledtask   DeploymentStatus     `json:"scheduledtask,omitempty"`
+	APIMap          DeploymentStatus     `json:"apiMap,omitempty"`
+	Report          DeploymentStatus     `json:"report,omitempty"`
+	ECharts         DeploymentStatus     `json:"echarts,omitempty"`
+	BastionHost     DeploymentStatus     `json:"bastionHost,omitempty"`
 }
 
 type EtcdClusterSpec struct {
@@ -613,6 +618,12 @@ type MeterSpec struct {
 type InfluxdbSpec struct {
 	StatefulDeploymentSpec
 	Service ServiceSpec `json:"service"`
+}
+
+type VictoriaMetricsSpec struct {
+	StatefulDeploymentSpec
+	Service              ServiceSpec `json:"service"`
+	RententionPeriodDays int         `json:"rententionPeriodDays"`
 }
 
 type ZoneStatefulDeploymentSpec struct {
