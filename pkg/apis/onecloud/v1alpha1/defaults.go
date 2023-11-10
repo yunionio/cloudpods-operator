@@ -33,19 +33,20 @@ var (
 )
 
 const (
-	DefaultVersion                 = "latest"
-	DefaultOnecloudRegion          = "region0"
-	DefaultOnecloudRegionDNSDomain = "cloud.onecloud.io"
-	DefaultOnecloudZone            = "zone0"
-	DefaultOnecloudWire            = "bcast0"
-	DefaultImageRepository         = "registry.hub.docker.com/yunion"
-	DefaultVPCId                   = "default"
-	DefaultGlanceStorageSize       = "100G"
-	DefaultMeterStorageSize        = "100G"
-	DefaultInfluxdbStorageSize     = "20G"
-	DefaultNotifyStorageSize       = "1G" // for plugin template
-	DefaultBaremetalStorageSize    = "100G"
-	DefaultEsxiAgentStorageSize    = "30G"
+	DefaultVersion                    = "latest"
+	DefaultOnecloudRegion             = "region0"
+	DefaultOnecloudRegionDNSDomain    = "cloud.onecloud.io"
+	DefaultOnecloudZone               = "zone0"
+	DefaultOnecloudWire               = "bcast0"
+	DefaultImageRepository            = "registry.hub.docker.com/yunion"
+	DefaultVPCId                      = "default"
+	DefaultGlanceStorageSize          = "100G"
+	DefaultMeterStorageSize           = "100G"
+	DefaultInfluxdbStorageSize        = "20G"
+	DefaultVictoriaMetricsStorageSize = "20G"
+	DefaultNotifyStorageSize          = "1G" // for plugin template
+	DefaultBaremetalStorageSize       = "100G"
+	DefaultEsxiAgentStorageSize       = "30G"
 	// rancher local-path-provisioner: https://github.com/rancher/local-path-provisioner
 	DefaultStorageClass = "local-path"
 
@@ -67,6 +68,9 @@ const (
 	DefaultHostHealthTag  = "v0.0.1"
 
 	DefaultInfluxdbImageVersion = "1.7.7"
+
+	// victoriametrics/victoria-metrics:v1.94.0
+	DefaultVictoriaMetricsImageVersion = "v1.94.0"
 
 	DefaultTelegrafImageName     = "telegraf"
 	DefaultTelegrafImageTag      = "release-1.19.2-2"
@@ -335,14 +339,19 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		useHyperImage bool
 	}
 	for cType, spec := range map[ComponentType]*stateDeploy{
-		GlanceComponentType:         {&obj.Glance.StatefulDeploymentSpec, DefaultGlanceStorageSize, obj.Version, useHyperImage},
-		InfluxdbComponentType:       {&obj.Influxdb.StatefulDeploymentSpec, DefaultInfluxdbStorageSize, DefaultInfluxdbImageVersion, false},
-		NotifyComponentType:         {&obj.Notify.StatefulDeploymentSpec, DefaultNotifyStorageSize, obj.Version, useHyperImage},
-		BaremetalAgentComponentType: {&obj.BaremetalAgent.StatefulDeploymentSpec, DefaultBaremetalStorageSize, obj.Version, false},
-		MeterComponentType:          {&obj.Meter.StatefulDeploymentSpec, DefaultMeterStorageSize, obj.Version, useHyperImage},
-		EsxiAgentComponentType:      {&obj.EsxiAgent.StatefulDeploymentSpec, DefaultEsxiAgentStorageSize, obj.Version, useHyperImage},
+		GlanceComponentType:          {&obj.Glance.StatefulDeploymentSpec, DefaultGlanceStorageSize, obj.Version, useHyperImage},
+		InfluxdbComponentType:        {&obj.Influxdb.StatefulDeploymentSpec, DefaultInfluxdbStorageSize, DefaultInfluxdbImageVersion, false},
+		VictoriaMetricsComponentType: {&obj.VictoriaMetrics.StatefulDeploymentSpec, DefaultVictoriaMetricsStorageSize, DefaultVictoriaMetricsImageVersion, false},
+		NotifyComponentType:          {&obj.Notify.StatefulDeploymentSpec, DefaultNotifyStorageSize, obj.Version, useHyperImage},
+		BaremetalAgentComponentType:  {&obj.BaremetalAgent.StatefulDeploymentSpec, DefaultBaremetalStorageSize, obj.Version, false},
+		MeterComponentType:           {&obj.Meter.StatefulDeploymentSpec, DefaultMeterStorageSize, obj.Version, useHyperImage},
+		EsxiAgentComponentType:       {&obj.EsxiAgent.StatefulDeploymentSpec, DefaultEsxiAgentStorageSize, obj.Version, useHyperImage},
 	} {
 		SetDefaults_StatefulDeploymentSpec(cType, spec.obj, spec.size, obj.ImageRepository, spec.version, spec.useHyperImage, isEE)
+	}
+
+	if obj.VictoriaMetrics.RententionPeriodDays == 0 {
+		obj.VictoriaMetrics.RententionPeriodDays = constants.VictoriaMetricsDefaultRententionPeriod
 	}
 
 	// setting web overview image
@@ -402,6 +411,7 @@ func setDefaults_Components_ServicePort(obj *OnecloudClusterSpec) {
 		newSP(&obj.Suggestion.Service, constants.SuggestionPort),
 		newSP(&obj.Notify.Service, constants.NotifyPort),
 		newSP(&obj.Influxdb.Service, constants.InfluxdbPort),
+		newSP(&obj.VictoriaMetrics.Service, constants.VictoriaMetricsPort),
 		newSP(&obj.Monitor.Service, constants.MonitorPort),
 		newSP(&obj.Scheduledtask.Service, constants.ScheduledtaskPort),
 		newSP(&obj.APIMap.Service, constants.APIMapPort),
