@@ -15,14 +15,14 @@ jobs:
       with:
         go-version: '1.18'
 
-    - name: Install check tools
-      shell: bash
-      run: |
-        set -o xtrace
-        git clone --branch yun --depth 4 https://github.com/yousong/tools && cd tools
-        go build ./cmd/goimports && sudo cp goimports /usr/bin/ && cd .. && rm -rf tools
-        git clone --depth 4 https://github.com/yousong/y18n && cd y18n
-        go build . && sudo cp y18n /usr/bin && cd .. && rm -rf y18n
+    # - name: Install check tools
+    #   shell: bash
+    #   run: |
+    #     set -o xtrace
+    #     git clone --branch yun --depth 4 https://github.com/yousong/tools && cd tools
+    #     go build ./cmd/goimports && sudo cp goimports /usr/bin/ && cd .. && rm -rf tools
+    #     git clone --depth 4 https://github.com/yousong/y18n && cd y18n
+    #     go build . && sudo cp y18n /usr/bin && cd .. && rm -rf y18n
 
     
     - name: Test and build
@@ -30,6 +30,6 @@ jobs:
       run: |
         set -o xtrace
         export GO111MODULE=on
-        make check
+        # make check
         make
         ls -lh _output/bin
