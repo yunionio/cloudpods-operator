@@ -20,7 +20,6 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
-	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
@@ -86,7 +85,23 @@ func (m *webconsoleManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 }
 
 func (m *webconsoleManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
-	return m.newCloudServiceSinglePortDeployment(v1alpha1.WebconsoleComponentType, "", oc, &oc.Spec.Webconsole.DeploymentSpec, constants.WebconsolePort, false, false)
+	cf := func(volMounts []corev1.VolumeMount) []corev1.Container {
+		return []corev1.Container{
+			{
+				Name:            v1alpha1.WebComponentType.String(),
+				Image:           oc.Spec.Webconsole.Image,
+				ImagePullPolicy: oc.Spec.Webconsole.ImagePullPolicy,
+				Command:         []string{"/opt/yunion/bin/webconsole", "--config", "/etc/yunion/webconsole.conf"},
+				VolumeMounts:    volMounts,
+			},
+			{
+				Name:            v1alpha1.GuacdComponentType.String(),
+				Image:           oc.Spec.Webconsole.Guacd.Image,
+				ImagePullPolicy: oc.Spec.Webconsole.Guacd.ImagePullPolicy,
+			},
+		}
+	}
+	return m.newDefaultDeploymentNoInit(v1alpha1.WebconsoleComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.WebconsoleComponentType), v1alpha1.WebconsoleComponentType), &oc.Spec.Webconsole.DeploymentSpec, cf)
 }
 
 func (m *webconsoleManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {

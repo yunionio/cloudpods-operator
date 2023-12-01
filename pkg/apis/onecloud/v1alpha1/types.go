@@ -63,6 +63,8 @@ const (
 	GlanceComponentType ComponentType = "glance"
 	// WebconsoleComponentType is webconsole component type
 	WebconsoleComponentType ComponentType = "webconsole"
+	// GuacdComponentType is guacd component type
+	GuacdComponentType ComponentType = "guacd"
 	// SchedulerComponentType is scheduler component type
 	SchedulerComponentType ComponentType = "scheduler"
 	// LogComponentType is logger service component type
@@ -243,7 +245,7 @@ type OnecloudClusterSpec struct {
 	// Climc holds configuration for climc
 	Climc DeploymentSpec `json:"climc"`
 	// Webconsole holds configuration for webconsole
-	Webconsole DeploymentServicePortSpec `json:"webconsole"`
+	Webconsole WebconsoleSpec `json:"webconsole"`
 	// Logger holds configuration for log service
 	Logger DeploymentServicePortSpec `json:"logger"`
 	// Yunionconf holds configuration for yunionconf service
@@ -571,6 +573,12 @@ type ServicePortSpec struct {
 
 type ServiceSpec struct {
 	ServicePortSpec
+}
+
+type WebconsoleSpec struct {
+	DeploymentServicePortSpec
+
+	Guacd ContainerSpec
 }
 
 type DeploymentServicePortSpec struct {

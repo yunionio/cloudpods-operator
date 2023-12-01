@@ -82,6 +82,7 @@ const (
 	DefaultHostQemuVersion = "4.2.0"
 
 	DefaultEChartSSRVersion = "v0.0.1"
+	DefaultGuacdVersion     = "1.5.3"
 )
 
 func addDefaultingFuncs(scheme *runtime.Scheme) error {
@@ -254,6 +255,16 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 			useHI, isEE,
 		))
 	}
+
+	// setting webconsole guacd image
+	obj.Webconsole.Guacd.Image = getImage(
+		obj.ImageRepository, obj.Webconsole.Guacd.Repository,
+		GuacdComponentType, obj.Webconsole.Guacd.ImageName,
+		DefaultGuacdVersion, obj.Webconsole.Guacd.Tag,
+		useHyperImage, false,
+	)
+	obj.Webconsole.Guacd.ImagePullPolicy = corev1.PullIfNotPresent
+	clearContainerSpec(&obj.Webconsole.Guacd)
 
 	// setting sdnagent image
 	obj.HostAgent.SdnAgent.Image = getImage(
