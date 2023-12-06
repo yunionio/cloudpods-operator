@@ -104,6 +104,7 @@ func (m *vmManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.On
 					fmt.Sprintf("--envflag.prefix=VM_"),
 					fmt.Sprintf("--loggerFormat=json"),
 					fmt.Sprintf("--influx.databaseNames=%s", strings.Join(fakeInfluxDBs, ",")),
+					fmt.Sprintf("--maxLabelsPerTimeseries=%d", 60),
 				},
 				VolumeMounts: volMounts,
 				Ports: []corev1.ContainerPort{
