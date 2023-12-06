@@ -69,8 +69,7 @@ const (
 
 	DefaultInfluxdbImageVersion = "1.7.7"
 
-	// victoriametrics/victoria-metrics:v1.94.0
-	DefaultVictoriaMetricsImageVersion = "v1.94.0"
+	DefaultVictoriaMetricsImageVersion = "v1.95.1"
 
 	DefaultTelegrafImageName     = "telegraf"
 	DefaultTelegrafImageTag      = "release-1.19.2-2"
