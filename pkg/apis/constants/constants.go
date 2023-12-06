@@ -422,6 +422,14 @@ const (
 	BastionHostPort         = 30983
 	BastionHostDB           = "bastionhost"
 	BastionHostDBUser       = "bastionhost"
+
+	ServiceNameExtdb  = "extdb"
+	ServiceTypeExtdb  = "extdb"
+	ExtdbAdminUser    = "extdb"
+	ExtdbAdminProject = SysAdminProject
+	ExtdbPort         = 30991
+	ExtdbDB           = "extdb"
+	ExtdbDBUser       = "extdb"
 )
 
 var (
