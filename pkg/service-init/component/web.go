@@ -147,19 +147,7 @@ server {
         proxy_read_timeout 600;
     }
 
-    location /api/v1/imageutils/upload {
-        proxy_pass {{.APIGatewayURL}};
-        client_max_body_size 0;
-        client_body_timeout 300;
-        proxy_http_version 1.1;
-        proxy_request_buffering off;
-        proxy_buffering off;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $remote_addr;
-    }
-
-    location /api/v1/s3uploads {
+    location ~ ^/api/v1/*(upload|uploads)$ {
         proxy_pass {{.APIGatewayURL}};
         client_max_body_size 0;
         client_body_timeout 300;
