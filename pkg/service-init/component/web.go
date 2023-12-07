@@ -179,6 +179,17 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }
 
+    location /webconsole/sftp {
+        proxy_pass {{.WebconsoleURL}};
+        client_max_body_size 0;
+        proxy_http_version 1.1;
+        proxy_request_buffering off;
+        proxy_buffering off;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+    }
+
     location ~ ^/(vnc|spice|wmks|sol) {
         proxy_pass {{.WebconsoleURL}};
         proxy_redirect   off;
