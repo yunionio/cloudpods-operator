@@ -101,7 +101,7 @@ func (m *hostDeployerManager) newHostPrivilegedDaemonSet(
 	// }
 	maxUnavailable := intstr.FromInt(999)
 	ds.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable = &maxUnavailable
-	ds.Spec.Template.Spec.HostNetwork = false
+	ds.Spec.Template.Spec.HostNetwork = true
 	return ds, nil
 }
 
