@@ -38,6 +38,13 @@ func (m *hostDeployerManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.HostDeployer.Disable, "")
 }
 
+func (m *hostDeployerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
+	if oc.Spec.ProductVersion == v1alpha1.ProductVersionCMP {
+		return newHostManager(m.ComponentManager).(*hostManager).getConfigMap(oc, cfg, zone)
+	}
+	return nil, false, nil
+}
+
 func (m *hostDeployerManager) getDaemonSet(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.DaemonSet, error) {
 	return m.newHostPrivilegedDaemonSet(v1alpha1.HostDeployerComponentType, oc, cfg)
 }
