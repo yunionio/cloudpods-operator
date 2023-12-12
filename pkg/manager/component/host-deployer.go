@@ -59,11 +59,11 @@ func (m *hostDeployerManager) newHostPrivilegedDaemonSet(
 					Name:  cType.String(),
 					Image: dsSpec.Image,
 					Command: []string{
-						"sh", "-c", fmt.Sprintf(`
-							virtlogd -d && libvirtd -d &&
-							/opt/yunion/bin/%s --common-config-file /etc/yunion/common/common.conf --config /etc/yunion/host.conf`,
-							cType.String(),
-						),
+						fmt.Sprintf("/opt/yunion/bin/%s", cType.String()),
+						"--common-config-file",
+						"/etc/yunion/common/common.conf",
+						"--config",
+						"/etc/yunion/host.conf",
 					},
 					ImagePullPolicy: dsSpec.ImagePullPolicy,
 					VolumeMounts:    volMounts,
@@ -101,7 +101,7 @@ func (m *hostDeployerManager) newHostPrivilegedDaemonSet(
 	if err != nil {
 		return nil, err
 	}
-	ds.Spec.Template.Spec.HostNetwork = false
+	ds.Spec.Template.Spec.HostNetwork = true
 	return ds, nil
 }
 
