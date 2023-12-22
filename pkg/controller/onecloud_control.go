@@ -1040,7 +1040,12 @@ func (c *tsdbComponent) Setup() error {
 	}
 	if !exists {
 		regionName := NewClusterComponentName(oc.GetName(), v1alpha1.RegionComponentType)
-		region, err := c.manager.GetController().kubeCli.AppsV1().Deployments(oc.Namespace).Get(context.Background(), regionName, metav1.GetOptions{})
+		controller := c.manager.GetController()
+		if controller == nil {
+			log.Warningf("maybe running inside docker compose environment, skip restart region service")
+			return nil
+		}
+		region, err := controller.kubeCli.AppsV1().Deployments(oc.Namespace).Get(context.Background(), regionName, metav1.GetOptions{})
 		if err != nil && k8serrors.IsNotFound(err) {
 			return nil
 		} else if region.Status.ReadyReplicas == 0 {
