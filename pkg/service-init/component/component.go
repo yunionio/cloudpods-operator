@@ -65,8 +65,7 @@ func (c composeComponentManager) RunWithSession(oc *v1alpha1.OnecloudCluster, f 
 }
 
 func (c composeComponentManager) GetController() *controller.OnecloudControl {
-	//TODO implement me
-	panic("implement me")
+	return nil
 }
 
 func (c composeComponentManager) GetCluster() *v1alpha1.OnecloudCluster {
