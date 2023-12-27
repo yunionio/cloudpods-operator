@@ -357,6 +357,14 @@ const (
 	MeterMonthlyBill       = true
 	MeterAwsRiPlanIdHandle = "true"
 
+	ServiceNameBilling  = "billing"
+	ServiceTypeBilling  = "billing"
+	BillingPort         = 30404
+	BillingAdminUser    = "billingadmin"
+	BillingAdminProject = SysAdminProject
+	BillingDB           = "yunionbilling"
+	BillingDBUser       = "yunionbilling"
+
 	EsxiAgentAdminUser = "esxiagent"
 	EsxiAgentPort      = 30883
 	EsxiAgentDataStore = "/opt/cloud/workspace"

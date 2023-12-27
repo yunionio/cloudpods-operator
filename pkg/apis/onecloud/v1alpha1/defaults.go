@@ -185,6 +185,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		APIMapComponentType:          nHP(&obj.APIMap.DeploymentSpec, useHyperImage),
 		BastionHostComponentType:     nHP(&obj.BastionHost.DeploymentSpec, useHyperImage),
 		ExtdbComponentType:           nHP(&obj.Extdb.DeploymentSpec, useHyperImage),
+		BillingComponentType:         nHP(&obj.Billing.DeploymentSpec, useHyperImage),
 	} {
 		SetDefaults_DeploymentSpec(spec.DeploymentSpec, getImage(
 			obj.ImageRepository, spec.Repository,
@@ -418,6 +419,7 @@ func setDefaults_Components_ServicePort(obj *OnecloudClusterSpec) {
 		newSP(&obj.S3gateway.Service, constants.S3gatewayPort),
 		newSP(&obj.Devtool.Service, constants.DevtoolPort),
 		newSP(&obj.Meter.Service, constants.MeterPort),
+		newSP(&obj.Billing.Service, constants.BillingPort),
 		newSP(&obj.Itsm.Service, constants.ItsmPort),
 		newSP(&obj.Suggestion.Service, constants.SuggestionPort),
 		newSP(&obj.Notify.Service, constants.NotifyPort),
@@ -743,6 +745,7 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		&obj.Notify:                              {constants.NotifyAdminUser, constants.NotifyPort, constants.NotifyDB, constants.NotifyDBUser},
 		&obj.Devtool:                             {constants.DevtoolAdminUser, constants.DevtoolPort, constants.DevtoolDB, constants.DevtoolDBUser},
 		&obj.Meter.ServiceDBCommonOptions:        {constants.MeterAdminUser, constants.MeterPort, constants.MeterDB, constants.MeterDBUser},
+		&obj.Billing:                             {constants.BillingAdminUser, constants.BillingPort, constants.BillingDB, constants.BillingDBUser},
 		&obj.Monitor:                             {constants.MonitorAdminUser, constants.MonitorPort, constants.MonitorDB, constants.MonitorDBUser},
 		&obj.Itsm.ServiceDBCommonOptions:         {constants.ItsmAdminUser, constants.ItsmPort, constants.ItsmDB, constants.ItsmDBUser},
 		&obj.CloudId:                             {constants.CloudIdAdminUser, constants.CloudIdPort, constants.CloudIdDB, constants.CloudIdDBUser},

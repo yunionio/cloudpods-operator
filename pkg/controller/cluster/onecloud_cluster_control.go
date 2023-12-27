@@ -123,6 +123,7 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 		components.AnsibleServer(),
 		components.APIGateway(),
 		components.Meter(),
+		components.Billing(),
 		components.EsxiAgent(),
 		components.OvnNorth(),
 		components.APIMap(),
