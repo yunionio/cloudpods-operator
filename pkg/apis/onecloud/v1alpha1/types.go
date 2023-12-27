@@ -99,6 +99,8 @@ const (
 	DevtoolComponentType ComponentType = "devtool"
 	// MeterComponentType is meter service
 	MeterComponentType ComponentType = "meter"
+	// BillingComponentType is billing service
+	BillingComponentType ComponentType = "billing"
 	// AutoUpdateComponentType is autoupdate service
 	AutoUpdateComponentType ComponentType = "autoupdate"
 	// CloudmonPing is ping cronjob
@@ -296,6 +298,8 @@ type OnecloudClusterSpec struct {
 	Devtool DeploymentServicePortSpec `json:"devtool"`
 	// Meter holds configuration for meter
 	Meter MeterSpec `json:"meter"`
+	// Billing holds configuration for billing
+	Billing DeploymentServicePortSpec `json:"billing"`
 	// AutoUpdate holds configuration for autoupdate
 	AutoUpdate DeploymentServicePortSpec `json:"autoupdate"`
 	// Cloudmon holds configuration for report monitor data
@@ -359,6 +363,7 @@ type OnecloudClusterStatus struct {
 	S3gateway       DeploymentStatus     `json:"s3gateway,omitempty"`
 	Devtool         DeploymentStatus     `json:"devtool,omitempty"`
 	Meter           MeterStatus          `json:"meter,omitempty"`
+	BillingStatus   DeploymentStatus     `json:"billing,omitempty"`
 	AutoUpdate      DeploymentStatus     `json:"autoupdate,omitempty"`
 	EsxiAgent       EsxiAgentStatus      `json:"esxiagent,omitempty"`
 	OvnNorth        DeploymentStatus     `json:"ovnNorth,omitempty"`
@@ -816,6 +821,10 @@ type MeterStatus struct {
 	DeploymentStatus
 }
 
+type BillingStatus struct {
+	DeploymentStatus
+}
+
 type EsxiAgentStatus struct {
 	DeploymentStatus
 	ZoneEsxiAgent map[string]*DeploymentStatus `json:"zoneEsxiAgent,omitempty"`
@@ -1166,6 +1175,7 @@ type OnecloudClusterConfig struct {
 	S3gateway       ServiceCommonOptions   `json:"s3gateway"`
 	Devtool         ServiceDBCommonOptions `json:"devtool"`
 	Meter           MeterConfig            `json:"meter"`
+	Billing         ServiceDBCommonOptions `json:"billing"`
 	AutoUpdate      ServiceDBCommonOptions `json:"autoupdate"`
 	EsxiAgent       EsxiAgentConfig        `json:"esxiagent"`
 	VpcAgent        VpcAgentConfig         `json:"vpcagent"`

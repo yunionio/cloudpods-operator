@@ -1488,6 +1488,10 @@ func (m *ComponentManager) Meter() manager.Manager {
 	return newMeterManager(m)
 }
 
+func (m *ComponentManager) Billing() manager.Manager {
+	return newBillingManager(m)
+}
+
 func (m *ComponentManager) AutoUpdate() manager.Manager {
 	return newAutoUpdateManager(m)
 }
