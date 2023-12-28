@@ -949,7 +949,9 @@ type TelegrafSpec struct {
 	DaemonSetSpec
 	InitContainerImage string `json:"initContainerImage"`
 	EnableRaidPlugin   bool   `json:"enableRaidPlugin"`
-	TelegrafRaidImage  string `json:"telegrafRaidImage"`
+	// TelegrafRaidImage  string `json:"telegrafRaidImage"`
+
+	TelegrafRaid ContainerSpec
 }
 
 type EChartsSSRSpec struct {

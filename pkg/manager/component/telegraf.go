@@ -85,8 +85,8 @@ func (m *telegrafManager) newTelegrafDaemonSet(
 		if oc.Spec.Telegraf.EnableRaidPlugin {
 			cs = append(cs, corev1.Container{
 				Name:            "telegraf-raid-plugin",
-				Image:           dsSpec.TelegrafRaidImage,
-				ImagePullPolicy: dsSpec.ImagePullPolicy,
+				Image:           dsSpec.TelegrafRaid.Image,
+				ImagePullPolicy: dsSpec.TelegrafRaid.ImagePullPolicy,
 				Command: []string{
 					"/opt/yunion/bin/telegraf-raid-plugin",
 				},

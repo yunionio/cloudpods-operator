@@ -316,12 +316,20 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		DefaultTelegrafInitImageTag, "",
 		false, isEE,
 	)
-	obj.Telegraf.TelegrafRaidImage = getImage(
-		obj.ImageRepository, obj.Telegraf.Repository,
-		DefaultTelegrafRaidImageName, "",
-		DefaultTelegrafRaidImageTag, "",
+	// obj.Telegraf.TelegrafRaidImage = getImage(
+	//	obj.ImageRepository, obj.Telegraf.Repository,
+	//	DefaultTelegrafRaidImageName, "",
+	//	DefaultTelegrafRaidImageTag, "",
+	//	false, isEE,
+	// )
+	obj.Telegraf.TelegrafRaid.Image = getImage(
+		obj.ImageRepository, obj.Telegraf.TelegrafRaid.Repository,
+		DefaultTelegrafRaidImageName, obj.Telegraf.TelegrafRaid.ImageName,
+		DefaultTelegrafRaidImageTag, obj.Telegraf.TelegrafRaid.Tag,
 		false, isEE,
 	)
+	obj.Telegraf.TelegrafRaid.ImagePullPolicy = corev1.PullIfNotPresent
+
 	SetDefaults_DaemonSetSpec(
 		&obj.Telegraf.DaemonSetSpec,
 		getImage(obj.ImageRepository, obj.Telegraf.Repository,
