@@ -1932,6 +1932,7 @@ func (in *TLSPolicy) DeepCopy() *TLSPolicy {
 func (in *TelegrafSpec) DeepCopyInto(out *TelegrafSpec) {
 	*out = *in
 	in.DaemonSetSpec.DeepCopyInto(&out.DaemonSetSpec)
+	in.TelegrafRaid.DeepCopyInto(&out.TelegrafRaid)
 	return
 }
 
