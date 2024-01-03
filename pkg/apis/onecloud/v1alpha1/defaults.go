@@ -262,7 +262,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		obj.ImageRepository, obj.Webconsole.Guacd.Repository,
 		GuacdComponentType, obj.Webconsole.Guacd.ImageName,
 		DefaultGuacdVersion, obj.Webconsole.Guacd.Tag,
-		useHyperImage, false,
+		false, false,
 	)
 	obj.Webconsole.Guacd.ImagePullPolicy = corev1.PullIfNotPresent
 	clearContainerSpec(&obj.Webconsole.Guacd)
@@ -309,7 +309,6 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		DefaultHostHealthTag, obj.HostAgent.HostHealth.Tag,
 		false, isEE,
 	)
-
 	clearContainerSpec(&obj.HostImage.ContainerSpec)
 
 	// lbagent ovn-controller
@@ -342,6 +341,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		false, isEE,
 	)
 	obj.Telegraf.TelegrafRaid.ImagePullPolicy = corev1.PullIfNotPresent
+	clearContainerSpec(&obj.Telegraf.TelegrafRaid)
 
 	SetDefaults_DaemonSetSpec(
 		&obj.Telegraf.DaemonSetSpec,
