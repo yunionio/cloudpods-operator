@@ -76,7 +76,7 @@ func (conn *Connection) CreateUser(username string, password string, database st
 	for _, sql := range []string{
 		fmt.Sprintf("CREATE USER %s IDENTIFIED WITH sha256_hash BY '%s' HOST ANY", username, passhash),
 		fmt.Sprintf("GRANT ALL ON %s.* TO %s", database, username),
-		fmt.Sprintf("GRANT MYSQL ON %s.* TO %s", database, username),
+		fmt.Sprintf("GRANT MYSQL ON *.* TO %s", username),
 	} {
 		_, err := conn.db.Exec(sql)
 		if err != nil {
