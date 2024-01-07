@@ -84,7 +84,11 @@ func (m *regionManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 }
 
 func (m *regionManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
-	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.RegionComponentType, "", oc, &oc.Spec.RegionServer.DeploymentSpec, int32(cfg.RegionServer.Port), true, true)
+	deploy, err := m.newCloudServiceSinglePortDeploymentWithReadinessProbePath(
+		v1alpha1.RegionComponentType, "", oc, &oc.Spec.RegionServer.DeploymentSpec,
+		int32(cfg.RegionServer.Port), true, true,
+		"/ping",
+	)
 	if err != nil {
 		return nil, err
 	}

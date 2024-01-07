@@ -155,6 +155,8 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 					FailureThreshold: 30,
 					PeriodSeconds:    10,
 				},
+				ReadinessProbe: generateReadinessProbe("/ping", 8885),
+				// LivenessProbe:  generateLivenessProbe("/ping", 8885),
 			},
 		}
 		if !oc.Spec.DisableLocalVpc {
