@@ -117,7 +117,11 @@ func (m *meterManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 }
 
 func (m *meterManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
-	deploy, err := m.newCloudServiceSinglePortDeployment(v1alpha1.MeterComponentType, "", oc, &oc.Spec.Meter.DeploymentSpec, constants.MeterPort, true, false)
+	deploy, err := m.newCloudServiceSinglePortDeploymentWithReadinessProbePath(
+		v1alpha1.MeterComponentType, "", oc, &oc.Spec.Meter.DeploymentSpec,
+		constants.MeterPort, true, false,
+		"/ping",
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -170,11 +174,11 @@ func (m *meterManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	return deploy, nil
 }
 
-func (m *meterManager) getPodLabels() map[string]string {
+/*func (m *meterManager) getPodLabels() map[string]string {
 	return map[string]string{
 		constants.OnecloudHostDeployerLabelKey: "",
 	}
-}
+}*/
 
 func (m *meterManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Meter.DeploymentStatus
