@@ -93,6 +93,7 @@ func (m *apiGatewayManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1a
 				ImagePullPolicy: oc.Spec.APIGateway.ImagePullPolicy,
 				Command:         []string{cmd, "--config", "/etc/yunion/apigateway.conf"},
 				VolumeMounts:    volMounts,
+				ReadinessProbe:  generateReadinessProbe("/ping", int32(cfg.APIGateway.Port)),
 			},
 		}
 		if isEE {
@@ -106,7 +107,11 @@ func (m *apiGatewayManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1a
 		}
 		return cs
 	}
-	deploy, err := m.newDefaultDeploymentNoInit(v1alpha1.APIGatewayComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.APIGatewayComponentType), v1alpha1.APIGatewayComponentType), &oc.Spec.APIGateway.DeploymentSpec, cf)
+	deploy, err := m.newDefaultDeploymentNoInit(
+		v1alpha1.APIGatewayComponentType, "", oc,
+		NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.APIGatewayComponentType), v1alpha1.APIGatewayComponentType),
+		&oc.Spec.APIGateway.DeploymentSpec, cf,
+	)
 	if err != nil {
 		return nil, err
 	}

@@ -134,7 +134,9 @@ func (m *keystoneManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 						Protocol:      corev1.ProtocolTCP,
 					},
 				},
-				VolumeMounts: volMounts,
+				VolumeMounts:   volMounts,
+				ReadinessProbe: generateReadinessProbe("/ping", int32(constants.KeystonePublicPort)),
+				// LivenessProbe:  generateLivenessProbe("/ping", int32(constants.KeystonePublicPort)),
 			},
 		}
 	}
