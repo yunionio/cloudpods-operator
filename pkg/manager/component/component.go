@@ -924,11 +924,59 @@ func (m *ComponentManager) getNodeCapacity(node *corev1.Node) (*resource.Quantit
 	return capacity.Cpu(), capacity.Memory(), nil
 }
 
+func generateLivenessProbe(path string, port int32) *v1.Probe {
+	return &v1.Probe{
+		InitialDelaySeconds: 60,
+		PeriodSeconds:       5,
+		FailureThreshold:    3,
+		SuccessThreshold:    1,
+		TimeoutSeconds:      5,
+		Handler: v1.Handler{
+			HTTPGet: &v1.HTTPGetAction{
+				Path: path,
+				Port: intstr.IntOrString{
+					Type:   intstr.Int,
+					IntVal: port,
+				},
+				Scheme: corev1.URISchemeHTTPS,
+			},
+		},
+	}
+}
+
+func generateReadinessProbe(path string, port int32) *v1.Probe {
+	return &v1.Probe{
+		InitialDelaySeconds: 30,
+		PeriodSeconds:       15,
+		FailureThreshold:    3,
+		SuccessThreshold:    3,
+		TimeoutSeconds:      5,
+		Handler: v1.Handler{
+			HTTPGet: &v1.HTTPGetAction{
+				Path: path,
+				Port: intstr.IntOrString{
+					Type:   intstr.Int,
+					IntVal: port,
+				},
+				Scheme: corev1.URISchemeHTTPS,
+			},
+		},
+	}
+}
+
 func (m *ComponentManager) newCloudServiceDeployment(
 	cType v1alpha1.ComponentType, zoneComponentType v1alpha1.ComponentType,
 	oc *v1alpha1.OnecloudCluster, deployCfg *v1alpha1.DeploymentSpec,
-	initContainersF func([]corev1.VolumeMount) []corev1.Container, ports []corev1.ContainerPort, mountEtcdTLS bool, keepAffinity bool,
+	initContainersF func([]corev1.VolumeMount) []corev1.Container,
+	ports []corev1.ContainerPort, mountEtcdTLS bool, keepAffinity bool,
+	readinessProbePath string,
 ) (*apps.Deployment, error) {
+	var readyProbe *v1.Probe
+	// var liveProbe *v1.Probe
+	if len(readinessProbePath) > 0 {
+		readyProbe = generateReadinessProbe(readinessProbePath, ports[0].ContainerPort)
+		// liveProbe = generateLivenessProbe(readinessProbePath, ports[0].ContainerPort)
+	}
 	configMap := controller.ComponentConfigMapName(oc, zoneComponentType)
 	containersF := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		return []corev1.Container{
@@ -943,6 +991,8 @@ func (m *ComponentManager) newCloudServiceDeployment(
 				ImagePullPolicy: deployCfg.ImagePullPolicy,
 				Ports:           ports,
 				VolumeMounts:    volMounts,
+				ReadinessProbe:  readyProbe,
+				// LivenessProbe:   liveProbe,
 			},
 		}
 	}
@@ -970,6 +1020,7 @@ func (m *ComponentManager) newCloudServiceDeploymentWithInit(
 	deployCfg *v1alpha1.DeploymentSpec,
 	ports []corev1.ContainerPort,
 	mountEtcdTLS bool,
+	readinessProbePath string,
 ) (*apps.Deployment, error) {
 	initContainersF := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		return []corev1.Container{
@@ -991,7 +1042,7 @@ func (m *ComponentManager) newCloudServiceDeploymentWithInit(
 	if len(zoneComponentType) == 0 {
 		zoneComponentType = cType
 	}
-	return m.newCloudServiceDeployment(cType, zoneComponentType, oc, deployCfg, initContainersF, ports, mountEtcdTLS, true)
+	return m.newCloudServiceDeployment(cType, zoneComponentType, oc, deployCfg, initContainersF, ports, mountEtcdTLS, true, readinessProbePath)
 }
 
 func (m *ComponentManager) newCloudServiceDeploymentNoInit(
@@ -1000,11 +1051,12 @@ func (m *ComponentManager) newCloudServiceDeploymentNoInit(
 	deployCfg *v1alpha1.DeploymentSpec,
 	ports []corev1.ContainerPort,
 	mountEtcdTLS bool,
+	readinessProbePath string,
 ) (*apps.Deployment, error) {
 	if len(zoneComponentType) == 0 {
 		zoneComponentType = cType
 	}
-	return m.newCloudServiceDeployment(cType, zoneComponentType, oc, deployCfg, nil, ports, mountEtcdTLS, true)
+	return m.newCloudServiceDeployment(cType, zoneComponentType, oc, deployCfg, nil, ports, mountEtcdTLS, true, readinessProbePath)
 }
 
 func (m *ComponentManager) newCloudServiceSinglePortDeployment(
@@ -1012,6 +1064,16 @@ func (m *ComponentManager) newCloudServiceSinglePortDeployment(
 	oc *v1alpha1.OnecloudCluster,
 	deployCfg *v1alpha1.DeploymentSpec,
 	port int32, doInit bool, mountEtcdTLS bool,
+) (*apps.Deployment, error) {
+	return m.newCloudServiceSinglePortDeploymentWithReadinessProbePath(cType, zoneComponentType, oc, deployCfg, port, doInit, mountEtcdTLS, "")
+}
+
+func (m *ComponentManager) newCloudServiceSinglePortDeploymentWithReadinessProbePath(
+	cType, zoneComponentType v1alpha1.ComponentType,
+	oc *v1alpha1.OnecloudCluster,
+	deployCfg *v1alpha1.DeploymentSpec,
+	port int32, doInit bool, mountEtcdTLS bool,
+	readinessProbePath string,
 ) (*apps.Deployment, error) {
 	ports := []corev1.ContainerPort{
 		{
@@ -1024,7 +1086,7 @@ func (m *ComponentManager) newCloudServiceSinglePortDeployment(
 	if doInit {
 		f = m.newCloudServiceDeploymentWithInit
 	}
-	return f(cType, zoneComponentType, oc, deployCfg, ports, mountEtcdTLS)
+	return f(cType, zoneComponentType, oc, deployCfg, ports, mountEtcdTLS, readinessProbePath)
 }
 
 func (m *ComponentManager) deploymentIsUpgrading(deploy *apps.Deployment, oc *v1alpha1.OnecloudCluster) (bool, error) {
