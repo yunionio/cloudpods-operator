@@ -141,7 +141,7 @@ func (m *webManager) getIngress(oc *v1alpha1.OnecloudCluster, zone string) *unst
 				"http": map[string]interface{}{
 					"paths": []interface{}{
 						map[string]interface{}{
-							"pathType": "Exact",
+							"pathType": "Prefix",
 							"path":     "/",
 							"backend": map[string]interface{}{
 								"serviceName": svcName,
