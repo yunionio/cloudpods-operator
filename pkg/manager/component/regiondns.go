@@ -20,11 +20,15 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
+	identity_api "yunion.io/x/onecloud/pkg/apis/identity"
+	"yunion.io/x/onecloud/pkg/cloudcommon/options"
+
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
 	"yunion.io/x/onecloud-operator/pkg/service-init/component"
+	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
 const (
@@ -34,9 +38,15 @@ const (
     yunion . {
         sql_connection mysql+pymysql://{{.DBUser}}:{{.DBPassword}}@{{.DBHost}}:{{.DBPort}}/{{.DBName}}?charset=utf8
         dns_domain {{.DNSDomain}}
+        auth_url {{.AuthURL}}
+        admin_user {{.AdminUser}}
+        admin_domain {{.AdminDomain}}
+        admin_password {{.AdminPassword}}
+        admin_project {{.AdminProject}}
+        admin_project_domain {{.AdminProjectDomain}}
         region {{.Region}}
-        k8s_skip
-        fallthrough .
+        {{if .InCloudOnly}}in_cloud_only
+        {{end}}fallthrough .
     }
 
     {{- range .Proxies }}
@@ -53,15 +63,20 @@ const (
 )
 
 type RegionDNSConfig struct {
+	options.CommonOptions
+
 	DBUser     string
 	DBPassword string
 	DBHost     string
 	DBPort     int32
 	DBName     string
-	DNSDomain  string
-	Region     string
+
+	DNSDomain string
+	// Region    string
 
 	Proxies []RegionDNSProxy
+
+	InCloudOnly bool
 }
 
 type RegionDNSProxy struct {
@@ -130,16 +145,28 @@ func (m *regionDNSManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 		DBHost:     db.Host,
 		DBPort:     db.Port,
 		DBName:     regionDB.Database,
-		DNSDomain:  regionSpec.DNSDomain,
-		Region:     oc.GetRegion(),
-		Proxies:    proxies,
+
+		DNSDomain: regionSpec.DNSDomain,
+
+		Proxies: proxies,
+
+		InCloudOnly: spec.InCloudOnly,
+	}
+	config.Region = oc.GetRegion()
+	option.SetServiceCommonOptions(&config.CommonOptions, oc, cfg.RegionServer.ServiceDBCommonOptions.ServiceCommonOptions)
+	if len(config.AdminProjectDomain) == 0 {
+		config.AdminProjectDomain = identity_api.DEFAULT_DOMAIN_NAME
+	}
+	if len(config.AdminDomain) == 0 {
+		config.AdminDomain = identity_api.DEFAULT_DOMAIN_NAME
 	}
 	content, err := config.GetContent()
 	if err != nil {
 		return nil, false, err
 	}
 	oc.Spec.RegionDNS = spec
-	return m.newConfigMap(cType, "", oc, content), false, nil
+	// always update configmaps
+	return m.newConfigMap(cType, "", oc, content), true, nil
 }
 
 func (m *regionDNSManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
