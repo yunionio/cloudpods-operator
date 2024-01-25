@@ -15,6 +15,7 @@
 package onecloud
 
 import (
+	"context"
 	"net/http"
 	"reflect"
 	"strings"
@@ -32,6 +33,7 @@ import (
 	identityapi "yunion.io/x/onecloud/pkg/apis/identity"
 	monitorapi "yunion.io/x/onecloud/pkg/apis/monitor"
 	"yunion.io/x/onecloud/pkg/mcclient"
+	"yunion.io/x/onecloud/pkg/mcclient/auth"
 	"yunion.io/x/onecloud/pkg/mcclient/modulebase"
 	ansible_modules "yunion.io/x/onecloud/pkg/mcclient/modules/ansible"
 	"yunion.io/x/onecloud/pkg/mcclient/modules/compute"
@@ -909,4 +911,21 @@ func GetConfig(opt interface{}) jsonutils.JSONObject {
 		}
 	}
 	return options
+}
+
+func InitServiceConfig(service, region string, opts map[string]interface{}) error {
+	s := auth.GetAdminSession(context.Background(), region)
+	resp, err := identity.ServicesV3.GetSpecific(s, service, "config", nil)
+	if err != nil {
+		return errors.Wrapf(err, "get spec")
+	}
+	values := jsonutils.NewDict()
+	for k, v := range opts {
+		if resp.Contains("config", "default", k) {
+			continue
+		}
+		values.Add(jsonutils.Marshal(v), "config", "default", k)
+	}
+	_, err = identity.ServicesV3.PerformAction(s, service, "config", values)
+	return err
 }

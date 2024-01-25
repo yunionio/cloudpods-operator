@@ -2,6 +2,7 @@ package component
 
 import (
 	"fmt"
+
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/util/option"
@@ -44,14 +45,19 @@ func (r webconsole) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.Oneclo
 	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
 	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 
-	opt.IpmitoolPath = "/usr/sbin/ipmitool"
-	opt.EnableAutoLogin = true
 	address := oc.Spec.LoadBalancerEndpoint
 	opt.Port = constants.WebconsolePort
 	// opt.ApiServer = fmt.Sprintf("https://%s:%d", address, constants.WebconsolePort)
 	opt.ApiServer = fmt.Sprintf("https://%s", address)
 
 	return opt, nil
+}
+
+func (r webconsole) GetServiceInitConfig(oc *v1alpha1.OnecloudCluster) map[string]interface{} {
+	return map[string]interface{}{
+		"ipmitool_path":     "/usr/sbin/ipmitool",
+		"enable_auto_login": true,
+	}
 }
 
 func (w webconsole) GetDefaultDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
