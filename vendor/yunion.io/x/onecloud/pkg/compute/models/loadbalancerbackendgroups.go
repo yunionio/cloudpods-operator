@@ -92,7 +92,7 @@ func (manager *SLoadbalancerBackendGroupManager) FetchOwnerId(ctx context.Contex
 	return db.FetchProjectInfo(ctx, data)
 }
 
-func (manager *SLoadbalancerBackendGroupManager) FilterByOwner(q *sqlchemy.SQuery, man db.FilterByOwnerProvider, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, scope rbacscope.TRbacScope) *sqlchemy.SQuery {
+func (manager *SLoadbalancerBackendGroupManager) FilterByOwner(ctx context.Context, q *sqlchemy.SQuery, man db.FilterByOwnerProvider, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, scope rbacscope.TRbacScope) *sqlchemy.SQuery {
 	if ownerId != nil {
 		sq := LoadbalancerManager.Query("id")
 		switch scope {
@@ -207,7 +207,7 @@ func (manager *SLoadbalancerBackendGroupManager) FilterByUniqValues(q *sqlchemy.
 }
 
 func (man *SLoadbalancerBackendGroupManager) ValidateCreateData(ctx context.Context, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, query jsonutils.JSONObject, input *api.LoadbalancerBackendGroupCreateInput) (*api.LoadbalancerBackendGroupCreateInput, error) {
-	lbObj, err := validators.ValidateModel(userCred, LoadbalancerManager, &input.LoadbalancerId)
+	lbObj, err := validators.ValidateModel(ctx, userCred, LoadbalancerManager, &input.LoadbalancerId)
 	if err != nil {
 		return nil, err
 	}
@@ -240,7 +240,7 @@ func (man *SLoadbalancerBackendGroupManager) ValidateCreateData(ctx context.Cont
 
 		switch input.Backends[i].BackendType {
 		case api.LB_BACKEND_GUEST:
-			guestObj, err := validators.ValidateModel(userCred, GuestManager, &input.Backends[i].Id)
+			guestObj, err := validators.ValidateModel(ctx, userCred, GuestManager, &input.Backends[i].Id)
 			if err != nil {
 				return nil, err
 			}
@@ -265,7 +265,7 @@ func (man *SLoadbalancerBackendGroupManager) ValidateCreateData(ctx context.Cont
 			if db.IsAdminAllowCreate(userCred, man).Result.IsDeny() {
 				return nil, httperrors.NewForbiddenError("only sysadmin can specify host as backend")
 			}
-			hostObj, err := validators.ValidateModel(userCred, HostManager, &input.Backends[i].Id)
+			hostObj, err := validators.ValidateModel(ctx, userCred, HostManager, &input.Backends[i].Id)
 			if err != nil {
 				return nil, err
 			}
@@ -477,7 +477,7 @@ func (man *SLoadbalancerBackendGroupManager) FetchCustomizeColumns(
 			return rows
 		}
 
-		q = LoadbalancerListenerManager.FilterByOwner(q, LoadbalancerListenerManager, userCred, ownerId, queryScope)
+		q = LoadbalancerListenerManager.FilterByOwner(ctx, q, LoadbalancerListenerManager, userCred, ownerId, queryScope)
 		rows[i].LbListenerCount, _ = q.CountWithError()
 	}
 
@@ -507,7 +507,7 @@ func (lbbg *SLoadbalancerBackendGroup) PostCreate(ctx context.Context, userCred 
 }
 
 func (lbbg *SLoadbalancerBackendGroup) StartLoadBalancerBackendGroupCreateTask(ctx context.Context, userCred mcclient.TokenCredential, parentTaskId string) {
-	lbbg.SetStatus(userCred, api.LB_CREATING, "")
+	lbbg.SetStatus(ctx, userCred, api.LB_CREATING, "")
 	err := func() error {
 		task, err := taskman.TaskManager.NewTask(ctx, "LoadbalancerLoadbalancerBackendGroupCreateTask", lbbg, userCred, nil, parentTaskId, "", nil)
 		if err != nil {
@@ -516,7 +516,7 @@ func (lbbg *SLoadbalancerBackendGroup) StartLoadBalancerBackendGroupCreateTask(c
 		return task.ScheduleRun(nil)
 	}()
 	if err != nil {
-		lbbg.SetStatus(userCred, api.LB_CREATE_FAILED, err.Error())
+		lbbg.SetStatus(ctx, userCred, api.LB_CREATE_FAILED, err.Error())
 	}
 }
 
@@ -541,7 +541,7 @@ func (lbbg *SLoadbalancerBackendGroup) PerformPurge(ctx context.Context, userCre
 }
 
 func (lbbg *SLoadbalancerBackendGroup) CustomizeDelete(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) error {
-	lbbg.SetStatus(userCred, api.LB_STATUS_DELETING, "")
+	lbbg.SetStatus(ctx, userCred, api.LB_STATUS_DELETING, "")
 	return lbbg.StartLoadBalancerBackendGroupDeleteTask(ctx, userCred, jsonutils.NewDict(), "")
 }
 
@@ -687,7 +687,7 @@ func (lbbg *SLoadbalancerBackendGroup) syncRemove(ctx context.Context, userCred 
 
 	err := lbbg.ValidateDeleteCondition(ctx, nil)
 	if err != nil { // cannot delete
-		lbbg.SetStatus(userCred, api.LB_STATUS_UNKNOWN, "sync to delete")
+		lbbg.SetStatus(ctx, userCred, api.LB_STATUS_UNKNOWN, "sync to delete")
 		return errors.Wrapf(err, "ValidateDeleteCondition")
 	}
 	notifyclient.EventNotify(ctx, userCred, notifyclient.SEventNotifyParam{
@@ -717,7 +717,9 @@ func (lbbg *SLoadbalancerBackendGroup) SyncWithCloudLoadbalancerBackendgroup(
 			Action: notifyclient.ActionSyncUpdate,
 		})
 	}
-	syncMetadata(ctx, userCred, lbbg, ext)
+	if account := lb.GetCloudaccount(); account != nil {
+		syncMetadata(ctx, userCred, lbbg, ext, account.ReadOnly)
+	}
 	db.OpsLog.LogSyncUpdate(lbbg, diff, userCred)
 
 	if ext.IsDefault() {

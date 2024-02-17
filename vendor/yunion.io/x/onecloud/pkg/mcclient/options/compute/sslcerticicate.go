@@ -15,20 +15,15 @@
 package compute
 
 import (
-	"yunion.io/x/onecloud/pkg/mcclient/modulebase"
-	"yunion.io/x/onecloud/pkg/mcclient/modules"
+	"yunion.io/x/jsonutils"
+
+	"yunion.io/x/onecloud/pkg/mcclient/options"
 )
 
-var (
-	SecGroupCaches modulebase.ResourceManager
-)
+type SslCertificateListOptions struct {
+	options.BaseListOptions
+}
 
-func init() {
-	SecGroupCaches = modules.NewComputeManager("secgroupcache", "secgroupcaches",
-		[]string{"ID", "Name", "Descritpion", "Status",
-			"Vpc_Id", "Vpc", "Region", "Account",
-			"Secgroup_Id"},
-		[]string{""})
-
-	modules.RegisterCompute(&SecGroupCaches)
+func (opts *SslCertificateListOptions) Params() (jsonutils.JSONObject, error) {
+	return options.ListStructToParams(opts)
 }

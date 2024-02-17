@@ -17,33 +17,40 @@ package compute
 import "yunion.io/x/cloudmux/pkg/apis/compute"
 
 const (
-	VM_INIT            = compute.VM_INIT
-	VM_UNKNOWN         = compute.VM_UNKNOWN
-	VM_SCHEDULE        = "schedule"
-	VM_SCHEDULE_FAILED = "sched_fail"
-	VM_CREATE_NETWORK  = "network"
-	VM_NETWORK_FAILED  = "net_fail"
-	VM_DEVICE_FAILED   = "dev_fail"
-	VM_CREATE_FAILED   = compute.VM_CREATE_FAILED
-	VM_CREATE_DISK     = "disk"
-	VM_DISK_FAILED     = "disk_fail"
-	VM_IMAGE_CACHING   = "image_caching" // 缓存镜像中
-	VM_START_DEPLOY    = "start_deploy"
-	VM_DEPLOYING       = compute.VM_DEPLOYING
-	VM_DEPLOY_FAILED   = compute.VM_DEPLOY_FAILED
-	VM_READY           = compute.VM_READY
-	VM_START_START     = compute.VM_START_START
-	VM_STARTING        = compute.VM_STARTING
-	VM_START_FAILED    = "start_fail" // # = ready
-	VM_RUNNING         = compute.VM_RUNNING
-	VM_START_STOP      = compute.VM_START_STOP
-	VM_STOPPING        = compute.VM_STOPPING
-	VM_STOP_FAILED     = "stop_fail" // # = running
-	VM_RENEWING        = "renewing"
-	VM_RENEW_FAILED    = "renew_failed"
-	VM_ATTACH_DISK     = "attach_disk"
-	VM_DETACH_DISK     = "detach_disk"
-	VM_UNSYNC          = "unsync"
+	VM_INIT                  = compute.VM_INIT
+	VM_UNKNOWN               = compute.VM_UNKNOWN
+	VM_SCHEDULE              = "schedule"
+	VM_SCHEDULE_FAILED       = "sched_fail"
+	VM_CREATE_NETWORK        = "network"
+	VM_NETWORK_FAILED        = "net_fail"
+	VM_DEVICE_FAILED         = "dev_fail"
+	VM_CREATE_FAILED         = compute.VM_CREATE_FAILED
+	VM_CREATE_DISK           = "disk"
+	VM_DISK_FAILED           = "disk_fail"
+	VM_SECURITY_GROUP_FAILED = "security_group_fail"
+	VM_IMAGE_CACHING         = "image_caching" // 缓存镜像中
+	VM_START_DEPLOY          = "start_deploy"
+	VM_DEPLOYING             = compute.VM_DEPLOYING
+	VM_DEPLOY_FAILED         = compute.VM_DEPLOY_FAILED
+	VM_READY                 = compute.VM_READY
+	VM_START_START           = compute.VM_START_START
+	VM_STARTING              = compute.VM_STARTING
+	VM_START_FAILED          = "start_fail" // # = ready
+	VM_RUNNING               = compute.VM_RUNNING
+	VM_START_STOP            = compute.VM_START_STOP
+	VM_STOPPING              = compute.VM_STOPPING
+	VM_STOP_FAILED           = "stop_fail" // # = running
+	VM_RENEWING              = "renewing"
+	VM_RENEW_FAILED          = "renew_failed"
+	VM_ATTACH_DISK           = "attach_disk"
+	VM_DETACH_DISK           = "detach_disk"
+	VM_UNSYNC                = "unsync"
+
+	VM_START_RESCUE        = "start_rescue"
+	VM_RESCUING            = "rescuing"
+	VM_STOP_RESCUE         = "stop_rescue"
+	VM_START_RESCUE_FAILED = "start_rescue_failed"
+	VM_STOP_RESCUE_FAILED  = "stop_rescue_failed"
 
 	VM_BACKUP_STARTING         = "backup_starting"
 	VM_BACKUP_STOPING          = "backup_stopping"
@@ -166,6 +173,7 @@ const (
 	VM_QGA_SET_PASSWORD        = "qga_set_password"
 	VM_QGA_COMMAND_EXECUTING   = "qga_command_executing"
 	VM_QGA_EXEC_COMMAND_FAILED = "qga_exec_command_failed"
+	VM_QGA_SYNC_OS_INFO        = "qga_sync_os_info"
 
 	VM_QGA_SET_NETWORK        = "qga_set_network"
 	VM_QGA_SET_NETWORK_FAILED = "qga_set_network_failed"
@@ -191,6 +199,7 @@ const (
 	HYPERVISOR_HCSOP          = compute.HYPERVISOR_HCSOP
 	HYPERVISOR_OPENSTACK      = compute.HYPERVISOR_OPENSTACK
 	HYPERVISOR_UCLOUD         = compute.HYPERVISOR_UCLOUD
+	HYPERVISOR_VOLCENGINE     = compute.HYPERVISOR_VOLCENGINE
 	HYPERVISOR_ZSTACK         = compute.HYPERVISOR_ZSTACK
 	HYPERVISOR_GOOGLE         = compute.HYPERVISOR_GOOGLE
 	HYPERVISOR_CTYUN          = compute.HYPERVISOR_CTYUN
@@ -207,6 +216,7 @@ const (
 	HYPERVISOR_BAIDU          = compute.HYPERVISOR_BAIDU
 	HYPERVISOR_CUCLOUD        = compute.HYPERVISOR_CUCLOUD
 	HYPERVISOR_QINGCLOUD      = compute.HYPERVISOR_QINGCLOUD
+	HYPERVISOR_ORACLE         = compute.HYPERVISOR_ORACLE
 
 	//	HYPERVISOR_DEFAULT = HYPERVISOR_KVM
 	HYPERVISOR_DEFAULT = HYPERVISOR_KVM
@@ -268,6 +278,7 @@ var HYPERVISORS = []string{
 	HYPERVISOR_HCSOP,
 	HYPERVISOR_OPENSTACK,
 	HYPERVISOR_UCLOUD,
+	HYPERVISOR_VOLCENGINE,
 	HYPERVISOR_ZSTACK,
 	HYPERVISOR_GOOGLE,
 	HYPERVISOR_CTYUN,
@@ -284,6 +295,7 @@ var HYPERVISORS = []string{
 	HYPERVISOR_BAIDU,
 	HYPERVISOR_CUCLOUD,
 	HYPERVISOR_QINGCLOUD,
+	HYPERVISOR_ORACLE,
 }
 
 var ONECLOUD_HYPERVISORS = []string{
@@ -299,6 +311,7 @@ var PUBLIC_CLOUD_HYPERVISORS = []string{
 	HYPERVISOR_QCLOUD,
 	HYPERVISOR_HUAWEI,
 	HYPERVISOR_UCLOUD,
+	HYPERVISOR_VOLCENGINE,
 	HYPERVISOR_GOOGLE,
 	HYPERVISOR_CTYUN,
 	HYPERVISOR_ECLOUD,
@@ -307,6 +320,7 @@ var PUBLIC_CLOUD_HYPERVISORS = []string{
 	HYPERVISOR_BAIDU,
 	HYPERVISOR_CUCLOUD,
 	HYPERVISOR_QINGCLOUD,
+	HYPERVISOR_ORACLE,
 }
 
 var PRIVATE_CLOUD_HYPERVISORS = []string{
@@ -343,6 +357,7 @@ var HYPERVISOR_HOSTTYPE = map[string]string{
 	HYPERVISOR_HCS:            HOST_TYPE_HCS,
 	HYPERVISOR_OPENSTACK:      HOST_TYPE_OPENSTACK,
 	HYPERVISOR_UCLOUD:         HOST_TYPE_UCLOUD,
+	HYPERVISOR_VOLCENGINE:     HOST_TYPE_VOLCENGINE,
 	HYPERVISOR_ZSTACK:         HOST_TYPE_ZSTACK,
 	HYPERVISOR_GOOGLE:         HOST_TYPE_GOOGLE,
 	HYPERVISOR_CTYUN:          HOST_TYPE_CTYUN,
@@ -359,6 +374,7 @@ var HYPERVISOR_HOSTTYPE = map[string]string{
 	HYPERVISOR_BAIDU:          HOST_TYPE_BAIDU,
 	HYPERVISOR_CUCLOUD:        HOST_TYPE_CUCLOUD,
 	HYPERVISOR_QINGCLOUD:      HOST_TYPE_QINGCLOUD,
+	HYPERVISOR_ORACLE:         HOST_TYPE_ORACLE,
 }
 
 var HOSTTYPE_HYPERVISOR = map[string]string{
@@ -377,6 +393,7 @@ var HOSTTYPE_HYPERVISOR = map[string]string{
 	HOST_TYPE_HCS:            HYPERVISOR_HCS,
 	HOST_TYPE_OPENSTACK:      HYPERVISOR_OPENSTACK,
 	HOST_TYPE_UCLOUD:         HYPERVISOR_UCLOUD,
+	HOST_TYPE_VOLCENGINE:     HYPERVISOR_VOLCENGINE,
 	HOST_TYPE_ZSTACK:         HYPERVISOR_ZSTACK,
 	HOST_TYPE_GOOGLE:         HYPERVISOR_GOOGLE,
 	HOST_TYPE_CTYUN:          HYPERVISOR_CTYUN,
@@ -393,6 +410,7 @@ var HOSTTYPE_HYPERVISOR = map[string]string{
 	HOST_TYPE_BAIDU:          HYPERVISOR_BAIDU,
 	HOST_TYPE_CUCLOUD:        HYPERVISOR_CUCLOUD,
 	HOST_TYPE_QINGCLOUD:      HYPERVISOR_QINGCLOUD,
+	HOST_TYPE_ORACLE:         HYPERVISOR_ORACLE,
 }
 
 const (
@@ -416,6 +434,10 @@ const (
 	VM_METADATA_OS_VERSION          = "os_version"
 	VM_METADATA_CGROUP_CPUSET       = "cgroup_cpuset"
 	VM_METADATA_ENABLE_MEMCLEAN     = "enable_memclean"
+	VM_METADATA_HOTPLUG_CPU_MEM     = "hotplug_cpu_mem"
+	VM_METADATA_HOT_REMOVE_NIC      = "hot_remove_nic"
+	VM_METADATA_START_VMEM_MB       = "start_vmem_mb"
+	VM_METADATA_START_VCPU_COUNT    = "start_vcpu_count"
 )
 
 func Hypervisors2HostTypes(hypervisors []string) []string {

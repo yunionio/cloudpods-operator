@@ -18,19 +18,23 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
 	"yunion.io/x/pkg/errors"
+	"yunion.io/x/pkg/gotypes"
 	"yunion.io/x/pkg/util/rbacscope"
 	"yunion.io/x/pkg/utils"
 	"yunion.io/x/sqlchemy"
 
 	api "yunion.io/x/onecloud/pkg/apis/compute"
+	"yunion.io/x/onecloud/pkg/apis/notify"
 	"yunion.io/x/onecloud/pkg/cloudcommon/consts"
 	"yunion.io/x/onecloud/pkg/cloudcommon/db"
+	"yunion.io/x/onecloud/pkg/cloudcommon/notifyclient"
 	"yunion.io/x/onecloud/pkg/httperrors"
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/util/rbacutils"
@@ -44,8 +48,8 @@ const (
 //USB_TYPE        = api.USB_TYPE
 //NIC_TYPE        = api.NIC_TYPE
 
-//NVIDIA_VENDOR_ID = api.NVIDIA_VENDOR_ID
-//AMD_VENDOR_ID    = api.AMD_VENDOR_ID
+// NVIDIA_VENDOR_ID = api.NVIDIA_VENDOR_ID
+// AMD_VENDOR_ID    = api.AMD_VENDOR_ID
 )
 
 var VALID_GPU_TYPES = api.VALID_GPU_TYPES
@@ -64,6 +68,10 @@ type SIsolatedDeviceManager struct {
 var IsolatedDeviceManager *SIsolatedDeviceManager
 
 func init() {
+	gotypes.RegisterSerializable(reflect.TypeOf(&api.IsolatedDevicePCIEInfo{}), func() gotypes.ISerializable {
+		return &api.IsolatedDevicePCIEInfo{}
+	})
+
 	IsolatedDeviceManager = &SIsolatedDeviceManager{
 		SStandaloneResourceBaseManager: db.NewStandaloneResourceBaseManager(
 			SIsolatedDevice{},
@@ -94,6 +102,8 @@ type SIsolatedDevice struct {
 	WireId string `width:"36" charset:"ascii" nullable:"true" index:"true" list:"domain" update:"domain" create:"domain_optional"`
 	// Offload interface name
 	OvsOffloadInterface string `width:"16" charset:"ascii" nullable:"true" list:"domain" update:"domain" create:"domain_optional"`
+	// Is infiniband nic
+	IsInfinibandNic bool `nullable:"false" default:"false" list:"user" create:"optional"`
 	// NVME disk size
 	NvmeSizeMB int `nullable:"true" list:"domain" update:"domain" create:"domain_optional"`
 	// guest disk index
@@ -131,6 +141,9 @@ type SIsolatedDevice struct {
 
 	// reserved storage size for isolated device
 	ReservedStorage int `nullable:"true" default:"0" list:"domain" update:"domain" create:"domain_optional"`
+
+	// PciInfo stores extra PCIE information
+	PcieInfo *api.IsolatedDevicePCIEInfo `nullable:"true" create:"optional" list:"user" get:"user" update:"domain"`
 }
 
 func (manager *SIsolatedDeviceManager) ExtraSearchConditions(ctx context.Context, q *sqlchemy.SQuery, like string) []sqlchemy.ICondition {
@@ -146,7 +159,7 @@ func (manager *SIsolatedDeviceManager) ValidateCreateData(ctx context.Context,
 ) (api.IsolatedDeviceCreateInput, error) {
 	var err error
 	var host *SHost
-	host, input.HostResourceInput, err = ValidateHostResourceInput(userCred, input.HostResourceInput)
+	host, input.HostResourceInput, err = ValidateHostResourceInput(ctx, userCred, input.HostResourceInput)
 	if err != nil {
 		return input, errors.Wrap(err, "ValidateHostResourceInput")
 	}
@@ -239,8 +252,34 @@ func (self *SIsolatedDevice) ValidateUpdateData(
 	return input, nil
 }
 
-func (self *SIsolatedDevice) PostUpdate(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) {
-	HostManager.ClearSchedDescCache(self.HostId)
+func (device *SIsolatedDevice) isolateDeviceNotifyForHost(ctx context.Context, userCred mcclient.TokenCredential, action notify.SAction) {
+	model, err := HostManager.FetchById(device.HostId)
+	if err != nil {
+		return
+	}
+	host := model.(*SHost)
+	notifyclient.EventNotify(ctx, userCred, notifyclient.SEventNotifyParam{
+		Action: action,
+		Obj:    host,
+		ObjDetailsDecorator: func(ctx context.Context, details *jsonutils.JSONDict) {
+			details.Set("customize_details", jsonutils.Marshal(device))
+		},
+	})
+}
+
+func (device *SIsolatedDevice) PostCreate(ctx context.Context, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, query jsonutils.JSONObject, data jsonutils.JSONObject) {
+	device.SStandaloneResourceBase.PostCreate(ctx, userCred, ownerId, query, data)
+	device.isolateDeviceNotifyForHost(ctx, userCred, notify.ActionIsolatedDeviceCreate)
+}
+
+func (device *SIsolatedDevice) PostDelete(ctx context.Context, userCred mcclient.TokenCredential) {
+	device.SStandaloneResourceBase.PostDelete(ctx, userCred)
+	device.isolateDeviceNotifyForHost(ctx, userCred, notify.ActionIsolatedDeviceDelete)
+}
+
+func (device *SIsolatedDevice) PostUpdate(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) {
+	HostManager.ClearSchedDescCache(device.HostId)
+	device.isolateDeviceNotifyForHost(ctx, userCred, notify.ActionIsolatedDeviceUpdate)
 }
 
 // 直通设备（GPU等）列表
@@ -288,7 +327,7 @@ func (manager *SIsolatedDeviceManager) ListItemFilter(
 	}
 
 	if query.GuestId != "" {
-		obj, err := GuestManager.FetchByIdOrName(userCred, query.GuestId)
+		obj, err := GuestManager.FetchByIdOrName(ctx, userCred, query.GuestId)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Fetch guest by %q", query.GuestId)
 		}
@@ -664,6 +703,7 @@ func (manager *SIsolatedDeviceManager) ReleaseDevicesOfGuest(ctx context.Context
 }
 
 func (manager *SIsolatedDeviceManager) totalCountQ(
+	ctx context.Context,
 	scope rbacscope.TRbacScope, ownerId mcclient.IIdentityProvider, devType []string, hostTypes []string,
 	resourceTypes []string,
 	providers []string, brands []string, cloudEnv string,
@@ -674,7 +714,7 @@ func (manager *SIsolatedDeviceManager) totalCountQ(
 	if scope == rbacscope.ScopeDomain {
 		hq = hq.Filter(sqlchemy.Equals(hq.Field("domain_id"), ownerId.GetProjectDomainId()))
 	}
-	hq = db.ObjectIdQueryWithPolicyResult(hq, HostManager, policyResult)
+	hq = db.ObjectIdQueryWithPolicyResult(ctx, hq, HostManager, policyResult)
 	hosts := hq.SubQuery()
 	devs := manager.Query().SubQuery()
 	q := devs.Query().Join(hosts, sqlchemy.Equals(devs.Field("host_id"), hosts.Field("id")))
@@ -691,6 +731,7 @@ type IsolatedDeviceCountStat struct {
 }
 
 func (manager *SIsolatedDeviceManager) totalCount(
+	ctx context.Context,
 	scope rbacscope.TRbacScope,
 	ownerId mcclient.IIdentityProvider,
 	devType,
@@ -703,6 +744,7 @@ func (manager *SIsolatedDeviceManager) totalCount(
 	policyResult rbacutils.SPolicyResult,
 ) (int, error) {
 	return manager.totalCountQ(
+		ctx,
 		scope,
 		ownerId,
 		devType,
@@ -717,6 +759,7 @@ func (manager *SIsolatedDeviceManager) totalCount(
 }
 
 func (manager *SIsolatedDeviceManager) TotalCount(
+	ctx context.Context,
 	scope rbacscope.TRbacScope,
 	ownerId mcclient.IIdentityProvider,
 	hostType []string,
@@ -729,6 +772,7 @@ func (manager *SIsolatedDeviceManager) TotalCount(
 ) (IsolatedDeviceCountStat, error) {
 	stat := IsolatedDeviceCountStat{}
 	devCnt, err := manager.totalCount(
+		ctx,
 		scope, ownerId, nil, hostType, resourceTypes,
 		providers, brands, cloudEnv,
 		rangeObjs, policyResult)
@@ -736,6 +780,7 @@ func (manager *SIsolatedDeviceManager) TotalCount(
 		return stat, err
 	}
 	gpuCnt, err := manager.totalCount(
+		ctx,
 		scope, ownerId, VALID_GPU_TYPES, hostType, resourceTypes,
 		providers, brands, cloudEnv,
 		rangeObjs, policyResult)
@@ -767,6 +812,14 @@ func (man *SIsolatedDeviceManager) GetSpecShouldCheckStatus(query *jsonutils.JSO
 	return true, nil
 }
 
+type GpuSpec struct {
+	DevType string `json:"dev_type,allowempty"`
+	Model   string `json:"model,allowempty"`
+	Amount  string `json:"amount,allowemtpy"`
+	Vendor  string `json:"vendor,allowempty"`
+	PciId   string `json:"pci_id,allowempty"`
+}
+
 func (self *SIsolatedDevice) GetSpec(statusCheck bool) *jsonutils.JSONDict {
 	if statusCheck {
 		if len(self.GuestId) > 0 {
@@ -777,12 +830,22 @@ func (self *SIsolatedDevice) GetSpec(statusCheck bool) *jsonutils.JSONDict {
 			return nil
 		}
 	}
-	spec := jsonutils.NewDict()
-	spec.Set("dev_type", jsonutils.NewString(self.DevType))
-	spec.Set("model", jsonutils.NewString(self.Model))
-	spec.Set("pci_id", jsonutils.NewString(self.VendorDeviceId))
-	spec.Set("vendor", jsonutils.NewString(self.getVendor()))
-	return spec
+	ret := jsonutils.NewDict()
+	ret.Set("dev_type", jsonutils.NewString(self.DevType))
+	ret.Set("model", jsonutils.NewString(self.Model))
+	ret.Set("pci_id", jsonutils.NewString(self.VendorDeviceId))
+	ret.Set("vendor", jsonutils.NewString(self.getVendor()))
+	return ret
+}
+
+func (self *SIsolatedDevice) GetGpuSpec() *GpuSpec {
+	return &GpuSpec{
+		DevType: self.DevType,
+		Model:   self.Model,
+		PciId:   self.VendorDeviceId,
+		Vendor:  self.getVendor(),
+		Amount:  "1",
+	}
 }
 
 func (man *SIsolatedDeviceManager) GetSpecIdent(spec *jsonutils.JSONDict) []string {
@@ -1003,12 +1066,12 @@ func (manager *SIsolatedDeviceManager) ResourceScope() rbacscope.TRbacScope {
 	return rbacscope.ScopeDomain
 }
 
-func (manager *SIsolatedDeviceManager) FilterByOwner(q *sqlchemy.SQuery, man db.FilterByOwnerProvider, userCred mcclient.TokenCredential, owner mcclient.IIdentityProvider, scope rbacscope.TRbacScope) *sqlchemy.SQuery {
+func (manager *SIsolatedDeviceManager) FilterByOwner(ctx context.Context, q *sqlchemy.SQuery, man db.FilterByOwnerProvider, userCred mcclient.TokenCredential, owner mcclient.IIdentityProvider, scope rbacscope.TRbacScope) *sqlchemy.SQuery {
 	if owner != nil {
 		switch scope {
 		case rbacscope.ScopeProject, rbacscope.ScopeDomain:
 			hostsQ := HostManager.Query("id")
-			hostsQ = HostManager.FilterByOwner(hostsQ, HostManager, userCred, owner, scope)
+			hostsQ = HostManager.FilterByOwner(ctx, hostsQ, HostManager, userCred, owner, scope)
 			hosts := hostsQ.SubQuery()
 			q = q.Join(hosts, sqlchemy.Equals(q.Field("host_id"), hosts.Field("id")))
 		}

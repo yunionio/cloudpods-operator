@@ -47,6 +47,7 @@ import (
 	"yunion.io/x/onecloud/pkg/httperrors"
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/mcclient/auth"
+	"yunion.io/x/onecloud/pkg/mcclient/modules/yunionconf"
 	"yunion.io/x/onecloud/pkg/util/logclient"
 )
 
@@ -148,7 +149,7 @@ func (self *STask) GetOwnerId() mcclient.IIdentityProvider {
 	return &owner
 }
 
-func (manager *STaskManager) FilterByOwner(q *sqlchemy.SQuery, man db.FilterByOwnerProvider, userCred mcclient.TokenCredential, owner mcclient.IIdentityProvider, scope rbacscope.TRbacScope) *sqlchemy.SQuery {
+func (manager *STaskManager) FilterByOwner(ctx context.Context, q *sqlchemy.SQuery, man db.FilterByOwnerProvider, userCred mcclient.TokenCredential, owner mcclient.IIdentityProvider, scope rbacscope.TRbacScope) *sqlchemy.SQuery {
 	if owner != nil {
 		switch scope {
 		case rbacscope.ScopeProject:
@@ -441,36 +442,32 @@ func execITask(taskValue reflect.Value, task *STask, odata jsonutils.JSONObject,
 		data = jsonutils.NewDict()
 	}
 
-	var stageName string
+	stageName := task.Stage
 	if taskFailed {
 		stageName = fmt.Sprintf("%sFailed", task.Stage)
-	} else {
-		stageName = task.Stage
+		if strings.Contains(stageName, "_") {
+			stageName = fmt.Sprintf("%s_failed", task.Stage)
+		}
+	}
+
+	if strings.Contains(stageName, "_") {
+		stageName = utils.Kebab2Camel(stageName, "_")
 	}
 
 	funcValue := taskValue.MethodByName(stageName)
 
 	if !funcValue.IsValid() || funcValue.IsNil() {
-		log.Debugf("Stage %s not found, try kebab to camel and find again", stageName)
+		msg := fmt.Sprintf("Stage %s not found", stageName)
 		if taskFailed {
-			stageName = fmt.Sprintf("%s_failed", task.Stage)
+			// failed handler is optional, ignore the error
+			log.Warningf(msg)
+			msg, _ = data.GetString()
+		} else {
+			log.Errorf(msg)
 		}
-		stageName = utils.Kebab2Camel(stageName, "_")
-		funcValue = taskValue.MethodByName(stageName)
-
-		if !funcValue.IsValid() || funcValue.IsNil() {
-			msg := fmt.Sprintf("Stage %s not found", stageName)
-			if taskFailed {
-				// failed handler is optional, ignore the error
-				log.Warningf(msg)
-				msg, _ = data.GetString()
-			} else {
-				log.Errorf(msg)
-			}
-			task.SetStageFailed(ctx, jsonutils.NewString(msg))
-			task.SaveRequestContext(&ctxData)
-			return
-		}
+		task.SetStageFailed(ctx, jsonutils.NewString(msg))
+		task.SaveRequestContext(&ctxData)
+		return
 	}
 
 	objManager := db.GetModelManager(task.ObjName)
@@ -548,6 +545,7 @@ func execITask(taskValue reflect.Value, task *STask, odata jsonutils.JSONObject,
 		if r := recover(); r != nil {
 			// call set stage failed, should not call task.SetStageFailed
 			// func SetStageFailed may be overloading
+			yunionconf.BugReport.SendBugReport(ctx, version.GetShortString(), string(debug.Stack()), errors.Errorf("%s", r))
 			log.Errorf("Task %s PANIC on stage %s: %v \n%s", task.TaskName, stageName, r, debug.Stack())
 			SetStageFailedFuncValue := taskValue.MethodByName("SetStageFailed")
 			SetStageFailedFuncValue.Call(
@@ -562,7 +560,7 @@ func execITask(taskValue reflect.Value, task *STask, odata jsonutils.JSONObject,
 			}
 			statusObj, ok := obj.(db.IStatusStandaloneModel)
 			if ok {
-				db.StatusBaseSetStatus(statusObj, task.GetUserCred(), apis.STATUS_UNKNOWN, fmt.Sprintf("%v", r))
+				db.StatusBaseSetStatus(ctx, statusObj, task.GetUserCred(), apis.STATUS_UNKNOWN, fmt.Sprintf("%v", r))
 			}
 			notes := map[string]interface{}{
 				"Stack":   string(debug.Stack()),

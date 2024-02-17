@@ -18,4 +18,21 @@ var (
 	QueryOffsetOptimization = false
 
 	OpsLogWithClickhouse = false
+
+	defaultDBDialect string
+
+	defaultDBConnectionString string
 )
+
+func SetDefaultDB(dialect, connStr string) {
+	defaultDBDialect = dialect
+	defaultDBConnectionString = connStr
+}
+
+func DefaultDBDialect() string {
+	return defaultDBDialect
+}
+
+func DefaultDBConnStr() string {
+	return defaultDBConnectionString
+}

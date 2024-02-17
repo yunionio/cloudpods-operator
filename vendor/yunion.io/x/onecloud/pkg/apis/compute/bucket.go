@@ -16,10 +16,12 @@ package compute
 
 import (
 	"net/http"
+	"reflect"
 
 	"yunion.io/x/cloudmux/pkg/apis/compute"
 	"yunion.io/x/cloudmux/pkg/cloudprovider"
 	"yunion.io/x/pkg/errors"
+	"yunion.io/x/pkg/gotypes"
 	"yunion.io/x/pkg/util/regutils"
 	"yunion.io/x/pkg/utils"
 
@@ -80,7 +82,7 @@ func (self BucketDetails) GetMetricTags() map[string]string {
 		"tenant_id":      self.ProjectId,
 		"external_id":    self.ExternalId,
 	}
-	return ret
+	return AppendMetricTags(ret, self.MetadataResourceInfo, self.ProjectizedResourceInfo)
 }
 
 func (self BucketDetails) GetMetricPairs() map[string]string {
@@ -359,4 +361,10 @@ type BucketRefererConf struct {
 
 func (input *BucketRefererConf) Validate() error {
 	return nil
+}
+
+func init() {
+	gotypes.RegisterSerializable(reflect.TypeOf(&SBackupStorageAccessInfo{}), func() gotypes.ISerializable {
+		return &SBackupStorageAccessInfo{}
+	})
 }

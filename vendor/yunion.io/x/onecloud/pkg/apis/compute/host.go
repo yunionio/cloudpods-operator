@@ -176,6 +176,9 @@ type HostDetails struct {
 	// 云主机数量
 	// example: 10
 	Guests int `json:"guests,allowempty"`
+	// 主备云主机数量
+	// example: 10
+	BackupGuests int `json:"backup_guests,allowempty"`
 	// 非系统云主机数量
 	// example: 0
 	NonsystemGuests int `json:"nonsystem_guests,allowempty"`
@@ -255,7 +258,8 @@ func (self HostDetails) GetMetricTags() map[string]string {
 		"account_id":     self.AccountId,
 		"external_id":    self.ExternalId,
 	}
-	return ret
+
+	return AppendMetricTags(ret, self.MetadataResourceInfo)
 }
 
 func (self HostDetails) GetMetricPairs() map[string]string {
@@ -623,4 +627,7 @@ type HostLoginInfoOutput struct {
 	Ip       string `json:"ip"`
 	Username string `json:"username"`
 	Password string `json:"password"`
+}
+
+type HostPerformStartInput struct {
 }

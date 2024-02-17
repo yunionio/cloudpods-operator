@@ -147,7 +147,7 @@ func (self *SIPv6Gateway) syncRemoveCloudIPv6Gateway(ctx context.Context, userCr
 
 	err := self.ValidateDeleteCondition(ctx, nil)
 	if err != nil { // cannot delete
-		self.SetStatus(userCred, api.NETWORK_STATUS_UNKNOWN, "Sync to remove")
+		self.SetStatus(ctx, userCred, api.NETWORK_STATUS_UNKNOWN, "Sync to remove")
 		return err
 	}
 	return self.RealDelete(ctx, userCred)
@@ -177,8 +177,11 @@ func (self *SIPv6Gateway) SyncWithCloudIPv6Gateway(ctx context.Context, userCred
 		})
 	}
 
-	syncVirtualResourceMetadata(ctx, userCred, self, ext)
-	SyncCloudProject(ctx, userCred, self, provider.GetOwnerId(), ext, provider.Id)
+	if account, _ := provider.GetCloudaccount(); account != nil {
+		syncVirtualResourceMetadata(ctx, userCred, self, ext, account.ReadOnly)
+	}
+
+	SyncCloudProject(ctx, userCred, self, provider.GetOwnerId(), ext, provider)
 	return nil
 }
 
@@ -210,8 +213,8 @@ func (self *SVpc) newFromCloudIPv6Gateway(ctx context.Context, userCred mcclient
 		return nil, errors.Wrapf(err, "Insert")
 	}
 
-	syncVirtualResourceMetadata(ctx, userCred, ret, ext)
-	SyncCloudProject(ctx, userCred, ret, provider.GetOwnerId(), ext, self.ManagerId)
+	syncVirtualResourceMetadata(ctx, userCred, ret, ext, false)
+	SyncCloudProject(ctx, userCred, ret, provider.GetOwnerId(), ext, provider)
 
 	db.OpsLog.LogEvent(ret, db.ACT_CREATE, ret.GetShortDesc(ctx), userCred)
 	notifyclient.EventNotify(ctx, userCred, notifyclient.SEventNotifyParam{
@@ -253,7 +256,7 @@ func (self *SIPv6Gateway) ValidateUpdateData(ctx context.Context, userCred mccli
 }
 
 func (self *SIPv6Gateway) Delete(ctx context.Context, userCred mcclient.TokenCredential) error {
-	self.SetStatus(userCred, apis.STATUS_DELETING, "")
+	self.SetStatus(ctx, userCred, apis.STATUS_DELETING, "")
 	return nil
 }
 

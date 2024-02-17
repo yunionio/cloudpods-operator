@@ -108,11 +108,12 @@ type SDiskInfo struct {
 }
 
 type GuestDiskCreateOptions struct {
-	SizeMb    int
-	UUID      string
-	Driver    string
-	Idx       int
-	StorageId string
+	SizeMb        int
+	UUID          string
+	Driver        string
+	Idx           int
+	StorageId     string
+	Preallocation string `choices:"off|metadata|full|falloc"`
 }
 
 const (
@@ -151,8 +152,8 @@ type SManagedVMCreateConfig struct {
 	Description         string
 	SysDisk             SDiskInfo
 	DataDisks           []SDiskInfo
+	KeypairName         string
 	PublicKey           string
-	ExternalSecgroupId  string
 	ExternalSecgroupIds []string
 	Account             string
 	Password            string
@@ -174,6 +175,7 @@ type SManagedVMCreateConfig struct {
 
 type SManagedVMChangeConfig struct {
 	Cpu          int
+	CpuSocket    int
 	MemoryMB     int
 	InstanceType string
 }
@@ -185,6 +187,7 @@ type SManagedVMRebuildRootConfig struct {
 	PublicKey string
 	SysSizeGB int
 	OsType    string
+	UserData  string
 }
 
 func (vmConfig *SManagedVMCreateConfig) GetConfig(config *jsonutils.JSONDict) error {
@@ -335,6 +338,9 @@ type ServerVncOutput struct {
 	Protocol string `json:"protocol"`
 	Port     int64  `json:"port"`
 
+	// volcengine
+	Region string `json:"region"`
+
 	Url          string `json:"url"`
 	InstanceId   string `json:"instance_id"`
 	InstanceName string `json:"instance_name"`
@@ -354,4 +360,13 @@ type ServerVncOutput struct {
 type SInstanceUpdateOptions struct {
 	NAME        string
 	Description string
+}
+
+type SInstanceDeployOptions struct {
+	Username      string
+	Password      string
+	PublicKey     string
+	KeypairName   string
+	DeleteKeypair bool
+	UserData      string
 }

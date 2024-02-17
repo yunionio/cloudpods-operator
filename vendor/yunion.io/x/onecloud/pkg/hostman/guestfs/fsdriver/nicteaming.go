@@ -20,6 +20,7 @@ import (
 	"yunion.io/x/cloudmux/pkg/apis/compute"
 	"yunion.io/x/jsonutils"
 
+	computeapi "yunion.io/x/onecloud/pkg/apis/compute"
 	"yunion.io/x/onecloud/pkg/cloudcommon/types"
 	deployapi "yunion.io/x/onecloud/pkg/hostman/hostdeployer/apis"
 )
@@ -72,6 +73,11 @@ func ToServerNics(nics []*deployapi.Nic) []*types.SServerNic {
 			LinkUp:    nics[i].LinkUp,
 			Mtu:       int16(nics[i].Mtu),
 			TeamWith:  nics[i].TeamWith,
+			IsDefault: nics[i].IsDefault,
+
+			Ip6:      nics[i].Ip6,
+			Masklen6: int(nics[i].Masklen6),
+			Gateway6: nics[i].Gateway6,
 		}
 	}
 	return ret
@@ -81,6 +87,7 @@ func convertNicConfigs(nics []*types.SServerNic) ([]*types.SServerNic, []*types.
 	allNics := make([]*types.SServerNic, 0)
 	bondNics := make([]*types.SServerNic, 0)
 
+	var netDevPrefix = GetNetDevPrefix(nics)
 	for i := range nics {
 		// skip nics without mac
 		if len(nics[i].Mac) == 0 {
@@ -94,7 +101,11 @@ func convertNicConfigs(nics []*types.SServerNic) ([]*types.SServerNic, []*types.
 		if teamNic == nil {
 			// no teaming nic
 			nnic := nics[i]
-			nnic.Name = fmt.Sprintf("%s%d", NetDevPrefix, nnic.Index)
+			if nnic.NicType == computeapi.NIC_TYPE_INFINIBAND {
+				nnic.Name = fmt.Sprintf("%s%d", GetIBNetDevPrefix(), nnic.Index)
+			} else {
+				nnic.Name = fmt.Sprintf("%s%d", netDevPrefix, nnic.Index)
+			}
 			allNics = append(allNics, nnic)
 			continue
 		}
@@ -102,14 +113,22 @@ func convertNicConfigs(nics []*types.SServerNic) ([]*types.SServerNic, []*types.
 		master := nics[i]
 		nnic := *nics[i]
 		tnic := *teamNic
-		nnic.Name = fmt.Sprintf("%s%d", NetDevPrefix, nnic.Index)
+		nnic.Name = fmt.Sprintf("%s%d", netDevPrefix, nnic.Index)
 		nnic.TeamingMaster = master
 		nnic.Ip = ""
+		nnic.Masklen = 0
 		nnic.Gateway = ""
-		tnic.Name = fmt.Sprintf("%s%d", NetDevPrefix, tnic.Index)
+		nnic.Ip6 = ""
+		nnic.Masklen6 = 0
+		nnic.Gateway6 = ""
+		tnic.Name = fmt.Sprintf("%s%d", netDevPrefix, tnic.Index)
 		tnic.TeamingMaster = master
 		tnic.Ip = ""
+		tnic.Masklen = 0
 		tnic.Gateway = ""
+		tnic.Ip6 = ""
+		tnic.Masklen6 = 0
+		tnic.Gateway6 = ""
 		master.Name = fmt.Sprintf("bond%d", len(bondNics))
 		master.TeamingSlaves = []*types.SServerNic{&nnic, &tnic}
 		master.Mac = ""

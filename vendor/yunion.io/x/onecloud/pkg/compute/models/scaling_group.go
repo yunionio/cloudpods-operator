@@ -128,7 +128,7 @@ func (sgm *SScalingGroupManager) ValidateCreateData(ctx context.Context, userCre
 	if len(input.CloudregionId) != 0 {
 		idOrName = input.CloudregionId
 	}
-	cloudregion, err := CloudregionManager.FetchByIdOrName(userCred, idOrName)
+	cloudregion, err := CloudregionManager.FetchByIdOrName(ctx, userCred, idOrName)
 	if errors.Cause(err) == sql.ErrNoRows {
 		return input, httperrors.NewInputParameterError("no such cloud region %s", idOrName)
 	}
@@ -138,7 +138,7 @@ func (sgm *SScalingGroupManager) ValidateCreateData(ctx context.Context, userCre
 	input.CloudregionId = cloudregion.GetId()
 
 	// check vpc
-	_, err = validators.ValidateModel(userCred, VpcManager, &input.VpcId)
+	_, err = validators.ValidateModel(ctx, userCred, VpcManager, &input.VpcId)
 	if err != nil {
 		return input, err
 	}
@@ -179,7 +179,7 @@ func (sgm *SScalingGroupManager) ValidateCreateData(ctx context.Context, userCre
 	if len(input.GuestTemplateId) != 0 {
 		idOrName = input.GuestTemplateId
 	}
-	guestTemplate, err := GuestTemplateManager.FetchByIdOrName(userCred, idOrName)
+	guestTemplate, err := GuestTemplateManager.FetchByIdOrName(ctx, userCred, idOrName)
 	if errors.Cause(err) == sql.ErrNoRows {
 		return input, httperrors.NewInputParameterError("no such guest template %s", idOrName)
 	}
@@ -212,7 +212,7 @@ func (sgm *SScalingGroupManager) ValidateCreateData(ctx context.Context, userCre
 	// check lb
 	if len(input.LbBackendGroup) != 0 {
 		idOrName = input.LbBackendGroup
-		lb, err := LoadbalancerBackendGroupManager.FetchByIdOrName(userCred, idOrName)
+		lb, err := LoadbalancerBackendGroupManager.FetchByIdOrName(ctx, userCred, idOrName)
 		if errors.Cause(err) == sql.ErrNoRows {
 			return input, httperrors.NewInputParameterError("no such loadbalancer backend group '%s'", idOrName)
 		}
@@ -260,7 +260,7 @@ func (sg *SScalingGroup) RealDelete(ctx context.Context, userCred mcclient.Token
 	if err != nil {
 		return errors.Wrap(err, "db.DeleteModel")
 	}
-	sg.SetStatus(userCred, api.SG_STATUS_DELETED, "")
+	sg.SetStatus(ctx, userCred, api.SG_STATUS_DELETED, "")
 	return nil
 }
 
@@ -616,7 +616,7 @@ func (sg *SScalingGroup) PostCreate(ctx context.Context, userCred mcclient.Token
 		err := ScalingGroupNetworkManager.Attach(ctx, sg.Id, netId)
 		if err != nil {
 			reason := fmt.Sprintf("Attach ScalingGroup '%s' with Network '%s' failed: %s", sg.Id, netId, err.Error())
-			sg.SetStatus(userCred, api.SG_STATUS_CREATE_FAILED, reason)
+			sg.SetStatus(ctx, userCred, api.SG_STATUS_CREATE_FAILED, reason)
 			logclient.AddActionLogWithContext(ctx, sg, logclient.ACT_CREATE, reason, userCred, false)
 			return
 		}
@@ -675,7 +675,7 @@ func (sg *SScalingGroup) PerformDisable(ctx context.Context, userCred mcclient.T
 func (s *SGuest) PerformDetachScalingGroup(ctx context.Context, userCred mcclient.TokenCredential,
 	query jsonutils.JSONObject, input api.SGPerformDetachScalingGroupInput) (jsonutils.JSONObject, error) {
 	// check ScalingGroup
-	model, err := ScalingGroupManager.FetchByIdOrName(userCred, input.ScalingGroup)
+	model, err := ScalingGroupManager.FetchByIdOrName(ctx, userCred, input.ScalingGroup)
 	if err != nil {
 		if errors.Cause(err) == sql.ErrNoRows {
 			return nil, httperrors.NewInputParameterError("no such ScalingGroup '%s'", input.ScalingGroup)

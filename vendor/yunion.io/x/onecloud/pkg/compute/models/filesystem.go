@@ -133,7 +133,7 @@ func (manager *SFileSystemManager) ListItemFilter(
 func (man *SFileSystemManager) ValidateCreateData(ctx context.Context, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, query jsonutils.JSONObject, input api.FileSystemCreateInput) (api.FileSystemCreateInput, error) {
 	var err error
 	if len(input.NetworkId) > 0 {
-		net, err := validators.ValidateModel(userCred, NetworkManager, &input.NetworkId)
+		net, err := validators.ValidateModel(ctx, userCred, NetworkManager, &input.NetworkId)
 		if err != nil {
 			return input, err
 		}
@@ -148,7 +148,7 @@ func (man *SFileSystemManager) ValidateCreateData(ctx context.Context, userCred 
 	if len(input.ZoneId) == 0 {
 		return input, httperrors.NewMissingParameterError("zone_id")
 	}
-	_zone, err := validators.ValidateModel(userCred, ZoneManager, &input.ZoneId)
+	_zone, err := validators.ValidateModel(ctx, userCred, ZoneManager, &input.ZoneId)
 	if err != nil {
 		return input, err
 	}
@@ -203,10 +203,10 @@ func (fileSystem *SFileSystem) StartCreateTask(ctx context.Context, userCred mcc
 		return task.ScheduleRun(nil)
 	}()
 	if err != nil {
-		fileSystem.SetStatus(userCred, api.NAS_STATUS_CREATE_FAILED, err.Error())
+		fileSystem.SetStatus(ctx, userCred, api.NAS_STATUS_CREATE_FAILED, err.Error())
 		return err
 	}
-	fileSystem.SetStatus(userCred, api.NAS_STATUS_CREATING, "")
+	fileSystem.SetStatus(ctx, userCred, api.NAS_STATUS_CREATING, "")
 	return nil
 }
 
@@ -303,9 +303,12 @@ func (manager *SFileSystemManager) OrderByExtraFields(
 	return q, nil
 }
 
-func (fileSystem *SCloudregion) GetFileSystems() ([]SFileSystem, error) {
+func (region *SCloudregion) GetFileSystems(managerId string) ([]SFileSystem, error) {
 	ret := []SFileSystem{}
-	q := FileSystemManager.Query().Equals("cloudregion_id", fileSystem.Id)
+	q := FileSystemManager.Query().Equals("cloudregion_id", region.Id)
+	if len(managerId) > 0 {
+		q = q.Equals("manager_id", managerId)
+	}
 	err := db.FetchModelObjects(FileSystemManager, q, &ret)
 	if err != nil {
 		return nil, errors.Wrapf(err, "db.FetchModelObjects")
@@ -313,24 +316,24 @@ func (fileSystem *SCloudregion) GetFileSystems() ([]SFileSystem, error) {
 	return ret, nil
 }
 
-func (fileSystem *SCloudregion) SyncFileSystems(
+func (region *SCloudregion) SyncFileSystems(
 	ctx context.Context,
 	userCred mcclient.TokenCredential,
 	provider *SCloudprovider,
 	filesystems []cloudprovider.ICloudFileSystem,
 	xor bool,
 ) ([]SFileSystem, []cloudprovider.ICloudFileSystem, compare.SyncResult) {
-	lockman.LockRawObject(ctx, fileSystem.Id, FileSystemManager.Keyword())
-	defer lockman.ReleaseRawObject(ctx, fileSystem.Id, FileSystemManager.Keyword())
+	lockman.LockRawObject(ctx, region.Id, FileSystemManager.Keyword())
+	defer lockman.ReleaseRawObject(ctx, region.Id, FileSystemManager.Keyword())
 
 	result := compare.SyncResult{}
 
 	localFSs := []SFileSystem{}
 	remoteFSs := []cloudprovider.ICloudFileSystem{}
 
-	dbFSs, err := fileSystem.GetFileSystems()
+	dbFSs, err := region.GetFileSystems(provider.Id)
 	if err != nil {
-		result.Error(errors.Wrapf(err, "fileSystem.GetFileSystems"))
+		result.Error(errors.Wrapf(err, "GetFileSystems"))
 		return localFSs, remoteFSs, result
 	}
 
@@ -365,12 +368,12 @@ func (fileSystem *SCloudregion) SyncFileSystems(
 		result.Update()
 	}
 	for i := 0; i < len(added); i += 1 {
-		newFs, err := fileSystem.newFromCloudFileSystem(ctx, userCred, provider, added[i])
+		newFs, err := region.newFromCloudFileSystem(ctx, userCred, provider, added[i])
 		if err != nil {
 			result.AddError(err)
 			continue
 		}
-		syncMetadata(ctx, userCred, newFs, added[i])
+		syncMetadata(ctx, userCred, newFs, added[i], false)
 		localFSs = append(localFSs, *newFs)
 		remoteFSs = append(remoteFSs, added[i])
 		result.Add()
@@ -387,7 +390,7 @@ func (fileSystem *SFileSystem) syncRemove(ctx context.Context, userCred mcclient
 
 	err := fileSystem.ValidateDeleteCondition(ctx, nil)
 	if err != nil { // cannot delete
-		return fileSystem.SetStatus(userCred, api.NAS_STATUS_UNKNOWN, "sync to delete")
+		return fileSystem.SetStatus(ctx, userCred, api.NAS_STATUS_UNKNOWN, "sync to delete")
 	}
 
 	err = fileSystem.RealDelete(ctx, userCred)
@@ -415,10 +418,10 @@ func (fileSystem *SFileSystem) StartDeleteTask(ctx context.Context, userCred mcc
 		return task.ScheduleRun(nil)
 	}()
 	if err != nil {
-		fileSystem.SetStatus(userCred, api.NAS_STATUS_DELETE_FAILED, err.Error())
+		fileSystem.SetStatus(ctx, userCred, api.NAS_STATUS_DELETE_FAILED, err.Error())
 		return nil
 	}
-	fileSystem.SetStatus(userCred, api.NAS_STATUS_DELETING, "")
+	fileSystem.SetStatus(ctx, userCred, api.NAS_STATUS_DELETING, "")
 	return nil
 }
 
@@ -486,7 +489,9 @@ func (fileSystem *SFileSystem) SyncWithCloudFileSystem(ctx context.Context, user
 			Action: notifyclient.ActionSyncUpdate,
 		})
 	}
-	syncMetadata(ctx, userCred, fileSystem, fs)
+	if account := fileSystem.GetCloudaccount(); account != nil {
+		syncMetadata(ctx, userCred, fileSystem, fs, account.ReadOnly)
+	}
 	return nil
 }
 
@@ -637,12 +642,15 @@ func (fileSystem *SFileSystem) StartRemoteUpdateTask(ctx context.Context, userCr
 	if err != nil {
 		return errors.Wrap(err, "NewTask")
 	}
-	fileSystem.SetStatus(userCred, api.NAS_UPDATE_TAGS, "StartRemoteUpdateTask")
+	fileSystem.SetStatus(ctx, userCred, api.NAS_UPDATE_TAGS, "StartRemoteUpdateTask")
 	return task.ScheduleRun(nil)
 }
 
 func (fileSystem *SFileSystem) OnMetadataUpdated(ctx context.Context, userCred mcclient.TokenCredential) {
-	if len(fileSystem.ExternalId) == 0 {
+	if len(fileSystem.ExternalId) == 0 || options.Options.KeepTagLocalization {
+		return
+	}
+	if account := fileSystem.GetCloudaccount(); account != nil && account.ReadOnly {
 		return
 	}
 	fileSystem.StartRemoteUpdateTask(ctx, userCred, true, "")

@@ -12,25 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package compute
-
-import (
-	"yunion.io/x/onecloud/pkg/apis"
-)
-
-type SnapshotPolicyDiskDetails struct {
-	apis.VirtualJointResourceBaseDetails
-
-	// 快照策略名称
-	Snapshotpolicy string      `json:"snapshotpolicy"`
-	Disk           DiskDetails `json:"disk"`
-}
-
-type SnapshotPolicyDiskListInput struct {
-	apis.VirtualJointResourceBaseListInput
-	SnapshotPolicyFilterListInput
-	DiskFilterListInput
-
-	// 状态
-	Status []string `json:"status"`
-}
+package sortutils // import "yunion.io/x/pkg/util/sortutils"

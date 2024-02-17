@@ -12,13 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package compute
+package monitor
+
+import "yunion.io/x/onecloud/pkg/apis"
 
 const (
-	SECGROUP_CACHE_STATUS_READY         = "ready"
-	SECGROUP_CACHE_STATUS_UNKNOWN       = "unknown"
-	SECGROUP_CACHE_STATUS_DELETING      = "deleting"
-	SECGROUP_CACHE_STATUS_CACHING       = "caching"
-	SECGROUP_CACHE_STATUS_CACHE_FAILED  = "cache_failed"
-	SECGROUP_CACHE_STATUS_DELETE_FAILED = "delete_failed"
+	DataSourceTypeInfluxdb        = apis.SERVICE_TYPE_INFLUXDB
+	DataSourceTypeVictoriaMetrics = apis.SERVICE_TYPE_VICTORIA_METRICS
 )

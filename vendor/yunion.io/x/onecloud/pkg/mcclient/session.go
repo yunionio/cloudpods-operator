@@ -121,7 +121,7 @@ func getApiVersionByServiceType(serviceType string) string {
 	return ""
 }
 
-func (this *ClientSession) getServiceName(service string) string {
+func (this *ClientSession) GetServiceName(service string) string {
 	apiVersion := getApiVersionByServiceType(service)
 	if len(apiVersion) > 0 && apiVersion != DEFAULT_API_VERSION {
 		service = fmt.Sprintf("%s_%s", service, apiVersion)
@@ -161,7 +161,7 @@ func (this *ClientSession) GetServiceVersionURLs(service, endpointType string) (
 		// session specific endpoint type should override the input endpointType, which is supplied by manager
 		endpointType = this.endpointType
 	}
-	service = this.getServiceName(service)
+	service = this.GetServiceName(service)
 	if endpointType == api.EndpointInterfaceApigateway {
 		return this.getApigatewayServiceURLs(service, this.region, this.zone, endpointType)
 	} else {
@@ -212,13 +212,13 @@ func (this *ClientSession) getServiceVersionURLs(service, region, zone, endpoint
 		return []string{this.client.authUrl}, nil
 	}
 	urls, err := catalog.getServiceURLs(service, region, zone, endpointType)
-	// HACK! in case of fail to get kestone url or schema of keystone changed, always trust authUrl
+	// HACK! in case of fail to get keystone url or schema of keystone changed, always trust authUrl
 	if service == api.SERVICE_TYPE && (err != nil || len(urls) == 0 || (len(this.client.authUrl) != 0 && this.client.authUrl[:5] != urls[0][:5])) {
 		var msg string
 		if err != nil {
 			msg = fmt.Sprintf("fail to retrieve keystone urls: %s", err)
 		} else if len(urls) == 0 {
-			msg = fmt.Sprintf("empty keystone url")
+			msg = "empty keystone url"
 		} else {
 			msg = fmt.Sprintf("Schema of keystone authUrl and endpoint mismatch: %s!=%s", this.client.authUrl, urls)
 		}

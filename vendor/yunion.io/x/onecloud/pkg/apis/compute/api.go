@@ -78,12 +78,15 @@ type NetworkConfig struct {
 
 	// 子网内的IPv6地址
 	// required: false
-	// swagger:ignore
 	Address6 string `json:"address6"`
 
 	// 如果是批量创建，指定每台主机子网内的IPv4地址
 	// required: false
 	Addresses6 []string `json:"addresses6"`
+
+	// 是否要求分配IPv6地址
+	// required: false
+	RequireIPv6 bool `json:"require_ipv6"`
 
 	// 驱动方式
 	// 若指定镜像的网络驱动方式，此参数会被覆盖
@@ -95,6 +98,8 @@ type NetworkConfig struct {
 	NumQueues      int    `json:"num_queues"`
 	RxTrafficLimit int64  `json:"rx_traffic_limit"`
 	TxTrafficLimit int64  `json:"tx_traffic_limit"`
+
+	IsDefault bool `json:"is_default"`
 
 	// sriov nic
 	SriovDevice *IsolatedDeviceConfig `json:"sriov_device"`
@@ -118,8 +123,15 @@ type NetworkConfig struct {
 
 type AttachNetworkInput struct {
 	// 添加的网卡的配置
-	// required: true
+	// required: false
 	Nets []*NetworkConfig `json:"nets"`
+
+	// 添加的网卡的配置
+	// required: false
+	NetDesc []string `json:"net_desc"`
+
+	// 添加后不立即同步配置
+	DisableSyncConfig *bool `json:"disable_sync_config"`
 }
 
 type DiskConfig struct {
@@ -256,6 +268,14 @@ type DiskConfig struct {
 
 	// NVNe device
 	NVMEDevice *IsolatedDeviceConfig `json:"nvme_device"`
+
+	// 预分配策略:
+	// off: 关闭预分配，默认关闭
+	// metadata: 精简置备
+	// falloc: 厚置备延迟置零
+	// full: 厚置备快速置零
+	// default: off
+	Preallocation string `json:"preallocation"`
 }
 
 type IsolatedDeviceConfig struct {
@@ -420,6 +440,11 @@ type ServerCreateInput struct {
 	// 虚拟机Cpu大小,若未指定instance_type,此参数为必传项
 	// default: 1
 	VcpuCount int `json:"vcpu_count"`
+
+	// cpu卡槽数
+	// 目前仅vmware支持此参数
+	// default: 1
+	CpuSockets int `json:"cpu_sockets"`
 
 	// 用户自定义启动脚本
 	// 支持 #cloud-config yaml 格式及shell脚本

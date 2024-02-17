@@ -16,31 +16,23 @@ package compute
 
 import "yunion.io/x/onecloud/pkg/apis"
 
-const (
-	DNS_ZONE_CACHE_STATUS_DELETING      = "deleting"
-	DNS_ZONE_CACHE_STATUS_DELETE_FAILED = "delete_failed"
-	DNS_ZONE_CACHE_STATUS_CREATING      = "creating"
-	DNS_ZONE_CACHE_STATUS_CREATE_FAILED = "create_failed"
-	DNS_ZONE_CACHE_STATUS_AVAILABLE     = "available"
-	DNS_ZONE_CACHE_STATUS_UNKNOWN       = "unknown"
-)
-
-type DnsZoneCacheCreateInput struct {
+// 资源创建参数, 目前仅占位
+type SSLCertificateCreateInput struct {
 }
 
-type DnsZoneCacheDetails struct {
-	apis.StatusStandaloneResourceDetails
-	SDnsZoneCache
-
-	Account  string
-	Brand    string
-	Provider string
+// 资源返回详情
+type SSLCertificateDetails struct {
+	apis.VirtualResourceDetails
+	ManagedResourceInfo
+	CloudregionResourceInfo
 }
 
-type DnsZoneCacheListInput struct {
-	apis.StatusStandaloneResourceListInput
+// 资源列表请求参数
+type SSLCertificateListInput struct {
+	apis.VirtualResourceListInput
+	apis.ExternalizedResourceBaseListInput
+	apis.DeletePreventableResourceBaseListInput
 
-	DnsZoneFilterListBase
-
-	CloudaccountId string `json:"cloudaccount_id"`
+	RegionalFilterListInput
+	ManagedResourceListInput
 }

@@ -115,8 +115,6 @@ func (manager *SKeypairManager) ListItemFilter(
 		q = q.In("fingerprint", query.Fingerprint)
 	}
 
-	q.DebugQuery()
-
 	return q, nil
 }
 
@@ -291,8 +289,8 @@ func totalKeypairCount(userId string) (int, error) {
 	return q.CountWithError()
 }
 
-func (manager *SKeypairManager) FilterByOwner(q *sqlchemy.SQuery, man db.FilterByOwnerProvider, userCred mcclient.TokenCredential, owner mcclient.IIdentityProvider, scope rbacscope.TRbacScope) *sqlchemy.SQuery {
-	return db.SharableManagerFilterByOwner(manager.GetISharableVirtualModelManager(), q, userCred, owner, scope)
+func (manager *SKeypairManager) FilterByOwner(ctx context.Context, q *sqlchemy.SQuery, man db.FilterByOwnerProvider, userCred mcclient.TokenCredential, owner mcclient.IIdentityProvider, scope rbacscope.TRbacScope) *sqlchemy.SQuery {
+	return db.SharableManagerFilterByOwner(ctx, manager.GetISharableVirtualModelManager(), q, userCred, owner, scope)
 }
 
 func (keypair *SKeypair) GetDetailsPrivatekey(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject) (jsonutils.JSONObject, error) {

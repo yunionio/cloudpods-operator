@@ -95,7 +95,7 @@ func (manager *SDnsZoneManager) ValidateCreateData(
 	}
 	var provider *SCloudprovider = nil
 	if len(input.CloudproviderId) > 0 {
-		providerObj, err := validators.ValidateModel(userCred, CloudproviderManager, &input.CloudproviderId)
+		providerObj, err := validators.ValidateModel(ctx, userCred, CloudproviderManager, &input.CloudproviderId)
 		if err != nil {
 			return nil, err
 		}
@@ -108,7 +108,7 @@ func (manager *SDnsZoneManager) ValidateCreateData(
 	case cloudprovider.PrivateZone:
 		vpcIds := []string{}
 		for i := range input.VpcIds {
-			vpcObj, err := validators.ValidateModel(userCred, VpcManager, &input.VpcIds[i])
+			vpcObj, err := validators.ValidateModel(ctx, userCred, VpcManager, &input.VpcIds[i])
 			if err != nil {
 				return input, err
 			}
@@ -204,7 +204,7 @@ func (self *SDnsZone) StartDnsZoneCreateTask(ctx context.Context, userCred mccli
 	if err != nil {
 		return errors.Wrap(err, "NewTask")
 	}
-	self.SetStatus(userCred, api.DNS_ZONE_STATUS_CREATING, "")
+	self.SetStatus(ctx, userCred, api.DNS_ZONE_STATUS_CREATING, "")
 	return task.ScheduleRun(nil)
 }
 
@@ -231,7 +231,7 @@ func (manager *SDnsZoneManager) ListItemFilter(
 	}
 
 	if len(query.VpcId) > 0 {
-		vpc, err := VpcManager.FetchByIdOrName(userCred, query.VpcId)
+		vpc, err := VpcManager.FetchByIdOrName(ctx, userCred, query.VpcId)
 		if err != nil {
 			if errors.Cause(err) == sql.ErrNoRows {
 				return nil, httperrors.NewResourceNotFoundError2("vpc", query.VpcId)
@@ -352,7 +352,7 @@ func (self *SDnsZone) StartDnsZoneDeleteTask(ctx context.Context, userCred mccli
 	if err != nil {
 		return errors.Wrap(err, "NewTask")
 	}
-	self.SetStatus(userCred, api.DNS_ZONE_STATUS_DELETING, "")
+	self.SetStatus(ctx, userCred, api.DNS_ZONE_STATUS_DELETING, "")
 	return task.ScheduleRun(nil)
 }
 
@@ -508,9 +508,11 @@ func (self *SDnsZone) syncWithDnsZone(ctx context.Context, userCred mcclient.Tok
 	}
 
 	privider := self.GetCloudprovider()
-	syncVirtualResourceMetadata(ctx, userCred, self, ext)
 	if privider != nil {
-		SyncCloudProject(ctx, userCred, self, provider.GetOwnerId(), ext, self.ManagerId)
+		if account, _ := provider.GetCloudaccount(); account != nil {
+			syncVirtualResourceMetadata(ctx, userCred, self, ext, account.ReadOnly)
+		}
+		SyncCloudProject(ctx, userCred, self, provider.GetOwnerId(), ext, provider)
 	}
 
 	return nil
@@ -531,8 +533,8 @@ func (self *SCloudprovider) newFromCloudDnsZone(ctx context.Context, userCred mc
 		return nil, errors.Wrapf(err, "Insert")
 	}
 
-	syncVirtualResourceMetadata(ctx, userCred, zone, ext)
-	SyncCloudProject(ctx, userCred, zone, self.GetOwnerId(), ext, self.Id)
+	syncVirtualResourceMetadata(ctx, userCred, zone, ext, false)
+	SyncCloudProject(ctx, userCred, zone, self.GetOwnerId(), ext, self)
 
 	return zone, nil
 }
@@ -570,7 +572,7 @@ func (self *SDnsZone) PerformAddVpcs(ctx context.Context, userCred mcclient.Toke
 	}
 
 	for i := range input.VpcIds {
-		vpcObj, err := validators.ValidateModel(userCred, VpcManager, &input.VpcIds[i])
+		vpcObj, err := validators.ValidateModel(ctx, userCred, VpcManager, &input.VpcIds[i])
 		if err != nil {
 			return nil, err
 		}
@@ -592,7 +594,7 @@ func (self *SDnsZone) StartDnsZoneAddVpcsTask(ctx context.Context, userCred mccl
 	if err != nil {
 		return errors.Wrap(err, "NewTask")
 	}
-	self.SetStatus(userCred, apis.STATUS_SYNC_STATUS, "")
+	self.SetStatus(ctx, userCred, apis.STATUS_SYNC_STATUS, "")
 	return task.ScheduleRun(nil)
 }
 
@@ -603,7 +605,7 @@ func (self *SDnsZone) StartDnsZoneRemoveVpcsTask(ctx context.Context, userCred m
 	if err != nil {
 		return errors.Wrap(err, "NewTask")
 	}
-	self.SetStatus(userCred, apis.STATUS_SYNC_STATUS, "")
+	self.SetStatus(ctx, userCred, apis.STATUS_SYNC_STATUS, "")
 	return task.ScheduleRun(nil)
 }
 

@@ -105,7 +105,7 @@ func (manager *SInstanceBackupManager) ListItemFilter(ctx context.Context, q *sq
 
 	guestStr := query.ServerId
 	if len(guestStr) > 0 {
-		guestObj, err := GuestManager.FetchByIdOrName(userCred, guestStr)
+		guestObj, err := GuestManager.FetchByIdOrName(ctx, userCred, guestStr)
 		if err != nil {
 			if errors.Cause(err) == sql.ErrNoRows {
 				return nil, httperrors.NewResourceNotFoundError2("guests", guestStr)
@@ -225,6 +225,7 @@ func (self *SInstanceBackup) getMoreDetails(userCred mcclient.TokenCredential, o
 			CreatedAt:    backups[i].CreatedAt,
 		})
 	}
+	out.Size = self.SizeMb * 1024 * 1024
 	return out
 }
 
@@ -256,7 +257,7 @@ func (manager *SInstanceBackupManager) FetchCustomizeColumns(
 }
 
 func (self *SInstanceBackup) StartCreateInstanceBackupTask(ctx context.Context, userCred mcclient.TokenCredential, parentTaskId string) error {
-	self.SetStatus(userCred, api.INSTANCE_BACKUP_STATUS_CREATING, "")
+	self.SetStatus(ctx, userCred, api.INSTANCE_BACKUP_STATUS_CREATING, "")
 	if task, err := taskman.TaskManager.NewTask(ctx, "InstanceBackupCreateTask", self, userCred, nil, parentTaskId, "", nil); err != nil {
 		return err
 	} else {
@@ -366,6 +367,9 @@ func (self *SInstanceBackup) ToInstanceCreateInput(sourceInput *api.ServerCreate
 			createInput.Disks[i].BackupId = isjs[index].DiskBackupId
 			createInput.Disks[i].ImageId = ""
 			createInput.Disks[i].SnapshotId = ""
+			if i < len(sourceInput.Disks) {
+				createInput.Disks[i].Backend = sourceInput.Disks[i].Backend
+			}
 		}
 	}
 
@@ -454,7 +458,7 @@ func (self *SInstanceBackup) StartInstanceBackupDeleteTask(
 		log.Errorf("%s", err)
 		return err
 	}
-	self.SetStatus(userCred, api.INSTANCE_BACKUP_STATUS_DELETING, "InstanceBackupDeleteTask")
+	self.SetStatus(ctx, userCred, api.INSTANCE_BACKUP_STATUS_DELETING, "InstanceBackupDeleteTask")
 	task.ScheduleRun(nil)
 	return nil
 }
@@ -490,7 +494,7 @@ func (self *SInstanceBackup) PerformRecovery(ctx context.Context, userCred mccli
 }
 
 func (self *SInstanceBackup) StartRecoveryTask(ctx context.Context, userCred mcclient.TokenCredential, parentTaskId string, serverName string) error {
-	self.SetStatus(userCred, api.INSTANCE_BACKUP_STATUS_RECOVERY, "")
+	self.SetStatus(ctx, userCred, api.INSTANCE_BACKUP_STATUS_RECOVERY, "")
 	params := jsonutils.NewDict()
 	if serverName != "" {
 		params.Set("server_name", jsonutils.NewString(serverName))
@@ -508,7 +512,7 @@ func (self *SInstanceBackup) PerformPack(ctx context.Context, userCred mcclient.
 	if input.PackageName == "" {
 		return nil, httperrors.NewMissingParameterError("miss package_name")
 	}
-	self.SetStatus(userCred, api.INSTANCE_BACKUP_STATUS_PACK, "")
+	self.SetStatus(ctx, userCred, api.INSTANCE_BACKUP_STATUS_PACK, "")
 	params := jsonutils.NewDict()
 	params.Set("package_name", jsonutils.NewString(input.PackageName))
 	task, err := taskman.TaskManager.NewTask(ctx, "InstanceBackupPackTask", self, userCred, params, "", "", nil)

@@ -115,7 +115,7 @@ func (self *SStoragecachedimage) getStorageHostId() (string, error) {
 
 func (self *SStoragecachedimage) GetHost() (*SHost, error) {
 	sc := self.GetStoragecache()
-	return sc.GetHost()
+	return sc.GetMasterHost()
 }
 
 func (manager *SStoragecachedimageManager) FetchCustomizeColumns(
@@ -154,7 +154,7 @@ func (self *SStoragecachedimage) getExtraDetails(ctx context.Context, out api.St
 	if storagecache != nil {
 		// out.Storagecache = storagecache.Name
 		out.Storages = storagecache.getStorageNames()
-		host, _ := storagecache.GetHost()
+		host, _ := storagecache.GetMasterHost()
 		if host != nil {
 			out.Host = host.GetShortDesc(ctx)
 		} else {
@@ -337,7 +337,7 @@ func (manager *SStoragecachedimageManager) Register(ctx context.Context, userCre
 	return cachedimage
 }
 
-func (self *SStoragecachedimage) SetStatus(userCred mcclient.TokenCredential, status string, reason string) error {
+func (self *SStoragecachedimage) SetStatus(ctx context.Context, userCred mcclient.TokenCredential, status string, reason string) error {
 	if self.Status == status {
 		return nil
 	}
@@ -412,8 +412,8 @@ func (self *SStoragecachedimage) syncWithCloudImage(ctx context.Context, userCre
 		self.SetExternalId(cachedImage.GetExternalId())
 	}
 	if len(cachedImage.ExternalId) > 0 {
-		self.SetStatus(userCred, image.GetStatus(), "")
-		return cachedImage.syncWithCloudImage(ctx, userCred, ownerId, image, managerId)
+		self.SetStatus(ctx, userCred, image.GetStatus(), "")
+		return cachedImage.syncWithCloudImage(ctx, userCred, ownerId, image, nil)
 	} else {
 		return nil
 	}
@@ -421,6 +421,7 @@ func (self *SStoragecachedimage) syncWithCloudImage(ctx context.Context, userCre
 
 func (manager *SStoragecachedimageManager) newFromCloudImage(ctx context.Context, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, image cloudprovider.ICloudImage, cache *SStoragecache) error {
 	var cachedImage *SCachedimage
+	provider := cache.GetCloudprovider()
 	imgObj, err := db.FetchByExternalId(CachedimageManager, image.GetGlobalId())
 	if err != nil {
 		if err != sql.ErrNoRows {
@@ -442,7 +443,7 @@ func (manager *SStoragecachedimageManager) newFromCloudImage(ctx context.Context
 		}
 		if cachedImage == nil {
 			// no such image
-			cachedImage, err = CachedimageManager.newFromCloudImage(ctx, userCred, ownerId, image, cache.ManagerId)
+			cachedImage, err = CachedimageManager.newFromCloudImage(ctx, userCred, ownerId, image, provider)
 			if err != nil {
 				log.Errorf("CachedimageManager.newFromCloudImage fail %s", err)
 				return err
@@ -452,7 +453,7 @@ func (manager *SStoragecachedimageManager) newFromCloudImage(ctx context.Context
 		cachedImage = imgObj.(*SCachedimage)
 	}
 	if len(cachedImage.ExternalId) > 0 {
-		cachedImage.syncWithCloudImage(ctx, userCred, ownerId, image, cache.ManagerId)
+		cachedImage.syncWithCloudImage(ctx, userCred, ownerId, image, provider)
 	}
 	scimg := manager.Register(ctx, userCred, cache.GetId(), cachedImage.GetId(), image.GetStatus())
 	if scimg == nil {
@@ -483,7 +484,7 @@ func (manager *SStoragecachedimageManager) ListItemFilter(
 	}
 
 	if len(query.CachedimageId) > 0 {
-		cachedImageObj, err := CachedimageManager.FetchByIdOrName(userCred, query.CachedimageId)
+		cachedImageObj, err := CachedimageManager.FetchByIdOrName(ctx, userCred, query.CachedimageId)
 		if err != nil {
 			if errors.Cause(err) == sql.ErrNoRows {
 				return nil, httperrors.NewResourceNotFoundError2(CachedimageManager.Keyword(), query.CachedimageId)

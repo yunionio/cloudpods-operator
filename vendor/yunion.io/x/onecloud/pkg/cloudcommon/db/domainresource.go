@@ -20,6 +20,7 @@ import (
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
 	"yunion.io/x/pkg/errors"
+	"yunion.io/x/pkg/gotypes"
 	"yunion.io/x/pkg/utils"
 	"yunion.io/x/sqlchemy"
 
@@ -125,6 +126,9 @@ func (model *SDomainLevelResourceBase) PerformChangeOwner(ctx context.Context, u
 	if err != nil {
 		return nil, httperrors.NewGeneralError(err)
 	}
+	if gotypes.IsNil(ownerId) {
+		return nil, httperrors.NewMissingParameterError("domain_id")
+	}
 	if len(ownerId.GetProjectDomainId()) == 0 {
 		return nil, httperrors.NewInputParameterError("missing new domain")
 	}
@@ -153,7 +157,7 @@ func (model *SDomainLevelResourceBase) PerformChangeOwner(ctx context.Context, u
 	}
 
 	q := manager.Query().Equals("name", model.GetName())
-	q = manager.FilterByOwner(q, manager, userCred, ownerId, manager.NamespaceScope())
+	q = manager.FilterByOwner(ctx, q, manager, userCred, ownerId, manager.NamespaceScope())
 	q = manager.FilterBySystemAttributes(q, nil, nil, manager.ResourceScope())
 	q = q.NotEquals("id", model.GetId())
 	cnt, err := q.CountWithError()
@@ -326,6 +330,7 @@ func (manager *SDomainLevelResourceBaseManager) GetPropertyDomainTagValueTree(
 		manager.GetIDomainLevelModelManager(),
 		"domain",
 		"domain_id",
+		"",
 		ctx,
 		userCred,
 		query,

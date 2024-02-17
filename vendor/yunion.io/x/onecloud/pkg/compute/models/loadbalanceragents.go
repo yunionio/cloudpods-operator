@@ -34,6 +34,7 @@ import (
 	identity_apis "yunion.io/x/onecloud/pkg/apis/identity"
 	"yunion.io/x/onecloud/pkg/cloudcommon/db"
 	"yunion.io/x/onecloud/pkg/cloudcommon/db/lockman"
+	"yunion.io/x/onecloud/pkg/cloudcommon/tsdb"
 	"yunion.io/x/onecloud/pkg/cloudcommon/validators"
 	"yunion.io/x/onecloud/pkg/compute/options"
 	"yunion.io/x/onecloud/pkg/httperrors"
@@ -279,8 +280,7 @@ func (p *SLoadbalancerAgentParamsTelegraf) updateBy(pp *SLoadbalancerAgentParams
 func (p *SLoadbalancerAgentParamsTelegraf) initDefault(data *jsonutils.JSONDict) {
 	if p.InfluxDbOutputUrl == "" {
 		baseOpts := &options.Options
-		u, _ := auth.GetServiceURL("influxdb", baseOpts.Region, "",
-			identity_apis.EndpointInterfacePublic)
+		u, _ := tsdb.GetDefaultServiceSourceURL(auth.GetAdminSession(context.Background(), baseOpts.Region), identity_apis.EndpointInterfacePublic)
 		p.InfluxDbOutputUrl = u
 		p.InfluxDbOutputUnsafeSsl = true
 	}
@@ -381,7 +381,7 @@ func (man *SLoadbalancerAgentManager) GetPropertyDefaultParams(ctx context.Conte
 	{
 		clusterV := validators.NewModelIdOrNameValidator("cluster", "loadbalancercluster", userCred)
 		clusterV.Optional(true)
-		if err := clusterV.Validate(query.(*jsonutils.JSONDict)); err != nil {
+		if err := clusterV.Validate(ctx, query.(*jsonutils.JSONDict)); err != nil {
 			return nil, err
 		}
 		if clusterV.Model != nil {
@@ -411,7 +411,7 @@ func (man *SLoadbalancerAgentManager) ValidateCreateData(ctx context.Context, us
 			// "cluster":    clusterV,
 		}
 		for _, v := range keyV {
-			if err := v.Validate(data); err != nil {
+			if err := v.Validate(ctx, data); err != nil {
 				return nil, err
 			}
 		}
@@ -522,7 +522,7 @@ func (lbagent *SLoadbalancerAgent) ValidateUpdateData(ctx context.Context, userC
 			"hb_timeout": validators.NewNonNegativeValidator("hb_timeout").Optional(true),
 		}
 		for _, v := range keyV {
-			if err := v.Validate(data); err != nil {
+			if err := v.Validate(ctx, data); err != nil {
 				return nil, err
 			}
 		}
@@ -660,7 +660,7 @@ func (lbagent *SLoadbalancerAgent) PerformHb(ctx context.Context, userCred mccli
 		}
 		for _, v := range keyV {
 			v.Optional(true)
-			if err := v.Validate(data); err != nil {
+			if err := v.Validate(ctx, data); err != nil {
 				return nil, err
 			}
 		}
@@ -711,7 +711,7 @@ func (lbagent *SLoadbalancerAgent) PerformJoinCluster(
 	if len(lbagent.ClusterId) > 0 {
 		return nil, errors.Wrap(httperrors.ErrConflict, "lbagent has been join cluster")
 	}
-	clusterObj, err := LoadbalancerClusterManager.FetchByIdOrName(userCred, input.ClusterId)
+	clusterObj, err := LoadbalancerClusterManager.FetchByIdOrName(ctx, userCred, input.ClusterId)
 	if err != nil {
 		if errors.Cause(err) == sql.ErrNoRows {
 			return nil, errors.Wrapf(httperrors.ErrNotFound, "%s %s", LoadbalancerClusterManager.Keyword(), input.ClusterId)
@@ -806,7 +806,7 @@ func (lbagent *SLoadbalancerAgent) PerformParamsPatch(ctx context.Context, userC
 	d := jsonutils.NewDict()
 	d.Set("params", data)
 	paramsV := validators.NewStructValidator("params", &params)
-	if err := paramsV.Validate(d); err != nil {
+	if err := paramsV.Validate(ctx, d); err != nil {
 		return nil, err
 	}
 	{

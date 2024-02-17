@@ -12,20 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package compute
+package multicloud
 
-import "yunion.io/x/onecloud/pkg/apis"
+type SNetworkBase struct {
+	SResourceBase
+}
 
-type SecurityGroupCacheDetails struct {
-	apis.StatusStandaloneResourceDetails
-	apis.ProjectizedResourceInfo
-	ManagedResourceInfo
-	CloudregionResourceInfo
+func (net *SNetworkBase) GetIp6Start() string {
+	return ""
+}
 
-	SSecurityGroupCache
+func (net *SNetworkBase) GetIp6End() string {
+	return ""
+}
 
-	// 虚拟私有网络名称
-	Vpc string `json:"vpc"`
+func (net *SNetworkBase) GetIp6Mask() uint8 {
+	return 0
+}
 
-	ProjectId string `json:"tenant_id"`
+func (net *SNetworkBase) GetGateway6() string {
+	return ""
 }

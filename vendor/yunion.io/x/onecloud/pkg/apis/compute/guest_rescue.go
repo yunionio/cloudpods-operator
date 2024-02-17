@@ -14,18 +14,8 @@
 
 package compute
 
-import (
-	"yunion.io/x/onecloud/pkg/mcclient/modulebase"
-	"yunion.io/x/onecloud/pkg/mcclient/modules"
+// Rescue constants are used for rescue mode
+const (
+	GUEST_RESCUE_INITRAMFS = "initramfs"
+	GUEST_RESCUE_KERNEL    = "kernel"
 )
-
-var SnapshotPolicyCache modulebase.ResourceManager
-
-func init() {
-	SnapshotPolicyCache = modules.NewComputeManager("snapshotpolicycache", "snapshotpolicycaches",
-		[]string{"Snapshotpolicy_Id", "External_Id", "Cloudregion_Id", "Manager_Id"},
-		[]string{},
-	)
-
-	modules.RegisterCompute(&SnapshotPolicyCache)
-}

@@ -36,8 +36,10 @@ const (
 	SERVICE_TYPE_CLOUDMON          = "cloudmon"
 	SERVICE_TYPE_VPCAGENT          = "vpcagent"
 
-	SERVICE_TYPE_ETCD     = "etcd"
-	SERVICE_TYPE_INFLUXDB = "influxdb"
+	SERVICE_TYPE_ETCD             = "etcd"
+	SERVICE_TYPE_INFLUXDB         = "influxdb"
+	SERVICE_TYPE_NTP              = "ntp"
+	SERVICE_TYPE_VICTORIA_METRICS = "victoria-metrics"
 
 	SERVICE_TYPE_SCHEDULEDTASK = "scheduledtask"
 
@@ -51,6 +53,7 @@ const (
 	STATUS_DELETE_FAILED = "delete_failed"
 	STATUS_UNKNOWN       = "unknown"
 	STATUS_CREATING      = "creating"
+	STATUS_AVAILABLE     = "available"
 	STATUS_CREATE_FAILED = "create_failed"
 
 	CLOUD_TAG_PREFIX     = "ext:"
@@ -100,9 +103,9 @@ var (
 		"apigateway",
 		"yunionapi",
 		"billing",
-		"etcd",
+		SERVICE_TYPE_ETCD,
 		"itsm",
-		"ntp",
+		SERVICE_TYPE_NTP,
 	}
 )
 

@@ -235,7 +235,7 @@ func (dm *SDiskBackupManager) ValidateCreateData(
 		return input, httperrors.NewMissingParameterError("backup_storage_id")
 	}
 	// check disk
-	_disk, err := validators.ValidateModel(userCred, DiskManager, &input.DiskId)
+	_disk, err := validators.ValidateModel(ctx, userCred, DiskManager, &input.DiskId)
 	if err != nil {
 		return input, err
 	}
@@ -251,7 +251,7 @@ func (dm *SDiskBackupManager) ValidateCreateData(
 		}
 	}
 
-	ibs, err := BackupStorageManager.FetchByIdOrName(userCred, input.BackupStorageId)
+	ibs, err := BackupStorageManager.FetchByIdOrName(ctx, userCred, input.BackupStorageId)
 	if err != nil {
 		if errors.Cause(err) == sql.ErrNoRows {
 			return input, httperrors.NewResourceNotFoundError2(BackupStorageManager.Keyword(), input.BackupStorageId)
@@ -415,7 +415,7 @@ func (self *SDiskBackup) CustomizeDelete(ctx context.Context, userCred mcclient.
 }
 
 func (self *SDiskBackup) StartBackupDeleteTask(ctx context.Context, userCred mcclient.TokenCredential, parentTaskId string, forceDelete bool) error {
-	self.SetStatus(userCred, api.BACKUP_STATUS_DELETING, "")
+	self.SetStatus(ctx, userCred, api.BACKUP_STATUS_DELETING, "")
 	log.Infof("start to delete diskbackup %s and set deleting", self.GetId())
 	params := jsonutils.NewDict()
 	if forceDelete {
@@ -438,7 +438,7 @@ func (self *SDiskBackup) PerformRecovery(ctx context.Context, userCred mcclient.
 }
 
 func (self *SDiskBackup) StartRecoveryTask(ctx context.Context, userCred mcclient.TokenCredential, parentTaskId string, diskName string) error {
-	self.SetStatus(userCred, api.BACKUP_STATUS_RECOVERY, "")
+	self.SetStatus(ctx, userCred, api.BACKUP_STATUS_RECOVERY, "")
 	var params *jsonutils.JSONDict
 	if diskName != "" {
 		params = jsonutils.NewDict()

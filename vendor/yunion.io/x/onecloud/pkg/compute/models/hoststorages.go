@@ -133,7 +133,10 @@ func (self *SHoststorage) GetHost() *SHost {
 }
 
 func (self *SHoststorage) GetStorage() *SStorage {
-	storage, _ := StorageManager.FetchById(self.StorageId)
+	storage, err := StorageManager.FetchById(self.StorageId)
+	if err != nil {
+		log.Errorf("Hoststorage fetch storage %q error: %v", self.StorageId, err)
+	}
 	if storage != nil {
 		return storage.(*SStorage)
 	}
@@ -141,12 +144,12 @@ func (self *SHoststorage) GetStorage() *SStorage {
 }
 
 func (manager *SHoststorageManager) ValidateCreateData(ctx context.Context, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, query jsonutils.JSONObject, input api.HostStorageCreateInput) (api.HostStorageCreateInput, error) {
-	storageObj, err := validators.ValidateModel(userCred, StorageManager, &input.StorageId)
+	storageObj, err := validators.ValidateModel(ctx, userCred, StorageManager, &input.StorageId)
 	if err != nil {
 		return input, err
 	}
 	storage := storageObj.(*SStorage)
-	hostObj, err := validators.ValidateModel(userCred, HostManager, &input.HostId)
+	hostObj, err := validators.ValidateModel(ctx, userCred, HostManager, &input.HostId)
 	if err != nil {
 		return input, err
 	}
@@ -227,10 +230,10 @@ func (self *SHoststorage) StartHostStorageDetachTask(ctx context.Context, userCr
 
 func (self *SHoststorage) PostDelete(ctx context.Context, userCred mcclient.TokenCredential) {
 	self.StartHostStorageDetachTask(ctx, userCred)
-	self.SyncStorageStatus(userCred)
+	self.SyncStorageStatus(ctx, userCred)
 }
 
-func (self *SHoststorage) SyncStorageStatus(userCred mcclient.TokenCredential) {
+func (self *SHoststorage) SyncStorageStatus(ctx context.Context, userCred mcclient.TokenCredential) {
 	storage := self.GetStorage()
 	status := api.STORAGE_OFFLINE
 	hosts, _ := storage.GetAttachedHosts()
@@ -240,7 +243,7 @@ func (self *SHoststorage) SyncStorageStatus(userCred mcclient.TokenCredential) {
 		}
 	}
 	if status != storage.Status {
-		storage.SetStatus(userCred, status, "SyncStorageStatus")
+		storage.SetStatus(ctx, userCred, status, "SyncStorageStatus")
 	}
 }
 

@@ -426,11 +426,14 @@ type IdentityProviderUpdateInput struct {
 
 type PolicyTagInput struct {
 	// 匹配的资源标签
-	ObjectTags tagutils.TTagSet `json:"object_tags"`
+	ObjectTags tagutils.TTagSet `json:"object_tags,allowempty"`
 	// 匹配的项目标签
-	ProjectTags tagutils.TTagSet `json:"project_tags"`
+	ProjectTags tagutils.TTagSet `json:"project_tags,allowempty"`
 	// 匹配的域标签
-	DomainTags tagutils.TTagSet `json:"domain_tags"`
+	DomainTags tagutils.TTagSet `json:"domain_tags,allowempty"`
+
+	// 组织架构节点ID
+	OrgNodeId []string `json:"org_node_id,allowempty"`
 }
 
 type PolicyUpdateInput struct {
@@ -551,12 +554,7 @@ type PolicyCreateInput struct {
 	// 是否为系统权限
 	IsSystem *bool `json:"is_system"`
 
-	// 匹配的资源标签
-	ResourceTags tagutils.TTagSet `json:"resource_tags"`
-	// 匹配的项目标签
-	ProjectTags tagutils.TTagSet `json:"project_tags"`
-	// 匹配的域标签
-	DomainTags tagutils.TTagSet `json:"domain_tags"`
+	PolicyTagInput
 }
 
 type RoleCreateInput struct {
