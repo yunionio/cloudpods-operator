@@ -23,6 +23,8 @@ const (
 	SQL_OP_NOT = "NOT"
 	// SQL_OP_LIKE represents LIKE operator
 	SQL_OP_LIKE = "LIKE"
+	// SQL_OP_REGEXP represents REGEXP operator
+	SQL_OP_REGEXP = "REGEXP"
 	// SQL_OP_IN represents IN operator
 	SQL_OP_IN = "IN"
 	// SQL_OP_NOTIN represents NOT IN operator
@@ -79,4 +81,7 @@ const (
 	TAG_CREATE_TIMESTAMP = "created_at"
 	// TAG_ALLOW_ZERO is a field tag that indicates whether the column allow zero value
 	TAG_ALLOW_ZERO = "allow_zero"
+	// TAG_OLD_NAME is a field indicate the colume was renamed from an old name,
+	// sync table will do renaming of coolumn instead of creating a new column
+	TAG_OLD_NAME = "old_name"
 )

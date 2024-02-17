@@ -30,6 +30,22 @@ func (t TTagSet) IsZero() bool {
 	return len(t) == 0
 }
 
+func (ts TTagSet) KeyPrefix() string {
+	var pref *string
+	for i := range ts {
+		prefix := ts[i].KeyPrefix()
+		if pref == nil {
+			pref = &prefix
+		} else if *pref != prefix {
+			return ""
+		}
+	}
+	if pref != nil {
+		return *pref
+	}
+	return ""
+}
+
 func (ts TTagSet) index(needle STag) (int, bool) {
 	i := 0
 	j := len(ts) - 1
@@ -108,10 +124,11 @@ func (ts TTagSet) add(e STag) TTagSet {
 	return ts
 }
 
-func (ts TTagSet) Remove(ele ...STag) TTagSet {
+func (ts TTagSet) Remove(ele ...STag) (TTagSet, bool) {
 	if len(ts) == 0 {
-		return ts
+		return ts, false
 	}
+	changed := false
 	for _, e := range ele {
 		if len(e.Value) == 0 {
 			e.Value = AnyValue
@@ -120,12 +137,13 @@ func (ts TTagSet) Remove(ele ...STag) TTagSet {
 		if !find {
 			continue
 		}
+		changed = true
 		if pos < len(ts)-1 {
 			copy(ts[pos:], ts[pos+1:])
 		}
 		ts = ts[:len(ts)-1]
 	}
-	return ts
+	return ts, changed
 }
 
 func (a TTagSet) Len() int      { return len(a) }
@@ -217,4 +235,15 @@ func Tagset2MapString(oTags TTagSet) map[string]string {
 		}
 	}
 	return tags
+}
+
+func TagsetMap2MapString(oTags map[string]TTagSet) map[string]string {
+	ret := make(map[string]string)
+	for k := range oTags {
+		keyMap := Tagset2MapString(oTags[k])
+		for k, v := range keyMap {
+			ret[k] = v
+		}
+	}
+	return ret
 }

@@ -191,8 +191,8 @@ func (manager *SElasticcacheParameterManager) FetchOwnerId(ctx context.Context, 
 	return elasticcacheSubResourceFetchOwnerId(ctx, data)
 }
 
-func (manager *SElasticcacheParameterManager) FilterByOwner(q *sqlchemy.SQuery, man db.FilterByOwnerProvider, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, scope rbacscope.TRbacScope) *sqlchemy.SQuery {
-	return elasticcacheSubResourceFetchOwner(q, ownerId, scope)
+func (manager *SElasticcacheParameterManager) FilterByOwner(ctx context.Context, q *sqlchemy.SQuery, man db.FilterByOwnerProvider, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, scope rbacscope.TRbacScope) *sqlchemy.SQuery {
+	return elasticcacheSubResourceFetchOwner(ctx, q, ownerId, scope)
 }
 
 func (self *SElasticcacheParameter) GetOwnerId() mcclient.IIdentityProvider {
@@ -229,7 +229,7 @@ func (self *SElasticcacheParameter) PostUpdate(ctx context.Context, userCred mcc
 	paramsObj.Add(v, self.Name)
 	params.Add(paramsObj, "parameters")
 
-	self.SetStatus(userCred, api.ELASTIC_CACHE_PARAMETER_STATUS_UPDATING, "")
+	self.SetStatus(ctx, userCred, api.ELASTIC_CACHE_PARAMETER_STATUS_UPDATING, "")
 	if err := self.StartUpdateElasticcacheParameterTask(ctx, userCred, params, ""); err != nil {
 		log.Errorf("ElasticcacheParameter %s", err.Error())
 	}

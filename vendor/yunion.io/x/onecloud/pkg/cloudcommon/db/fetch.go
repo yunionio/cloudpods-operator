@@ -96,7 +96,7 @@ func FetchById(manager IModelManager, idStr string) (IModel, error) {
 	}
 }
 
-func FetchByName(manager IModelManager, userCred mcclient.IIdentityProvider, idStr string) (IModel, error) {
+func FetchByName(ctx context.Context, manager IModelManager, userCred mcclient.IIdentityProvider, idStr string) (IModel, error) {
 	q := manager.Query()
 	q = manager.FilterByName(q, idStr)
 	count, err := q.CountWithError()
@@ -104,7 +104,7 @@ func FetchByName(manager IModelManager, userCred mcclient.IIdentityProvider, idS
 		return nil, err
 	}
 	if count > 0 && userCred != nil {
-		q = manager.FilterByOwner(q, manager, nil, userCred, manager.NamespaceScope())
+		q = manager.FilterByOwner(ctx, q, manager, nil, userCred, manager.NamespaceScope())
 		q = manager.FilterBySystemAttributes(q, nil, nil, manager.ResourceScope())
 		count, err = q.CountWithError()
 		if err != nil {
@@ -129,13 +129,13 @@ func FetchByName(manager IModelManager, userCred mcclient.IIdentityProvider, idS
 	}
 }
 
-func FetchByIdOrName(manager IModelManager, userCred mcclient.IIdentityProvider, idStr string) (IModel, error) {
+func FetchByIdOrName(ctx context.Context, manager IModelManager, userCred mcclient.IIdentityProvider, idStr string) (IModel, error) {
 	if stringutils2.IsUtf8(idStr) {
-		return FetchByName(manager, userCred, idStr)
+		return FetchByName(ctx, manager, userCred, idStr)
 	}
 	obj, err := FetchById(manager, idStr)
 	if err == sql.ErrNoRows {
-		return FetchByName(manager, userCred, idStr)
+		return FetchByName(ctx, manager, userCred, idStr)
 	} else {
 		return obj, err
 	}
@@ -197,7 +197,7 @@ func fetchItemByName(manager IModelManager, ctx context.Context, userCred mcclie
 		if err != nil {
 			return nil, httperrors.NewGeneralError(err)
 		}
-		q = manager.FilterByOwner(q, manager, userCred, ownerId, manager.NamespaceScope())
+		q = manager.FilterByOwner(ctx, q, manager, userCred, ownerId, manager.NamespaceScope())
 		q = manager.FilterBySystemAttributes(q, nil, nil, manager.ResourceScope())
 		count, err = q.CountWithError()
 		if err != nil {
@@ -406,7 +406,11 @@ func FetchCheckQueryOwnerScope(
 		ownerId = userCred
 		reqScopeStr, _ := data.GetString("scope")
 		if len(reqScopeStr) > 0 {
-			queryScope = rbacscope.String2Scope(reqScopeStr)
+			if reqScopeStr == "max" || reqScopeStr == "maxallowed" {
+				queryScope = allowScope
+			} else {
+				queryScope = rbacscope.String2Scope(reqScopeStr)
+			}
 		} else if data.Contains("admin") {
 			isAdmin := jsonutils.QueryBoolean(data, "admin", false)
 			if isAdmin && allowScope.HigherThan(rbacscope.ScopeProject) {
@@ -565,8 +569,11 @@ func FetchStandaloneObjectsByIds(modelManager IModelManager, ids []string, targe
 	return FetchModelObjectsByIds(modelManager, "id", ids, targets)
 }
 
-func FetchDistinctField(modelManager IModelManager, field string) ([]string, error) {
-	q := modelManager.Query(field).Distinct()
+func FetchField(modelMan IModelManager, field string, qCallback func(q *sqlchemy.SQuery) *sqlchemy.SQuery) ([]string, error) {
+	q := modelMan.Query(field)
+	if qCallback != nil {
+		q = qCallback(q)
+	}
 	rows, err := q.Rows()
 	if err != nil {
 		if errors.Cause(err) == sql.ErrNoRows {
@@ -588,4 +595,10 @@ func FetchDistinctField(modelManager IModelManager, field string) ([]string, err
 		}
 	}
 	return values, nil
+}
+
+func FetchDistinctField(modelManager IModelManager, field string) ([]string, error) {
+	return FetchField(modelManager, field, func(q *sqlchemy.SQuery) *sqlchemy.SQuery {
+		return q.Distinct()
+	})
 }

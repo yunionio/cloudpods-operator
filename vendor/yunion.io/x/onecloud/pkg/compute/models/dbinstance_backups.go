@@ -208,7 +208,7 @@ func (manager *SDBInstanceBackupManager) ValidateCreateData(ctx context.Context,
 	if len(input.DBInstance) == 0 {
 		return nil, httperrors.NewMissingParameterError("dbinstance")
 	}
-	_instance, err := DBInstanceManager.FetchByIdOrName(userCred, input.DBInstance)
+	_instance, err := DBInstanceManager.FetchByIdOrName(ctx, userCred, input.DBInstance)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, httperrors.NewResourceNotFoundError("failed to found dbinstance %s", input.DBInstance)
@@ -266,8 +266,8 @@ func (self *SDBInstanceBackup) StartDBInstanceBackupCreateTask(ctx context.Conte
 	if err != nil {
 		return errors.Wrap(err, "GetDBInstance")
 	}
-	instance.SetStatus(userCred, api.DBINSTANCE_BACKING_UP, "")
-	self.SetStatus(userCred, api.DBINSTANCE_BACKUP_CREATING, "")
+	instance.SetStatus(ctx, userCred, api.DBINSTANCE_BACKING_UP, "")
+	self.SetStatus(ctx, userCred, api.DBINSTANCE_BACKUP_CREATING, "")
 	task.ScheduleRun(nil)
 	return nil
 }
@@ -484,7 +484,7 @@ func (self *SDBInstanceBackup) SyncWithCloudDBInstanceBackup(
 	}
 
 	if len(self.ProjectId) == 0 {
-		SyncCloudProject(ctx, userCred, self, provider.GetOwnerId(), extBackup, provider.Id)
+		SyncCloudProject(ctx, userCred, self, provider.GetOwnerId(), extBackup, provider)
 	}
 
 	return nil
@@ -543,7 +543,7 @@ func (manager *SDBInstanceBackupManager) newFromCloudDBInstanceBackup(
 	}
 
 	if len(backup.ProjectId) == 0 {
-		SyncCloudProject(ctx, userCred, &backup, provider.GetOwnerId(), extBackup, provider.Id)
+		SyncCloudProject(ctx, userCred, &backup, provider.GetOwnerId(), extBackup, provider)
 	}
 
 	return nil
@@ -563,7 +563,7 @@ func (self *SDBInstanceBackup) CustomizeDelete(ctx context.Context, userCred mcc
 }
 
 func (self *SDBInstanceBackup) StartDBInstanceBackupDeleteTask(ctx context.Context, userCred mcclient.TokenCredential, parentTaskId string) error {
-	self.SetStatus(userCred, api.DBINSTANCE_BACKUP_DELETING, "")
+	self.SetStatus(ctx, userCred, api.DBINSTANCE_BACKUP_DELETING, "")
 	task, err := taskman.TaskManager.NewTask(ctx, "DBInstanceBackupDeleteTask", self, userCred, nil, parentTaskId, "", nil)
 	if err != nil {
 		return err

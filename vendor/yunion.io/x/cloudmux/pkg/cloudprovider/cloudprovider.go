@@ -90,6 +90,10 @@ type SCloudaccountCredential struct {
 	// Google服务账号秘钥 (gcp)
 	GCPPrivateKey string `json:"gcp_private_key"`
 
+	OracleTenancyOCID string `json:"oracle_tenancy_ocid"`
+	OracleUserOCID    string `json:"oracle_user_ocid"`
+	OraclePrivateKey  string `json:"oracle_private_key"`
+
 	// 默认区域Id, Apara及HCSO需要此参数
 	// example: cn-north-2
 	// required: true
@@ -97,9 +101,6 @@ type SCloudaccountCredential struct {
 
 	// Huawei Cloud Stack Online
 	*SHCSOEndpoints
-
-	// ctyun crm account extra info
-	*SCtyunExtraOptions
 }
 
 type SCloudaccount struct {
@@ -322,6 +323,8 @@ type ICloudProvider interface {
 	CreateICloudCDNDomain(opts *CdnCreateOptions) (ICloudCDNDomain, error)
 
 	GetMetrics(opts *MetricListOptions) ([]MetricValues, error)
+
+	GetISSLCertificates() ([]ICloudSSLCertificate, error)
 }
 
 func IsSupportCapability(prod ICloudProvider, capa string) bool {
@@ -386,6 +389,10 @@ func IsSupportMongoDB(prod ICloudProvider) bool {
 
 func IsSupportElasticSearch(prod ICloudProvider) bool {
 	return IsSupportCapability(prod, CLOUD_CAPABILITY_ES)
+}
+
+func IsSupportSSLCertificate(prod ICloudProvider) bool {
+	return IsSupportCapability(prod, CLOUD_CAPABILITY_CERT)
 }
 
 func IsSupportKafka(prod ICloudProvider) bool {
@@ -641,6 +648,10 @@ func (self *SBaseProvider) CreateIModelartsPool(pool *ModelartsPoolCreateOption,
 
 func (self *SBaseProvider) GetIModelartsPoolSku() ([]ICloudModelartsPoolSku, error) {
 	return nil, errors.Wrapf(ErrNotImplemented, "GetIModelartsPoolSku")
+}
+
+func (self *SBaseProvider) GetISSLCertificates() ([]ICloudSSLCertificate, error) {
+	return nil, errors.Wrapf(ErrNotImplemented, "GetISSLCertificates")
 }
 
 func NewBaseProvider(factory ICloudProviderFactory) SBaseProvider {

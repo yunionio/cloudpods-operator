@@ -17,7 +17,6 @@ package models
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"strings"
 	"time"
 
@@ -172,6 +171,50 @@ func (self *SCloudregion) GetGuestCount() (int, error) {
 	return self.getGuestCountInternal(false)
 }
 
+func (self *SCloudregion) GetManagedGuestsQuery(managerId string) *sqlchemy.SQuery {
+	q := GuestManager.Query().IsNotEmpty("external_id")
+	hosts := HostManager.Query().Equals("manager_id", managerId).SubQuery()
+	zones := ZoneManager.Query().Equals("cloudregion_id", self.Id).SubQuery()
+	q = q.Join(hosts, sqlchemy.Equals(q.Field("host_id"), hosts.Field("id")))
+	q = q.Join(zones, sqlchemy.Equals(hosts.Field("zone_id"), zones.Field("id")))
+	return q
+}
+
+func (self *SCloudregion) GetManagedGuests(managerId string) ([]SGuest, error) {
+	q := self.GetManagedGuestsQuery(managerId)
+	ret := []SGuest{}
+	err := db.FetchModelObjects(GuestManager, q, &ret)
+	if err != nil {
+		return nil, err
+	}
+	return ret, nil
+}
+
+func (self *SCloudregion) GetManagedGuestsCount(managerId string) (int, error) {
+	return self.GetManagedGuestsQuery(managerId).CountWithError()
+}
+
+func (self *SCloudregion) GetManagedLoadbalancerQuery(managerId string) *sqlchemy.SQuery {
+	return LoadbalancerManager.Query().
+		IsNotEmpty("external_id").
+		Equals("cloudregion_id", self.Id).
+		Equals("manager_id", managerId)
+}
+
+func (self *SCloudregion) GetManagedLoadbalancers(managerId string) ([]SLoadbalancer, error) {
+	q := self.GetManagedLoadbalancerQuery(managerId)
+	ret := []SLoadbalancer{}
+	err := db.FetchModelObjects(LoadbalancerManager, q, &ret)
+	if err != nil {
+		return nil, err
+	}
+	return ret, nil
+}
+
+func (self *SCloudregion) GetManagedLoadbalancerCount(managerId string) (int, error) {
+	return self.GetManagedLoadbalancerQuery(managerId).CountWithError()
+}
+
 func (self *SCloudregion) GetGuestIncrementCount() (int, error) {
 	return self.getGuestCountInternal(true)
 }
@@ -217,19 +260,14 @@ func (self *SCloudregion) GetDBInstanceBackups(provider *SCloudprovider, instanc
 
 func (self *SCloudregion) GetElasticcaches(provider *SCloudprovider) ([]SElasticcache, error) {
 	instances := []SElasticcache{}
-	// .IsFalse("pending_deleted")
-	vpcs := VpcManager.Query().SubQuery()
-	q := ElasticcacheManager.Query()
-	q = q.Join(vpcs, sqlchemy.Equals(q.Field("vpc_id"), vpcs.Field("id")))
-	q = q.Filter(sqlchemy.Equals(vpcs.Field("cloudregion_id"), self.Id))
+	q := ElasticcacheManager.Query().Equals("cloudregion_id", self.Id)
 	if provider != nil {
-		q = q.Filter(sqlchemy.Equals(vpcs.Field("manager_id"), provider.Id))
+		q = q.Equals("manager_id", provider.Id)
 	}
 	err := db.FetchModelObjects(ElasticcacheManager, q, &instances)
 	if err != nil {
 		return nil, errors.Wrapf(err, "GetElasticcaches for region %s", self.Id)
 	}
-
 	return instances, nil
 }
 
@@ -297,12 +335,12 @@ func (self *SCloudregion) GetDriver() IRegionDriver {
 	return GetRegionDriver(provider)
 }
 
-func (self *SCloudregion) getUsage() api.SCloudregionUsage {
+func (self *SCloudregion) getUsage(ctx context.Context) api.SCloudregionUsage {
 	out := api.SCloudregionUsage{}
 	out.VpcCount, _ = self.GetVpcCount()
 	out.ZoneCount, _ = self.GetZoneCount()
 	out.GuestCount, _ = self.GetGuestCount()
-	out.NetworkCount, _ = self.GetNetworkCount()
+	out.NetworkCount, _ = self.GetNetworkCount(ctx)
 	out.GuestIncrementCount, _ = self.GetGuestIncrementCount()
 	return out
 }
@@ -521,7 +559,7 @@ func (manager *SCloudregionManager) SyncRegions(
 		if err != nil {
 			syncResult.UpdateError(err)
 		} else {
-			syncMetadata(ctx, userCred, &commondb[i], commonext[i])
+			syncMetadata(ctx, userCred, &commondb[i], commonext[i], false)
 			cpr := CloudproviderRegionManager.FetchByIdsOrCreate(cloudProvider.Id, commondb[i].Id)
 			cpr.setCapabilities(ctx, userCred, commonext[i].GetCapabilities())
 			cloudProviderRegions = append(cloudProviderRegions, *cpr)
@@ -535,7 +573,7 @@ func (manager *SCloudregionManager) SyncRegions(
 		if err != nil {
 			syncResult.AddError(err)
 		} else {
-			syncMetadata(ctx, userCred, new, added[i])
+			syncMetadata(ctx, userCred, new, added[i], false)
 			cpr := CloudproviderRegionManager.FetchByIdsOrCreate(cloudProvider.Id, new.Id)
 			cpr.setCapabilities(ctx, userCred, added[i].GetCapabilities())
 			cloudProviderRegions = append(cloudProviderRegions, *cpr)
@@ -1056,8 +1094,8 @@ func (self *SCloudregion) GetDetailsDiskCapability(ctx context.Context, userCred
 	return jsonutils.Marshal(&capa), nil
 }
 
-func (self *SCloudregion) GetNetworkCount() (int, error) {
-	return getNetworkCount(nil, nil, rbacscope.ScopeSystem, self, nil)
+func (self *SCloudregion) GetNetworkCount(ctx context.Context) (int, error) {
+	return getNetworkCount(ctx, nil, nil, rbacscope.ScopeSystem, self, nil)
 }
 
 func (self *SCloudregion) getMinNicCount() int {
@@ -1224,10 +1262,14 @@ func (self *SCloudregion) GetStoragecaches() ([]SStoragecache, error) {
 }
 
 func (self *SCloudregion) newCloudimage(ctx context.Context, userCred mcclient.TokenCredential, iImage SCachedimage) error {
-	_, err := db.FetchByExternalId(CachedimageManager, iImage.GetGlobalId())
+	externalId := iImage.GetGlobalId()
+	lockman.LockRawObject(ctx, CachedimageManager.Keyword(), externalId)
+	defer lockman.ReleaseRawObject(ctx, CachedimageManager.Keyword(), externalId)
+
+	_, err := db.FetchByExternalId(CachedimageManager, externalId)
 	if err != nil {
 		if errors.Cause(err) != sql.ErrNoRows {
-			return errors.Wrapf(err, "db.FetchModelObjects(%s)", iImage.GetGlobalId())
+			return errors.Wrapf(err, "db.FetchModelObjects(%s)", externalId)
 		}
 		image := &iImage
 		image.SetModelManager(CachedimageManager, image)
@@ -1236,7 +1278,7 @@ func (self *SCloudregion) newCloudimage(ctx context.Context, userCred mcclient.T
 			return err
 		}
 
-		skuUrl := fmt.Sprintf("%s/%s/%s.json", meta.ImageBase, self.ExternalId, iImage.GetGlobalId())
+		skuUrl := self.getMetaUrl(meta.ImageBase, externalId)
 		err = meta.Get(skuUrl, image)
 		if err != nil {
 			return errors.Wrapf(err, "Get")
@@ -1253,7 +1295,7 @@ func (self *SCloudregion) newCloudimage(ctx context.Context, userCred mcclient.T
 	cloudimage.SetModelManager(CloudimageManager, cloudimage)
 	cloudimage.Name = iImage.Name
 	cloudimage.CloudregionId = self.Id
-	cloudimage.ExternalId = iImage.GetGlobalId()
+	cloudimage.ExternalId = externalId
 	err = CloudimageManager.TableSpec().Insert(ctx, cloudimage)
 	if err != nil {
 		return errors.Wrapf(err, "Insert cloudimage")

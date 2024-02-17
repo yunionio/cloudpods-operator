@@ -245,6 +245,8 @@ type CloudproviderListInput struct {
 	ManagedResourceListInput
 	apis.ProjectizedResourceListInput
 
+	apis.ExternalizedResourceBaseListInput
+
 	UsableResourceListInput
 
 	CloudregionResourceInput
@@ -254,6 +256,8 @@ type CloudproviderListInput struct {
 	CapabilityListInput
 
 	SyncableBaseResourceListInput
+
+	ReadOnly *bool `json:"read_only"`
 
 	// 账号健康状态
 	HealthStatus []string `json:"health_status"`

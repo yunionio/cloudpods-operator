@@ -137,6 +137,7 @@ type CloudaccountResourceInfo struct {
 	AccountStatus string `json:"account_status,omitempty"`
 	// 云账号监控状态
 	AccountHealthStatus string `json:"account_health_status,omitempty"`
+	AccountReadOnly     bool   `json:"account_read_only,omitempty"`
 }
 
 type CloudaccountCreateInput struct {
@@ -259,6 +260,8 @@ type CloudaccountListInput struct {
 	// 账号健康状态
 	HealthStatus []string `json:"health_status"`
 
+	ReadOnly *bool `json:"read_only"`
+
 	// 共享模式
 	ShareMode []string `json:"share_mode"`
 
@@ -370,7 +373,7 @@ func (self CloudaccountDetail) GetMetricTags() map[string]string {
 		"project_domain":    self.ProjectDomain,
 		"currency":          self.Currency,
 	}
-	return ret
+	return AppendMetricTags(ret, self.MetadataResourceInfo, self.ProjectizedResourceInfo)
 }
 
 func (self CloudaccountDetail) GetMetricPairs() map[string]string {

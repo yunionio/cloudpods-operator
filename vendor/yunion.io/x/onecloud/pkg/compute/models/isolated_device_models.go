@@ -106,7 +106,7 @@ func (self *SIsolatedDeviceModel) PostCreate(ctx context.Context, userCred mccli
 		defer self.RemoveMetadata(ctx, api.MEAT_PROBED_HOST_COUNT, userCred)
 
 		for i := range input.Hosts {
-			iHost, err := HostManager.FetchByIdOrName(userCred, input.Hosts[i])
+			iHost, err := HostManager.FetchByIdOrName(ctx, userCred, input.Hosts[i])
 			if err != nil {
 				log.Errorf("failed fetch host %s: %s", input.Hosts[i], err)
 				continue
@@ -140,7 +140,7 @@ func (self *SIsolatedDeviceModel) PostDelete(ctx context.Context, userCred mccli
 	}
 	go func() {
 		for i := range hosts {
-			iHost, err := HostManager.FetchByIdOrName(userCred, hosts[i])
+			iHost, err := HostManager.FetchByIdOrName(ctx, userCred, hosts[i])
 			if err != nil {
 				log.Errorf("failed fetch host %s: %s", hosts[i], err)
 				continue
@@ -248,4 +248,48 @@ func (manager *SIsolatedDeviceModelManager) GetByDevType(devType string) (*SIsol
 	}
 	devModel.SetModelManager(manager, devModel)
 	return devModel, nil
+}
+
+func (obj *SIsolatedDeviceModel) PerformSetHardwareInfo(ctx context.Context, userCred mcclient.TokenCredential, _ jsonutils.JSONObject, data *api.IsolatedDeviceModelHardwareInfo) (*api.IsolatedDeviceModelHardwareInfo, error) {
+	settings := map[string]interface{}{
+		api.ISOLATED_DEVICE_MODEL_METADATA_MEMORY_MB: data.MemoryMB,
+		api.ISOLATED_DEVICE_MODEL_METADATA_TFLOPS:    data.TFLOPS,
+		api.ISOLATED_DEVICE_MODEL_METADATA_BANDWIDTH: data.Bandwidth,
+	}
+
+	for k, v := range settings {
+		if err := obj.SetMetadata(ctx, k, v, userCred); err != nil {
+			return nil, errors.Wrapf(err, "set %s to %v", k, v)
+		}
+	}
+	return data, nil
+}
+
+func (obj *SIsolatedDeviceModel) GetDetailsHardwareInfo(ctx context.Context, userCred mcclient.TokenCredential, _ jsonutils.JSONObject) (*api.IsolatedDeviceModelHardwareInfo, error) {
+	info := new(api.IsolatedDeviceModelHardwareInfo)
+	// parse memory size MB
+	if memStr := obj.GetMetadata(ctx, api.ISOLATED_DEVICE_MODEL_METADATA_MEMORY_MB, userCred); memStr != "" {
+		memSize, err := strconv.Atoi(memStr)
+		if err != nil {
+			return nil, errors.Wrapf(err, "convert memory size %d to int", memSize)
+		}
+		info.MemoryMB = memSize
+	}
+	// parse bandwidth
+	if bwStr := obj.GetMetadata(ctx, api.ISOLATED_DEVICE_MODEL_METADATA_BANDWIDTH, userCred); bwStr != "" {
+		bw, err := strconv.ParseFloat(bwStr, 64)
+		if err != nil {
+			return nil, errors.Wrapf(err, "convert bandwidth %s to float", bwStr)
+		}
+		info.Bandwidth = bw
+	}
+	// parse TFLOPS
+	if tflopsStr := obj.GetMetadata(ctx, api.ISOLATED_DEVICE_MODEL_METADATA_TFLOPS, userCred); tflopsStr != "" {
+		tflops, err := strconv.ParseFloat(tflopsStr, 64)
+		if err != nil {
+			return nil, errors.Wrapf(err, "convert TFLOPS %s to float", tflopsStr)
+		}
+		info.TFLOPS = tflops
+	}
+	return info, nil
 }

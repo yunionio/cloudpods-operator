@@ -87,7 +87,7 @@ func (manager *SExternalProjectManager) ValidateCreateData(
 	if len(input.CloudaccountId) == 0 {
 		return input, httperrors.NewMissingParameterError("cloudaccount_id")
 	}
-	_account, err := validators.ValidateModel(userCred, CloudaccountManager, &input.CloudaccountId)
+	_account, err := validators.ValidateModel(ctx, userCred, CloudaccountManager, &input.CloudaccountId)
 	if err != nil {
 		return input, err
 	}
@@ -97,7 +97,7 @@ func (manager *SExternalProjectManager) ValidateCreateData(
 		if len(input.ManagerId) == 0 {
 			return input, httperrors.NewMissingParameterError("manager_id")
 		}
-		_, err := validators.ValidateModel(userCred, CloudproviderManager, &input.ManagerId)
+		_, err := validators.ValidateModel(ctx, userCred, CloudproviderManager, &input.ManagerId)
 		if err != nil {
 			return input, err
 		}
@@ -138,7 +138,7 @@ func (extProj *SExternalProject) RemoteCreateProject(ctx context.Context, userCr
 	if err == nil {
 		return nil
 	}
-	extProj.SetStatus(userCred, api.EXTERNAL_PROJECT_STATUS_UNAVAILABLE, err.Error())
+	extProj.SetStatus(ctx, userCred, api.EXTERNAL_PROJECT_STATUS_UNAVAILABLE, err.Error())
 
 	return errors.Wrap(err, "remoteCreateProjectInternal")
 }
@@ -205,7 +205,7 @@ func (extProj *SExternalProject) PostCreate(
 }
 
 func (extProj *SExternalProject) startExternalProjectCreateTask(ctx context.Context, userCred mcclient.TokenCredential) error {
-	extProj.SetStatus(userCred, api.EXTERNAL_PROJECT_STATUS_CREATING, "")
+	extProj.SetStatus(ctx, userCred, api.EXTERNAL_PROJECT_STATUS_CREATING, "")
 	params := jsonutils.NewDict()
 	task, err := taskman.TaskManager.NewTask(ctx, "ExternalProjectCreateTask", extProj, userCred, params, "", "", nil)
 	if err != nil {
@@ -297,7 +297,7 @@ func (manager *SExternalProjectManager) SyncProjects(ctx context.Context, userCr
 
 	for i := 0; i < len(removed); i++ {
 		if removed[i].Source == apis.EXTERNAL_RESOURCE_SOURCE_LOCAL {
-			removed[i].SetStatus(userCred, api.EXTERNAL_PROJECT_STATUS_UNKNOWN, "sync delete")
+			removed[i].SetStatus(ctx, userCred, api.EXTERNAL_PROJECT_STATUS_UNKNOWN, "sync delete")
 		} else {
 			err = removed[i].syncRemoveCloudProject(ctx, userCred)
 			if err != nil {
@@ -473,7 +473,7 @@ func (self *SExternalProject) SyncWithCloudProject(ctx context.Context, userCred
 	if len(tags) > 0 {
 		identity.Projects.PerformAction(s, self.ProjectId, "user-metadata", jsonutils.Marshal(tags))
 	}
-	syncMetadata(ctx, userCred, self, ext)
+	syncMetadata(ctx, userCred, self, ext, account.ReadOnly)
 	db.OpsLog.LogSyncUpdate(self, diff, userCred)
 	return nil
 }
@@ -616,7 +616,7 @@ func (manager *SExternalProjectManager) newFromCloudProject(ctx context.Context,
 		identity.Projects.PerformAction(s, project.ProjectId, "user-metadata", jsonutils.Marshal(tags))
 	}
 
-	syncMetadata(ctx, userCred, &project, extProject)
+	syncMetadata(ctx, userCred, &project, extProject, account.ReadOnly)
 	db.OpsLog.LogEvent(&project, db.ACT_CREATE, project.GetShortDesc(ctx), userCred)
 	return &project, nil
 }
@@ -718,7 +718,7 @@ func (manager *SExternalProjectManager) ListItemFilter(
 		if len(managerStr) == 0 {
 			continue
 		}
-		providerObj, err := manager.FetchByIdOrName(userCred, managerStr)
+		providerObj, err := manager.FetchByIdOrName(ctx, userCred, managerStr)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return nil, httperrors.NewResourceNotFoundError2(CloudproviderManager.Keyword(), managerStr)
@@ -736,7 +736,7 @@ func (manager *SExternalProjectManager) ListItemFilter(
 	if len(query.CloudaccountId) > 0 {
 		accountIds := []string{}
 		for _, _account := range query.CloudaccountId {
-			account, err := CloudaccountManager.FetchByIdOrName(userCred, _account)
+			account, err := CloudaccountManager.FetchByIdOrName(ctx, userCred, _account)
 			if err != nil {
 				if errors.Cause(err) == sql.ErrNoRows {
 					return nil, httperrors.NewResourceNotFoundError2("cloudaccount", _account)

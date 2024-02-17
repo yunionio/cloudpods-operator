@@ -129,7 +129,7 @@ func (w *SWindowsRootFs) GetLoginAccount(rootFs IDiskPartition, sUser string, de
 	selUsr := ""
 	isWin10NonPro := w.IsWindows10NonPro()
 	// Win10 try not to use Administrator users // Win 10 professional can use Adminsitrator
-	if _, ok := users[admin]; ok && windowsDefaultAdminUser && !isWin10NonPro {
+	if _, ok := users[admin]; ok && windowsDefaultAdminUser && !isWin10NonPro && w.GetIRootFsDriver().AllowAdminLogin() {
 		selUsr = admin
 	} else {
 		// Looking for an unlocked user who is not an Administrator
@@ -321,8 +321,16 @@ func (w *SWindowsRootFs) DeployNetworkingScripts(rootfs IDiskPartition, nics []*
 				cfg += fmt.Sprintf(" %s", snic.Gateway)
 			}
 			lines = append(lines, cfg)
+			if len(snic.Ip6) > 0 {
+				cfg := fmt.Sprintf(`      netsh interface ipv6 add address "%%%%b" %s/%d store=persistent`, snic.Ip6, snic.Masklen6)
+				lines = append(lines, cfg)
+				if len(snic.Gateway) > 0 && snic.Ip == mainIp {
+					cfg := fmt.Sprintf(`      netsh interface ipv6 add route ::/0 "%%%%b" %s`, snic.Gateway6)
+					lines = append(lines, cfg)
+				}
+			}
 			routes := [][]string{}
-			netutils2.AddNicRoutes(&routes, snic, mainIp, len(nics), privatePrefixes)
+			routes = netutils2.AddNicRoutes(routes, snic, mainIp, len(nics))
 			for _, r := range routes {
 				lines = append(lines, fmt.Sprintf(`      netsh interface ip add route %s "%%%%b" %s`, r[0], r[1]))
 			}
@@ -343,6 +351,14 @@ func (w *SWindowsRootFs) DeployNetworkingScripts(rootfs IDiskPartition, nics []*
 		} else {
 			lines = append(lines, `      netsh interface ip set address "%%b" dhcp`)
 			lines = append(lines, `      netsh interface ip set dns "%%b" dhcp`)
+			if len(snic.Ip6) > 0 {
+				cfg := fmt.Sprintf(`      netsh interface ipv6 add address "%%%%b" %s/%d store=persistent`, snic.Ip6, snic.Masklen6)
+				lines = append(lines, cfg)
+				if len(snic.Gateway) > 0 && snic.Ip == mainIp {
+					cfg := fmt.Sprintf(`      netsh interface ipv6 add route ::/0 "%%%%b" %s`, snic.Gateway6)
+					lines = append(lines, cfg)
+				}
+			}
 		}
 		lines = append(lines, `    )`)
 	}

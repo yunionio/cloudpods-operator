@@ -32,6 +32,7 @@ import (
 	"yunion.io/x/onecloud/pkg/cloudcommon/db/taskman"
 	"yunion.io/x/onecloud/pkg/cloudcommon/notifyclient"
 	"yunion.io/x/onecloud/pkg/cloudcommon/validators"
+	"yunion.io/x/onecloud/pkg/compute/options"
 	"yunion.io/x/onecloud/pkg/httperrors"
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/util/stringutils2"
@@ -76,12 +77,12 @@ func (manager *SWafInstanceManager) GetContextManagers() [][]db.IModelManager {
 }
 
 func (manager *SWafInstanceManager) ValidateCreateData(ctx context.Context, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, query jsonutils.JSONObject, input api.WafInstanceCreateInput) (api.WafInstanceCreateInput, error) {
-	_region, err := validators.ValidateModel(userCred, CloudregionManager, &input.CloudregionId)
+	_region, err := validators.ValidateModel(ctx, userCred, CloudregionManager, &input.CloudregionId)
 	if err != nil {
 		return input, err
 	}
 	region := _region.(*SCloudregion)
-	_provider, err := validators.ValidateModel(userCred, CloudproviderManager, &input.CloudproviderId)
+	_provider, err := validators.ValidateModel(ctx, userCred, CloudproviderManager, &input.CloudproviderId)
 	if err != nil {
 		return input, err
 	}
@@ -92,7 +93,7 @@ func (manager *SWafInstanceManager) ValidateCreateData(ctx context.Context, user
 	for i := range input.CloudResources {
 		switch input.CloudResources[i].Type {
 		case LoadbalancerManager.Keyword():
-			_lb, err := validators.ValidateModel(userCred, LoadbalancerManager, &input.CloudResources[i].Id)
+			_lb, err := validators.ValidateModel(ctx, userCred, LoadbalancerManager, &input.CloudResources[i].Id)
 			if err != nil {
 				return input, err
 			}
@@ -101,7 +102,7 @@ func (manager *SWafInstanceManager) ValidateCreateData(ctx context.Context, user
 				return input, httperrors.NewConflictError("lb %s does not belong to account %s", lb.Name, provider.GetName())
 			}
 		case GuestManager.Keyword():
-			_server, err := validators.ValidateModel(userCred, GuestManager, &input.CloudResources[i].Id)
+			_server, err := validators.ValidateModel(ctx, userCred, GuestManager, &input.CloudResources[i].Id)
 			if err != nil {
 				return input, err
 			}
@@ -138,7 +139,7 @@ func (self *SWafInstance) StartCreateTask(ctx context.Context, userCred mcclient
 	if err != nil {
 		return errors.Wrapf(err, "NewTask")
 	}
-	self.SetStatus(userCred, api.WAF_STATUS_CREATING, "")
+	self.SetStatus(ctx, userCred, api.WAF_STATUS_CREATING, "")
 	return task.ScheduleRun(nil)
 }
 
@@ -368,7 +369,7 @@ func (self *SWafInstance) StartDeleteTask(ctx context.Context, userCred mcclient
 	if err != nil {
 		return errors.Wrapf(err, "NewTask")
 	}
-	self.SetStatus(userCred, api.WAF_STATUS_DELETING, "")
+	self.SetStatus(ctx, userCred, api.WAF_STATUS_DELETING, "")
 	return task.ScheduleRun(nil)
 }
 
@@ -439,7 +440,9 @@ func (self *SWafInstance) SyncWithCloudWafInstance(ctx context.Context, userCred
 			Action: notifyclient.ActionSyncUpdate,
 		})
 	}
-	syncMetadata(ctx, userCred, self, ext)
+	if account := self.GetCloudaccount(); account != nil {
+		syncMetadata(ctx, userCred, self, ext, account.ReadOnly)
+	}
 	return err
 }
 
@@ -468,7 +471,7 @@ func (self *SCloudregion) newFromCloudWafInstance(ctx context.Context, userCred 
 	if err != nil {
 		return nil, err
 	}
-	syncMetadata(ctx, userCred, waf, ext)
+	syncMetadata(ctx, userCred, waf, ext, false)
 	notifyclient.EventNotify(ctx, userCred, notifyclient.SEventNotifyParam{
 		Obj:    waf,
 		Action: notifyclient.ActionSyncCreate,
@@ -511,12 +514,15 @@ func (self *SWafInstance) StartRemoteUpdateTask(ctx context.Context, userCred mc
 	if err != nil {
 		return errors.Wrap(err, "NewTask")
 	}
-	self.SetStatus(userCred, apis.STATUS_UPDATE_TAGS, "StartRemoteUpdateTask")
+	self.SetStatus(ctx, userCred, apis.STATUS_UPDATE_TAGS, "StartRemoteUpdateTask")
 	return task.ScheduleRun(nil)
 }
 
 func (self *SWafInstance) OnMetadataUpdated(ctx context.Context, userCred mcclient.TokenCredential) {
-	if len(self.ExternalId) == 0 {
+	if len(self.ExternalId) == 0 || options.Options.KeepTagLocalization {
+		return
+	}
+	if account := self.GetCloudaccount(); account != nil && account.ReadOnly {
 		return
 	}
 	err := self.StartRemoteUpdateTask(ctx, userCred, true, "")

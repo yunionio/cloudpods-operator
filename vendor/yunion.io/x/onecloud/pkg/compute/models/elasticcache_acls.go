@@ -184,8 +184,8 @@ func (manager *SElasticcacheAclManager) FetchOwnerId(ctx context.Context, data j
 	return elasticcacheSubResourceFetchOwnerId(ctx, data)
 }
 
-func (manager *SElasticcacheAclManager) FilterByOwner(q *sqlchemy.SQuery, man db.FilterByOwnerProvider, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, scope rbacscope.TRbacScope) *sqlchemy.SQuery {
-	return elasticcacheSubResourceFetchOwner(q, ownerId, scope)
+func (manager *SElasticcacheAclManager) FilterByOwner(ctx context.Context, q *sqlchemy.SQuery, man db.FilterByOwnerProvider, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, scope rbacscope.TRbacScope) *sqlchemy.SQuery {
+	return elasticcacheSubResourceFetchOwner(ctx, q, ownerId, scope)
 }
 
 func (manager *SElasticcacheAclManager) FilterByUniqValues(q *sqlchemy.SQuery, values jsonutils.JSONObject) *sqlchemy.SQuery {
@@ -199,7 +199,7 @@ func (manager *SElasticcacheAclManager) FilterByUniqValues(q *sqlchemy.SQuery, v
 func (manager *SElasticcacheAclManager) ValidateCreateData(ctx context.Context, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, query jsonutils.JSONObject, data *jsonutils.JSONDict) (*jsonutils.JSONDict, error) {
 	var region *SCloudregion
 	if id, _ := data.GetString("elasticcache"); len(id) > 0 {
-		ec, err := db.FetchByIdOrName(ElasticcacheManager, userCred, id)
+		ec, err := db.FetchByIdOrName(ctx, ElasticcacheManager, userCred, id)
 		if err != nil {
 			return nil, fmt.Errorf("getting elastic cache instance failed")
 		}
@@ -233,7 +233,7 @@ func (self *SElasticcacheAcl) GetOwnerId() mcclient.IIdentityProvider {
 
 func (self *SElasticcacheAcl) PostCreate(ctx context.Context, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, query jsonutils.JSONObject, data jsonutils.JSONObject) {
 	self.SStandaloneResourceBase.PostCreate(ctx, userCred, ownerId, query, data)
-	self.SetStatus(userCred, api.ELASTIC_CACHE_ACL_STATUS_CREATING, "")
+	self.SetStatus(ctx, userCred, api.ELASTIC_CACHE_ACL_STATUS_CREATING, "")
 	if err := self.StartElasticcacheAclCreateTask(ctx, userCred, data.(*jsonutils.JSONDict), ""); err != nil {
 		log.Errorf("Failed to create elastic cache acl error: %v", err)
 	}
@@ -271,11 +271,11 @@ func (self *SElasticcacheAcl) ValidateUpdateData(ctx context.Context, userCred m
 		params := jsonutils.NewDict()
 		params.Set("ip", jsonutils.NewString(ip))
 		if strings.Contains(ip, "/") {
-			if err := cidrV.Validate(params); err != nil {
+			if err := cidrV.Validate(ctx, params); err != nil {
 				return nil, err
 			}
 		} else {
-			if err := ipV.Validate(params); err != nil {
+			if err := ipV.Validate(ctx, params); err != nil {
 				return nil, err
 			}
 		}
@@ -285,7 +285,7 @@ func (self *SElasticcacheAcl) ValidateUpdateData(ctx context.Context, userCred m
 }
 
 func (self *SElasticcacheAcl) PostUpdate(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) {
-	self.SetStatus(userCred, api.ELASTIC_CACHE_ACL_STATUS_UPDATING, "")
+	self.SetStatus(ctx, userCred, api.ELASTIC_CACHE_ACL_STATUS_UPDATING, "")
 	if err := self.StartUpdateElasticcacheAclTask(ctx, userCred, data.(*jsonutils.JSONDict), ""); err != nil {
 		log.Errorf("ElasticcacheAcl %s", err.Error())
 	}
@@ -311,7 +311,7 @@ func (self *SElasticcacheAcl) ValidatePurgeCondition(ctx context.Context) error 
 }
 
 func (self *SElasticcacheAcl) CustomizeDelete(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) error {
-	self.SetStatus(userCred, api.ELASTIC_CACHE_ACL_STATUS_DELETING, "")
+	self.SetStatus(ctx, userCred, api.ELASTIC_CACHE_ACL_STATUS_DELETING, "")
 	return self.StartDeleteElasticcacheAclTask(ctx, userCred, jsonutils.NewDict(), "")
 }
 

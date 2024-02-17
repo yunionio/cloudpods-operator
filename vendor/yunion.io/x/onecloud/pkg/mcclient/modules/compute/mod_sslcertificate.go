@@ -20,26 +20,13 @@ import (
 )
 
 var (
-	SnapshotPolicyDisk  modulebase.JointResourceManager
-	SnapshotPolicyDisk1 modulebase.JointResourceManager
+	SslCerticicate modulebase.ResourceManager
 )
 
 func init() {
-	SnapshotPolicyDisk = modules.NewJointComputeManager(
-		"snapshotpolicydisk",
-		"snapshotpolicydisks",
-		[]string{"Disk_ID", "Snapshotpolicy_ID"},
+	SslCerticicate = modules.NewComputeManager("sslcertificate", "sslcertificates",
 		[]string{},
-		&Disks,
-		&SnapshotPoliciy)
-	modules.RegisterCompute(&SnapshotPolicyDisk)
+		[]string{})
 
-	SnapshotPolicyDisk1 = modules.NewJointComputeManager(
-		"snapshotpolicydisk",
-		"snapshotpolicydisks",
-		[]string{"Disk_ID", "Snapshotpolicy_ID"},
-		[]string{},
-		&SnapshotPoliciy,
-		&Disks)
-	modules.RegisterCompute(&SnapshotPolicyDisk1)
+	modules.RegisterCompute(&SslCerticicate)
 }

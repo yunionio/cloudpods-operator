@@ -238,14 +238,14 @@ func (manager *SBucketManager) newFromCloudBucket(
 		return nil, err
 	}
 
-	SyncCloudProject(ctx, userCred, &bucket, provider.GetOwnerId(), extBucket, provider.Id)
+	SyncCloudProject(ctx, userCred, &bucket, provider.GetOwnerId(), extBucket, provider)
 	notifyclient.EventNotify(ctx, userCred, notifyclient.SEventNotifyParam{
 		Obj:    &bucket,
 		Action: notifyclient.ActionSyncCreate,
 	})
 	bucket.SyncShareState(ctx, userCred, provider.getAccountShareInfo())
 
-	syncVirtualResourceMetadata(ctx, userCred, &bucket, extBucket)
+	syncVirtualResourceMetadata(ctx, userCred, &bucket, extBucket, false)
 	db.OpsLog.LogEvent(&bucket, db.ACT_CREATE, bucket.GetShortDesc(ctx), userCred)
 
 	return &bucket, nil
@@ -318,7 +318,9 @@ func (bucket *SBucket) syncWithCloudBucket(
 		return errors.Wrap(err, "db.UpdateWithLock")
 	}
 
-	syncVirtualResourceMetadata(ctx, userCred, bucket, extBucket)
+	if account := bucket.GetCloudaccount(); account != nil {
+		syncVirtualResourceMetadata(ctx, userCred, bucket, extBucket, account.ReadOnly)
+	}
 
 	db.OpsLog.LogSyncUpdate(bucket, diff, userCred)
 	if len(diff) > 0 {
@@ -333,7 +335,7 @@ func (bucket *SBucket) syncWithCloudBucket(
 	}
 
 	if provider != nil {
-		SyncCloudProject(ctx, userCred, bucket, provider.GetOwnerId(), extBucket, provider.Id)
+		SyncCloudProject(ctx, userCred, bucket, provider.GetOwnerId(), extBucket, provider)
 		bucket.SyncShareState(ctx, userCred, provider.getAccountShareInfo())
 	}
 
@@ -397,7 +399,7 @@ func (bucket *SBucket) StartBucketDeleteTask(ctx context.Context, userCred mccli
 		log.Errorf("%s", err)
 		return err
 	}
-	bucket.SetStatus(userCred, api.CLOUD_PROVIDER_START_DELETE, "StartBucketDeleteTask")
+	bucket.SetStatus(ctx, userCred, api.CLOUD_PROVIDER_START_DELETE, "StartBucketDeleteTask")
 	task.ScheduleRun(nil)
 	return nil
 }
@@ -439,12 +441,12 @@ func (manager *SBucketManager) ValidateCreateData(
 ) (api.BucketCreateInput, error) {
 	var err error
 	var cloudRegionV *SCloudregion
-	cloudRegionV, input.CloudregionResourceInput, err = ValidateCloudregionResourceInput(userCred, input.CloudregionResourceInput)
+	cloudRegionV, input.CloudregionResourceInput, err = ValidateCloudregionResourceInput(ctx, userCred, input.CloudregionResourceInput)
 	if err != nil {
 		return input, errors.Wrap(err, "ValidateCloudregionResourceInput")
 	}
 	var managerV *SCloudprovider
-	managerV, input.CloudproviderResourceInput, err = ValidateCloudproviderResourceInput(userCred, input.CloudproviderResourceInput)
+	managerV, input.CloudproviderResourceInput, err = ValidateCloudproviderResourceInput(ctx, userCred, input.CloudproviderResourceInput)
 	if err != nil {
 		return input, errors.Wrap(err, "ValidateCloudproviderResourceInput")
 	}
@@ -514,10 +516,10 @@ func (bucket *SBucket) PostCreate(
 		}
 	}
 
-	bucket.SetStatus(userCred, api.BUCKET_STATUS_START_CREATE, "PostCreate")
+	bucket.SetStatus(ctx, userCred, api.BUCKET_STATUS_START_CREATE, "PostCreate")
 	task, err := taskman.TaskManager.NewTask(ctx, "BucketCreateTask", bucket, userCred, nil, "", "", nil)
 	if err != nil {
-		bucket.SetStatus(userCred, api.BUCKET_STATUS_CREATE_FAIL, errors.Wrapf(err, "NewTask").Error())
+		bucket.SetStatus(ctx, userCred, api.BUCKET_STATUS_CREATE_FAIL, errors.Wrapf(err, "NewTask").Error())
 		return
 	}
 	task.ScheduleRun(nil)
@@ -1543,10 +1545,10 @@ type SBucketUsages struct {
 	DiskUsedRate float64
 }
 
-func (manager *SBucketManager) TotalCount(scope rbacscope.TRbacScope, ownerId mcclient.IIdentityProvider, rangeObjs []db.IStandaloneModel, providers []string, brands []string, cloudEnv string, policyResult rbacutils.SPolicyResult) SBucketUsages {
+func (manager *SBucketManager) TotalCount(ctx context.Context, scope rbacscope.TRbacScope, ownerId mcclient.IIdentityProvider, rangeObjs []db.IStandaloneModel, providers []string, brands []string, cloudEnv string, policyResult rbacutils.SPolicyResult) SBucketUsages {
 	usage := SBucketUsages{}
 	bq := manager.Query()
-	bq = db.ObjectIdQueryWithPolicyResult(bq, manager, policyResult)
+	bq = db.ObjectIdQueryWithPolicyResult(ctx, bq, manager, policyResult)
 	bq = scopeOwnerIdFilter(bq, scope, ownerId)
 	buckets := bq.SubQuery()
 	bucketsQ := buckets.Query(
@@ -1735,7 +1737,10 @@ func (bucket *SBucket) processObjectsActionInput(ctx context.Context, input api.
 }
 
 func (bucket *SBucket) OnMetadataUpdated(ctx context.Context, userCred mcclient.TokenCredential) {
-	if len(bucket.ExternalId) == 0 {
+	if len(bucket.ExternalId) == 0 || options.Options.KeepTagLocalization {
+		return
+	}
+	if account := bucket.GetCloudaccount(); account != nil && account.ReadOnly {
 		return
 	}
 	iBucket, err := bucket.GetIBucket(ctx)
@@ -1754,7 +1759,11 @@ func (bucket *SBucket) OnMetadataUpdated(ctx context.Context, userCred mcclient.
 	if diff.IsChanged() {
 		logclient.AddSimpleActionLog(bucket, logclient.ACT_UPDATE_TAGS, diff, userCred, true)
 	}
-	syncVirtualResourceMetadata(ctx, userCred, bucket, iBucket)
+	readOnly := false
+	if account := bucket.GetCloudaccount(); account != nil {
+		readOnly = account.ReadOnly
+	}
+	syncVirtualResourceMetadata(ctx, userCred, bucket, iBucket, readOnly)
 }
 
 func (manager *SBucketManager) ListItemExportKeys(ctx context.Context,

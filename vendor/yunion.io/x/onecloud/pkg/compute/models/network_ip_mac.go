@@ -1,3 +1,17 @@
+// Copyright 2019 Yunion
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package models
 
 import (
@@ -103,7 +117,7 @@ func (manager *SNetworkIpMacManager) ValidateCreateData(
 		return input, httperrors.NewMissingParameterError("mac_addr")
 	}
 
-	iNetwork, err := NetworkManager.FetchByIdOrName(userCred, input.NetworkId)
+	iNetwork, err := NetworkManager.FetchByIdOrName(ctx, userCred, input.NetworkId)
 	if err == sql.ErrNoRows {
 		return input, httperrors.NewNotFoundError("network %s not found", input.NetworkId)
 	} else if err != nil {
@@ -128,7 +142,7 @@ func (self *SNetworkIpMac) ValidateUpdateData(
 	}
 
 	if input.IpAddr != "" && input.IpAddr != self.IpAddr {
-		iNetwork, err := NetworkManager.FetchByIdOrName(userCred, self.NetworkId)
+		iNetwork, err := NetworkManager.FetchByIdOrName(ctx, userCred, self.NetworkId)
 		if err != nil {
 			return input, errors.Wrap(err, "fetch network")
 		}
@@ -159,7 +173,7 @@ func (self *SNetworkIpMac) ValidateUpdateData(
 		input.MacAddr = self.MacAddr
 	}
 
-	if gn, err := GuestnetworkManager.getGuestNicByIP(self.NetworkId, input.IpAddr); err != nil {
+	if gn, err := GuestnetworkManager.getGuestNicByIP(self.NetworkId, input.IpAddr, api.AddressTypeIPv4); err != nil {
 		return input, errors.Wrap(err, "failed get guest nic")
 	} else if gn != nil && gn.MacAddr != input.MacAddr {
 		return input, errors.Errorf("input ip mac conflict with guest %s nic %d", gn.GuestId, gn.Index)
@@ -181,7 +195,7 @@ func (manager *SNetworkIpMacManager) ListItemFilter(
 		return nil, errors.Wrap(err, "SStandaloneAnonResourceBaseManager.ListItemFilter")
 	}
 	if input.NetworkId != "" {
-		iNetwork, err := NetworkManager.FetchByIdOrName(userCred, input.NetworkId)
+		iNetwork, err := NetworkManager.FetchByIdOrName(ctx, userCred, input.NetworkId)
 		if err != nil {
 			return q, errors.Wrap(err, "fetch network")
 		}
@@ -228,7 +242,7 @@ func (manager *SNetworkIpMacManager) validateIpMac(ip, mac string, network *SNet
 		return httperrors.NewBadRequestError("mac addr %s is in use", mac)
 	}
 
-	if gn, err := GuestnetworkManager.getGuestNicByIP(network.Id, ip); err != nil {
+	if gn, err := GuestnetworkManager.getGuestNicByIP(network.Id, ip, api.AddressTypeIPv4); err != nil {
 		return errors.Wrap(err, "failed get guest nic")
 	} else if gn != nil && gn.MacAddr != mac {
 		return httperrors.NewBadRequestError("input ip mac conflict with guest %s nic %d", gn.GuestId, gn.Index)
@@ -237,21 +251,21 @@ func (manager *SNetworkIpMacManager) validateIpMac(ip, mac string, network *SNet
 }
 
 func (self *SNetworkIpMac) PostCreate(ctx context.Context, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, query jsonutils.JSONObject, data jsonutils.JSONObject) {
-	iNetwork, _ := NetworkManager.FetchByIdOrName(userCred, self.NetworkId)
+	iNetwork, _ := NetworkManager.FetchByIdOrName(ctx, userCred, self.NetworkId)
 	note := fmt.Sprintf("create ip %s mac %s bind", self.IpAddr, self.MacAddr)
 	db.OpsLog.LogEvent(iNetwork, db.ACT_IP_MAC_BIND, note, userCred)
 	logclient.AddActionLogWithContext(ctx, iNetwork, logclient.ACT_IP_MAC_BIND, note, userCred, true)
 }
 
 func (self *SNetworkIpMac) PostUpdate(ctx context.Context, userCred mcclient.TokenCredential, query, data jsonutils.JSONObject) {
-	iNetwork, _ := NetworkManager.FetchByIdOrName(userCred, self.NetworkId)
+	iNetwork, _ := NetworkManager.FetchByIdOrName(ctx, userCred, self.NetworkId)
 	note := fmt.Sprintf("update ip %s mac %s bind", self.IpAddr, self.MacAddr)
 	db.OpsLog.LogEvent(iNetwork, db.ACT_IP_MAC_BIND, note, userCred)
 	logclient.AddActionLogWithContext(ctx, iNetwork, logclient.ACT_IP_MAC_BIND, note, userCred, true)
 }
 
 func (self *SNetworkIpMac) PostDelete(ctx context.Context, userCred mcclient.TokenCredential) {
-	iNetwork, _ := NetworkManager.FetchByIdOrName(userCred, self.NetworkId)
+	iNetwork, _ := NetworkManager.FetchByIdOrName(ctx, userCred, self.NetworkId)
 	note := fmt.Sprintf("delete ip %s mac %s bind", self.IpAddr, self.MacAddr)
 	db.OpsLog.LogEvent(iNetwork, db.ACT_IP_MAC_BIND, note, userCred)
 	logclient.AddActionLogWithContext(ctx, iNetwork, logclient.ACT_IP_MAC_BIND, note, userCred, true)
@@ -260,7 +274,7 @@ func (self *SNetworkIpMac) PostDelete(ctx context.Context, userCred mcclient.Tok
 func (manager *SNetworkIpMacManager) PerformBatchCreate(
 	ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input *api.NetworkIpMacBatchCreateInput,
 ) (jsonutils.JSONObject, error) {
-	iNetwork, err := NetworkManager.FetchByIdOrName(userCred, input.NetworkId)
+	iNetwork, err := NetworkManager.FetchByIdOrName(ctx, userCred, input.NetworkId)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetch network")
 	}

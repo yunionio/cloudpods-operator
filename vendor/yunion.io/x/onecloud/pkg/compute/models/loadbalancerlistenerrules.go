@@ -102,7 +102,7 @@ func (manager *SLoadbalancerListenerRuleManager) FetchOwnerId(ctx context.Contex
 	return db.FetchProjectInfo(ctx, data)
 }
 
-func (man *SLoadbalancerListenerRuleManager) FilterByOwner(q *sqlchemy.SQuery, manager db.FilterByOwnerProvider, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, scope rbacscope.TRbacScope) *sqlchemy.SQuery {
+func (man *SLoadbalancerListenerRuleManager) FilterByOwner(ctx context.Context, q *sqlchemy.SQuery, manager db.FilterByOwnerProvider, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, scope rbacscope.TRbacScope) *sqlchemy.SQuery {
 	if ownerId != nil {
 		sq := LoadbalancerListenerManager.Query("id")
 		lb := LoadbalancerManager.Query().SubQuery()
@@ -424,7 +424,7 @@ func (man *SLoadbalancerListenerRuleManager) ListItemFilter(
 
 	// userProjId := userCred.GetProjectId()
 	data := jsonutils.Marshal(query).(*jsonutils.JSONDict)
-	q, err = validators.ApplyModelFilters(q, data, []*validators.ModelFilterOptions{
+	q, err = validators.ApplyModelFilters(ctx, q, data, []*validators.ModelFilterOptions{
 		// {Key: "listener", ModelKeyword: "loadbalancerlistener", OwnerId: userCred},
 		{Key: "backend_group", ModelKeyword: "loadbalancerbackendgroup", OwnerId: userCred},
 	})
@@ -522,7 +522,7 @@ func (man *SLoadbalancerListenerRuleManager) ValidateCreateData(ctx context.Cont
 	if len(input.Status) == 0 {
 		input.Status = api.LB_STATUS_ENABLED
 	}
-	listenerObj, err := validators.ValidateModel(userCred, LoadbalancerListenerManager, &input.ListenerId)
+	listenerObj, err := validators.ValidateModel(ctx, userCred, LoadbalancerListenerManager, &input.ListenerId)
 	if err != nil {
 		return nil, err
 	}
@@ -535,7 +535,7 @@ func (man *SLoadbalancerListenerRuleManager) ValidateCreateData(ctx context.Cont
 		return nil, err
 	}
 	if region.GetDriver().IsSupportLoadbalancerListenerRuleRedirect() {
-		_, err := validators.ValidateModel(userCred, LoadbalancerBackendGroupManager, &input.BackendGroupId)
+		_, err := validators.ValidateModel(ctx, userCred, LoadbalancerBackendGroupManager, &input.BackendGroupId)
 		if err != nil {
 			return nil, err
 		}
@@ -546,7 +546,7 @@ func (man *SLoadbalancerListenerRuleManager) ValidateCreateData(ctx context.Cont
 func (lbr *SLoadbalancerListenerRule) PostCreate(ctx context.Context, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, query jsonutils.JSONObject, data jsonutils.JSONObject) {
 	lbr.SStatusStandaloneResourceBase.PostCreate(ctx, userCred, ownerId, query, data)
 
-	lbr.SetStatus(userCred, api.LB_CREATING, "")
+	lbr.SetStatus(ctx, userCred, api.LB_CREATING, "")
 	if err := lbr.StartLoadBalancerListenerRuleCreateTask(ctx, userCred, ""); err != nil {
 		log.Errorf("Failed to create loadbalancer listener rule error: %v", err)
 	}
@@ -568,7 +568,7 @@ func (lbr *SLoadbalancerListenerRule) PerformPurge(ctx context.Context, userCred
 }
 
 func (lbr *SLoadbalancerListenerRule) CustomizeDelete(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) error {
-	lbr.SetStatus(userCred, api.LB_STATUS_DELETING, "")
+	lbr.SetStatus(ctx, userCred, api.LB_STATUS_DELETING, "")
 	return lbr.StartLoadBalancerListenerRuleDeleteTask(ctx, userCred, jsonutils.NewDict(), "")
 }
 
@@ -724,7 +724,7 @@ func (man *SLoadbalancerListenerRuleManager) SyncLoadbalancerListenerRules(ctx c
 		if err != nil {
 			syncResult.UpdateError(err)
 		} else {
-			syncMetadata(ctx, userCred, &commondb[i], commonext[i])
+			syncMetadata(ctx, userCred, &commondb[i], commonext[i], false)
 			syncResult.Update()
 		}
 	}
@@ -733,7 +733,7 @@ func (man *SLoadbalancerListenerRuleManager) SyncLoadbalancerListenerRules(ctx c
 		if err != nil {
 			syncResult.AddError(err)
 		} else {
-			syncMetadata(ctx, userCred, local, added[i])
+			syncMetadata(ctx, userCred, local, added[i], false)
 			syncResult.Add()
 		}
 	}
@@ -929,7 +929,7 @@ func (lbr *SLoadbalancerListenerRule) syncRemoveCloudLoadbalancerListenerRule(ct
 
 	err := lbr.ValidateDeleteCondition(ctx, nil)
 	if err != nil { // cannot delete
-		lbr.SetStatus(userCred, api.LB_STATUS_UNKNOWN, "sync to delete")
+		lbr.SetStatus(ctx, userCred, api.LB_STATUS_UNKNOWN, "sync to delete")
 		return errors.Wrapf(err, "ValidateDeleteCondition")
 	}
 	return lbr.RealDelete(ctx, userCred)

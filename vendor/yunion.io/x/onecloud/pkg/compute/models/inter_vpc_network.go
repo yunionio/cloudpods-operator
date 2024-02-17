@@ -158,7 +158,7 @@ func (self *SInterVpcNetwork) PostCreate(ctx context.Context, userCred mcclient.
 	if err != nil {
 		return
 	}
-	self.SetStatus(userCred, api.INTER_VPC_NETWORK_STATUS_CREATING, "")
+	self.SetStatus(ctx, userCred, api.INTER_VPC_NETWORK_STATUS_CREATING, "")
 	task.ScheduleRun(nil)
 }
 
@@ -252,7 +252,7 @@ func (self *SInterVpcNetwork) CustomizeDelete(ctx context.Context, userCred mccl
 	if err != nil {
 		return errors.Wrap(err, "NewTask")
 	}
-	self.SetStatus(userCred, api.INTER_VPC_NETWORK_STATUS_DELETING, "")
+	self.SetStatus(ctx, userCred, api.INTER_VPC_NETWORK_STATUS_DELETING, "")
 	task.ScheduleRun(nil)
 	return nil
 }
@@ -280,7 +280,7 @@ func (self *SInterVpcNetwork) StartInterVpcNetworkAddVpcTask(ctx context.Context
 	if err != nil {
 		return err
 	}
-	self.SetStatus(userCred, api.INTER_VPC_NETWORK_STATUS_ADDVPC, "")
+	self.SetStatus(ctx, userCred, api.INTER_VPC_NETWORK_STATUS_ADDVPC, "")
 	task.ScheduleRun(nil)
 	return nil
 }
@@ -289,7 +289,7 @@ func (self *SInterVpcNetwork) PerformAddvpc(ctx context.Context, userCred mcclie
 	if len(input.VpcId) == 0 {
 		return nil, httperrors.NewMissingParameterError("vpc_id")
 	}
-	_vpc, err := validators.ValidateModel(userCred, VpcManager, &input.VpcId)
+	_vpc, err := validators.ValidateModel(ctx, userCred, VpcManager, &input.VpcId)
 	if err != nil {
 		return nil, err
 	}
@@ -332,7 +332,7 @@ func (self *SInterVpcNetwork) StartInterVpcNetworkRemoveVpcTask(ctx context.Cont
 	if err != nil {
 		return err
 	}
-	self.SetStatus(userCred, api.INTER_VPC_NETWORK_STATUS_REMOVEVPC, "")
+	self.SetStatus(ctx, userCred, api.INTER_VPC_NETWORK_STATUS_REMOVEVPC, "")
 	task.ScheduleRun(nil)
 	return nil
 }
@@ -342,7 +342,7 @@ func (self *SInterVpcNetwork) PerformRemovevpc(ctx context.Context, userCred mcc
 		return nil, httperrors.NewMissingParameterError("vpc_id")
 	}
 	// get vpc
-	_vpc, err := VpcManager.FetchByIdOrName(userCred, input.VpcId)
+	_vpc, err := VpcManager.FetchByIdOrName(ctx, userCred, input.VpcId)
 	if err != nil {
 		if errors.Cause(err) == sql.ErrNoRows {
 			return nil, httperrors.NewResourceNotFoundError2("vpc", input.VpcId)

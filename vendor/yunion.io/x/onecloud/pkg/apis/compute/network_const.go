@@ -21,12 +21,10 @@ import (
 )
 
 const (
-	DefaultDNSServers = "223.5.5.5,223.6.6.6"
-)
-
-const (
 	// # DEFAULT_BANDWIDTH = options.default_bandwidth
-	MAX_BANDWIDTH = 100000
+
+	// in mbps, maximal is 100Tbps
+	MAX_BANDWIDTH = 100000000
 
 	NETWORK_TYPE_GUEST     = compute.NETWORK_TYPE_GUEST
 	NETWORK_TYPE_BAREMETAL = "baremetal"
@@ -89,13 +87,14 @@ type IPAllocationDirection string
 const (
 	IPAllocationStepdown IPAllocationDirection = "stepdown"
 	IPAllocationStepup   IPAllocationDirection = "stepup"
-	IPAllocationRadnom   IPAllocationDirection = "random"
+	IPAllocationRandom   IPAllocationDirection = "random"
 	IPAllocationNone     IPAllocationDirection = "none"
 	IPAllocationDefault                        = ""
 )
 
 type SNetworkUsedAddress struct {
 	IpAddr        string
+	Ip6Addr       string
 	MacAddr       string
 	Owner         string
 	OwnerId       string

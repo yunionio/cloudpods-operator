@@ -289,7 +289,7 @@ func (self *SCloudregion) newFromCloudNasSku(ctx context.Context, userCred mccli
 	sku := &SNasSku{}
 	sku.SetModelManager(NasSkuManager, sku)
 
-	skuUrl := fmt.Sprintf("%s/%s/%s.json", meta.NasBase, self.ExternalId, isku.GetGlobalId())
+	skuUrl := self.getMetaUrl(meta.NasBase, isku.GetGlobalId())
 	err = meta.Get(skuUrl, sku)
 	if err != nil {
 		return errors.Wrapf(err, "Get")
@@ -345,6 +345,10 @@ func SyncRegionNasSkus(ctx context.Context, userCred mcclient.TokenCredential, r
 	err := db.FetchModelObjects(CloudregionManager, q, &regions)
 	if err != nil {
 		return errors.Wrapf(err, "db.FetchModelObjects")
+	}
+
+	if len(regions) == 0 {
+		return nil
 	}
 
 	meta, err := yunionmeta.FetchYunionmeta(ctx)

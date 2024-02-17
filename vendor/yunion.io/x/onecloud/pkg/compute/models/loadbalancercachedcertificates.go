@@ -94,7 +94,7 @@ func (manager *SCachedLoadbalancerCertificateManager) FetchOwnerId(ctx context.C
 	return db.FetchProjectInfo(ctx, data)
 }
 
-func (manager *SCachedLoadbalancerCertificateManager) FilterByOwner(q *sqlchemy.SQuery, man db.FilterByOwnerProvider, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, scope rbacscope.TRbacScope) *sqlchemy.SQuery {
+func (manager *SCachedLoadbalancerCertificateManager) FilterByOwner(ctx context.Context, q *sqlchemy.SQuery, man db.FilterByOwnerProvider, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, scope rbacscope.TRbacScope) *sqlchemy.SQuery {
 	if ownerId != nil {
 		sq := LoadbalancerCertificateManager.Query("id")
 		switch scope {
@@ -118,7 +118,7 @@ func (self *SCachedLoadbalancerCertificate) RealDelete(ctx context.Context, user
 }
 
 func (self *SCachedLoadbalancerCertificate) CustomizeDelete(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) error {
-	self.SetStatus(userCred, api.LB_STATUS_DELETING, "")
+	self.SetStatus(ctx, userCred, api.LB_STATUS_DELETING, "")
 	return self.StartLoadBalancerCertificateDeleteTask(ctx, userCred, jsonutils.NewDict(), "")
 }
 
@@ -131,7 +131,7 @@ func (lbcert *SCachedLoadbalancerCertificate) StartLoadBalancerCertificateDelete
 		return task.ScheduleRun(nil)
 	}()
 	if err != nil {
-		lbcert.SetStatus(userCred, api.LB_STATUS_DELETE_FAILED, err.Error())
+		lbcert.SetStatus(ctx, userCred, api.LB_STATUS_DELETE_FAILED, err.Error())
 	}
 	return err
 }
@@ -312,7 +312,7 @@ func (self *SCloudprovider) newFromCloudLoadbalancerCertificate(ctx context.Cont
 			return errors.Wrapf(err, "Insert lbcert")
 		}
 
-		SyncCloudProject(ctx, userCred, c, self.GetOwnerId(), ext, self.GetId())
+		SyncCloudProject(ctx, userCred, c, self.GetOwnerId(), ext, self)
 	}
 	lbcert.CertificateId = c.Id
 	lbcert.Name = ext.GetName()
@@ -322,7 +322,7 @@ func (self *SCloudprovider) newFromCloudLoadbalancerCertificate(ctx context.Cont
 		return errors.Wrapf(err, "Insert cache lbert")
 	}
 
-	syncMetadata(ctx, userCred, lbcert, ext)
+	syncMetadata(ctx, userCred, lbcert, ext, false)
 	db.OpsLog.LogEvent(lbcert, db.ACT_CREATE, lbcert.GetShortDesc(ctx), userCred)
 	notifyclient.EventNotify(ctx, userCred, notifyclient.SEventNotifyParam{
 		Obj:    lbcert,
@@ -341,7 +341,7 @@ func (lbcert *SCachedLoadbalancerCertificate) SyncWithCloudLoadbalancerCertifica
 		return errors.Wrapf(err, "db.Update")
 	}
 
-	syncMetadata(ctx, userCred, lbcert, ext)
+	syncMetadata(ctx, userCred, lbcert, ext, false)
 	db.OpsLog.LogSyncUpdate(lbcert, diff, userCred)
 	if len(diff) > 0 {
 		notifyclient.EventNotify(ctx, userCred, notifyclient.SEventNotifyParam{
