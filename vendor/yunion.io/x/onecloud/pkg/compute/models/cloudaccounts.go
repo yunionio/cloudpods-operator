@@ -480,7 +480,6 @@ func (manager *SCloudaccountManager) validateCreateData(
 		input.Options = jsonutils.NewDict()
 	}
 	input.Options.Update(jsonutils.Marshal(input.SCloudaccountCredential.SHCSOEndpoints))
-	input.Options.Update(jsonutils.Marshal(input.SCloudaccountCredential.SCtyunExtraOptions))
 
 	if len(input.DefaultRegion) > 0 {
 		input.Options.Add(jsonutils.NewString(input.DefaultRegion), "default_region")
@@ -1119,6 +1118,29 @@ func (self *SCloudaccount) importSubAccount(ctx context.Context, userCred mcclie
 		if err != nil {
 			return nil, isNew, errors.Wrapf(err, "q.First")
 		}
+		err = func() error {
+			// 根据云订阅归属且云订阅之前没有手动指定过项目
+			if self.AutoCreateProjectForProvider && provider.ProjectSrc != string(apis.OWNER_SOURCE_LOCAL) {
+				lockman.LockRawObject(ctx, CloudproviderManager.Keyword(), "name")
+				defer lockman.ReleaseRawObject(ctx, CloudproviderManager.Keyword(), "name")
+				// 根据云订阅名称获取或创建项目
+				domainId, projectId, err := self.getOrCreateTenant(ctx, provider.Name, provider.DomainId, "", subAccount.Desc)
+				if err != nil {
+					return errors.Wrapf(err, "getOrCreateTenant err,provider_name :%s", provider.Name)
+				}
+				// 覆盖云订阅项目
+				db.Update(provider, func() error {
+					provider.ProjectId = projectId
+					provider.DomainId = domainId
+					return nil
+				})
+			}
+			return nil
+		}()
+		if err != nil {
+			return nil, isNew, errors.Wrapf(err, "sync autro create project for provider")
+		}
+		// 没有项目归属时以默认最初项目做归属
 		if len(provider.ProjectId) == 0 {
 			db.Update(provider, func() error {
 				if len(subAccount.DefaultProjectId) > 0 {
@@ -1152,6 +1174,7 @@ func (self *SCloudaccount) importSubAccount(ctx context.Context, userCred mcclie
 
 	newCloudprovider, err := func() (*SCloudprovider, error) {
 		newCloudprovider := SCloudprovider{}
+		newCloudprovider.ProjectSrc = string(apis.OWNER_SOURCE_CLOUD)
 		newCloudprovider.Account = subAccount.Account
 		newCloudprovider.Secret = self.Secret
 		newCloudprovider.CloudaccountId = self.Id
@@ -2035,6 +2058,10 @@ func (manager *SCloudaccountManager) ListItemFilter(
 	}
 	if len(query.Brands) > 0 {
 		q = q.In("brand", query.Brands)
+	}
+
+	if query.ReadOnly != nil {
+		q = q.Equals("read_only", *query.ReadOnly)
 	}
 
 	return q, nil

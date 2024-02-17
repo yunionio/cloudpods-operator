@@ -28,6 +28,7 @@ type CloudaccountListOptions struct {
 	BaseListOptions
 	Capability []string `help:"capability filter" choices:"project|compute|network|loadbalancer|objectstore|rds|cache|event|tablestore"`
 
+	ReadOnly *bool `help:"filter read only account" negative:"no-read-only"`
 	//DistinctField string `help:"distinct field"`
 	ProxySetting string `help:"Proxy setting id or name"`
 	// 按宿主机数量排序
@@ -405,8 +406,6 @@ func (opts *SXskyCloudAccountCreateOptions) Params() (jsonutils.JSONObject, erro
 type SCtyunCloudAccountCreateOptions struct {
 	SCloudAccountCreateBaseOptions
 	SAccessKeyCredentialWithEnvironment
-
-	cloudprovider.SCtyunExtraOptions
 }
 
 func (opts *SCtyunCloudAccountCreateOptions) Params() (jsonutils.JSONObject, error) {
@@ -666,6 +665,8 @@ type SAliyunCloudAccountUpdateOptions struct {
 	RemoveOptionsBillingBucketAccount bool   `help:"remove id of account that can access bucket, blank if this account can access" json:"-"`
 	OptionsBillingFilePrefix          string `help:"update prefix of billing file name" json:"-"`
 	RemoveOptionsBillingFilePrefix    bool   `help:"remove prefix of billing file name" json:"-"`
+	OptionsBillingScope               string `help:"update billing scope" choices:"all|managed" json:"-"`
+	RemoveOptionsBillingScope         bool   `help:"remove billing scope" json:"-"`
 }
 
 func (opts *SAliyunCloudAccountUpdateOptions) Params() (jsonutils.JSONObject, error) {
@@ -681,6 +682,9 @@ func (opts *SAliyunCloudAccountUpdateOptions) Params() (jsonutils.JSONObject, er
 	if len(opts.OptionsBillingFilePrefix) > 0 {
 		options.Add(jsonutils.NewString(opts.OptionsBillingFilePrefix), "billing_file_prefix")
 	}
+	if len(opts.OptionsBillingScope) > 0 {
+		options.Add(jsonutils.NewString(opts.OptionsBillingScope), "billing_scope")
+	}
 	if options.Size() > 0 {
 		params.Add(options, "options")
 	}
@@ -693,6 +697,9 @@ func (opts *SAliyunCloudAccountUpdateOptions) Params() (jsonutils.JSONObject, er
 	}
 	if opts.RemoveOptionsBillingFilePrefix {
 		removeOptions = append(removeOptions, "billing_file_prefix")
+	}
+	if opts.RemoveOptionsBillingScope {
+		removeOptions = append(removeOptions, "billing_scope")
 	}
 	if len(removeOptions) > 0 {
 		params.Add(jsonutils.NewStringArray(removeOptions), "remove_options")
@@ -960,16 +967,11 @@ func (opts *SS3CloudAccountUpdateOptions) Params() (jsonutils.JSONObject, error)
 
 type SCtyunCloudAccountUpdateOptions struct {
 	SCloudAccountUpdateBaseOptions
-
-	cloudprovider.SCtyunExtraOptions
 }
 
 func (opts *SCtyunCloudAccountUpdateOptions) Params() (jsonutils.JSONObject, error) {
 	params := jsonutils.Marshal(opts).(*jsonutils.JSONDict)
 	options := jsonutils.NewDict()
-	if len(opts.SCtyunExtraOptions.CrmBizId) > 0 {
-		options.Add(jsonutils.NewString(opts.SCtyunExtraOptions.CrmBizId), "crm_biz_id")
-	}
 	if options.Size() > 0 {
 		params.Add(options, "options")
 	}

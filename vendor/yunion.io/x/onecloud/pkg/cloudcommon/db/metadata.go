@@ -532,6 +532,7 @@ func (manager *SMetadataManager) rawSetValues(ctx context.Context, objType strin
 	keys := make([]string, 0, len(store))
 	changes := make([]sMetadataChange, 0)
 	for key, value := range store {
+		key = strings.TrimSpace(key)
 		keys = append(keys, key)
 
 		record := SMetadata{}
@@ -661,8 +662,15 @@ func isAllowGetMetadata(ctx context.Context, obj IModel, userCred mcclient.Token
 	return true
 }
 
-func (manager *SMetadataManager) GetAll(ctx context.Context, obj IModel, keys []string, keyPrefix string, userCred mcclient.TokenCredential) (map[string]string, error) {
-	if !isAllowGetMetadata(ctx, obj, userCred) {
+type IMetadataGetter interface {
+	GetId() string
+	Keyword() string
+}
+
+func (manager *SMetadataManager) GetAll(ctx context.Context, obj IMetadataGetter, keys []string, keyPrefix string, userCred mcclient.TokenCredential) (map[string]string, error) {
+	modelObj, isIModel := obj.(IModel)
+
+	if isIModel && !isAllowGetMetadata(ctx, modelObj, userCred) {
 		return map[string]string{}, nil
 	}
 	meta, err := manager.rawGetAll(obj.Keyword(), obj.GetId(), keys, keyPrefix)
@@ -671,7 +679,7 @@ func (manager *SMetadataManager) GetAll(ctx context.Context, obj IModel, keys []
 	}
 	ret := make(map[string]string)
 	for k, v := range meta {
-		if strings.HasPrefix(k, SYSTEM_ADMIN_PREFIX) && (userCred == nil || !IsAllowGetSpec(ctx, rbacscope.ScopeSystem, userCred, obj, "metadata")) {
+		if strings.HasPrefix(k, SYSTEM_ADMIN_PREFIX) && (userCred == nil || (isIModel && !IsAllowGetSpec(ctx, rbacscope.ScopeSystem, userCred, modelObj, "metadata"))) {
 			continue
 		}
 		ret[k] = v
@@ -696,7 +704,7 @@ func (manager *SMetadataManager) rawGetAll(objType, objId string, keys []string,
 	ret := make(map[string]string)
 	for _, rec := range records {
 		if len(rec.Value) > 0 || strings.HasPrefix(rec.Key, USER_TAG_PREFIX) || strings.HasPrefix(rec.Key, CLOUD_TAG_PREFIX) {
-			ret[rec.Key] = rec.Value
+			ret[strings.TrimSpace(rec.Key)] = rec.Value
 		}
 	}
 	return ret, nil
@@ -759,7 +767,7 @@ func metaList2Map(manager IMetadataBaseModelManager, userCred mcclient.TokenCred
 	hiddenKeys := manager.GetMetadataHiddenKeys()
 	for _, meta := range metaList {
 		if IsMetadataKeyVisible(meta.Key) && !utils.IsInStringArray(meta.Key, hiddenKeys) {
-			metaMap[meta.Key] = meta.Value
+			metaMap[strings.TrimSpace(meta.Key)] = meta.Value
 		}
 	}
 

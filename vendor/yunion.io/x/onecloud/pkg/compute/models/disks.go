@@ -1042,6 +1042,7 @@ func (disk *SDisk) doResize(ctx context.Context, userCred mcclient.TokenCredenti
 	if storage == nil {
 		return httperrors.NewInternalServerError("disk has no valid storage")
 	}
+
 	var guestdriver IGuestDriver
 	if host, _ := storage.GetMasterHost(); host != nil {
 		if err := host.GetHostDriver().ValidateDiskSize(storage, sizeMb>>10); err != nil {
@@ -1226,20 +1227,14 @@ func (self *SDisk) StartDiskSaveTask(ctx context.Context, userCred mcclient.Toke
 	return nil
 }
 
-func (self *SDisk) ValidateDeleteCondition(ctx context.Context, info jsonutils.JSONObject) error {
-	provider := self.GetCloudprovider()
-	if provider != nil {
-		if !provider.IsAvailable() {
-			return httperrors.NewNotSufficientPrivilegeError("cloud provider %s is not available", provider.GetName())
-		}
-
-		account, _ := provider.GetCloudaccount()
-		if account != nil && !account.IsAvailable() {
-			return httperrors.NewNotSufficientPrivilegeError("cloud account %s is not available", account.GetName())
-		}
+func (self *SDisk) ValidateDeleteCondition(ctx context.Context, info api.DiskDetails) error {
+	if len(info.Guests) > 0 {
+		return httperrors.NewNotEmptyError("Virtual disk %s(%s) used by virtual servers", self.Name, self.Id)
 	}
-
-	return self.validateDeleteCondition(ctx, false)
+	if self.IsNotDeletablePrePaid() {
+		return httperrors.NewForbiddenError("not allow to delete prepaid disk in valid status")
+	}
+	return self.SVirtualResourceBase.ValidateDeleteCondition(ctx, nil)
 }
 
 func (self *SDisk) ValidatePurgeCondition(ctx context.Context) error {
@@ -1371,7 +1366,11 @@ func (self *SDisk) GetPathAtHost(host *SHost) string {
 	return ""
 }
 
-func (self *SDisk) GetMasterHost() (*SHost, error) {
+func (self *SDisk) GetMasterHost(storage *SStorage) (*SHost, error) {
+	if storage.MasterHost != "" {
+		return storage.GetMasterHost()
+	}
+
 	hosts := HostManager.Query().SubQuery()
 	hoststorages := HoststorageManager.Query().SubQuery()
 
@@ -2211,11 +2210,11 @@ func (self *SDisk) Delete(ctx context.Context, userCred mcclient.TokenCredential
 }
 
 func (self *SDisk) RealDelete(ctx context.Context, userCred mcclient.TokenCredential) error {
-	diskbackups := DiskBackupManager.Query("id").Equals("disk_id", self.Id)
+	// diskbackups := DiskBackupManager.Query("id").Equals("disk_id", self.Id)
 	guestdisks := GuestdiskManager.Query("row_id").Equals("disk_id", self.Id)
 	diskpolicies := SnapshotPolicyDiskManager.Query("row_id").Equals("disk_id", self.Id)
 	pairs := []purgePair{
-		{manager: DiskBackupManager, key: "id", q: diskbackups},
+		// {manager: DiskBackupManager, key: "id", q: diskbackups},
 		{manager: GuestdiskManager, key: "row_id", q: guestdisks},
 		{manager: SnapshotPolicyDiskManager, key: "row_id", q: diskpolicies},
 	}

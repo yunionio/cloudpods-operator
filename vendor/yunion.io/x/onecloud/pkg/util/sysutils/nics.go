@@ -18,14 +18,17 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"yunion.io/x/log"
 	"yunion.io/x/pkg/errors"
 
 	"yunion.io/x/onecloud/pkg/cloudcommon/types"
 	"yunion.io/x/onecloud/pkg/httperrors"
+	"yunion.io/x/onecloud/pkg/util/fileutils2"
 )
 
 const (
@@ -48,6 +51,16 @@ func Nics() ([]*types.SNicDevInfo, error) {
 			} /*else if (fi.Mode() & os.ModeSymlink) == 0 {
 				continue
 			}*/
+			nicType, err := fileutils2.FileGetContents(path.Join(netPath, "type"))
+			if err != nil {
+				return nil, errors.Wrap(err, "failed get nic type")
+			}
+			if strings.TrimSpace(nicType) == "32" {
+				// include/uapi/linux/if_arp.h
+				// #define ARPHRD_INFINIBAND 32		/* InfiniBand			*/
+				continue // skip infiniband nic
+			}
+
 			speedStr := GetSysConfigQuiet(filepath.Join(netPath, "speed"))
 			speed := 0
 			if len(speedStr) > 0 {
