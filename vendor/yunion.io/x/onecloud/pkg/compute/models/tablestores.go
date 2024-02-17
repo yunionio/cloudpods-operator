@@ -146,7 +146,7 @@ func (self *STablestore) syncRemoveCloudTablestore(ctx context.Context, userCred
 
 	err := self.ValidateDeleteCondition(ctx, nil)
 	if err != nil { // cannot delete
-		self.SetStatus(userCred, api.TABLESTORE_STATUS_UNKNOWN, "Sync to remove")
+		self.SetStatus(ctx, userCred, api.TABLESTORE_STATUS_UNKNOWN, "Sync to remove")
 		return err
 	}
 	return self.RealDelete(ctx, userCred)
@@ -175,8 +175,11 @@ func (self *STablestore) SyncWithCloudTablestore(ctx context.Context, userCred m
 		})
 	}
 
-	syncVirtualResourceMetadata(ctx, userCred, self, ext)
-	SyncCloudProject(ctx, userCred, self, provider.GetOwnerId(), ext, provider.Id)
+	if account, _ := provider.GetCloudaccount(); account != nil {
+		syncVirtualResourceMetadata(ctx, userCred, self, ext, account.ReadOnly)
+	}
+
+	SyncCloudProject(ctx, userCred, self, provider.GetOwnerId(), ext, provider)
 	return nil
 }
 
@@ -208,8 +211,8 @@ func (self *SCloudregion) newFromCloudTablestore(ctx context.Context, userCred m
 		return nil, errors.Wrapf(err, "Insert")
 	}
 
-	syncVirtualResourceMetadata(ctx, userCred, ret, ext)
-	SyncCloudProject(ctx, userCred, ret, provider.GetOwnerId(), ext, provider.Id)
+	syncVirtualResourceMetadata(ctx, userCred, ret, ext, false)
+	SyncCloudProject(ctx, userCred, ret, provider.GetOwnerId(), ext, provider)
 
 	db.OpsLog.LogEvent(ret, db.ACT_CREATE, ret.GetShortDesc(ctx), userCred)
 	notifyclient.EventNotify(ctx, userCred, notifyclient.SEventNotifyParam{
@@ -251,7 +254,7 @@ func (self *STablestore) ValidateUpdateData(ctx context.Context, userCred mcclie
 }
 
 func (self *STablestore) Delete(ctx context.Context, userCred mcclient.TokenCredential) error {
-	self.SetStatus(userCred, apis.STATUS_DELETING, "")
+	self.SetStatus(ctx, userCred, apis.STATUS_DELETING, "")
 	return nil
 }
 

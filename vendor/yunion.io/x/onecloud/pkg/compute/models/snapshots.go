@@ -195,7 +195,7 @@ func (manager *SSnapshotManager) ListItemFilter(
 		q = q.In("os_type", query.OsType)
 	}
 	if len(query.ServerId) > 0 {
-		iG, err := GuestManager.FetchByIdOrName(userCred, query.ServerId)
+		iG, err := GuestManager.FetchByIdOrName(ctx, userCred, query.ServerId)
 		if err != nil && err == sql.ErrNoRows {
 			return nil, httperrors.NewNotFoundError("guest %s not found", query.ServerId)
 		} else if err != nil {
@@ -430,7 +430,7 @@ func (manager *SSnapshotManager) ValidateCreateData(
 	if len(input.DiskId) == 0 {
 		return input, httperrors.NewMissingParameterError("disk_id")
 	}
-	_disk, err := validators.ValidateModel(userCred, DiskManager, &input.DiskId)
+	_disk, err := validators.ValidateModel(ctx, userCred, DiskManager, &input.DiskId)
 	if err != nil {
 		return input, err
 	}
@@ -537,10 +537,9 @@ func (manager *SSnapshotManager) OnCreateComplete(ctx context.Context, items []d
 func (self *SSnapshot) StartSnapshotCreateTask(ctx context.Context, userCred mcclient.TokenCredential, params *jsonutils.JSONDict, parentTaskId string) error {
 	task, err := taskman.TaskManager.NewTask(ctx, "SnapshotCreateTask", self, userCred, params, parentTaskId, "", nil)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "NewTask")
 	}
-	task.ScheduleRun(nil)
-	return nil
+	return task.ScheduleRun(nil)
 }
 
 func (self *SSnapshot) GetGuest() (*SGuest, error) {
@@ -715,7 +714,7 @@ func (self *SSnapshotManager) CreateSnapshot(ctx context.Context, owner mcclient
 func (self *SSnapshot) StartSnapshotDeleteTask(ctx context.Context, userCred mcclient.TokenCredential, reloadDisk bool, parentTaskId string) error {
 	params := jsonutils.NewDict()
 	params.Set("reload_disk", jsonutils.NewBool(reloadDisk))
-	self.SetStatus(userCred, api.SNAPSHOT_DELETING, "")
+	self.SetStatus(ctx, userCred, api.SNAPSHOT_DELETING, "")
 	task, err := taskman.TaskManager.NewTask(ctx, "SnapshotDeleteTask", self, userCred, params, parentTaskId, "", nil)
 	if err != nil {
 		log.Errorln(err)
@@ -940,7 +939,7 @@ func (self *SSnapshotManager) DeleteDiskSnapshots(ctx context.Context, userCred 
 	return nil
 }
 
-func TotalSnapshotCount(scope rbacscope.TRbacScope, ownerId mcclient.IIdentityProvider, rangeObjs []db.IStandaloneModel, providers []string, brands []string, cloudEnv string, policyResult rbacutils.SPolicyResult) (int, error) {
+func TotalSnapshotCount(ctx context.Context, scope rbacscope.TRbacScope, ownerId mcclient.IIdentityProvider, rangeObjs []db.IStandaloneModel, providers []string, brands []string, cloudEnv string, policyResult rbacutils.SPolicyResult) (int, error) {
 	q := SnapshotManager.Query()
 
 	switch scope {
@@ -951,7 +950,7 @@ func TotalSnapshotCount(scope rbacscope.TRbacScope, ownerId mcclient.IIdentityPr
 		q = q.Equals("tenant_id", ownerId.GetProjectId())
 	}
 
-	q = db.ObjectIdQueryWithPolicyResult(q, SnapshotManager, policyResult)
+	q = db.ObjectIdQueryWithPolicyResult(ctx, q, SnapshotManager, policyResult)
 
 	q = RangeObjectsFilter(q, rangeObjs, q.Field("cloudregion_id"), nil, q.Field("manager_id"), nil, nil)
 	q = CloudProviderFilter(q, q.Field("manager_id"), providers, brands, cloudEnv)
@@ -966,7 +965,7 @@ func (self *SSnapshot) syncRemoveCloudSnapshot(ctx context.Context, userCred mcc
 
 	err := self.ValidateDeleteCondition(ctx, nil)
 	if err != nil {
-		err = self.SetStatus(userCred, api.SNAPSHOT_UNKNOWN, "sync to delete")
+		err = self.SetStatus(ctx, userCred, api.SNAPSHOT_UNKNOWN, "sync to delete")
 	} else {
 		err = self.RealDelete(ctx, userCred)
 	}
@@ -995,14 +994,16 @@ func (self *SSnapshot) SyncWithCloudSnapshot(ctx context.Context, userCred mccli
 	}
 	db.OpsLog.LogSyncUpdate(self, diff, userCred)
 
-	syncVirtualResourceMetadata(ctx, userCred, self, ext)
+	if account := self.GetCloudaccount(); account != nil {
+		syncVirtualResourceMetadata(ctx, userCred, self, ext, account.ReadOnly)
+	}
 
 	// bugfix for now:
 	disk, _ := self.GetDisk()
 	if disk != nil {
 		self.SyncCloudProjectId(userCred, disk.GetOwnerId())
 	} else {
-		SyncCloudProject(ctx, userCred, self, syncOwnerId, ext, self.GetCloudprovider().Id)
+		SyncCloudProject(ctx, userCred, self, syncOwnerId, ext, self.GetCloudprovider())
 	}
 
 	return nil
@@ -1049,13 +1050,13 @@ func (manager *SSnapshotManager) newFromCloudSnapshot(ctx context.Context, userC
 		return nil, errors.Wrapf(err, "Insert")
 	}
 
-	syncVirtualResourceMetadata(ctx, userCred, &snapshot, extSnapshot)
+	syncVirtualResourceMetadata(ctx, userCred, &snapshot, extSnapshot, false)
 
 	// bugfix for now:
 	if localDisk != nil {
 		snapshot.SyncCloudProjectId(userCred, localDisk.GetOwnerId())
 	} else {
-		SyncCloudProject(ctx, userCred, &snapshot, syncOwnerId, extSnapshot, snapshot.ManagerId)
+		SyncCloudProject(ctx, userCred, &snapshot, syncOwnerId, extSnapshot, provider)
 	}
 
 	db.OpsLog.LogEvent(&snapshot, db.ACT_CREATE, snapshot.GetShortDesc(ctx), userCred)

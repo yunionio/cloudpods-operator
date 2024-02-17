@@ -95,7 +95,7 @@ func (manager *SVpcPeeringConnectionManager) ListItemFilter(
 	}
 
 	if len(query.PeerVpcId) > 0 {
-		peerVpc, err := VpcManager.FetchByIdOrName(userCred, query.PeerVpcId)
+		peerVpc, err := VpcManager.FetchByIdOrName(ctx, userCred, query.PeerVpcId)
 		if err != nil {
 			if errors.Cause(err) == sql.ErrNoRows {
 				return nil, httperrors.NewResourceNotFoundError2("peer_vpc_id", query.PeerVpcId)
@@ -125,7 +125,7 @@ func (manager *SVpcPeeringConnectionManager) ValidateCreateData(
 	}
 
 	// get vpc ,peerVpc
-	_vpc, err := VpcManager.FetchByIdOrName(userCred, input.VpcId)
+	_vpc, err := VpcManager.FetchByIdOrName(ctx, userCred, input.VpcId)
 	if err != nil {
 		if errors.Cause(err) == sql.ErrNoRows {
 			return input, httperrors.NewResourceNotFoundError2("vpc", input.VpcId)
@@ -134,7 +134,7 @@ func (manager *SVpcPeeringConnectionManager) ValidateCreateData(
 	}
 	vpc := _vpc.(*SVpc)
 
-	_peerVpc, err := VpcManager.FetchByIdOrName(userCred, input.PeerVpcId)
+	_peerVpc, err := VpcManager.FetchByIdOrName(ctx, userCred, input.PeerVpcId)
 	if err != nil {
 		if errors.Cause(err) == sql.ErrNoRows {
 			return input, httperrors.NewResourceNotFoundError2("Peervpc", input.PeerVpcId)
@@ -224,7 +224,7 @@ func (self *SVpcPeeringConnection) PostCreate(ctx context.Context, userCred mccl
 	if err != nil {
 		return
 	}
-	self.SetStatus(userCred, api.VPC_PEERING_CONNECTION_STATUS_CREATING, "")
+	self.SetStatus(ctx, userCred, api.VPC_PEERING_CONNECTION_STATUS_CREATING, "")
 	task.ScheduleRun(nil)
 }
 
@@ -285,7 +285,7 @@ func (self *SVpcPeeringConnection) CustomizeDelete(ctx context.Context, userCred
 }
 
 func (self *SVpcPeeringConnection) StartDeleteVpcPeeringConnectionTask(ctx context.Context, userCred mcclient.TokenCredential) error {
-	self.SetStatus(userCred, api.VPC_PEERING_CONNECTION_STATUS_DELETING, "")
+	self.SetStatus(ctx, userCred, api.VPC_PEERING_CONNECTION_STATUS_DELETING, "")
 	task, err := taskman.TaskManager.NewTask(ctx, "VpcPeeringConnectionDeleteTask", self, userCred, nil, "", "", nil)
 	if err != nil {
 		return errors.Wrap(err, "Start VpcPeeringConnectionDeleteTask fail")
@@ -354,10 +354,14 @@ func (self *SVpcPeeringConnection) syncRemove(ctx context.Context, userCred mccl
 	return self.RealDelete(ctx, userCred)
 }
 
-func (self *SVpcPeeringConnection) SyncWithCloudPeerConnection(ctx context.Context, userCred mcclient.TokenCredential, ext cloudprovider.ICloudVpcPeeringConnection, provider *SCloudprovider) error {
+func (self *SVpcPeeringConnection) SyncWithCloudPeerConnection(ctx context.Context, userCred mcclient.TokenCredential, ext cloudprovider.ICloudVpcPeeringConnection) error {
 	vpc, err := self.GetVpc()
 	if err != nil {
 		return errors.Wrapf(err, "GetVpc")
+	}
+	provider := vpc.GetCloudprovider()
+	if provider == nil {
+		return errors.Wrapf(cloudprovider.ErrNotFound, "cloudprovider for vpc %s", vpc.Name)
 	}
 	_, err = db.Update(self, func() error {
 		self.Status = ext.GetStatus()
@@ -382,7 +386,9 @@ func (self *SVpcPeeringConnection) SyncWithCloudPeerConnection(ctx context.Conte
 		self.SyncShareState(ctx, userCred, provider.getAccountShareInfo())
 	}
 
-	syncMetadata(ctx, userCred, self, ext)
+	if account, _ := provider.GetCloudaccount(); account != nil {
+		syncMetadata(ctx, userCred, self, ext, account.ReadOnly)
+	}
 	return nil
 }
 

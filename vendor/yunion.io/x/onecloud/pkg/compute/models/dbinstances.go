@@ -186,7 +186,7 @@ func (man *SDBInstanceManager) ListItemFilter(
 	}
 
 	if len(query.ZoneId) > 0 {
-		zoneObj, err := ZoneManager.FetchByIdOrName(userCred, query.ZoneId)
+		zoneObj, err := ZoneManager.FetchByIdOrName(ctx, userCred, query.ZoneId)
 		if err != nil {
 			if errors.Cause(err) == sql.ErrNoRows {
 				return nil, httperrors.NewResourceNotFoundError2(ZoneManager.Keyword(), query.ZoneId)
@@ -202,7 +202,7 @@ func (man *SDBInstanceManager) ListItemFilter(
 	}
 
 	if len(query.MasterInstance) > 0 {
-		instObj, err := DBInstanceManager.FetchByIdOrName(userCred, query.MasterInstance)
+		instObj, err := DBInstanceManager.FetchByIdOrName(ctx, userCred, query.MasterInstance)
 		if err != nil {
 			if errors.Cause(err) == sql.ErrNoRows {
 				return nil, httperrors.NewResourceNotFoundError2(DBInstanceManager.Keyword(), query.MasterInstance)
@@ -309,7 +309,7 @@ func (manager *SDBInstanceManager) BatchCreateValidateCreateData(ctx context.Con
 
 func (man *SDBInstanceManager) ValidateCreateData(ctx context.Context, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, query jsonutils.JSONObject, input api.DBInstanceCreateInput) (api.DBInstanceCreateInput, error) {
 	if len(input.DBInstancebackupId) > 0 {
-		_backup, err := validators.ValidateModel(userCred, DBInstanceBackupManager, &input.DBInstancebackupId)
+		_backup, err := validators.ValidateModel(ctx, userCred, DBInstanceBackupManager, &input.DBInstancebackupId)
 		if err != nil {
 			return input, err
 		}
@@ -321,7 +321,7 @@ func (man *SDBInstanceManager) ValidateCreateData(ctx context.Context, userCred 
 	}
 	for _, v := range map[string]*string{"zone1": &input.Zone1, "zone2": &input.Zone2, "zone3": &input.Zone3} {
 		if len(*v) > 0 {
-			_, err := validators.ValidateModel(userCred, ZoneManager, v)
+			_, err := validators.ValidateModel(ctx, userCred, ZoneManager, v)
 			if err != nil {
 				return input, err
 			}
@@ -337,7 +337,7 @@ func (man *SDBInstanceManager) ValidateCreateData(ctx context.Context, userCred 
 	var vpc *SVpc
 	var network *SNetwork
 	if len(input.NetworkId) > 0 {
-		_network, err := validators.ValidateModel(userCred, NetworkManager, &input.NetworkId)
+		_network, err := validators.ValidateModel(ctx, userCred, NetworkManager, &input.NetworkId)
 		if err != nil {
 			return input, err
 		}
@@ -354,7 +354,7 @@ func (man *SDBInstanceManager) ValidateCreateData(ctx context.Context, userCred 
 		}
 		vpc, _ = network.GetVpc()
 	} else if len(input.VpcId) > 0 {
-		_vpc, err := validators.ValidateModel(userCred, VpcManager, &input.VpcId)
+		_vpc, err := validators.ValidateModel(ctx, userCred, VpcManager, &input.VpcId)
 		if err != nil {
 			return input, err
 		}
@@ -468,7 +468,7 @@ func (man *SDBInstanceManager) ValidateCreateData(ctx context.Context, userCred 
 		return input, httperrors.NewNotSupportedError("%s rds Support up to %d security groups", driver.GetProvider(), secCount)
 	}
 	for i := range input.SecgroupIds {
-		_, err := validators.ValidateModel(userCred, SecurityGroupManager, &input.SecgroupIds[i])
+		_, err := validators.ValidateModel(ctx, userCred, SecurityGroupManager, &input.SecgroupIds[i])
 		if err != nil {
 			return input, err
 		}
@@ -525,7 +525,7 @@ func (self *SDBInstance) StartDBInstanceCreateTask(ctx context.Context, userCred
 	if err != nil {
 		return errors.Wrapf(err, "NewTask")
 	}
-	self.SetStatus(userCred, api.DBINSTANCE_DEPLOYING, "")
+	self.SetStatus(ctx, userCred, api.DBINSTANCE_DEPLOYING, "")
 	task.ScheduleRun(nil)
 	return nil
 }
@@ -583,7 +583,7 @@ func (manager *SDBInstanceManager) FetchCustomizeColumns(
 		log.Errorf("FetchCheckQueryOwnerScope error: %v", err)
 		return rows
 	}
-	secgroups := SecurityGroupManager.FilterByOwner(q, SecurityGroupManager, userCred, ownerId, queryScope).SubQuery()
+	secgroups := SecurityGroupManager.FilterByOwner(ctx, q, SecurityGroupManager, userCred, ownerId, queryScope).SubQuery()
 	rdssecgroups := DBInstanceSecgroupManager.Query().SubQuery()
 
 	secQ := rdssecgroups.Query(rdssecgroups.Field("dbinstance_id"), rdssecgroups.Field("secgroup_id"), secgroups.Field("name").Label("secgroup_name")).Join(secgroups, sqlchemy.Equals(rdssecgroups.Field("secgroup_id"), secgroups.Field("id"))).Filter(sqlchemy.In(rdssecgroups.Field("dbinstance_id"), rdsIds))
@@ -755,8 +755,7 @@ func fetchDBInstanceZones(rdsIds []string) map[string][]sDBInstanceZone {
 }
 
 func (self *SDBInstance) getSecgroupsByExternalIds(externalIds []string) ([]SSecurityGroup, error) {
-	sq := SecurityGroupCacheManager.Query("secgroup_id").In("external_id", externalIds).Equals("manager_id", self.ManagerId)
-	q := SecurityGroupManager.Query().In("id", sq.SubQuery())
+	q := SecurityGroupManager.Query().In("external_id", externalIds).Equals("manager_id", self.ManagerId)
 	secgroups := []SSecurityGroup{}
 	err := db.FetchModelObjects(SecurityGroupManager, q, &secgroups)
 	if err != nil {
@@ -865,7 +864,7 @@ func (self *SDBInstance) PerformRecovery(ctx context.Context, userCred mcclient.
 		return nil, httperrors.NewInvalidStatusError("Cannot do recovery dbinstance in status %s required status %s", self.Status, api.DBINSTANCE_RUNNING)
 	}
 
-	_backup, err := DBInstanceBackupManager.FetchByIdOrName(userCred, input.DBInstancebackupId)
+	_backup, err := DBInstanceBackupManager.FetchByIdOrName(ctx, userCred, input.DBInstancebackupId)
 	if err != nil {
 		if errors.Cause(err) == sql.ErrNoRows {
 			return nil, httperrors.NewResourceNotFoundError2("dbinstancebackup", input.DBInstancebackupId)
@@ -925,7 +924,7 @@ func (self *SDBInstance) PerformRecovery(ctx context.Context, userCred mcclient.
 }
 
 func (self *SDBInstance) StartDBInstanceRecoveryTask(ctx context.Context, userCred mcclient.TokenCredential, params *jsonutils.JSONDict, parentTaskId string) error {
-	self.SetStatus(userCred, api.DBINSTANCE_RESTORING, "")
+	self.SetStatus(ctx, userCred, api.DBINSTANCE_RESTORING, "")
 	task, err := taskman.TaskManager.NewTask(ctx, "DBInstanceRecoveryTask", self, userCred, params, parentTaskId, "", nil)
 	if err != nil {
 		return err
@@ -1047,7 +1046,7 @@ func (self *SDBInstance) StartSetAutoRenewTask(ctx context.Context, userCred mcc
 	if err != nil {
 		return errors.Wrap(err, "NewTask")
 	}
-	self.SetStatus(userCred, api.DBINSTANCE_SET_AUTO_RENEW, "")
+	self.SetStatus(ctx, userCred, api.DBINSTANCE_SET_AUTO_RENEW, "")
 	task.ScheduleRun(nil)
 	return nil
 }
@@ -1074,7 +1073,7 @@ func (self *SDBInstance) PerformPublicConnection(ctx context.Context, userCred m
 }
 
 func (self *SDBInstance) StartDBInstancePublicConnectionTask(ctx context.Context, userCred mcclient.TokenCredential, parentTaskId string, open bool) error {
-	self.SetStatus(userCred, api.DBINSTANCE_DEPLOYING, "")
+	self.SetStatus(ctx, userCred, api.DBINSTANCE_DEPLOYING, "")
 	params := jsonutils.NewDict()
 	params.Add(jsonutils.NewBool(open), "open")
 	task, err := taskman.TaskManager.NewTask(ctx, "DBInstancePublicConnectionTask", self, userCred, params, parentTaskId, "", nil)
@@ -1102,7 +1101,7 @@ func (self *SDBInstance) PerformChangeConfig(ctx context.Context, userCred mccli
 }
 
 func (self *SDBInstance) StartDBInstanceChangeConfig(ctx context.Context, userCred mcclient.TokenCredential, data *jsonutils.JSONDict, parentTaskId string) error {
-	self.SetStatus(userCred, api.DBINSTANCE_CHANGE_CONFIG, "")
+	self.SetStatus(ctx, userCred, api.DBINSTANCE_CHANGE_CONFIG, "")
 	task, err := taskman.TaskManager.NewTask(ctx, "DBInstanceChangeConfigTask", self, userCred, data, parentTaskId, "", nil)
 	if err != nil {
 		return err
@@ -1112,7 +1111,7 @@ func (self *SDBInstance) StartDBInstanceChangeConfig(ctx context.Context, userCr
 }
 
 func (self *SDBInstance) StartDBInstanceRenewTask(ctx context.Context, userCred mcclient.TokenCredential, duration string, parentTaskId string) error {
-	self.SetStatus(userCred, api.DBINSTANCE_RENEWING, "")
+	self.SetStatus(ctx, userCred, api.DBINSTANCE_RENEWING, "")
 	params := jsonutils.NewDict()
 	params.Set("duration", jsonutils.NewString(duration))
 	task, err := taskman.TaskManager.NewTask(ctx, "DBInstanceRenewTask", self, userCred, params, parentTaskId, "", nil)
@@ -1154,6 +1153,15 @@ func (self *SDBInstance) GetShortDesc(ctx context.Context) *jsonutils.JSONDict {
 	desc := self.SVirtualResourceBase.GetShortDesc(ctx)
 	region, _ := self.GetRegion()
 	provider := self.GetCloudprovider()
+
+	ipAddr := func() string {
+		rdsNetwrok := SDBInstanceNetwork{}
+		err := DBInstanceNetworkManager.Query("ip_addr").Equals("dbinstance_id", self.Id).IsNotNull("ip_addr").IsNotEmpty("ip_addr").First(&rdsNetwrok)
+		if err != nil {
+			return ""
+		}
+		return rdsNetwrok.IpAddr
+	}()
 	info := MakeCloudProviderInfo(region, nil, provider)
 	desc.Set("engine", jsonutils.NewString(self.Engine))
 	desc.Set("storage_type", jsonutils.NewString(self.StorageType))
@@ -1162,12 +1170,13 @@ func (self *SDBInstance) GetShortDesc(ctx context.Context) *jsonutils.JSONDict {
 	desc.Set("vmem_size_mb", jsonutils.NewInt(int64(self.VmemSizeMb)))
 	desc.Set("disk_size_gb", jsonutils.NewInt(int64(self.DiskSizeGB)))
 	desc.Set("iops", jsonutils.NewInt(int64(self.Iops)))
+	desc.Set("ip_addr", jsonutils.NewString(ipAddr))
 	desc.Update(jsonutils.Marshal(&info))
 	return desc
 }
 
 func (self *SDBInstance) StartDBInstanceDeleteTask(ctx context.Context, userCred mcclient.TokenCredential, data *jsonutils.JSONDict, parentTaskId string) error {
-	self.SetStatus(userCred, api.DBINSTANCE_DELETING, "")
+	self.SetStatus(ctx, userCred, api.DBINSTANCE_DELETING, "")
 	task, err := taskman.TaskManager.NewTask(ctx, "DBInstanceDeleteTask", self, userCred, data, parentTaskId, "", nil)
 	if err != nil {
 		return err
@@ -1177,7 +1186,7 @@ func (self *SDBInstance) StartDBInstanceDeleteTask(ctx context.Context, userCred
 }
 
 func (self *SDBInstance) StartDBInstanceRebootTask(ctx context.Context, userCred mcclient.TokenCredential, data *jsonutils.JSONDict, parentTaskId string) error {
-	self.SetStatus(userCred, api.DBINSTANCE_REBOOTING, "")
+	self.SetStatus(ctx, userCred, api.DBINSTANCE_REBOOTING, "")
 	task, err := taskman.TaskManager.NewTask(ctx, "DBInstanceRebootTask", self, userCred, data, parentTaskId, "", nil)
 	if err != nil {
 		return err
@@ -1664,8 +1673,21 @@ func (self *SDBInstance) SyncWithCloudDBInstance(ctx context.Context, userCred m
 		self.Engine = ext.GetEngine()
 		self.EngineVersion = ext.GetEngineVersion()
 		self.InstanceType = ext.GetInstanceType()
-		self.VcpuCount = ext.GetVcpuCount()
-		self.VmemSizeMb = ext.GetVmemSizeMB()
+		cpu := ext.GetVcpuCount()
+		mem := ext.GetVmemSizeMB()
+		if (cpu == 0 || mem == 0) && len(self.InstanceType) > 0 {
+			skus, _ := self.GetAvailableDBInstanceSkus(true)
+			for _, sku := range skus {
+				cpu, mem = sku.VcpuCount, sku.VmemSizeMb
+				break
+			}
+		}
+		if cpu > 0 {
+			self.VcpuCount = cpu
+		}
+		if mem > 0 {
+			self.VmemSizeMb = mem
+		}
 		self.DiskSizeGB = ext.GetDiskSizeGB()
 		self.DiskSizeUsedMB = ext.GetDiskSizeUsedMB()
 		self.StorageType = ext.GetStorageType()
@@ -1736,8 +1758,10 @@ func (self *SDBInstance) SyncWithCloudDBInstance(ctx context.Context, userCred m
 	if err != nil {
 		return err
 	}
-	syncVirtualResourceMetadata(ctx, userCred, self, ext)
-	SyncCloudProject(ctx, userCred, self, provider.GetOwnerId(), ext, provider.Id)
+	if account := self.GetCloudaccount(); account != nil {
+		syncVirtualResourceMetadata(ctx, userCred, self, ext, account.ReadOnly)
+	}
+	SyncCloudProject(ctx, userCred, self, provider.GetOwnerId(), ext, provider)
 	db.OpsLog.LogSyncUpdate(self, diff, userCred)
 	if len(diff) > 0 {
 		notifyclient.EventNotify(ctx, userCred, notifyclient.SEventNotifyParam{
@@ -1833,8 +1857,8 @@ func (manager *SDBInstanceManager) newFromCloudDBInstance(ctx context.Context, u
 		return nil, errors.Wrapf(err, "newFromCloudDBInstance.Insert")
 	}
 
-	syncVirtualResourceMetadata(ctx, userCred, &instance, extInstance)
-	SyncCloudProject(ctx, userCred, &instance, provider.GetOwnerId(), extInstance, provider.Id)
+	syncVirtualResourceMetadata(ctx, userCred, &instance, extInstance, false)
+	SyncCloudProject(ctx, userCred, &instance, provider.GetOwnerId(), extInstance, provider)
 
 	db.OpsLog.LogEvent(&instance, db.ACT_CREATE, instance.GetShortDesc(ctx), userCred)
 
@@ -1856,6 +1880,7 @@ type SRdsCountStat struct {
 }
 
 func (man *SDBInstanceManager) TotalCount(
+	ctx context.Context,
 	scope rbacscope.TRbacScope,
 	ownerId mcclient.IIdentityProvider,
 	rangeObjs []db.IStandaloneModel,
@@ -1866,7 +1891,7 @@ func (man *SDBInstanceManager) TotalCount(
 	dbq = scopeOwnerIdFilter(dbq, scope, ownerId)
 	dbq = CloudProviderFilter(dbq, dbq.Field("manager_id"), providers, brands, cloudEnv)
 	dbq = RangeObjectsFilter(dbq, rangeObjs, dbq.Field("cloudregion_id"), nil, dbq.Field("manager_id"), nil, nil)
-	dbq = db.ObjectIdQueryWithPolicyResult(dbq, man, policyResult)
+	dbq = db.ObjectIdQueryWithPolicyResult(ctx, dbq, man, policyResult)
 
 	sq := dbq.SubQuery()
 
@@ -2079,14 +2104,17 @@ func (self *SDBInstance) StartRemoteUpdateTask(ctx context.Context, userCred mcc
 		log.Errorln(err)
 		return errors.Wrap(err, "Start ElasticcacheRemoteUpdateTask")
 	} else {
-		self.SetStatus(userCred, api.DBINSTANCE_UPDATE_TAGS, "StartRemoteUpdateTask")
+		self.SetStatus(ctx, userCred, api.DBINSTANCE_UPDATE_TAGS, "StartRemoteUpdateTask")
 		task.ScheduleRun(nil)
 	}
 	return nil
 }
 
 func (self *SDBInstance) OnMetadataUpdated(ctx context.Context, userCred mcclient.TokenCredential) {
-	if len(self.ExternalId) == 0 {
+	if len(self.ExternalId) == 0 || options.Options.KeepTagLocalization {
+		return
+	}
+	if account := self.GetCloudaccount(); account != nil && account.ReadOnly {
 		return
 	}
 	err := self.StartRemoteUpdateTask(ctx, userCred, true, "")
@@ -2103,7 +2131,7 @@ func (self *SDBInstance) PerformSetSecgroup(ctx context.Context, userCred mcclie
 		return nil, httperrors.NewMissingParameterError("secgroup_ids")
 	}
 	for i := range input.SecgroupIds {
-		_, err := validators.ValidateModel(userCred, SecurityGroupManager, &input.SecgroupIds[i])
+		_, err := validators.ValidateModel(ctx, userCred, SecurityGroupManager, &input.SecgroupIds[i])
 		if err != nil {
 			return nil, err
 		}
@@ -2148,7 +2176,7 @@ func (self *SDBInstance) StartSyncSecgroupsTask(ctx context.Context, userCred mc
 	if err != nil {
 		return errors.Wrap(err, "NewTask")
 	}
-	self.SetStatus(userCred, api.DBINSTANCE_DEPLOYING, "sync secgroups")
+	self.SetStatus(ctx, userCred, api.DBINSTANCE_DEPLOYING, "sync secgroups")
 	task.ScheduleRun(nil)
 	return nil
 }

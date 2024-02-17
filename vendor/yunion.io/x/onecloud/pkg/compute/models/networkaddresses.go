@@ -154,10 +154,10 @@ func (man *SNetworkAddressManager) deleteByGuestnetworkId(ctx context.Context, u
 func (man *SNetworkAddressManager) syncGuestnetworkICloudNic(ctx context.Context, userCred mcclient.TokenCredential, guestnetwork *SGuestnetwork, iNic cloudprovider.ICloudNic) error {
 	ipAddrs, err := iNic.GetSubAddress()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "iNic.GetSubAddress")
 	}
 	if err := man.syncGuestnetworkSubIPs(ctx, userCred, guestnetwork, ipAddrs); err != nil {
-		return err
+		return errors.Wrap(err, "syncGuestnetworkSubIPs")
 	}
 	return nil
 }
@@ -167,39 +167,21 @@ func (man *SNetworkAddressManager) syncGuestnetworkSubIPs(ctx context.Context, u
 	if err != nil {
 		return errors.Wrap(err, "fetchByGuestnetworkId")
 	}
-	var gotIpAddrs []string
-	for i := range nas {
-		gotIpAddrs = append(gotIpAddrs, nas[i].IpAddr)
-	}
 
-	var removes, adds []string
-	for _, ip0 := range gotIpAddrs {
-		ok := false
-		for _, ip1 := range ipAddrs {
-			if ip0 == ip1 {
-				ok = true
-				break
-			}
-		}
-		if !ok {
-			removes = append(removes, ip0)
-		}
+	existings := stringutils2.NewSortedStrings(nil)
+	for i := range nas {
+		existings = existings.Append(nas[i].IpAddr)
 	}
-	for _, ip1 := range ipAddrs {
-		ok := false
-		for _, ip0 := range gotIpAddrs {
-			if ip0 == ip1 {
-				ok = true
-			}
-		}
-		if !ok {
-			adds = append(adds, ip1)
-		}
-	}
+	probed := stringutils2.NewSortedStrings(ipAddrs)
+
+	removes, _, adds := stringutils2.Split(existings, probed)
+
+	log.Debugf("syncGuestnetworkSubIPs removes: %s add %s", jsonutils.Marshal(removes), jsonutils.Marshal(adds))
+
 	if err := man.removeGuestnetworkSubIPs(ctx, userCred, guestnetwork, removes); err != nil {
 		return err
 	}
-	if err := man.addGuestnetworkSubIPs(ctx, userCred, guestnetwork, adds); err != nil {
+	if err := man.addGuestnetworkSubIPs(ctx, userCred, guestnetwork, adds, true); err != nil {
 		return err
 	}
 	return nil
@@ -223,7 +205,7 @@ func (man *SNetworkAddressManager) removeGuestnetworkSubIPs(ctx context.Context,
 	return nil
 }
 
-func (man *SNetworkAddressManager) addGuestnetworkSubIPs(ctx context.Context, userCred mcclient.TokenCredential, guestnetwork *SGuestnetwork, ipAddrs []string) error {
+func (man *SNetworkAddressManager) addGuestnetworkSubIPs(ctx context.Context, userCred mcclient.TokenCredential, guestnetwork *SGuestnetwork, ipAddrs []string, useReserved bool) error {
 	net := guestnetwork.GetNetwork()
 	if net == nil {
 		return errors.Wrapf(errors.ErrNotFound, "find network %s of guestnetwork %d",
@@ -233,30 +215,34 @@ func (man *SNetworkAddressManager) addGuestnetworkSubIPs(ctx context.Context, us
 	lockman.LockObject(ctx, net)
 	defer lockman.ReleaseObject(ctx, net)
 	var (
-		usedAddrMap = net.GetUsedAddresses()
-		usedAddrs   []string
+		usedAddrMap = net.GetUsedAddresses(ctx)
 	)
+	errs := make([]error, 0)
 	for _, ipAddr := range ipAddrs {
-		if _, ok := usedAddrMap[ipAddr]; ok {
-			usedAddrs = append(usedAddrs, ipAddr)
+		ipAddr, err := net.GetFreeIP(ctx, userCred, usedAddrMap, nil, ipAddr, "", useReserved, api.AddressTypeIPv4)
+		if err != nil {
+			errs = append(errs, errors.Wrap(err, "GetFreeIP"))
+			continue
 		}
-	}
-	if len(usedAddrs) > 0 {
-		return errors.Errorf("addGuestnetworkSubIPs: ipaddr %s already used", strings.Join(usedAddrs, ", "))
-	}
-	for _, ipAddr := range ipAddrs {
 		m, err := db.NewModelObject(man)
 		if err != nil {
-			return errors.Wrapf(err, "addGuestnetworkSubIPs")
+			errs = append(errs, errors.Wrap(err, "NewModelObject"))
+			continue
 		}
 		na := m.(*SNetworkAddress)
+		na.NetworkId = guestnetwork.NetworkId
 		na.ParentType = api.NetworkAddressParentTypeGuestnetwork
 		na.ParentId = strconv.FormatInt(guestnetwork.RowId, 10)
 		na.Type = api.NetworkAddressTypeSubIP
 		na.IpAddr = ipAddr
 		if err := man.TableSpec().Insert(ctx, na); err != nil {
-			return errors.Wrapf(err, "addGuestnetworkSubIPs")
+			errs = append(errs, errors.Wrapf(err, "addGuestnetworkSubIPs"))
+			continue
 		}
+		usedAddrMap[ipAddr] = true
+	}
+	if len(errs) > 0 {
+		return errors.NewAggregate(errs)
 	}
 	return nil
 }
@@ -528,15 +514,17 @@ func (man *SNetworkAddressManager) ListItemFilter(ctx context.Context, q *sqlche
 		q = q.In("id", idq.SubQuery())
 	}
 
-	q, err = managedResourceFilterByAccount(q, input.ManagedResourceListInput, "network_id", func() *sqlchemy.SQuery {
-		networks := NetworkManager.Query().SubQuery()
-		wires := WireManager.Query().SubQuery()
-		vpcs := VpcManager.Query().SubQuery()
-		subq := networks.Query(networks.Field("id"))
-		subq = subq.Join(wires, sqlchemy.Equals(wires.Field("id"), networks.Field("wire_id")))
-		subq = subq.Join(vpcs, sqlchemy.Equals(vpcs.Field("id"), wires.Field("vpc_id")))
-		return subq
-	})
+	q, err = managedResourceFilterByAccount(
+		ctx,
+		q, input.ManagedResourceListInput, "network_id", func() *sqlchemy.SQuery {
+			networks := NetworkManager.Query().SubQuery()
+			wires := WireManager.Query().SubQuery()
+			vpcs := VpcManager.Query().SubQuery()
+			subq := networks.Query(networks.Field("id"))
+			subq = subq.Join(wires, sqlchemy.Equals(wires.Field("id"), networks.Field("wire_id")))
+			subq = subq.Join(vpcs, sqlchemy.Equals(vpcs.Field("id"), wires.Field("vpc_id")))
+			return subq
+		})
 	if err != nil {
 		return nil, errors.Wrap(err, "ManagedResourceFilterByAccount")
 	}
@@ -606,8 +594,8 @@ func (man *SNetworkAddressManager) FetchCustomizeColumns(
 	return ret
 }
 
-func (man *SNetworkAddressManager) FilterByOwner(q *sqlchemy.SQuery, manager db.FilterByOwnerProvider, userCred mcclient.TokenCredential, owner mcclient.IIdentityProvider, scope rbacscope.TRbacScope) *sqlchemy.SQuery {
-	q = db.ApplyFilterByOwner(q, userCred, owner, scope,
+func (man *SNetworkAddressManager) FilterByOwner(ctx context.Context, q *sqlchemy.SQuery, manager db.FilterByOwnerProvider, userCred mcclient.TokenCredential, owner mcclient.IIdentityProvider, scope rbacscope.TRbacScope) *sqlchemy.SQuery {
+	q = db.ApplyFilterByOwner(ctx, q, userCred, owner, scope,
 		&man.SStandaloneAnonResourceBaseManager,
 	)
 	if owner != nil {
@@ -656,7 +644,7 @@ func (man *SNetworkAddressManager) submitGuestSyncTask(ctx context.Context, user
 }
 
 func (g *SGuest) PerformAddSubIps(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input api.GuestAddSubIpsInput) (jsonutils.JSONObject, error) {
-	gn, err := g.getGuestnetworkByIpOrMac(input.IpAddr, input.Mac)
+	gn, err := g.findGuestnetworkByInfo(input.ServerNetworkInfo)
 	if err != nil {
 		return nil, errors.Wrapf(err, "getGuestnetworkByIpOrMac ip=%s mac=%s", input.IpAddr, input.Mac)
 	}
@@ -676,11 +664,10 @@ func (g *SGuest) PerformAddSubIps(ctx context.Context, userCred mcclient.TokenCr
 	subIps := make([]string, 0)
 
 	err = func() error {
-
 		lockman.LockObject(ctx, net)
 		defer lockman.ReleaseObject(ctx, net)
 
-		addrTable := net.GetUsedAddresses()
+		addrTable := net.GetUsedAddresses(ctx)
 		recentUsedAddrTable := GuestnetworkManager.getRecentlyReleasedIPAddresses(net.Id, net.getAllocTimoutDuration())
 
 		for i := 0; i < input.Count; i++ {
@@ -688,7 +675,7 @@ func (g *SGuest) PerformAddSubIps(ctx context.Context, userCred mcclient.TokenCr
 			if i < len(input.SubIps) {
 				candidate = input.SubIps[i]
 			}
-			ipAddr, err := net.GetFreeIP(ctx, userCred, addrTable, recentUsedAddrTable, candidate, input.AllocDir, input.Reserved)
+			ipAddr, err := net.GetFreeIP(ctx, userCred, addrTable, recentUsedAddrTable, candidate, input.AllocDir, input.Reserved, api.AddressTypeIPv4)
 			if err != nil {
 				return httperrors.NewInputParameterError("allocate ip addr: %v", err)
 			}

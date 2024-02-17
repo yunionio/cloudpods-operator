@@ -15,6 +15,10 @@
 package models
 
 import (
+	"time"
+
+	"yunion.io/x/log"
+
 	"yunion.io/x/onecloud/pkg/cloudcommon/db"
 	"yunion.io/x/onecloud/pkg/cloudcommon/db/proxy"
 )
@@ -40,7 +44,6 @@ func InitDB() error {
 		WireManager,
 		StorageManager,
 		SecurityGroupManager,
-		SecurityGroupCacheManager,
 		NetworkManager,
 		NetworkAddressManager,
 		NetworkIpMacManager,
@@ -73,10 +76,16 @@ func InitDB() error {
 		AccessGroupRuleManager,
 
 		GroupnetworkManager,
+
+		ElasticcacheManager,
 	} {
+		now := time.Now()
 		err := manager.InitializeData()
 		if err != nil {
 			return err
+		}
+		if cost := time.Now().Sub(now); cost > time.Duration(time.Second)*15 {
+			log.Infof("%s InitializeData cost %s", manager.Keyword(), cost.Round(time.Second))
 		}
 	}
 	return nil

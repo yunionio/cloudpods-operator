@@ -44,7 +44,7 @@ type ServerListOptions struct {
 	Gpu                *bool    `help:"Show gpu servers"`
 	Secgroup           string   `help:"Secgroup ID or Name"`
 	AdminSecgroup      string   `help:"AdminSecgroup ID or Name"`
-	Hypervisor         string   `help:"Show server of hypervisor" choices:"kvm|esxi|container|baremetal|aliyun|azure|aws|huawei|ucloud|zstack|openstack|google|ctyun|incloudsphere|nutanix|bingocloud|cloudpods|ecloud|jdcloud|remotefile|h3c|hcs|hcso|hcsop|proxmox|ksyun|baidu|cucloud|qingcloud"`
+	Hypervisor         string   `help:"Show server of hypervisor" choices:"kvm|esxi|container|baremetal|aliyun|azure|aws|huawei|ucloud|volcengine|zstack|openstack|google|ctyun|incloudsphere|nutanix|bingocloud|cloudpods|ecloud|jdcloud|remotefile|h3c|hcs|hcso|hcsop|proxmox|ksyun|baidu|cucloud|qingcloud"`
 	Region             string   `help:"Show servers in cloudregion"`
 	WithEip            *bool    `help:"Show Servers with EIP"`
 	WithoutEip         *bool    `help:"Show Servers without EIP"`
@@ -59,6 +59,7 @@ type ServerListOptions struct {
 	IpAddrs            []string `help:"Fileter by ips"`
 
 	OrderByDisk    string `help:"Order by disk size" choices:"asc|desc"`
+	OrderByOsDist  string `help:"Order by os distribution" choices:"asc|desc"`
 	OrderByHost    string `help:"Order by host name" choices:"asc|desc"`
 	OrderByNetwork string `help:"Order by network name" choices:"asc|desc"`
 	OrderByIp      string `help:"Order by ip" choices:"asc|desc"`
@@ -249,7 +250,7 @@ type ServerConfigs struct {
 	Host       string `help:"Preferred host where virtual server should be created" json:"prefer_host"`
 	BackupHost string `help:"Perfered host where virtual backup server should be created"`
 
-	Hypervisor                   string `help:"Hypervisor type" choices:"kvm|esxi|baremetal|container|aliyun|azure|qcloud|aws|huawei|openstack|ucloud|zstack|google|ctyun|incloudsphere|bingocloud|cloudpods|ecloud|jdcloud|remotefile|h3c|hcs|hcso|hcsop|proxmox"`
+	Hypervisor                   string `help:"Hypervisor type" choices:"kvm|esxi|baremetal|container|aliyun|azure|qcloud|aws|huawei|openstack|ucloud|volcengine|zstack|google|ctyun|incloudsphere|bingocloud|cloudpods|ecloud|jdcloud|remotefile|h3c|hcs|hcso|hcsop|proxmox"`
 	ResourceType                 string `help:"Resource type" choices:"shared|prepaid|dedicated"`
 	Backup                       bool   `help:"Create server with backup server"`
 	AutoSwitchToBackupOnHostDown bool   `help:"Auto switch to backup server on host down"`
@@ -408,6 +409,7 @@ type ServerCreateOptionalOptions struct {
 	ServerConfigs
 
 	MemSpec        string `help:"Memory size Or Instance Type" metavar:"MEMSPEC" json:"-"`
+	CpuSockets     int    `help:"Cpu sockets"`
 	EnableMemclean bool   `help:"clean guest memory after guest exit" json:"enable_memclean"`
 
 	Keypair          string   `help:"SSH Keypair"`
@@ -995,11 +997,15 @@ func (o *ServerRebuildRootOptions) Description() string {
 
 type ServerChangeConfigOptions struct {
 	ServerIdOptions
-	VcpuCount *int     `help:"New number of Virtual CPU cores" json:"vcpu_count" token:"ncpu"`
-	VmemSize  string   `help:"New memory size" json:"vmem_size" token:"vmem"`
-	Disk      []string `help:"Data disk description, from the 1st data disk to the last one, empty string if no change for this data disk"`
+	VcpuCount  *int     `help:"New number of Virtual CPU cores" json:"vcpu_count" token:"ncpu"`
+	CpuSockets *int     `help:"Cpu sockets"`
+	VmemSize   string   `help:"New memory size" json:"vmem_size" token:"vmem"`
+	Disk       []string `help:"Data disk description, from the 1st data disk to the last one, empty string if no change for this data disk"`
 
 	InstanceType string `help:"Instance Type, e.g. S2.SMALL2 for qcloud"`
+
+	ResetTrafficLimits []string `help:"reset traffic limits, mac,rx,tx"`
+	SetTrafficLimits   []string `help:"set traffic limits, mac,rx,tx"`
 }
 
 func (o *ServerChangeConfigOptions) Params() (jsonutils.JSONObject, error) {
@@ -1023,6 +1029,59 @@ func (o *ServerChangeConfigOptions) Params() (jsonutils.JSONObject, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if len(o.ResetTrafficLimits) > 0 {
+		// mac,rx_limit,tx_limit
+		// ab:bc:cd:ef:ad:fa,12312312,1231233
+		resetLimits := []*jsonutils.JSONDict{}
+		for i := range o.ResetTrafficLimits {
+			resetLimit := jsonutils.NewDict()
+			segs := strings.Split(o.ResetTrafficLimits[i], ",")
+			if len(segs) != 3 {
+				return nil, fmt.Errorf("invalid reset traffic limit input %s", o.ResetTrafficLimits[i])
+			}
+			resetLimit.Set("mac", jsonutils.NewString(segs[0]))
+			rx, err := strconv.Atoi(segs[1])
+			if err != nil {
+				return nil, fmt.Errorf("invalid reset traffic limit input %s: %s", o.ResetTrafficLimits[i], err)
+			}
+			resetLimit.Set("rx_traffic_limit", jsonutils.NewInt(int64(rx)))
+			tx, err := strconv.Atoi(segs[1])
+			if err != nil {
+				return nil, fmt.Errorf("invalid reset traffic limit input %s: %s", o.ResetTrafficLimits[i], err)
+			}
+			resetLimit.Set("tx_traffic_limit", jsonutils.NewInt(int64(tx)))
+			resetLimits = append(resetLimits, resetLimit)
+		}
+		params.Set("reset_traffic_limits", jsonutils.Marshal(resetLimits))
+	}
+
+	if len(o.SetTrafficLimits) > 0 {
+		// mac,rx_limit,tx_limit
+		// ab:bc:cd:ef:ad:fa,12312312,1231233
+		setLimits := []*jsonutils.JSONDict{}
+		for i := range o.SetTrafficLimits {
+			setLimit := jsonutils.NewDict()
+			segs := strings.Split(o.SetTrafficLimits[i], ",")
+			if len(segs) != 3 {
+				return nil, fmt.Errorf("invalid reset traffic limit input %s", o.SetTrafficLimits[i])
+			}
+			setLimit.Set("mac", jsonutils.NewString(segs[0]))
+			rx, err := strconv.Atoi(segs[1])
+			if err != nil {
+				return nil, fmt.Errorf("invalid reset traffic limit input %s: %s", o.SetTrafficLimits[i], err)
+			}
+			setLimit.Set("rx_traffic_limit", jsonutils.NewInt(int64(rx)))
+			tx, err := strconv.Atoi(segs[1])
+			if err != nil {
+				return nil, fmt.Errorf("invalid reset traffic limit input %s: %s", o.SetTrafficLimits[i], err)
+			}
+			setLimit.Set("tx_traffic_limit", jsonutils.NewInt(int64(tx)))
+			setLimits = append(setLimits, setLimit)
+		}
+		params.Set("set_traffic_limits", jsonutils.Marshal(setLimits))
+	}
+
 	if params.Size() == 0 {
 		return nil, ErrEmtptyUpdate
 	}
@@ -1415,5 +1474,15 @@ type ServerAddSubIpsOptions struct {
 }
 
 func (o *ServerAddSubIpsOptions) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.Marshal(o), nil
+}
+
+type ServerSetOSInfoOptions struct {
+	ServerIdsOptions
+
+	computeapi.ServerSetOSInfoInput
+}
+
+func (o *ServerSetOSInfoOptions) Params() (jsonutils.JSONObject, error) {
 	return jsonutils.Marshal(o), nil
 }

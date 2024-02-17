@@ -36,6 +36,7 @@ import (
 	"yunion.io/x/onecloud/pkg/cloudcommon/validators"
 	"yunion.io/x/onecloud/pkg/httperrors"
 	"yunion.io/x/onecloud/pkg/mcclient"
+	"yunion.io/x/onecloud/pkg/util/logclient"
 	"yunion.io/x/onecloud/pkg/util/stringutils2"
 )
 
@@ -133,7 +134,7 @@ func (manager *SGlobalVpcManager) ValidateCreateData(
 	if len(input.CloudproviderId) == 0 {
 		return input, httperrors.NewMissingParameterError("cloudprovider_id")
 	}
-	_, err = validators.ValidateModel(userCred, CloudproviderManager, &input.CloudproviderId)
+	_, err = validators.ValidateModel(ctx, userCred, CloudproviderManager, &input.CloudproviderId)
 	if err != nil {
 		return input, err
 	}
@@ -304,16 +305,19 @@ func (self *SCloudprovider) GetGlobalVpcs() ([]SGlobalVpc, error) {
 	return vpcs, nil
 }
 
-func (self *SCloudprovider) SyncGlobalVpcs(ctx context.Context, userCred mcclient.TokenCredential, exts []cloudprovider.ICloudGlobalVpc, xor bool) compare.SyncResult {
+func (self *SCloudprovider) SyncGlobalVpcs(ctx context.Context, userCred mcclient.TokenCredential, exts []cloudprovider.ICloudGlobalVpc, xor bool) ([]SGlobalVpc, []cloudprovider.ICloudGlobalVpc, compare.SyncResult) {
 	lockman.LockRawObject(ctx, GlobalVpcManager.Keyword(), self.Id)
 	defer lockman.ReleaseRawObject(ctx, GlobalVpcManager.Keyword(), self.Id)
 
 	result := compare.SyncResult{}
 
+	localVpcs := make([]SGlobalVpc, 0)
+	remoteVpcs := make([]cloudprovider.ICloudGlobalVpc, 0)
+
 	dbVpcs, err := self.GetGlobalVpcs()
 	if err != nil {
 		result.Error(err)
-		return result
+		return nil, nil, result
 	}
 
 	removed := make([]SGlobalVpc, 0)
@@ -324,7 +328,7 @@ func (self *SCloudprovider) SyncGlobalVpcs(ctx context.Context, userCred mcclien
 	err = compare.CompareSets(dbVpcs, exts, &removed, &commondb, &commonext, &added)
 	if err != nil {
 		result.Error(err)
-		return result
+		return nil, nil, result
 	}
 
 	for i := 0; i < len(removed); i += 1 {
@@ -336,26 +340,28 @@ func (self *SCloudprovider) SyncGlobalVpcs(ctx context.Context, userCred mcclien
 		result.Delete()
 	}
 
-	if !xor {
-		for i := 0; i < len(commondb); i += 1 {
-			err = commondb[i].SyncWithCloudGlobalVpc(ctx, userCred, commonext[i])
-			if err != nil {
-				result.UpdateError(err)
-				continue
-			}
-			result.Update()
+	for i := 0; i < len(commondb); i += 1 {
+		err = commondb[i].SyncWithCloudGlobalVpc(ctx, userCred, commonext[i])
+		if err != nil {
+			result.UpdateError(err)
+			continue
 		}
+		localVpcs = append(localVpcs, commondb[i])
+		remoteVpcs = append(remoteVpcs, commonext[i])
+		result.Update()
 	}
 
 	for i := 0; i < len(added); i += 1 {
-		_, err := self.newFromCloudGlobalVpc(ctx, userCred, added[i])
+		vpc, err := self.newFromCloudGlobalVpc(ctx, userCred, added[i])
 		if err != nil {
 			result.AddError(err)
 			continue
 		}
+		localVpcs = append(localVpcs, *vpc)
+		remoteVpcs = append(remoteVpcs, added[i])
 		result.Add()
 	}
-	return result
+	return localVpcs, remoteVpcs, result
 }
 
 func (self *SGlobalVpc) Delete(ctx context.Context, userCred mcclient.TokenCredential) error {
@@ -375,7 +381,7 @@ func (self *SGlobalVpc) StartDeleteTask(ctx context.Context, userCred mcclient.T
 	if err != nil {
 		return errors.Wrapf(err, "NewTask")
 	}
-	self.SetStatus(userCred, apis.STATUS_DELETING, "")
+	self.SetStatus(ctx, userCred, apis.STATUS_DELETING, "")
 	return task.ScheduleRun(nil)
 }
 
@@ -393,7 +399,7 @@ func (self *SGlobalVpc) GetICloudGlobalVpc(ctx context.Context) (cloudprovider.I
 func (self *SGlobalVpc) syncRemoveGlobalVpc(ctx context.Context, userCred mcclient.TokenCredential) error {
 	err := self.ValidateDeleteCondition(ctx, nil)
 	if err != nil {
-		self.SetStatus(userCred, apis.STATUS_UNKNOWN, "sync remove")
+		self.SetStatus(ctx, userCred, apis.STATUS_UNKNOWN, "sync remove")
 		return err
 	}
 	return self.RealDelete(ctx, userCred)
@@ -436,4 +442,109 @@ func (self *SGlobalVpc) PerformSyncstatus(ctx context.Context, userCred mcclient
 
 func (self *SGlobalVpc) StartSyncstatusTask(ctx context.Context, userCred mcclient.TokenCredential, parentTaskId string) error {
 	return StartResourceSyncStatusTask(ctx, userCred, self, "GlobalVpcSyncstatusTask", parentTaskId)
+}
+
+func (self *SGlobalVpc) GetSecgroups() ([]SSecurityGroup, error) {
+	q := SecurityGroupManager.Query().Equals("globalvpc_id", self.Id)
+	ret := []SSecurityGroup{}
+	return ret, db.FetchModelObjects(SecurityGroupManager, q, &ret)
+}
+
+func (self *SGlobalVpc) SyncSecgroups(ctx context.Context, userCred mcclient.TokenCredential, exts []cloudprovider.ICloudSecurityGroup, xor bool) compare.SyncResult {
+	lockman.LockRawObject(ctx, SecurityGroupManager.Keyword(), self.Id)
+	defer lockman.ReleaseRawObject(ctx, SecurityGroupManager.Keyword(), self.Id)
+
+	result := compare.SyncResult{}
+
+	dbSecs, err := self.GetSecgroups()
+	if err != nil {
+		result.Error(err)
+		return result
+	}
+
+	provider := self.GetCloudprovider()
+
+	syncOwnerId := provider.GetOwnerId()
+
+	removed := make([]SSecurityGroup, 0)
+	commondb := make([]SSecurityGroup, 0)
+	commonext := make([]cloudprovider.ICloudSecurityGroup, 0)
+	added := make([]cloudprovider.ICloudSecurityGroup, 0)
+
+	err = compare.CompareSets(dbSecs, exts, &removed, &commondb, &commonext, &added)
+	if err != nil {
+		result.Error(err)
+		return result
+	}
+
+	for i := 0; i < len(removed); i += 1 {
+		err = removed[i].RealDelete(ctx, userCred)
+		if err != nil {
+			result.DeleteError(err)
+			continue
+		}
+		result.Delete()
+	}
+
+	for i := 0; i < len(commondb); i += 1 {
+		if !xor {
+			err = commondb[i].SyncWithCloudSecurityGroup(ctx, userCred, commonext[i], syncOwnerId, true)
+			if err != nil {
+				result.UpdateError(err)
+				continue
+			}
+		}
+		result.Update()
+	}
+
+	for i := 0; i < len(added); i += 1 {
+		err := self.newFromCloudSecurityGroup(ctx, userCred, added[i], syncOwnerId)
+		if err != nil {
+			result.AddError(err)
+			continue
+		}
+		result.Add()
+	}
+
+	return result
+}
+
+func (self *SGlobalVpc) newFromCloudSecurityGroup(
+	ctx context.Context,
+	userCred mcclient.TokenCredential,
+	ext cloudprovider.ICloudSecurityGroup,
+	syncOwnerId mcclient.IIdentityProvider,
+) error {
+	ret := &SSecurityGroup{}
+	ret.SetModelManager(SecurityGroupManager, ret)
+	ret.Name = ext.GetName()
+	ret.Description = ext.GetDescription()
+	ret.ExternalId = ext.GetGlobalId()
+	ret.ManagerId = self.ManagerId
+	ret.GlobalvpcId = self.Id
+	ret.Status = api.SECGROUP_STATUS_READY
+	err := SecurityGroupManager.TableSpec().Insert(ctx, ret)
+	if err != nil {
+		return errors.Wrapf(err, "Insert")
+	}
+	db.Update(ret, func() error {
+		ret.CloudregionId = "-"
+		return nil
+	})
+
+	syncVirtualResourceMetadata(ctx, userCred, ret, ext, false)
+
+	if provider := self.GetCloudprovider(); provider != nil {
+		SyncCloudProject(ctx, userCred, ret, syncOwnerId, ext, provider)
+	}
+
+	rules, err := ext.GetRules()
+	if err != nil {
+		return errors.Wrapf(err, "GetRules")
+	}
+	result := ret.SyncRules(ctx, userCred, rules)
+	if result.IsError() {
+		logclient.AddSimpleActionLog(ret, logclient.ACT_CLOUD_SYNC, result, userCred, false)
+	}
+	return nil
 }

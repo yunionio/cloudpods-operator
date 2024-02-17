@@ -1,3 +1,17 @@
+// Copyright 2019 Yunion
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package utils
 
 import (
@@ -87,6 +101,8 @@ const TELEGRAF_INPUT_LINUX = `
 [[inputs.internal]]
     name_prefix = "agent_"
     collect_memstats = false
+[[inputs.nvidia_smi]]
+    name_prefix = "agent_"
 `
 
 const TELEGRAF_INPUT_WINDOWS = `
@@ -119,6 +135,8 @@ const TELEGRAF_INPUT_WINDOWS = `
 [[inputs.internal]]
     name_prefix = "agent_"
     collect_memstats = false
+[[inputs.nvidia_smi]]
+    name_prefix = "agent_"
 `
 
 const TELEGRAF_INPUT_BAREMETAL = `
@@ -156,6 +174,8 @@ const TELEGRAF_INPUT_BAREMETAL = `
 [[inputs.internal]]
     name_prefix = "agent_"
     collect_memstats = false
+[[inputs.nvidia_smi]]
+    name_prefix = "agent_"
 `
 
 var temp *template.Template
@@ -192,7 +212,7 @@ func GenerateTelegrafConf(
 		telegrafArgs["telegraf_agent_logfile"] = "/var/log/telegraf.log"
 	}
 	strBuild := strings.Builder{}
-	log.Errorf("telegraf args %v", telegrafArgs)
+	log.Infof("telegraf args %v", telegrafArgs)
 	err := temp.Execute(&strBuild, telegrafArgs)
 	if err != nil {
 		return "", errors.Wrap(err, "build telegraf config")

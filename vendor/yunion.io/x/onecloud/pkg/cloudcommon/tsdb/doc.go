@@ -12,14 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package compute
-
-import "yunion.io/x/onecloud/pkg/apis"
-
-type SnapshotPolicyCacheDetails struct {
-	apis.StatusStandaloneResourceDetails
-	ManagedResourceInfo
-	CloudregionResourceInfo
-	SnapshotPolicyResourceInfo
-	SSnapshotPolicyCache
-}
+package tsdb // import "yunion.io/x/onecloud/pkg/cloudcommon/tsdb"

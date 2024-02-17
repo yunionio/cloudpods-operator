@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"yunion.io/x/jsonutils"
-	"yunion.io/x/log"
 	"yunion.io/x/pkg/errors"
 	"yunion.io/x/pkg/util/rbacscope"
 	"yunion.io/x/pkg/util/timeutils"
@@ -46,6 +45,16 @@ type SPendingDeletedBase struct {
 // GetPendingDeleted implements IPendingDeltable
 func (base *SPendingDeletedBase) GetPendingDeleted() bool {
 	return base.PendingDeleted
+}
+
+func (base *SPendingDeletedBase) MarkPendingDeleted() {
+	base.PendingDeleted = true
+	base.PendingDeletedAt = timeutils.UtcNow()
+}
+
+func (base *SPendingDeletedBase) CancelPendingDeleted() {
+	base.PendingDeleted = false
+	base.PendingDeletedAt = time.Time{}
 }
 
 // GetPendingDeletedAt implements IPendingDeltable
@@ -85,12 +94,10 @@ func (base *SPendingDeletedBase) MarkPendingDelete(model IStandaloneModel, ctx c
 			if len(newName) > 0 {
 				model.SetName(newName)
 			}
-			base.PendingDeleted = true
-			base.PendingDeletedAt = timeutils.UtcNow()
+			model.MarkPendingDeleted()
 			return nil
 		})
 		if err != nil {
-			log.Errorf("MarkPendingDelete update fail %s", err)
 			return errors.Wrap(err, "MarkPendingDelete.Update")
 		}
 		OpsLog.LogEvent(model, ACT_PENDING_DELETE, model.GetShortDesc(ctx), userCred)
@@ -112,8 +119,7 @@ func (base *SPendingDeletedBase) MarkCancelPendingDelete(model IStandaloneModel,
 	}
 	_, err = Update(model, func() error {
 		model.SetName(newName)
-		base.PendingDeleted = false
-		base.PendingDeletedAt = time.Time{}
+		model.CancelPendingDeleted()
 		return nil
 	})
 	if err != nil {

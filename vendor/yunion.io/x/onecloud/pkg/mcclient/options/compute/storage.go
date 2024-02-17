@@ -19,6 +19,7 @@ import (
 
 	"yunion.io/x/jsonutils"
 
+	"yunion.io/x/onecloud/pkg/apis/compute"
 	"yunion.io/x/onecloud/pkg/mcclient/options"
 )
 
@@ -56,6 +57,7 @@ type StorageUpdateOptions struct {
 	RbdKey                string  `help:"ceph rbd key"`
 	Reserved              string  `help:"Reserved storage space"`
 	Capacity              int     `help:"Capacity for storage"`
+	MasterHost            string  `help:"slvm storage master host"`
 }
 
 func (opts *StorageUpdateOptions) Params() (jsonutils.JSONObject, error) {
@@ -67,7 +69,7 @@ type StorageCreateOptions struct {
 	ZONE                  string `help:"Zone id of storage"`
 	Capacity              int64  `help:"Capacity of the Storage"`
 	MediumType            string `help:"Medium type" choices:"ssd|rotate" default:"ssd"`
-	StorageType           string `help:"Storage type" choices:"local|nas|vsan|rbd|nfs|gpfs|baremetal"`
+	StorageType           string `help:"Storage type" choices:"local|nas|vsan|rbd|nfs|gpfs|baremetal|clvm|slvm"`
 	RbdMonHost            string `help:"Ceph mon_host config"`
 	RbdRadosMonOpTimeout  int64  `help:"ceph rados_mon_op_timeout"`
 	RbdRadosOsdOpTimeout  int64  `help:"ceph rados_osd_op_timeout"`
@@ -76,6 +78,9 @@ type StorageCreateOptions struct {
 	RbdPool               string `help:"Ceph Pool Name"`
 	NfsHost               string `help:"NFS host"`
 	NfsSharedDir          string `help:"NFS shared dir"`
+	ClvmVgName            string `help:"clvm vg name"`
+	SlvmVgName            string `help:"slvm vg name"`
+	MasterHost            string `help:"slvm storage master host"`
 }
 
 func (opts *StorageCreateOptions) Params() (jsonutils.JSONObject, error) {
@@ -87,28 +92,15 @@ func (opts *StorageCreateOptions) Params() (jsonutils.JSONObject, error) {
 		if len(opts.NfsHost) == 0 || len(opts.NfsSharedDir) == 0 {
 			return nil, fmt.Errorf("Storage type nfs missing conf host or shared dir")
 		}
+	} else if opts.StorageType == "clvm" {
+		if len(opts.ClvmVgName) == 0 {
+			return nil, fmt.Errorf("Storage type clvm missing conf clvm_vg_name")
+		}
+	} else if opts.StorageType == "slvm" {
+		if len(opts.SlvmVgName) == 0 {
+			return nil, fmt.Errorf("Storage type slvm missing conf slvm_vg_name")
+		}
 	}
-	return options.StructToParams(opts)
-}
-
-type StorageCacheImageActionOptions struct {
-	options.BaseIdOptions
-	IMAGE  string `help:"ID or name of image"`
-	Force  bool   `help:"Force refresh cache, even if the image exists in cache"`
-	Format string `help:"Image force" choices:"iso|vmdk|qcow2|vhd"`
-}
-
-func (opts *StorageCacheImageActionOptions) Params() (jsonutils.JSONObject, error) {
-	return options.StructToParams(opts)
-}
-
-type StorageUncacheImageActionOptions struct {
-	options.BaseIdOptions
-	IMAGE string `help:"ID or name of image"`
-	Force bool   `help:"Force uncache, even if the image exists in cache"`
-}
-
-func (opts *StorageUncacheImageActionOptions) Params() (jsonutils.JSONObject, error) {
 	return options.StructToParams(opts)
 }
 
@@ -119,4 +111,13 @@ type StorageForceDetachHost struct {
 
 func (opts *StorageForceDetachHost) Params() (jsonutils.JSONObject, error) {
 	return jsonutils.Marshal(map[string]string{"host": opts.HOST}), nil
+}
+
+type StorageSetHardwareInfoOptions struct {
+	options.BaseIdOptions
+	compute.StorageHardwareInfo
+}
+
+func (o *StorageSetHardwareInfoOptions) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.Marshal(o), nil
 }

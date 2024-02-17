@@ -241,7 +241,7 @@ func (cli *SESXiClient) connect() error {
 				KeepAlive: 30 * time.Second,
 			}).DialContext,
 		}
-		httpClient.Transport = cloudprovider.GetCheckTransport(transport, func(req *http.Request) (func(resp *http.Response), error) {
+		httpClient.Transport = cloudprovider.GetCheckTransport(transport, func(req *http.Request) (func(resp *http.Response) error, error) {
 			if cli.debug {
 				dump, _ := httputil.DumpRequestOut(req, false)
 				yellow(string(dump))
@@ -251,7 +251,7 @@ func (cli *SESXiClient) connect() error {
 					cyan("CURL:", curlCmd, "\n")
 				}
 			}
-			respCheck := func(resp *http.Response) {
+			respCheck := func(resp *http.Response) error {
 				if cli.debug {
 					dump, _ := httputil.DumpResponse(resp, true)
 					body := string(dump)
@@ -269,6 +269,7 @@ func (cli *SESXiClient) connect() error {
 						red(body)
 					}
 				}
+				return nil
 			}
 			return respCheck, nil
 		})
@@ -309,6 +310,7 @@ func (cli *SESXiClient) GetSubAccounts() ([]cloudprovider.SSubAccount, error) {
 		return nil, err
 	}
 	subAccount := cloudprovider.SSubAccount{
+		Id:           cli.GetGlobalId(),
 		Account:      cli.account,
 		Name:         cli.cpcfg.Name,
 		HealthStatus: api.CLOUD_PROVIDER_HEALTH_NORMAL,
@@ -691,7 +693,7 @@ func (cli *SESXiClient) GetCapabilities() []string {
 	caps := []string{
 		cloudprovider.CLOUD_CAPABILITY_PROJECT,
 		cloudprovider.CLOUD_CAPABILITY_COMPUTE,
-		// cloudprovider.CLOUD_CAPABILITY_NETWORK,
+		cloudprovider.CLOUD_CAPABILITY_NETWORK,
 		// cloudprovider.CLOUD_CAPABILITY_LOADBALANCER,
 		// cloudprovider.CLOUD_CAPABILITY_OBJECTSTORE,
 		// cloudprovider.CLOUD_CAPABILITY_RDS,

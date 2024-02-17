@@ -222,7 +222,7 @@ func (us *SUpdateSession) SaveUpdateSql(dt interface{}) (*SUpdateSQLResult, erro
 	})
 
 	if DEBUG_SQLCHEMY {
-		log.Infof("Update: %s %s", updateSql, vars)
+		log.Infof("Update: %s", _sqlDebug(updateSql, vars))
 	}
 
 	return &SUpdateSQLResult{
@@ -268,7 +268,7 @@ func (ts *STableSpec) execUpdateSql(dt interface{}, result *SUpdateSQLResult) er
 	}
 	err = q.First(dt)
 	if err != nil {
-		return errors.Wrap(err, "query after update failed")
+		return errors.Wrapf(err, "query after update failed %s", q.DebugString())
 	}
 	return nil
 }

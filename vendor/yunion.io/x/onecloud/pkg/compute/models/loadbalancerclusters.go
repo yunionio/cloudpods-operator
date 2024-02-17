@@ -154,7 +154,7 @@ func (man *SLoadbalancerClusterManager) ValidateCreateData(
 		wireV.Optional(true),
 	}
 	for _, v := range vs {
-		if err := v.Validate(data); err != nil {
+		if err := v.Validate(ctx, data); err != nil {
 			return nil, err
 		}
 	}
@@ -207,7 +207,7 @@ func (lbc *SLoadbalancerCluster) ValidateUpdateData(
 ) (*jsonutils.JSONDict, error) {
 	wireV := validators.NewModelIdOrNameValidator("wire", "wire", lbc.GetOwnerId())
 	wireV.Optional(true)
-	if err := wireV.Validate(data); err != nil {
+	if err := wireV.Validate(ctx, data); err != nil {
 		return nil, err
 	}
 	if wireV.Model != nil {
@@ -563,7 +563,7 @@ func (cluster *SLoadbalancerCluster) PerformParamsPatch(ctx context.Context, use
 	d := jsonutils.NewDict()
 	d.Set("params", data)
 	paramsV := validators.NewStructValidator("params", &params)
-	if err := paramsV.Validate(d); err != nil {
+	if err := paramsV.Validate(ctx, d); err != nil {
 		return nil, err
 	}
 	// new vrrp virtual_router_id should be unique across clusters
@@ -578,14 +578,35 @@ func (cluster *SLoadbalancerCluster) PerformParamsPatch(ctx context.Context, use
 		}
 	}
 	{
+		// save name, description, params
+		input := apis.StandaloneResourceBaseUpdateInput{}
+		err := data.Unmarshal(&input)
+		if err != nil {
+			return nil, errors.Wrap(err, "Unmarshal update input")
+		}
+		input, err = cluster.SStandaloneResourceBase.ValidateUpdateData(ctx, userCred, query, input)
+		if err != nil {
+			return nil, errors.Wrap(err, "SStandaloneResourceBase.ValidateUpdateData")
+		}
+
 		diff, err := db.Update(cluster, func() error {
 			cluster.Params = &params
+			if len(input.Name) > 0 {
+				cluster.Name = input.Name
+			}
+			if len(input.Description) > 0 {
+				cluster.Description = input.Description
+			}
 			return nil
 		})
 		if err != nil {
 			return nil, errors.Wrap(err, "Update")
 		}
 		db.OpsLog.LogEvent(cluster, db.ACT_UPDATE, diff, userCred)
+	}
+	{
+		// save metadata
+		cluster.TrySaveMetadataInput(ctx, userCred, data)
 	}
 	{
 		// populate changes to underlying lbagents

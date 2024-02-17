@@ -19,6 +19,7 @@ import (
 	"database/sql"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	"yunion.io/x/jsonutils"
@@ -67,7 +68,8 @@ func init() {
 			),
 		}
 		GuestnetworkManager.SetVirtualObject(GuestnetworkManager)
-		GuestnetworkManager.TableSpec().AddIndex(true, "ip_addr", "guest_id")
+		GuestnetworkManager.TableSpec().AddIndex(true, "ip_addr", "guest_id", "deleted")
+		GuestnetworkManager.TableSpec().AddIndex(true, "ip6_addr", "guest_id", "deleted")
 		GuestnetworkManager.TableSpec().AddIndex(false, "mac_addr", "deleted")
 	})
 }
@@ -110,6 +112,9 @@ type SGuestnetwork struct {
 
 	// 网卡关联的Eip实例
 	EipId string `width:"36" charset:"ascii" nullable:"true" list:"user"`
+
+	// 是否为缺省路由
+	IsDefault bool `default:"false" list:"user"`
 }
 
 func (gn SGuestnetwork) GetIP() string {
@@ -142,27 +147,26 @@ func (manager *SGuestnetworkManager) FetchCustomizeColumns(
 			GuestJointResourceDetails: guestRows[i],
 		}
 		netIds[i] = objs[i].(*SGuestnetwork).NetworkId
+		eipIds[i] = objs[i].(*SGuestnetwork).EipId
 		ipnets, err := NetworkAddressManager.fetchAddressesByGuestnetworkId(objs[i].(*SGuestnetwork).RowId)
 		if err != nil {
-			log.Errorln(err)
+			log.Errorf("NetworkAddressManager.fetchAddressesByGuestnetworkId %s", err)
 		} else if len(ipnets) > 0 {
 			rows[i].NetworkAddresses = ipnets
 		}
-		iNet, _ := NetworkManager.FetchById(netIds[i])
-		net := iNet.(*SNetwork)
-		rows[i].WireId = net.WireId
-		eipIds[i] = objs[i].(*SGuestnetwork).EipId
 	}
 
-	netIdMaps, err := db.FetchIdNameMap2(NetworkManager, netIds)
+	netMap := make(map[string]SNetwork)
+	err := db.FetchModelObjectsByIds(NetworkManager, "id", netIds, netMap)
 	if err != nil {
 		log.Errorf("FetchIdNameMap2 fail %s", err)
 		return rows
 	}
 
 	for i := range rows {
-		if name, ok := netIdMaps[netIds[i]]; ok {
-			rows[i].Network = name
+		if net, ok := netMap[netIds[i]]; ok {
+			rows[i].Network = net.Name
+			rows[i].WireId = net.WireId
 		}
 	}
 
@@ -241,6 +245,12 @@ type newGuestNetworkArgs struct {
 	requireDesignatedIP bool
 	useDesignatedIP     bool
 
+	ip6Addr     string
+	requireIPv6 bool
+
+	// 是否为缺省路由
+	isDefault bool
+
 	ifname         string
 	macAddr        string
 	bwLimit        int
@@ -277,6 +287,10 @@ func (manager *SGuestnetworkManager) newGuestNetwork(
 		reUseAddr            = args.useDesignatedIP
 		ifname               = args.ifname
 		teamWithMac          = args.teamWithMac
+		isDefault            = args.isDefault
+
+		address6    = args.ip6Addr
+		requireIPv6 = args.requireIPv6
 	)
 
 	gn.GuestId = guest.Id
@@ -315,17 +329,24 @@ func (manager *SGuestnetworkManager) newGuestNetwork(
 			// if reuse Ip address, no need to check address availability
 			// assign it anyway
 			gn.IpAddr = address
-		} else if provider == api.CLOUD_PROVIDER_ONECLOUD || options.Options.EnablePreAllocateIpAddr {
-			addrTable := network.GetUsedAddresses()
-			recentAddrTable := manager.getRecentlyReleasedIPAddresses(network.Id, network.getAllocTimoutDuration())
-			ipAddr, err := network.GetFreeIP(ctx, userCred, addrTable, recentAddrTable, address, allocDir, reserved)
-			if err != nil {
-				return nil, err
+		} else {
+			// 如果是不具备IPAM能力的平台（主要是OneCloud和VMware，也就是VPC为ONECLOUD的平台 provider == api.CLOUD_PROVIDER_ONECLOUD ），则需要分配IP地址
+			// 如果是其他云平台（具体IPAM能力的平台），则
+			// * 开启options.Options.EnablePreAllocateIpAddr，也就是把IPAM的任务交给平台的，则需要分配IP地址
+			// * IP地址为空并且 !options.Options.EnablePreAllocateIpAddr 时，不需要分配IP，等创建后自动同步过来
+			// * 否则，还是需要先分配了
+			if provider == api.CLOUD_PROVIDER_ONECLOUD || options.Options.EnablePreAllocateIpAddr || (!options.Options.EnablePreAllocateIpAddr && len(address) > 0) {
+				addrTable := network.GetUsedAddresses(ctx)
+				recentAddrTable := manager.getRecentlyReleasedIPAddresses(network.Id, network.getAllocTimoutDuration())
+				ipAddr, err := network.GetFreeIP(ctx, userCred, addrTable, recentAddrTable, address, allocDir, reserved, api.AddressTypeIPv4)
+				if err != nil {
+					return nil, errors.Wrap(err, "GetFreeIPv4")
+				}
+				if len(address) > 0 && ipAddr != address && requiredDesignatedIp {
+					return nil, errors.Wrapf(httperrors.ErrConflict, "candidate ip %s is occupied!", address)
+				}
+				gn.IpAddr = ipAddr
 			}
-			if len(address) > 0 && ipAddr != address && requiredDesignatedIp {
-				return nil, fmt.Errorf("candidate ip %s is occupied!", address)
-			}
-			gn.IpAddr = ipAddr
 		}
 
 		if vpc.Id != api.DEFAULT_VPC_ID && provider == api.CLOUD_PROVIDER_ONECLOUD {
@@ -337,6 +358,7 @@ func (manager *SGuestnetworkManager) newGuestNetwork(
 				return nil, err
 			}
 		}
+
 	}
 	var err error
 	if ipBindMac := NetworkIpMacManager.GetMacFromIp(network.Id, gn.IpAddr); ipBindMac != "" {
@@ -353,12 +375,46 @@ func (manager *SGuestnetworkManager) newGuestNetwork(
 		return nil, fmt.Errorf("mac address generate fails")
 	}
 
+	// assign ipv6 address
+	if !virtual {
+		if len(address6) > 0 || requireIPv6 {
+			if provider == api.CLOUD_PROVIDER_ONECLOUD || options.Options.EnablePreAllocateIpAddr || (!options.Options.EnablePreAllocateIpAddr && len(address6) > 0) {
+				addrTable := network.GetUsedAddresses6(ctx)
+				recentAddrTable := manager.getRecentlyReleasedIPAddresses6(network.Id, network.getAllocTimoutDuration())
+
+				derived := false
+				if len(address6) == 0 {
+					// try to derive ipv6 address from mac and ipv4 address
+					deriveAddr6 := netutils.DeriveIPv6AddrFromIPv4AddrMac(gn.IpAddr, gn.MacAddr, network.GuestIp6Start, network.GuestIp6End, network.GuestIp6Mask)
+					if !isIpUsed(deriveAddr6, addrTable, recentAddrTable) {
+						address6 = deriveAddr6
+						derived = true
+					}
+				}
+
+				ip6Addr, err := network.GetFreeIP(ctx, userCred, addrTable, recentAddrTable, address6, allocDir, reserved, api.AddressTypeIPv6)
+				if err != nil {
+					return nil, errors.Wrap(err, "GetFreeIPv6")
+				}
+				if len(address6) > 0 && ip6Addr != address6 && !derived && requiredDesignatedIp {
+					return nil, errors.Wrapf(httperrors.ErrConflict, "candidate v6 ip %s is occupied!", address6)
+				}
+				gn.Ip6Addr = ip6Addr
+			}
+		}
+	}
+
 	ifname, err = gn.checkOrAllocateIfname(network, ifname)
 	if err != nil {
 		return nil, err
 	}
 	gn.Ifname = ifname
 	gn.TeamWith = teamWithMac
+
+	if isDefault && len(gn.IpAddr) > 0 && len(network.GuestGateway) > 0 {
+		gn.IsDefault = isDefault
+	}
+
 	err = manager.TableSpec().Insert(ctx, &gn)
 	if err != nil {
 		return nil, err
@@ -567,6 +623,8 @@ func (gn *SGuestnetwork) getJsonDesc() *api.GuestnetworkJsonDesc {
 			NetId:   gn.NetworkId,
 			Mac:     gn.MacAddr,
 			Virtual: gn.Virtual,
+
+			IsDefault: gn.IsDefault,
 		},
 	}
 
@@ -583,15 +641,19 @@ func (gn *SGuestnetwork) getJsonDesc() *api.GuestnetworkJsonDesc {
 		desc.Ip = gn.IpAddr
 	}
 	desc.Gateway = net.GuestGateway
-	desc.Dns = net.GetDNS()
+	desc.Dns = net.GetDNS("")
 	desc.Domain = net.GetDomain()
 	desc.Ntp = net.GetNTP()
+
+	desc.Ip6 = gn.Ip6Addr
+	desc.Masklen6 = net.GuestIp6Mask
+	desc.Gateway6 = net.GuestGateway6
 
 	routes := net.GetRoutes()
 	if routes != nil && len(routes) > 0 {
 		desc.Routes = jsonutils.Marshal(routes)
 	}
-	desc.Ifname = gn.Ifname
+
 	desc.Masklen = net.GuestIpMask
 	desc.Driver = gn.Driver
 	desc.NumQueues = gn.NumQueues
@@ -606,9 +668,27 @@ func (gn *SGuestnetwork) getJsonDesc() *api.GuestnetworkJsonDesc {
 	desc.TeamWith = gn.TeamWith
 
 	guest := gn.getGuest()
-	if guest.GetHypervisor() != api.HYPERVISOR_KVM || gn.IsSriovWithoutOffload() {
+	if ifname, ok := gn.OvsOffloadIfname(); ok {
+		desc.Ifname = ifname
+	} else {
+		desc.Ifname = gn.Ifname
+	}
+	if guest.GetHypervisor() != api.HYPERVISOR_KVM {
 		manual := true
 		desc.Manual = &manual
+	} else {
+		if gn.Driver == api.NETWORK_DRIVER_VFIO {
+			dev, _ := gn.GetIsolatedDevice()
+			if dev != nil {
+				if dev.OvsOffloadInterface == "" {
+					manual := true
+					desc.Manual = &manual
+				}
+				if dev.IsInfinibandNic {
+					desc.NicType = api.NIC_TYPE_INFINIBAND
+				}
+			}
+		}
 	}
 
 	return desc
@@ -622,6 +702,16 @@ func (gn *SGuestnetwork) IsSriovWithoutOffload() bool {
 		return false
 	}
 	return true
+}
+
+func (gn *SGuestnetwork) OvsOffloadIfname() (string, bool) {
+	if gn.Driver != api.NETWORK_DRIVER_VFIO {
+		return "", false
+	}
+	if dev, _ := gn.GetIsolatedDevice(); dev != nil && dev.OvsOffloadInterface != "" {
+		return dev.OvsOffloadInterface, true
+	}
+	return "", false
 }
 
 func (gn *SGuestnetwork) UpdateNicTrafficUsed(rx, tx int64) error {
@@ -646,28 +736,51 @@ func (gn *SGuestnetwork) UpdateNicTrafficLimit(rx, tx *int64) error {
 	return err
 }
 
-func (manager *SGuestnetworkManager) GetGuestByAddress(address string) *SGuest {
-	networks := manager.TableSpec().Instance()
-	guests := GuestManager.Query()
-	q := guests.Join(networks, sqlchemy.AND(
-		sqlchemy.IsFalse(networks.Field("deleted")),
-		sqlchemy.Equals(networks.Field("ip_addr"), address),
-		sqlchemy.Equals(networks.Field("guest_id"), guests.Field("id")),
-	))
-	guest := &SGuest{}
-	guest.SetModelManager(GuestManager, guest)
-	err := q.First(guest)
-	if err == nil {
-		return guest
+func (manager *SGuestnetworkManager) GetGuestByAddress(address string, projectId string) *SGuest {
+	gnQ := manager.Query()
+	ipField := "ip_addr"
+	if regutils.MatchIP6Addr(address) {
+		ipField = "ip6_addr"
 	}
-	return nil
+	gnQ = gnQ.Equals(ipField, address)
+	gnSubQ := gnQ.SubQuery()
+
+	q := GuestManager.Query("hostname", "tenant_id")
+	if len(projectId) > 0 {
+		q = q.Equals("tenant_id", projectId)
+	}
+	q = q.Join(gnSubQ, sqlchemy.Equals(gnSubQ.Field("guest_id"), q.Field("id")))
+
+	guests := make([]SGuest, 0)
+	err := q.All(&guests)
+	if err != nil {
+		log.Errorf("GetGuestByAddress %s fail %s", address, err)
+		return nil
+	}
+	if len(guests) == 0 {
+		return nil
+	}
+	return &guests[0]
 }
 
 func (gn *SGuestnetwork) GetDetailedString() string {
 	network := gn.GetNetwork()
 	naCount, _ := NetworkAddressManager.fetchAddressCountByGuestnetworkId(gn.RowId)
-	return fmt.Sprintf("eth%d:%s/%d/%s/%d/%s/%s/%d/%d", gn.Index, gn.IpAddr, network.GuestIpMask,
-		gn.MacAddr, network.VlanId, network.Name, gn.Driver, gn.getBandwidth(), naCount)
+	parts := []string{
+		gn.IpAddr, fmt.Sprintf("%d", network.GuestIpMask),
+	}
+	if len(gn.Ip6Addr) > 0 {
+		parts = append(parts, gn.Ip6Addr, fmt.Sprintf("%d", network.GuestIp6Mask))
+	}
+	parts = append(parts,
+		gn.MacAddr,
+		fmt.Sprintf("%d", network.VlanId),
+		network.Name,
+		gn.Driver,
+		fmt.Sprintf("%d", gn.getBandwidth()),
+		fmt.Sprintf("%d", naCount),
+	)
+	return fmt.Sprintf("eth%d:%s", gn.Index, strings.Join(parts, "/"))
 }
 
 func (gn *SGuestnetwork) ValidateUpdateData(
@@ -689,12 +802,46 @@ func (gn *SGuestnetwork) ValidateUpdateData(
 			return input, httperrors.NewDuplicateResourceError("NIC Index %d has been occupied", index)
 		}
 	}
+	if input.IsDefault != nil && *input.IsDefault {
+		net := gn.GetNetwork()
+		if len(net.GuestGateway) == 0 {
+			return input, errors.Wrap(httperrors.ErrInvalidStatus, "network of default gateway has no gateway")
+		}
+		if len(gn.IpAddr) == 0 {
+			return input, errors.Wrap(httperrors.ErrInvalidStatus, "nic of default gateway has no ip")
+		}
+	}
 	var err error
 	input.GuestJointBaseUpdateInput, err = gn.SGuestJointsBase.ValidateUpdateData(ctx, userCred, query, input.GuestJointBaseUpdateInput)
 	if err != nil {
 		return input, errors.Wrap(err, "SGuestJointsBase.ValidateUpdateData")
 	}
 	return input, nil
+}
+
+func (gn *SGuestnetwork) PostUpdate(ctx context.Context, userCred mcclient.TokenCredential, query, data jsonutils.JSONObject) {
+	gn.SGuestJointsBase.PostUpdate(ctx, userCred, query, data)
+	input := api.GuestnetworkUpdateInput{}
+	err := data.Unmarshal(&input)
+	if err != nil {
+		log.Errorf("GuestnetworkUpdateInput unmarshal fail %s", err)
+		return
+	}
+	if input.IsDefault != nil && *input.IsDefault {
+		// make this nic as default, unset others
+		guest := gn.GetGuest()
+		err := guest.setDefaultGateway(ctx, userCred, gn.MacAddr)
+		if err != nil {
+			log.Errorf("fail to setDefaultGateway: %s", err)
+		}
+	} else {
+		// try fix default gateway
+		guest := gn.GetGuest()
+		err := guest.fixDefaultGateway(ctx, userCred)
+		if err != nil {
+			log.Errorf("fail to fixDefaultGateway %s", err)
+		}
+	}
 }
 
 func (manager *SGuestnetworkManager) DeleteGuestNics(ctx context.Context, userCred mcclient.TokenCredential, gns []SGuestnetwork, reserve bool) error {
@@ -729,16 +876,23 @@ func (manager *SGuestnetworkManager) DeleteGuestNics(ctx context.Context, userCr
 		}
 
 		if reserve && regutils.MatchIP4Addr(gn.IpAddr) {
-			ReservedipManager.ReserveIP(userCred, net, gn.IpAddr, "Delete to reserve")
+			ReservedipManager.ReserveIP(ctx, userCred, net, gn.IpAddr, "Delete to reserve", api.AddressTypeIPv4)
+		}
+		if reserve && regutils.MatchIP6Addr(gn.Ip6Addr) {
+			ReservedipManager.ReserveIP(ctx, userCred, net, gn.Ip6Addr, "Delete to reserve", api.AddressTypeIPv6)
 		}
 	}
 	return nil
 }
 
-func (manager *SGuestnetworkManager) getGuestNicByIP(ip string, networkId string) (*SGuestnetwork, error) {
+func (manager *SGuestnetworkManager) getGuestNicByIP(ip string, networkId string, addrType api.TAddressType) (*SGuestnetwork, error) {
 	gn := SGuestnetwork{}
 	q := manager.Query()
-	q = q.Equals("ip_addr", ip).Equals("network_id", networkId)
+	field := "ip_addr"
+	if addrType == api.AddressTypeIPv6 {
+		field = "ip6_addr"
+	}
+	q = q.Equals(field, ip).Equals("network_id", networkId)
 	err := q.First(&gn)
 	if err != nil {
 		if err != sql.ErrNoRows {
@@ -889,8 +1043,8 @@ func (gn *SGuestnetwork) IsAllocated() bool {
 	return false
 }
 
-func GetIPTenantIdPairs() {
-	/*
+/* func GetIPTenantIdPairs() {
+
 			from guests import Guests
 		        from hosts import Hosts
 		        from sqlalchemy.sql.expression import bindparam
@@ -903,8 +1057,8 @@ func GetIPTenantIdPairs() {
 		                        .join(Hosts, and_(Hosts.id==Guests.host_id,
 		                                            Hosts.deleted==False))
 		        return q.all()
-	*/
-}
+
+} */
 
 func (gn *SGuestnetwork) GetVirtualIPs() []string {
 	ips := make([]string, 0)
@@ -943,12 +1097,25 @@ func (gn *SGuestnetwork) GetIsolatedDevice() (*SIsolatedDevice, error) {
 }
 
 func (manager *SGuestnetworkManager) getRecentlyReleasedIPAddresses(networkId string, recentDuration time.Duration) map[string]bool {
+	return manager.getRecentlyReleasedIPAddressesInternal(networkId, recentDuration, api.AddressTypeIPv4)
+}
+
+func (manager *SGuestnetworkManager) getRecentlyReleasedIPAddresses6(networkId string, recentDuration time.Duration) map[string]bool {
+	return manager.getRecentlyReleasedIPAddressesInternal(networkId, recentDuration, api.AddressTypeIPv6)
+}
+
+func (manager *SGuestnetworkManager) getRecentlyReleasedIPAddressesInternal(networkId string, recentDuration time.Duration, addrType api.TAddressType) map[string]bool {
 	if recentDuration == 0 {
 		return nil
 	}
+	field := "ip_addr"
+	if addrType == api.AddressTypeIPv6 {
+		field = "ip6_addr"
+	}
 	since := time.Now().UTC().Add(-recentDuration)
-	q := manager.RawQuery("ip_addr")
+	q := manager.RawQuery(field)
 	q = q.Equals("network_id", networkId).IsTrue("deleted")
+	q = q.IsNotEmpty(field)
 	q = q.GT("deleted_at", since).Distinct()
 	rows, err := q.Rows()
 	if err != nil {
@@ -1051,18 +1218,19 @@ func (gn *SGuestnetwork) ToNetworkConfig() *api.NetworkConfig {
 	}
 	wire, _ := net.GetWire()
 	ret := &api.NetworkConfig{
-		Index:   int(gn.Index),
-		Network: net.Id,
-		Wire:    wire.Id,
-		Mac:     gn.MacAddr,
-		Address: gn.IpAddr,
-		Driver:  gn.Driver,
-		BwLimit: gn.BwLimit,
-		Project: net.ProjectId,
-		Domain:  net.DomainId,
-		Ifname:  gn.Ifname,
-		NetType: net.ServerType,
-		Exit:    net.IsExitNetwork(),
+		Index:    int(gn.Index),
+		Network:  net.Id,
+		Wire:     wire.Id,
+		Mac:      gn.MacAddr,
+		Address:  gn.IpAddr,
+		Address6: gn.Ip6Addr,
+		Driver:   gn.Driver,
+		BwLimit:  gn.BwLimit,
+		Project:  net.ProjectId,
+		Domain:   net.DomainId,
+		Ifname:   gn.Ifname,
+		NetType:  net.ServerType,
+		Exit:     net.IsExitNetwork(),
 	}
 	return ret
 }

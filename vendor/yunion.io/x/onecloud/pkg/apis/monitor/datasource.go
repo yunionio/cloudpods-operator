@@ -12,20 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package compute
+package monitor
 
 import "yunion.io/x/onecloud/pkg/apis"
 
-type SecurityGroupCacheDetails struct {
-	apis.StatusStandaloneResourceDetails
-	apis.ProjectizedResourceInfo
-	ManagedResourceInfo
-	CloudregionResourceInfo
-
-	SSecurityGroupCache
-
-	// 虚拟私有网络名称
-	Vpc string `json:"vpc"`
-
-	ProjectId string `json:"tenant_id"`
-}
+const (
+	DataSourceTypeInfluxdb        = apis.SERVICE_TYPE_INFLUXDB
+	DataSourceTypeVictoriaMetrics = apis.SERVICE_TYPE_VICTORIA_METRICS
+)

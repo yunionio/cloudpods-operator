@@ -56,6 +56,8 @@ type IBackend interface {
 	//
 	CaseInsensitiveLikeString() string
 	//
+	RegexpWhereClause(cond *SRegexpConition) string
+	//
 	UnionAllString() string
 	//
 	UnionDistinctString() string

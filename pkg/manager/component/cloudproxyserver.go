@@ -78,7 +78,7 @@ func (m *cloudproxyManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 	opt.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
 	opt.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
 
-	opt.EnableAPIServer = true
+	// opt.EnableAPIServer = true
 	opt.EnableProxyAgent = true
 	opt.ProxyAgentId = controller.GetDefaultProxyAgentName()
 

@@ -56,6 +56,8 @@ const (
 	TAG_DELETE_RANGE_ALL = "all"
 
 	OBJECT_TYPE_ID_SEP = "::"
+
+	RE_BILLING_AT = "__re_billing_at"
 )
 
 type SMetadataManager struct {
@@ -108,6 +110,7 @@ func init() {
 }
 
 func (manager *SMetadataManager) InitializeData() error {
+	/*no need to do this initilization any more
 	q := manager.RawQuery()
 	q = q.Filter(sqlchemy.OR(
 		sqlchemy.IsNullOrEmpty(q.Field("obj_type")),
@@ -132,7 +135,7 @@ func (manager *SMetadataManager) InitializeData() error {
 		if err != nil {
 			return errors.Wrap(err, "update")
 		}
-	}
+	}*/
 	return nil
 }
 
@@ -144,9 +147,9 @@ func (m *SMetadata) GetName() string {
 	return fmt.Sprintf("%s-%s", m.Id, m.Key)
 }
 
-func (m *SMetadata) GetModelManager() IModelManager {
-	return Metadata
-}
+// func (m *SMetadata) GetModelManager() IModelManager {
+//	return Metadata
+// }
 
 func GetModelIdstr(model IModel) string {
 	return getObjectIdstr(model.GetModelManager().Keyword(), model.GetId())
@@ -409,7 +412,7 @@ func (manager *SMetadataManager) ListItemFilter(ctx context.Context, q *sqlchemy
 				log.Warningf("FetchCheckQueryOwnerScope.%s error: %v", man.Keyword(), err)
 				continue
 			}
-			sq = man.FilterByOwner(sq, man, userCred, ownerId, queryScope)
+			sq = man.FilterByOwner(ctx, sq, man, userCred, ownerId, queryScope)
 			sq = man.FilterBySystemAttributes(sq, userCred, query, queryScope)
 			sq = man.FilterByHiddenSystemAttributes(sq, userCred, query, queryScope)
 			conditions = append(conditions, sqlchemy.In(q.Field("obj_id"), sq))
@@ -443,7 +446,7 @@ func (manager *SMetadataManager) GetStringValue(ctx context.Context, model IMode
 	}
 	idStr := GetModelIdstr(model)
 	m := SMetadata{}
-	err := manager.Query().Equals("id", idStr).Equals("key", key).First(&m)
+	err := manager.Query("value").Equals("id", idStr).Equals("key", key).First(&m)
 	if err == nil {
 		return m.Value
 	}
@@ -459,7 +462,7 @@ func (manager *SMetadataManager) GetJsonValue(ctx context.Context, model IModel,
 	}
 	idStr := GetModelIdstr(model)
 	m := SMetadata{}
-	err := manager.Query().Equals("id", idStr).Equals("key", key).First(&m)
+	err := manager.Query("value").Equals("id", idStr).Equals("key", key).First(&m)
 	if err == nil {
 		json, _ := jsonutils.ParseString(m.Value)
 		return json
@@ -524,6 +527,14 @@ func (manager *SMetadataManager) SetValuesWithLog(ctx context.Context, obj IMode
 	}
 	if len(changes) > 0 {
 		OpsLog.LogEvent(obj.GetIModel(), ACT_SET_METADATA, jsonutils.Marshal(changes), userCred)
+		for _, change := range changes {
+			if change.Key == RE_BILLING_AT {
+				desc := obj.GetIModel().GetShortDesc(ctx)
+				desc.Set("created_at", jsonutils.Marshal(change.NValue))
+				OpsLog.LogEvent(obj.GetIModel(), ACT_RE_BILLING, desc, userCred)
+				break
+			}
+		}
 	}
 	return nil
 }
@@ -632,6 +643,21 @@ func (manager *SMetadataManager) rawSetValues(ctx context.Context, objType strin
 	return changes, nil
 }
 
+func (manager *SMetadataManager) SetAllWithoutDelelte(ctx context.Context, obj IModel, store map[string]interface{}, userCred mcclient.TokenCredential) error {
+	lockman.LockObject(ctx, obj)
+	defer lockman.ReleaseObject(ctx, obj)
+
+	changes, err := manager.rawSetValues(ctx, obj.Keyword(), obj.GetId(), infMap2StrMap(store), false, "")
+	if err != nil {
+		return errors.Wrap(err, "setValues")
+	}
+
+	if len(changes) > 0 {
+		OpsLog.LogEvent(obj.GetIModel(), ACT_SET_METADATA, jsonutils.Marshal(changes), userCred)
+	}
+	return nil
+}
+
 func (manager *SMetadataManager) SetAll(ctx context.Context, obj IModel, store map[string]interface{}, userCred mcclient.TokenCredential, delRange string) error {
 	lockman.LockObject(ctx, obj)
 	defer lockman.ReleaseObject(ctx, obj)
@@ -663,8 +689,15 @@ func isAllowGetMetadata(ctx context.Context, obj IModel, userCred mcclient.Token
 	return true
 }
 
-func (manager *SMetadataManager) GetAll(ctx context.Context, obj IModel, keys []string, keyPrefix string, userCred mcclient.TokenCredential) (map[string]string, error) {
-	if !isAllowGetMetadata(ctx, obj, userCred) {
+type IMetadataGetter interface {
+	GetId() string
+	Keyword() string
+}
+
+func (manager *SMetadataManager) GetAll(ctx context.Context, obj IMetadataGetter, keys []string, keyPrefix string, userCred mcclient.TokenCredential) (map[string]string, error) {
+	modelObj, isIModel := obj.(IModel)
+
+	if isIModel && !isAllowGetMetadata(ctx, modelObj, userCred) {
 		return map[string]string{}, nil
 	}
 	meta, err := manager.rawGetAll(obj.Keyword(), obj.GetId(), keys, keyPrefix)
@@ -673,7 +706,7 @@ func (manager *SMetadataManager) GetAll(ctx context.Context, obj IModel, keys []
 	}
 	ret := make(map[string]string)
 	for k, v := range meta {
-		if strings.HasPrefix(k, SYSTEM_ADMIN_PREFIX) && (userCred == nil || !IsAllowGetSpec(ctx, rbacscope.ScopeSystem, userCred, obj, "metadata")) {
+		if strings.HasPrefix(k, SYSTEM_ADMIN_PREFIX) && (userCred == nil || (isIModel && !IsAllowGetSpec(ctx, rbacscope.ScopeSystem, userCred, modelObj, "metadata"))) {
 			continue
 		}
 		ret[k] = v

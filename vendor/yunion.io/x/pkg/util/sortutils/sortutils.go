@@ -12,25 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package compute
+package sortutils
 
-import (
-	"yunion.io/x/onecloud/pkg/apis"
+import "strings"
+
+type CompareResult int
+
+const (
+	Equal = CompareResult(0)
+	Less  = CompareResult(-1)
+	More  = CompareResult(1)
 )
 
-type SnapshotPolicyDiskDetails struct {
-	apis.VirtualJointResourceBaseDetails
-
-	// 快照策略名称
-	Snapshotpolicy string      `json:"snapshotpolicy"`
-	Disk           DiskDetails `json:"disk"`
-}
-
-type SnapshotPolicyDiskListInput struct {
-	apis.VirtualJointResourceBaseListInput
-	SnapshotPolicyFilterListInput
-	DiskFilterListInput
-
-	// 状态
-	Status []string `json:"status"`
+func CompareString(str1, str2 string) CompareResult {
+	return CompareResult(strings.Compare(str1, str2))
 }

@@ -106,7 +106,7 @@ func (manager *SInterVpcNetworkRouteSetManager) ListItemFilter(
 		return nil, errors.Wrap(err, "SExternalizedResourceBaseManager.ListItemFilter")
 	}
 	if len(query.InterVpcNetworkId) > 0 {
-		vpcNetwork, err := InterVpcNetworkManager.FetchByIdOrName(userCred, query.InterVpcNetworkId)
+		vpcNetwork, err := InterVpcNetworkManager.FetchByIdOrName(ctx, userCred, query.InterVpcNetworkId)
 		if err != nil {
 			if errors.Cause(err) == sql.ErrNoRows {
 				return nil, httperrors.NewResourceNotFoundError2("inter_vpc_network_id", query.InterVpcNetworkId)
@@ -296,7 +296,7 @@ func (self *SInterVpcNetwork) StartInterVpcNetworkUpdateRoutesetTask(ctx context
 	if err != nil {
 		return errors.Wrap(err, "Start InterVpcNetworkUpdateRoutesetTask fail")
 	}
-	self.SetStatus(userCred, api.INTER_VPC_NETWORK_STATUS_UPDATEROUTE, "update route")
+	self.SetStatus(ctx, userCred, api.INTER_VPC_NETWORK_STATUS_UPDATEROUTE, "update route")
 	task.ScheduleRun(nil)
 	return nil
 }
