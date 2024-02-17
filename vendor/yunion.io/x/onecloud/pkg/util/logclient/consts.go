@@ -59,6 +59,8 @@ const (
 	ACT_VM_SRC_CHECK                 = "vm_src_check"
 	ACT_VM_START                     = "vm_start"
 	ACT_VM_STOP                      = "vm_stop"
+	ACT_VM_START_RESCUE              = "vm_start_rescue"
+	ACT_VM_STOP_RESCUE               = "vm_stop_rescue"
 	ACT_VM_SUSPEND                   = "vm_suspend"
 	ACT_VM_RESTART                   = "vm_restart"
 	ACT_VM_RESUME                    = "vm_resume"
@@ -242,6 +244,8 @@ const (
 	ACT_CONSOLE           = "console"
 	ACT_WEBSSH            = "webssh"
 	ACT_SET_USER_PASSWORD = "set_user_password"
+
+	ACT_SYNC_OS_INFO = "sync_os_info"
 
 	ACT_PANIC = "panic"
 

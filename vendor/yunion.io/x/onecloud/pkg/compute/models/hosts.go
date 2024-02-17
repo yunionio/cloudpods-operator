@@ -90,6 +90,7 @@ func init() {
 	}
 	HostManager.SetVirtualObject(HostManager)
 	HostManager.SetAlias("baremetal", "baremetals")
+	notifyclient.AddNotifyDBHookResources(HostManager.KeywordPlural(), GuestManager.AliasPlural())
 	GuestManager.NameRequireAscii = false
 }
 
@@ -149,7 +150,7 @@ type SHost struct {
 	PageSizeKB int `nullable:"false" default:"4" list:"domain" update:"domain" create:"domain_optional"`
 
 	// 存储大小,单位Mb
-	StorageSize int `nullable:"true" list:"domain" update:"domain" create:"domain_optional"`
+	StorageSize int64 `nullable:"true" list:"domain" update:"domain" create:"domain_optional"`
 	// 存储类型
 	StorageType string `width:"20" charset:"ascii" nullable:"true" list:"domain" update:"domain" create:"domain_optional"`
 	// 存储驱动类型
@@ -854,7 +855,10 @@ func (self *SHost) GetStorages() ([]SStorage, error) {
 	sq := HoststorageManager.Query("storage_id").Equals("host_id", self.Id).SubQuery()
 	q := StorageManager.Query().In("id", sq)
 	storages := []SStorage{}
-	return storages, db.FetchModelObjects(StorageManager, q, &storages)
+	if err := db.FetchModelObjects(StorageManager, q, &storages); err != nil {
+		return nil, err
+	}
+	return storages, nil
 }
 
 func (self *SHost) GetHoststorageOfId(storageId string) *SHoststorage {
@@ -1657,7 +1661,14 @@ func (self *SHost) GetRunningGuestCount() (int, error) {
 	return q.CountWithError()
 }
 
-func (self *SHost) GetNotReadyGuestsMemorySize() (int, error) {
+func (host *SHost) hasUnknownGuests() bool {
+	q := host.GetGuestsQuery()
+	q = q.Equals("status", api.VM_UNKNOWN)
+	cnt, _ := q.CountWithError()
+	return cnt > 0
+}
+
+func (self *SHost) GetNotReadyGuestsStat() (*SHostGuestResourceUsage, error) {
 	guests := GuestManager.Query().SubQuery()
 	q := guests.Query(sqlchemy.COUNT("guest_count"),
 		sqlchemy.SUM("guest_vcpu_count", guests.Field("vcpu_count")),
@@ -1669,17 +1680,13 @@ func (self *SHost) GetNotReadyGuestsMemorySize() (int, error) {
 	stat := SHostGuestResourceUsage{}
 	err := q.First(&stat)
 	if err != nil {
-		return -1, err
+		return nil, err
 	}
-	return stat.GuestVmemSize, nil
+	return &stat, nil
 }
 
-func (self *SHost) GetRunningGuestMemorySize() int {
-	res := self.getGuestsResource(api.VM_RUNNING)
-	if res != nil {
-		return res.GuestVmemSize
-	}
-	return -1
+func (hh *SHost) GetRunningGuestResourceUsage() *SHostGuestResourceUsage {
+	return hh.getGuestsResource(api.VM_RUNNING)
 }
 
 func (self *SHost) GetBaremetalnetworksQuery() *sqlchemy.SQuery {
@@ -1915,8 +1922,7 @@ func (self *SHost) syncWithCloudHost(ctx context.Context, userCred mcclient.Toke
 		return nil
 	})
 	if err != nil {
-		log.Errorf("syncWithCloudZone error %s", err)
-		return err
+		return errors.Wrapf(err, "syncWithCloudZone")
 	}
 
 	db.OpsLog.LogSyncUpdate(self, diff, userCred)
@@ -1932,8 +1938,10 @@ func (self *SHost) syncWithCloudHost(ctx context.Context, userCred mcclient.Toke
 		return err
 	}
 
-	if err := HostManager.ClearSchedDescCache(self.Id); err != nil {
-		log.Errorf("ClearSchedDescCache for host %s error %v", self.Name, err)
+	if len(diff) > 0 {
+		if err := HostManager.ClearSchedDescCache(self.Id); err != nil {
+			log.Errorf("ClearSchedDescCache for host %s error %v", self.Name, err)
+		}
 	}
 
 	return nil
@@ -3383,6 +3391,22 @@ func (self *SHost) PostCreate(
 			self.StartBaremetalCreateTask(ctx, userCred, kwargs, "")
 		}
 	}
+	if self.OvnVersion != "" && self.OvnMappedIpAddr == "" {
+		HostManager.lockAllocOvnMappedIpAddr(ctx)
+		defer HostManager.unlockAllocOvnMappedIpAddr(ctx)
+		addr, err := HostManager.allocOvnMappedIpAddr(ctx)
+		if err != nil {
+			log.Errorf("host %s(%s): alloc vpc mapped addr: %v",
+				self.Name, self.Id, err)
+		}
+		if _, err := db.Update(self, func() error {
+			self.OvnMappedIpAddr = addr
+			return nil
+		}); err != nil {
+			log.Errorf("host %s(%s): db update vpc mapped addr: %v",
+				self.Name, self.Id, err)
+		}
+	}
 
 	keys := GetHostQuotaKeysFromCreateInput(ownerId, input)
 	quota := SInfrasQuota{Host: 1}
@@ -3391,6 +3415,11 @@ func (self *SHost) PostCreate(
 	if err != nil {
 		log.Errorf("CancelPendingUsage fail %s", err)
 	}
+	self.SEnabledStatusInfrasResourceBase.PostCreate(ctx, userCred, ownerId, query, data)
+	notifyclient.EventNotify(ctx, userCred, notifyclient.SEventNotifyParam{
+		Obj:    self,
+		Action: notifyclient.ActionCreate,
+	})
 }
 
 func (self *SHost) StartBaremetalCreateTask(ctx context.Context, userCred mcclient.TokenCredential, data *jsonutils.JSONDict, parentTaskId string) error {
@@ -3715,6 +3744,13 @@ func (self *SHost) ValidateUpdateData(ctx context.Context, userCred mcclient.Tok
 		return input, errors.Errorf("host mem is hugepage, cannot update mem_cmtbound")
 	}
 
+	if input.CpuReserved != nil {
+		info := self.GetMetadata(ctx, api.HOSTMETA_RESERVED_CPUS_INFO, nil)
+		if len(info) > 0 {
+			return input, errors.Wrap(httperrors.ErrInputParameter, "host cpu has been reserved, cannot update cpu_reserved")
+		}
+	}
+
 	input.HostSizeAttributes, err = HostManager.ValidateSizeParams(input.HostSizeAttributes)
 	if err != nil {
 		return input, errors.Wrap(err, "ValidateSizeParams")
@@ -3801,6 +3837,14 @@ func (self *SHost) PostUpdate(ctx context.Context, userCred mcclient.TokenCreden
 	}
 }
 
+func (hh *SHost) PostDelete(ctx context.Context, userCred mcclient.TokenCredential) {
+	hh.SEnabledStatusInfrasResourceBase.PostDelete(ctx, userCred)
+	notifyclient.EventNotify(ctx, userCred, notifyclient.SEventNotifyParam{
+		Obj:    hh,
+		Action: notifyclient.ActionDelete,
+	})
+}
+
 func (self *SHost) UpdateDnsRecords(isAdd bool) {
 	for _, netif := range self.GetNetInterfaces() {
 		self.UpdateDnsRecord(&netif, isAdd)
@@ -3875,8 +3919,12 @@ func fetchIpmiInfo(data api.HostIpmiAttributes, hostId string) (types.SIPMIInfo,
 	return info, nil
 }
 
-func (self *SHost) PerformStart(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject,
-	data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
+func (self *SHost) PerformStart(
+	ctx context.Context,
+	userCred mcclient.TokenCredential,
+	query jsonutils.JSONObject,
+	input api.HostPerformStartInput,
+) (jsonutils.JSONObject, error) {
 	if !self.IsBaremetal {
 		return nil, httperrors.NewBadRequestError("Cannot start a non-baremetal host")
 	}
@@ -3892,7 +3940,7 @@ func (self *SHost) PerformStart(ctx context.Context, userCred mcclient.TokenCred
 		//		return nil, httperrors.NewBadRequestError("Cannot start baremetal with active guest")
 		//	}
 		self.SetStatus(userCred, api.BAREMETAL_START_MAINTAIN, "")
-		return guest.PerformStart(ctx, userCred, query, data)
+		return guest.PerformStart(ctx, userCred, query, api.GuestPerformStartInput{})
 	}
 	params := jsonutils.NewDict()
 	params.Set("force_reboot", jsonutils.NewBool(false))
@@ -4172,10 +4220,13 @@ func (self *SHost) PerformPing(ctx context.Context, userCred mcclient.TokenCrede
 			self.LastPingAt = time.Now()
 			return nil
 		})
+		if self.hasUnknownGuests() {
+			self.StartSyncAllGuestsStatusTask(ctx, userCred)
+		}
 	}
 	result := jsonutils.NewDict()
 	result.Set("name", jsonutils.NewString(self.GetName()))
-	dependSvcs := []string{"ntpd", "kafka", "influxdb", "elasticsearch"}
+	dependSvcs := []string{"ntpd", "kafka", apis.SERVICE_TYPE_INFLUXDB, apis.SERVICE_TYPE_VICTORIA_METRICS, "elasticsearch"}
 	catalog := auth.GetCatalogData(dependSvcs, options.Options.Region)
 	if catalog == nil {
 		return nil, fmt.Errorf("Get catalog error")
@@ -4539,6 +4590,7 @@ func (self *SHost) addNetif(ctx context.Context, userCred mcclient.TokenCredenti
 		}
 		// else not found
 		netif = &SNetInterface{}
+		netif.SetModelManager(NetInterfaceManager, netif)
 		netif.Mac = mac
 		netif.BaremetalId = self.Id
 		if sw != nil {
@@ -4608,6 +4660,7 @@ func (self *SHost) addNetif(ctx context.Context, userCred mcclient.TokenCredenti
 					return httperrors.NewInternalServerError("fail to fetch hostwire by mac %s: %s", mac, err)
 				}
 				hw = &SHostwire{}
+				hw.SetModelManager(HostwireManager, hw)
 				hw.Bridge = bridge
 				hw.Interface = strInterface
 				hw.HostId = self.Id
@@ -4893,6 +4946,7 @@ func (self *SHost) Attach2Network(
 		return nil, fmt.Errorf("IP address %s is occupied, get %s instead", ipAddr, freeIp)
 	}
 	bn := &SHostnetwork{}
+	bn.SetModelManager(HostnetworkManager, bn)
 	bn.BaremetalId = self.Id
 	bn.NetworkId = net.Id
 	bn.IpAddr = freeIp

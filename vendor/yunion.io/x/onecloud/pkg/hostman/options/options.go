@@ -17,6 +17,9 @@ package options
 import (
 	"os"
 
+	"yunion.io/x/log"
+	"yunion.io/x/structarg"
+
 	common_options "yunion.io/x/onecloud/pkg/cloudcommon/options"
 	"yunion.io/x/onecloud/pkg/util/fileutils2"
 	"yunion.io/x/onecloud/pkg/util/ovnutils"
@@ -39,6 +42,9 @@ type SHostBaseOptions struct {
 	FloppyCount int `help:"floppy count" default:"1"`
 
 	DisableLocalVpc bool `help:"disable local VPC support" default:"false"`
+
+	DhcpLeaseTime   int `default:"100663296" help:"DHCP lease time in seconds"`
+	DhcpRenewalTime int `default:"67108864" help:"DHCP renewal time in seconds"`
 }
 
 type SHostOptions struct {
@@ -47,6 +53,7 @@ type SHostOptions struct {
 	SHostBaseOptions
 
 	CommonConfigFile string `help:"common config file for container"`
+	LocalConfigFile  string `help:"local config file" default:"/etc/yunion/host_local.conf"`
 
 	HostType        string   `help:"Host server type, either hypervisor or kubelet" default:"hypervisor"`
 	ListenInterface string   `help:"Master address of host server"`
@@ -98,9 +105,7 @@ type SHostOptions struct {
 	SharedStorages  []string `help:"Path of shared storages"`
 	LVMVolumeGroups []string `help:"LVM Volume Groups(vgs)"`
 
-	DhcpRelay       []string `help:"DHCP relay upstream"`
-	DhcpLeaseTime   int      `default:"100663296" help:"DHCP lease time in seconds"`
-	DhcpRenewalTime int      `default:"67108864" help:"DHCP renewal time in seconds"`
+	DhcpRelay []string `help:"DHCP relay upstream"`
 
 	TunnelPaddingBytes int64 `help:"Specify tunnel padding bytes" default:"0"`
 
@@ -214,6 +219,17 @@ func Parse() (hostOpts SHostOptions) {
 		hostOpts.SHostBaseOptions = *commonCfg
 		// keep base options
 		hostOpts.BaseOptions.BaseOptions = baseOpt
+	}
+	if len(hostOpts.LocalConfigFile) > 0 && fileutils2.Exists(hostOpts.LocalConfigFile) {
+		log.Infof("Use local configuration file: %s", hostOpts.Config)
+		parser, err := structarg.NewArgumentParser(&hostOpts, "", "", "")
+		if err != nil {
+			log.Fatalf("fail to create local parse %s", err)
+		}
+		err = parser.ParseFile(hostOpts.LocalConfigFile)
+		if err != nil {
+			log.Fatalf("Parse local configuration file: %v", err)
+		}
 	}
 	return hostOpts
 }

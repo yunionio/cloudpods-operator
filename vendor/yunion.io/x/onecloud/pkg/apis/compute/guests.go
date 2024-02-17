@@ -75,6 +75,8 @@ type ServerListInput struct {
 	// 列出操作系统为指定值的主机
 	// enum: linux,windows,vmware
 	OsType []string `json:"os_type"`
+	// 操作系统发行版
+	OsDist []string `json:"os_dist"`
 
 	// 对列表结果按照磁盘大小进行排序
 	// enum: asc,desc
@@ -123,6 +125,9 @@ type ServerListInput struct {
 	SrcMacCheck *bool `json:"src_mac_check"`
 
 	InstanceType []string `json:"instance_type"`
+
+	// 根据镜像发行版排序
+	OrderByOsDist string `json:"order_by_os_dist"`
 
 	// 是否调度到宿主机上
 	WithHost *bool `json:"with_host"`
@@ -442,13 +447,16 @@ type GuestAutoRenewInput struct {
 	Duration string `json:"duration"`
 }
 
-type ConvertEsxiToKvmInput struct {
+type ConvertToKvmInput struct {
 	apis.Meta
 
 	// target hypervisor
 	TargetHypervisor string `json:"target_hypervisor"`
 	// 指定转换的宿主机
 	PreferHost string `json:"prefer_host"`
+
+	// dest guest network configs
+	Networks []*NetworkConfig `json:"networks"`
 }
 
 type GuestSaveToTemplateInput struct {
@@ -759,6 +767,9 @@ type ServerChangeConfigInput struct {
 	AutoStart bool `json:"auto_start"`
 
 	Disks []DiskConfig `json:"disks"`
+
+	SetTrafficLimits   []ServerNicTrafficLimit
+	ResetTrafficLimits []ServerNicTrafficLimit
 }
 
 type ServerUpdateInput struct {
@@ -859,6 +870,8 @@ type GuestJsonDesc struct {
 	EncryptKeyId string `json:"encrypt_key_id,omitempty"`
 
 	IsDaemon bool `json:"is_daemon"`
+
+	LightMode bool `json:"light_mode"`
 }
 
 type ServerSetBootIndexInput struct {
@@ -1102,4 +1115,20 @@ type ServerLoginInfoOutput struct {
 	LoginKey string `json:"login_key"`
 	Keypair  string `json:"keypair"`
 	Password string `json:"password"`
+}
+
+type GuestPerformStartInput struct {
+	// 指定启动虚拟机的Qemu版本，可选值：2.12.1, 4.2.0
+	// 仅适用于KVM虚拟机
+	QemuVersion string `json:"qemu_version"`
+}
+
+type ServerSetOSInfoInput struct {
+	// OS type, e.g.: Linux, Windows
+	Type string `json:"type" help:"OS type, e.g.: Linux, Windows"`
+	// OS distribution, e.g.: CentOS, Ubuntu, Windows Server 2016 Datacenter
+	Distribution string `json:"distribution" help:"OS distribution, e.g.: CentOS, Ubuntu, Windows Server 2016 Datacenter"`
+	// OS version, e.g: 7.9, 22.04, 6.3
+	Version string `json:"version" help:"OS version, e.g.: 7.9, 22.04, 6.3"`
+	Arch    string `json:"arch" help:"OS arch, e.g.: x86_64, aarch64"`
 }

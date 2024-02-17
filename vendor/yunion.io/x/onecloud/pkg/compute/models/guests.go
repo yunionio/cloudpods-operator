@@ -184,6 +184,8 @@ type SGuest struct {
 	QgaStatus string `width:"36" charset:"ascii" nullable:"false" default:"unknown" list:"user" create:"optional"`
 	// power_states limit in [on, off, unknown]
 	PowerStates string `width:"36" charset:"ascii" nullable:"false" default:"unknown" list:"user" create:"optional"`
+	// Used for guest rescue
+	RescueMode bool `nullable:"false" default:"false" list:"user" create:"optional"`
 }
 
 func (manager *SGuestManager) GetPropertyStatistics(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject) (*apis.StatusStatistic, error) {
@@ -420,7 +422,7 @@ func (manager *SGuestManager) ListItemFilter(
 		vipq := GroupguestManager.Query("guest_id")
 		conditions := []sqlchemy.ICondition{}
 		for _, ipAddr := range query.IpAddrs {
-			conditions = append(conditions, sqlchemy.Contains(grpnets.Field("ip_addr"), ipAddr))
+			conditions = append(conditions, sqlchemy.Regexp(grpnets.Field("ip_addr"), ipAddr))
 		}
 		vipq = vipq.Join(grpnets, sqlchemy.Equals(grpnets.Field("group_id"), vipq.Field("group_id"))).Filter(
 			sqlchemy.OR(conditions...),
@@ -429,7 +431,7 @@ func (manager *SGuestManager) ListItemFilter(
 		grpeips := ElasticipManager.Query().Equals("associate_type", api.EIP_ASSOCIATE_TYPE_INSTANCE_GROUP).SubQuery()
 		conditions = []sqlchemy.ICondition{}
 		for _, ipAddr := range query.IpAddrs {
-			conditions = append(conditions, sqlchemy.Contains(grpeips.Field("ip_addr"), ipAddr))
+			conditions = append(conditions, sqlchemy.Regexp(grpeips.Field("ip_addr"), ipAddr))
 		}
 		vipeipq := GroupguestManager.Query("guest_id")
 		vipeipq = vipeipq.Join(grpeips, sqlchemy.Equals(grpeips.Field("associate_id"), vipeipq.Field("group_id"))).Filter(
@@ -439,14 +441,14 @@ func (manager *SGuestManager) ListItemFilter(
 		gnQ := GuestnetworkManager.Query("guest_id")
 		conditions = []sqlchemy.ICondition{}
 		for _, ipAddr := range query.IpAddrs {
-			conditions = append(conditions, sqlchemy.Contains(gnQ.Field("ip_addr"), ipAddr))
+			conditions = append(conditions, sqlchemy.Regexp(gnQ.Field("ip_addr"), ipAddr))
 		}
 		gn := gnQ.Filter(sqlchemy.OR(conditions...))
 
 		guestEipQ := ElasticipManager.Query("associate_id").Equals("associate_type", api.EIP_ASSOCIATE_TYPE_SERVER)
 		conditions = []sqlchemy.ICondition{}
 		for _, ipAddr := range query.IpAddrs {
-			conditions = append(conditions, sqlchemy.Contains(guestEipQ.Field("ip_addr"), ipAddr))
+			conditions = append(conditions, sqlchemy.Regexp(guestEipQ.Field("ip_addr"), ipAddr))
 		}
 		guestEip := guestEipQ.Filter(sqlchemy.OR(conditions...))
 
@@ -454,7 +456,7 @@ func (manager *SGuestManager) ListItemFilter(
 		conditions = []sqlchemy.ICondition{}
 		for _, ipAddr := range query.IpAddrs {
 			conditions = append(conditions, sqlchemy.AND(
-				sqlchemy.Contains(metadataQ.Field("value"), ipAddr),
+				sqlchemy.Regexp(metadataQ.Field("value"), ipAddr),
 				sqlchemy.Equals(metadataQ.Field("key"), "sync_ips"),
 				sqlchemy.Equals(metadataQ.Field("obj_type"), "server"),
 			))
@@ -649,6 +651,10 @@ func (manager *SGuestManager) ListItemFilter(
 	if len(query.OsType) > 0 {
 		q = q.In("os_type", query.OsType)
 	}
+	if len(query.OsDist) > 0 {
+		metaSQ := db.Metadata.Query().Equals("key", "os_distribution").In("value", query.OsDist).SubQuery()
+		q = q.Join(metaSQ, sqlchemy.Equals(q.Field("id"), metaSQ.Field("obj_id")))
+	}
 	if len(query.VcpuCount) > 0 {
 		q = q.In("vcpu_count", query.VcpuCount)
 	}
@@ -735,6 +741,12 @@ func (manager *SGuestManager) OrderByExtraFields(ctx context.Context, q *sqlchem
 		}
 	}
 
+	if db.NeedOrderQuery([]string{query.OrderByOsDist}) {
+		meta := db.Metadata.Query().Equals("key", "os_distribution").SubQuery()
+		q = q.LeftJoin(meta, sqlchemy.Equals(q.Field("id"), meta.Field("obj_id")))
+		db.OrderByFields(q, []string{query.OrderByOsDist}, []sqlchemy.IQueryField{meta.Field("value")})
+	}
+
 	if db.NeedOrderQuery([]string{query.OrderByDisk}) {
 		guestdisks := GuestdiskManager.Query().SubQuery()
 		disks := DiskManager.Query().SubQuery()
@@ -766,6 +778,13 @@ func (manager *SGuestManager) QueryDistinctExtraField(q *sqlchemy.SQuery, field 
 	}
 	q, err = manager.SHostResourceBaseManager.QueryDistinctExtraField(q, field)
 	if err == nil {
+		return q, nil
+	}
+	if field == "os_dist" {
+		metaQuery := db.Metadata.Query("obj_id", "value").Equals("key", "os_distribution").SubQuery()
+		q = q.AppendField(metaQuery.Field("value", field)).Distinct()
+		q = q.Join(metaQuery, sqlchemy.Equals(q.Field("id"), metaQuery.Field("obj_id")))
+		q.GroupBy(metaQuery.Field("value"))
 		return q, nil
 	}
 	guestnets := GuestnetworkManager.Query("guest_id", "network_id").SubQuery()
@@ -1500,8 +1519,7 @@ func (manager *SGuestManager) validateCreateData(
 		}
 
 		switch {
-		case imgSupportUEFI == nil:
-		case *imgSupportUEFI:
+		case imgSupportUEFI != nil && *imgSupportUEFI:
 			if len(input.Bios) == 0 {
 				input.Bios = "UEFI"
 			} else if input.Bios != "UEFI" {
@@ -4906,6 +4924,8 @@ func (self *SGuest) GetJsonDescAtHypervisor(ctx context.Context, host *SHost) *a
 		EncryptKeyId: self.EncryptKeyId,
 
 		IsDaemon: self.IsDaemon.Bool(),
+
+		LightMode: self.RescueMode,
 	}
 
 	if len(self.BackupHostId) > 0 {
@@ -5784,7 +5804,7 @@ func (self *SGuest) GetIVM(ctx context.Context) (cloudprovider.ICloudVM, error) 
 	}
 	iregion, err := host.GetIRegion(ctx)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "GetIRegion")
 	}
 	ihost, err := iregion.GetIHostById(host.ExternalId)
 	if err != nil {
@@ -5793,7 +5813,7 @@ func (self *SGuest) GetIVM(ctx context.Context) (cloudprovider.ICloudVM, error) 
 	ivm, err := ihost.GetIVMById(self.ExternalId)
 	if err != nil {
 		if errors.Cause(err) != cloudprovider.ErrNotFound {
-			return nil, err
+			return nil, errors.Wrapf(err, "GetIVMById(%s)", self.ExternalId)
 		}
 		return iregion.GetIVMById(self.ExternalId)
 	}

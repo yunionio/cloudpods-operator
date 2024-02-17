@@ -31,21 +31,27 @@ const (
 	CITY_GUANG_ZHOU     = "Guangzhou"    //广州
 	CITY_TAI_WAN        = "Taiwan"       //台湾
 	CITY_GUI_YANG       = "Guiyang"      //贵阳
+	CITY_HAE_BIN        = "HaerBin"      //哈尔滨
 	CITY_TAIPEI         = "Taipei"       //台北市
 	CITY_KAOHSIUNG      = "Kaohsiung"    //高雄市
 	CITY_CHENG_DU       = "Chengdu"      //成都
+	CITY_CHENG_ZHOU     = "ChengZhou"    //郴州
+	CITY_JIANG_XI       = "JiangXi"      //江西
 	CITY_HE_YUAN        = "HeYuan"       //河源
 	CITY_CHONG_QING     = "Chongqing"    //重庆
 	CITY_LAN_ZHOU       = "Lanzhou"      //兰州
 	CITY_TAI_YUAN       = "Taiyuan"      //太原
 	CITY_TIAN_JIN       = "Tianjin"      //天津
 	CITY_WU_LU_MU_QI    = "Wulumuqi"     //乌鲁木齐
-	CITY_NAN_NING       = "Nanning"      //南宁
-	CITY_ZHENG_ZHOU     = "Zhengzhou"    //郑州
-	CITY_KUN_MING       = "Kunming"      //昆明
+	CITY_NAN_NING       = "NanNing"      //南宁
+	CITY_ZHENG_ZHOU     = "ZhengZhou"    //郑州
+	CITY_KUN_MING       = "KunMing"      //昆明
+	CITY_HE_FEI         = "HeFei"        //合肥
+	CITY_FU_JIAN        = "FuJian"       //福建
+	CITY_JIN_ZHONG      = "JingZhong"    //晋中
 	CITY_XI_AN          = "Xian"         //西安
 	CITY_HAI_KOU        = "Haikou"       //海口
-	CITY_WU_HU          = "Wuhu"         //芜湖
+	CITY_WU_HU          = "WuHu"         //芜湖
 	CITY_FU_ZHOU        = "Fuzhou"       //福州
 	CITY_WU_HAN         = "Wuhan"        //武汉
 	CITY_CHANG_SHA      = "Changsha"     //长沙
@@ -137,6 +143,7 @@ const (
 
 	// 阿拉伯联合酋长国
 	CITY_DUBAI     = "Dubai"     //迪拜
+	CITY_DAMMAN    = "Damman"    //达曼
 	CITY_ABU_DHABI = "Abu Dhabi" // 阿布扎比
 
 	// 德国
@@ -206,9 +213,13 @@ const (
 
 	// 意大利
 	CITY_MILAN = "Milan" // 米兰
+	CITY_TURIN = "Turin" // 都灵
 
 	// 西班牙
 	CITY_MADRID = "Madrid" // 马德里
+
+	// 卡塔尔
+	CITY_DOHA = "Doha" // 多哈
 
 	COUNTRY_CODE_CN = "CN" //中国
 	COUNTRY_CODE_JP = "JP" //日本
@@ -244,4 +255,5 @@ const (
 	COUNTRY_CODE_IL = "IL" //以色列
 	COUNTRY_CODE_IT = "IT" //意大利
 	COUNTRY_CODE_ES = "ES" //西班牙
+	COUNTRY_CODE_QA = "QA" //卡塔尔
 )

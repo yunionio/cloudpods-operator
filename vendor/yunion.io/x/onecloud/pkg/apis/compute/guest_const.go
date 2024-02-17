@@ -45,6 +45,12 @@ const (
 	VM_DETACH_DISK     = "detach_disk"
 	VM_UNSYNC          = "unsync"
 
+	VM_START_RESCUE        = "start_rescue"
+	VM_RESCUING            = "rescuing"
+	VM_STOP_RESCUE         = "stop_rescue"
+	VM_START_RESCUE_FAILED = "start_rescue_failed"
+	VM_STOP_RESCUE_FAILED  = "stop_rescue_failed"
+
 	VM_BACKUP_STARTING         = "backup_starting"
 	VM_BACKUP_STOPING          = "backup_stopping"
 	VM_BACKUP_CREATING         = "backup_creating"
@@ -166,6 +172,7 @@ const (
 	VM_QGA_SET_PASSWORD        = "qga_set_password"
 	VM_QGA_COMMAND_EXECUTING   = "qga_command_executing"
 	VM_QGA_EXEC_COMMAND_FAILED = "qga_exec_command_failed"
+	VM_QGA_SYNC_OS_INFO        = "qga_sync_os_info"
 
 	VM_QGA_SET_NETWORK        = "qga_set_network"
 	VM_QGA_SET_NETWORK_FAILED = "qga_set_network_failed"
@@ -396,6 +403,10 @@ const (
 	VM_METADATA_OS_VERSION          = "os_version"
 	VM_METADATA_CGROUP_CPUSET       = "cgroup_cpuset"
 	VM_METADATA_ENABLE_MEMCLEAN     = "enable_memclean"
+	VM_METADATA_HOTPLUG_CPU_MEM     = "hotplug_cpu_mem"
+	VM_METADATA_HOT_REMOVE_NIC      = "hot_remove_nic"
+	VM_METADATA_START_VMEM_MB       = "start_vmem_mb"
+	VM_METADATA_START_VCPU_COUNT    = "start_vcpu_count"
 )
 
 func Hypervisors2HostTypes(hypervisors []string) []string {

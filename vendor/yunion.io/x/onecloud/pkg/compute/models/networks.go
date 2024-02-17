@@ -390,24 +390,25 @@ func (self *SNetwork) GetNetAddr() netutils.IPV4Addr {
 func (self *SNetwork) GetDNS() string {
 	if len(self.GuestDns) > 0 {
 		return self.GuestDns
-	} else {
-		zoneName := ""
-		wire, _ := self.GetWire()
-		if wire != nil {
-			zone, _ := wire.GetZone()
-			if zone != nil {
-				zoneName = zone.Name
-			}
-		}
-		srvs, _ := auth.GetDNSServers(options.Options.Region, zoneName)
-		if len(srvs) > 0 {
-			return strings.Join(srvs, ",")
-		}
-		if len(options.Options.DNSServer) > 0 {
-			return options.Options.DNSServer
-		}
-		return api.DefaultDNSServers
 	}
+	zoneName := ""
+	wire, _ := self.GetWire()
+	if wire != nil {
+		zone, _ := wire.GetZone()
+		if zone != nil {
+			zoneName = zone.Name
+		}
+	}
+
+	srvs, _ := auth.GetDNSServers(options.Options.Region, zoneName)
+	if len(srvs) > 0 {
+		return strings.Join(srvs, ",")
+	}
+	if len(options.Options.DNSServer) > 0 {
+		return options.Options.DNSServer
+	}
+
+	return ""
 }
 
 func (self *SNetwork) GetNTP() string {
@@ -1685,8 +1686,8 @@ func (self *SNetwork) validateUpdateData(ctx context.Context, userCred mcclient.
 		err     error
 	)
 
-	if input.GuestIpMask != nil {
-		maskLen64 := int64(*input.GuestIpMask)
+	if input.GuestIpMask > 0 {
+		maskLen64 := int64(input.GuestIpMask)
 		if !self.isManaged() && !isValidMaskLen(maskLen64) {
 			return input, httperrors.NewInputParameterError("Invalid masklen %d", maskLen64)
 		}
@@ -1753,35 +1754,35 @@ func (self *SNetwork) validateUpdateData(ctx context.Context, userCred mcclient.
 		netAddr = startIp.NetAddr(masklen)
 	}
 
-	for key, ipStr := range map[string]string{
+	for key, ipStr := range map[string]*string{
 		"guest_gateway": input.GuestGateway,
 		"guest_dns":     input.GuestDns,
 		"guest_dhcp":    input.GuestDhcp,
 		"guest_ntp":     input.GuestNtp,
 	} {
-		if ipStr == "" {
+		if ipStr == nil || *ipStr == "" {
 			continue
 		}
 		if key == "guest_dhcp" || key == "guest_dns" {
-			ipList := strings.Split(ipStr, ",")
+			ipList := strings.Split(*ipStr, ",")
 			for _, ipstr := range ipList {
 				if !regutils.MatchIPAddr(ipstr) {
 					return input, httperrors.NewInputParameterError("%s: Invalid IP address %s", key, ipstr)
 				}
 			}
 		} else if key == "guest_ntp" {
-			ipList := strings.Split(ipStr, ",")
+			ipList := strings.Split(*ipStr, ",")
 			for _, ipstr := range ipList {
 				if !regutils.MatchDomainName(ipstr) && !regutils.MatchIPAddr(ipstr) {
 					return input, httperrors.NewInputParameterError("%s: Invalid domain name or IP address  %s", key, ipstr)
 				}
 			}
-		} else if !regutils.MatchIPAddr(ipStr) {
-			return input, httperrors.NewInputParameterError("%s: Invalid IP address %s", key, ipStr)
+		} else if !regutils.MatchIPAddr(*ipStr) {
+			return input, httperrors.NewInputParameterError("%s: Invalid IP address %s", key, *ipStr)
 		}
 	}
-	if input.GuestGateway != "" {
-		addr, err := netutils.NewIPV4Addr(input.GuestGateway)
+	if input.GuestGateway != nil && len(*input.GuestGateway) > 0 {
+		addr, err := netutils.NewIPV4Addr(*input.GuestGateway)
 		if err != nil {
 			return input, httperrors.NewInputParameterError("bad gateway ip: %v", err)
 		}
@@ -1805,22 +1806,22 @@ func (self *SNetwork) ValidateUpdateData(ctx context.Context, userCred mcclient.
 			// classic network
 		} else {
 			// vpc network
-			input.GuestIpStart = self.GuestIpStart
-			input.GuestIpEnd = self.GuestIpEnd
-			input.GuestIpMask = &self.GuestIpMask
-			input.GuestGateway = self.GuestGateway
-			input.GuestDhcp = self.GuestDhcp
+			input.GuestIpStart = ""
+			input.GuestIpEnd = ""
+			input.GuestIpMask = 0
+			input.GuestGateway = nil
+			input.GuestDhcp = nil
 		}
 	} else {
 		// managed network
-		input.GuestIpStart = self.GuestIpStart
-		input.GuestIpEnd = self.GuestIpEnd
-		input.GuestIpMask = &self.GuestIpMask
-		input.GuestGateway = self.GuestGateway
-		input.GuestDns = self.GuestDns
-		input.GuestDomain = self.GuestDomain
-		input.GuestDhcp = self.GuestDhcp
-		input.GuestNtp = self.GuestNtp
+		input.GuestIpStart = ""
+		input.GuestIpEnd = ""
+		input.GuestIpMask = 0
+		input.GuestGateway = nil
+		input.GuestDns = nil
+		input.GuestDomain = nil
+		input.GuestDhcp = nil
+		input.GuestNtp = nil
 	}
 	var err error
 	input, err = self.validateUpdateData(ctx, userCred, query, input)
@@ -2883,6 +2884,28 @@ func (network *SNetwork) GetDetailsAddresses(ctx context.Context, userCred mccli
 
 	output.Addresses = netAddrs
 	return output, nil
+}
+
+func (network *SNetwork) GetDetailsAvailableAddresses(
+	ctx context.Context,
+	userCred mcclient.TokenCredential,
+	input api.GetNetworkAvailableAddressesInput,
+) (api.GetNetworkAvailableAddressesOutput, error) {
+	var availables []string
+	addrTable := network.GetUsedAddresses()
+	recentUsedAddrTable := GuestnetworkManager.getRecentlyReleasedIPAddresses(network.Id, network.getAllocTimoutDuration())
+	addrRange := network.getIPRange()
+	for addr := addrRange.StartIp(); addr <= addrRange.EndIp(); addr = addr.StepUp() {
+		addrStr := addr.String()
+		if _, ok := addrTable[addrStr]; !ok {
+			if _, ok := recentUsedAddrTable[addrStr]; !ok {
+				availables = append(availables, addrStr)
+			}
+		}
+	}
+	return api.GetNetworkAvailableAddressesOutput{
+		Addresses: availables,
+	}, nil
 }
 
 // 同步接入云IP子网状态
