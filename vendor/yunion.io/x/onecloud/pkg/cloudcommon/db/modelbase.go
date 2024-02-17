@@ -28,12 +28,15 @@ import (
 	"yunion.io/x/pkg/util/rbacscope"
 	"yunion.io/x/pkg/util/version"
 	"yunion.io/x/sqlchemy"
+	"yunion.io/x/sqlchemy/backends/clickhouse"
 
 	"yunion.io/x/onecloud/pkg/apis"
 	"yunion.io/x/onecloud/pkg/appsrv"
+	"yunion.io/x/onecloud/pkg/cloudcommon/consts"
 	"yunion.io/x/onecloud/pkg/cloudcommon/policy"
 	"yunion.io/x/onecloud/pkg/httperrors"
 	"yunion.io/x/onecloud/pkg/mcclient"
+	"yunion.io/x/onecloud/pkg/util/dbutils"
 	"yunion.io/x/onecloud/pkg/util/logclient"
 	"yunion.io/x/onecloud/pkg/util/splitable"
 	"yunion.io/x/onecloud/pkg/util/stringutils2"
@@ -83,6 +86,29 @@ func NewModelBaseManagerWithSplitableDBName(model interface{}, tableName string,
 	return modelMan
 }
 
+func NewModelBaseManagerWithClickhouseMapping(manager IModelManager, keyword, keywordPlural string) SModelBaseManager {
+	ots := manager.TableSpec()
+	var extraOpts sqlchemy.TableExtraOptions
+	switch consts.DefaultDBDialect() {
+	case "mysql":
+		cfg := dbutils.ParseMySQLConnStr(consts.DefaultDBConnStr())
+		err := cfg.Validate()
+		if err != nil {
+			panic(fmt.Sprintf("invalid mysql connection string %s", consts.DefaultDBConnStr()))
+		}
+		extraOpts = clickhouse.MySQLExtraOptions(cfg.Hostport, cfg.Database, ots.Name(), cfg.Username, cfg.Password)
+	default:
+		panic(fmt.Sprintf("unsupport dialect %s to be backend of clickhouse", consts.DefaultDBDialect()))
+	}
+	nts := newClickhouseTableSpecFromMySQL(ots, ots.Name(), ClickhouseDB, extraOpts)
+	modelMan := SModelBaseManager{
+		tableSpec:     nts,
+		keyword:       keyword,
+		keywordPlural: keywordPlural,
+	}
+	return modelMan
+}
+
 func (manager *SModelBaseManager) CreateByInsertOrUpdate() bool {
 	return true
 }
@@ -109,6 +135,10 @@ func (manager *SModelBaseManager) GetImmutableInstance(ctx context.Context, user
 
 func (manager *SModelBaseManager) GetMutableInstance(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) IModelManager {
 	return manager.GetIModelManager()
+}
+
+func (manager *SModelBaseManager) PrepareQueryContext(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject) context.Context {
+	return ctx
 }
 
 func (manager *SModelBaseManager) SetAlias(alias string, aliasPlural string) {
@@ -204,6 +234,14 @@ func (manager *SModelBaseManager) ExtraSearchConditions(ctx context.Context, q *
 	return nil
 }
 
+func (manager *SModelBaseManager) NewQuery(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, useRawQuery bool) *sqlchemy.SQuery {
+	if useRawQuery {
+		return manager.Query()
+	} else {
+		return manager.GetIModelManager().Query()
+	}
+}
+
 // fetch hook
 func (manager *SModelBaseManager) getTable() *sqlchemy.STable {
 	return manager.TableSpec().Instance()
@@ -234,7 +272,7 @@ func (manager *SModelBaseManager) FilterByName(q *sqlchemy.SQuery, name string) 
 	return q
 }
 
-func (manager *SModelBaseManager) FilterByOwner(q *sqlchemy.SQuery, man FilterByOwnerProvider, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, scope rbacscope.TRbacScope) *sqlchemy.SQuery {
+func (manager *SModelBaseManager) FilterByOwner(ctx context.Context, q *sqlchemy.SQuery, man FilterByOwnerProvider, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, scope rbacscope.TRbacScope) *sqlchemy.SQuery {
 	return q
 }
 
@@ -254,11 +292,11 @@ func (manager *SModelBaseManager) FetchById(idStr string) (IModel, error) {
 	return nil, sql.ErrNoRows
 }
 
-func (manager *SModelBaseManager) FetchByName(userCred mcclient.IIdentityProvider, idStr string) (IModel, error) {
+func (manager *SModelBaseManager) FetchByName(ctx context.Context, userCred mcclient.IIdentityProvider, idStr string) (IModel, error) {
 	return nil, sql.ErrNoRows
 }
 
-func (manager *SModelBaseManager) FetchByIdOrName(userCred mcclient.IIdentityProvider, idStr string) (IModel, error) {
+func (manager *SModelBaseManager) FetchByIdOrName(ctx context.Context, userCred mcclient.IIdentityProvider, idStr string) (IModel, error) {
 	return nil, sql.ErrNoRows
 }
 
@@ -684,6 +722,14 @@ func (model *SModelBase) PostDelete(ctx context.Context, userCred mcclient.Token
 func (model *SModelBase) MarkDelete() error {
 	// do nothing
 	return nil
+}
+
+func (model *SModelBase) MarkPendingDeleted() {
+	return
+}
+
+func (model *SModelBase) CancelPendingDeleted() {
+	return
 }
 
 func (model *SModelBase) Delete(ctx context.Context, userCred mcclient.TokenCredential) error {

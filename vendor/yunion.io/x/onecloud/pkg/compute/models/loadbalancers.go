@@ -180,7 +180,7 @@ func (man *SLoadbalancerManager) ListItemFilter(
 
 	ownerId := userCred
 	data := jsonutils.Marshal(query).(*jsonutils.JSONDict)
-	q, err = validators.ApplyModelFilters(q, data, []*validators.ModelFilterOptions{
+	q, err = validators.ApplyModelFilters(ctx, q, data, []*validators.ModelFilterOptions{
 		// {Key: "network", ModelKeyword: "network", OwnerId: ownerId},
 		{Key: "cluster", ModelKeyword: "loadbalancercluster", OwnerId: ownerId},
 	})
@@ -201,7 +201,7 @@ func (man *SLoadbalancerManager) ListItemFilter(
 	// eip filters
 	usableLbForEipFilter := query.UsableLoadbalancerForEip
 	if len(usableLbForEipFilter) > 0 {
-		eipObj, err := ElasticipManager.FetchByIdOrName(userCred, usableLbForEipFilter)
+		eipObj, err := ElasticipManager.FetchByIdOrName(ctx, userCred, usableLbForEipFilter)
 		if err != nil {
 			if errors.Cause(err) == sql.ErrNoRows {
 				return nil, httperrors.NewResourceNotFoundError("eip %s not found", usableLbForEipFilter)
@@ -371,7 +371,7 @@ func (man *SLoadbalancerManager) ValidateCreateData(
 			input.Networks = networks[1:]
 		}
 		input.NetworkId = networks[0]
-		networkObj, err := validators.ValidateModel(userCred, NetworkManager, &input.NetworkId)
+		networkObj, err := validators.ValidateModel(ctx, userCred, NetworkManager, &input.NetworkId)
 		if err != nil {
 			return nil, err
 		}
@@ -392,7 +392,7 @@ func (man *SLoadbalancerManager) ValidateCreateData(
 		input.CloudproviderId = vpc.ManagerId
 		input.CloudregionId = vpc.CloudregionId
 		for i := range input.Networks {
-			netObj, err := validators.ValidateModel(userCred, NetworkManager, &input.Networks[i])
+			netObj, err := validators.ValidateModel(ctx, userCred, NetworkManager, &input.Networks[i])
 			if err != nil {
 				return nil, err
 			}
@@ -415,7 +415,7 @@ func (man *SLoadbalancerManager) ValidateCreateData(
 			}
 		}
 	} else if len(input.ZoneId) > 0 {
-		zoneObj, err := validators.ValidateModel(userCred, ZoneManager, &input.ZoneId)
+		zoneObj, err := validators.ValidateModel(ctx, userCred, ZoneManager, &input.ZoneId)
 		if err != nil {
 			return nil, err
 		}
@@ -429,7 +429,7 @@ func (man *SLoadbalancerManager) ValidateCreateData(
 
 	var cloudprovider *SCloudprovider = nil
 	if len(input.CloudproviderId) > 0 {
-		managerObj, err := validators.ValidateModel(userCred, CloudproviderManager, &input.CloudproviderId)
+		managerObj, err := validators.ValidateModel(ctx, userCred, CloudproviderManager, &input.CloudproviderId)
 		if err != nil {
 			return nil, err
 		}
@@ -438,7 +438,7 @@ func (man *SLoadbalancerManager) ValidateCreateData(
 	}
 
 	if len(input.VpcId) > 0 {
-		_vpc, err := validators.ValidateModel(userCred, VpcManager, &input.VpcId)
+		_vpc, err := validators.ValidateModel(ctx, userCred, VpcManager, &input.VpcId)
 		if err != nil {
 			return nil, err
 		}
@@ -452,7 +452,7 @@ func (man *SLoadbalancerManager) ValidateCreateData(
 	}
 
 	if len(input.Zone1) > 0 {
-		_, err := validators.ValidateModel(userCred, ZoneManager, &input.Zone1)
+		_, err := validators.ValidateModel(ctx, userCred, ZoneManager, &input.Zone1)
 		if err != nil {
 			return nil, err
 		}
@@ -466,7 +466,7 @@ func (man *SLoadbalancerManager) ValidateCreateData(
 	}
 
 	if len(input.EipId) > 0 {
-		eipObj, err := validators.ValidateModel(userCred, ElasticipManager, &input.EipId)
+		eipObj, err := validators.ValidateModel(ctx, userCred, ElasticipManager, &input.EipId)
 		if err != nil {
 			return nil, err
 		}
@@ -521,7 +521,7 @@ func (man *SLoadbalancerManager) ValidateCreateData(
 		input.Duration = billingCycle.String()
 	}
 
-	regionObj, err := validators.ValidateModel(userCred, CloudregionManager, &input.CloudregionId)
+	regionObj, err := validators.ValidateModel(ctx, userCred, CloudregionManager, &input.CloudregionId)
 	if err != nil {
 		return nil, err
 	}
@@ -599,10 +599,10 @@ func (lb *SLoadbalancer) PostCreate(ctx context.Context, userCred mcclient.Token
 
 	input := &api.LoadbalancerCreateInput{}
 	data.Unmarshal(input)
-	lb.SetStatus(userCred, api.LB_CREATING, "")
+	lb.SetStatus(ctx, userCred, api.LB_CREATING, "")
 	err = lb.StartLoadBalancerCreateTask(ctx, userCred, input)
 	if err != nil {
-		lb.SetStatus(userCred, api.LB_CREATE_FAILED, err.Error())
+		lb.SetStatus(ctx, userCred, api.LB_CREATE_FAILED, err.Error())
 	}
 }
 
@@ -703,7 +703,7 @@ func (lb *SLoadbalancer) ValidateUpdateData(ctx context.Context, userCred mcclie
 	)
 	for _, v := range keyV {
 		v.Optional(true)
-		if err := v.Validate(data); err != nil {
+		if err := v.Validate(ctx, data); err != nil {
 			return nil, err
 		}
 	}
@@ -839,7 +839,7 @@ func (lb *SLoadbalancer) ValidateDeleteCondition(ctx context.Context, info jsonu
 }
 
 func (lb *SLoadbalancer) CustomizeDelete(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) error {
-	lb.SetStatus(userCred, api.LB_STATUS_DELETING, "")
+	lb.SetStatus(ctx, userCred, api.LB_STATUS_DELETING, "")
 	params := jsonutils.NewDict()
 	deleteEip := jsonutils.QueryBoolean(data, "delete_eip", false)
 	if deleteEip {
@@ -903,68 +903,6 @@ func (lb *SLoadbalancer) Delete(ctx context.Context, userCred mcclient.TokenCred
 	return nil
 }
 
-func (man *SLoadbalancerManager) getLoadbalancersByRegion(region *SCloudregion, provider *SCloudprovider) ([]SLoadbalancer, error) {
-	lbs := []SLoadbalancer{}
-	q := man.Query()
-	q = q.Equals("manager_id", provider.Id)
-	q = q.Equals("cloudregion_id", region.Id)
-	if err := db.FetchModelObjects(man, q, &lbs); err != nil {
-		log.Errorf("failed to get lbs for region: %v provider: %v error: %v", region, provider, err)
-		return nil, err
-	}
-	return lbs, nil
-}
-
-func (man *SLoadbalancerManager) getLoadbalancersByExternalIds(externalIds []string) ([]SLoadbalancer, error) {
-	lbs := []SLoadbalancer{}
-	q := man.Query()
-	q = q.In("external_id", externalIds)
-	if err := db.FetchModelObjects(man, q, &lbs); err != nil {
-		log.Errorf("failed to get lbs for region: %#v error: %v", externalIds, err)
-		return nil, err
-	}
-	return lbs, nil
-}
-
-func (man *SLoadbalancerManager) getLocalLoadbalancers(ctx context.Context, userCred mcclient.TokenCredential, provider *SCloudprovider, region *SCloudregion, lbs []cloudprovider.ICloudLoadbalancer) ([]SLoadbalancer, error) {
-	// current external ID
-	extIds := []string{}
-	for i := range lbs {
-		extIds = append(extIds, lbs[i].GetGlobalId())
-	}
-
-	part1, err := man.getLoadbalancersByRegion(region, provider)
-	if err != nil {
-		return nil, err
-	}
-
-	localLbs := map[string]SLoadbalancer{}
-	for i := range part1 {
-		localLbs[part1[i].Id] = part1[i]
-		if len(part1[i].GetExternalId()) > 0 {
-			extIds = append(extIds, part1[i].GetExternalId())
-		}
-	}
-
-	if len(extIds) > 0 {
-		part2, err := man.getLoadbalancersByExternalIds(extIds)
-		if err != nil {
-			return nil, err
-		}
-
-		for i := range part2 {
-			localLbs[part2[i].Id] = part2[i]
-		}
-	}
-
-	ret := make([]SLoadbalancer, 0)
-	for id, _ := range localLbs {
-		ret = append(ret, localLbs[id])
-	}
-
-	return ret, nil
-}
-
 func (man *SLoadbalancerManager) SyncLoadbalancers(
 	ctx context.Context,
 	userCred mcclient.TokenCredential,
@@ -980,7 +918,7 @@ func (man *SLoadbalancerManager) SyncLoadbalancers(
 	remoteLbs := []cloudprovider.ICloudLoadbalancer{}
 	syncResult := compare.SyncResult{}
 
-	dbLbs, err := man.getLocalLoadbalancers(ctx, userCred, provider, region, lbs)
+	dbLbs, err := region.GetManagedLoadbalancers(provider.Id)
 	if err != nil {
 		syncResult.Error(err)
 		return nil, nil, syncResult
@@ -1131,8 +1069,8 @@ func (region *SCloudregion) newFromCloudLoadbalancer(ctx context.Context, userCr
 		return nil, errors.Wrapf(err, "Insert")
 	}
 
-	syncVirtualResourceMetadata(ctx, userCred, &lb, ext)
-	SyncCloudProject(ctx, userCred, &lb, syncOwnerId, ext, provider.Id)
+	syncVirtualResourceMetadata(ctx, userCred, &lb, ext, false)
+	SyncCloudProject(ctx, userCred, &lb, syncOwnerId, ext, provider)
 
 	db.OpsLog.LogEvent(&lb, db.ACT_CREATE, lb.GetShortDesc(ctx), userCred)
 
@@ -1155,7 +1093,7 @@ func (lb *SLoadbalancer) syncRemoveCloudLoadbalancer(ctx context.Context, userCr
 	}
 	err = lb.ValidateDeleteCondition(ctx, nil)
 	if err != nil { // cannot delete
-		return lb.SetStatus(userCred, api.LB_STATUS_UNKNOWN, "sync to delete")
+		return lb.SetStatus(ctx, userCred, api.LB_STATUS_UNKNOWN, "sync to delete")
 	}
 	notifyclient.EventNotify(ctx, userCred, notifyclient.SEventNotifyParam{
 		Obj:    lb,
@@ -1343,9 +1281,11 @@ func (lb *SLoadbalancer) syncWithCloudLoadbalancer(ctx context.Context, userCred
 	}
 
 	networkIds := getExtLbNetworkIds(ext, lb.ManagerId)
-	syncVirtualResourceMetadata(ctx, userCred, lb, ext)
+	if account := lb.GetCloudaccount(); account != nil {
+		syncVirtualResourceMetadata(ctx, userCred, lb, ext, account.ReadOnly)
+	}
 	provider := lb.GetCloudprovider()
-	SyncCloudProject(ctx, userCred, lb, provider.GetOwnerId(), ext, lb.ManagerId)
+	SyncCloudProject(ctx, userCred, lb, provider.GetOwnerId(), ext, provider)
 	lb.syncLoadbalancerNetwork(ctx, userCred, networkIds)
 
 	return err
@@ -1387,6 +1327,7 @@ func (manager *SLoadbalancerManager) GetLbDefaultBackendGroupIds() ([]string, er
 }
 
 func (man *SLoadbalancerManager) TotalCount(
+	ctx context.Context,
 	scope rbacscope.TRbacScope,
 	ownerId mcclient.IIdentityProvider,
 	rangeObjs []db.IStandaloneModel,
@@ -1394,7 +1335,7 @@ func (man *SLoadbalancerManager) TotalCount(
 	policyResult rbacutils.SPolicyResult,
 ) (int, error) {
 	q := man.Query()
-	q = db.ObjectIdQueryWithPolicyResult(q, man, policyResult)
+	q = db.ObjectIdQueryWithPolicyResult(ctx, q, man, policyResult)
 	q = scopeOwnerIdFilter(q, scope, ownerId)
 	q = CloudProviderFilter(q, q.Field("manager_id"), providers, brands, cloudEnv)
 	q = RangeObjectsFilter(q, rangeObjs, nil, q.Field("zone_id"), q.Field("manager_id"), nil, nil)
@@ -1489,14 +1430,17 @@ func (self *SLoadbalancer) StartRemoteUpdateTask(ctx context.Context, userCred m
 		log.Errorln(err)
 		return errors.Wrap(err, "Start LoadbalancerRemoteUpdateTask")
 	} else {
-		self.SetStatus(userCred, api.LB_UPDATE_TAGS, "StartRemoteUpdateTask")
+		self.SetStatus(ctx, userCred, api.LB_UPDATE_TAGS, "StartRemoteUpdateTask")
 		task.ScheduleRun(nil)
 	}
 	return nil
 }
 
 func (self *SLoadbalancer) OnMetadataUpdated(ctx context.Context, userCred mcclient.TokenCredential) {
-	if len(self.ExternalId) == 0 {
+	if len(self.ExternalId) == 0 || options.Options.KeepTagLocalization {
+		return
+	}
+	if account := self.GetCloudaccount(); account != nil && account.ReadOnly {
 		return
 	}
 	err := self.StartRemoteUpdateTask(ctx, userCred, true, "")
@@ -1539,7 +1483,7 @@ func (lb *SLoadbalancer) PerformAssociateEip(ctx context.Context, userCred mccli
 	if len(eipStr) == 0 {
 		return nil, httperrors.NewMissingParameterError("eip_id")
 	}
-	eipObj, err := ElasticipManager.FetchByIdOrName(userCred, eipStr)
+	eipObj, err := ElasticipManager.FetchByIdOrName(ctx, userCred, eipStr)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, httperrors.NewResourceNotFoundError("eip %s not found", eipStr)

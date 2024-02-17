@@ -64,7 +64,7 @@ check: fmt-check
 check: goimports-check
 .PHONY: check
 
-RELEASE_BRANCH:=master
+RELEASE_BRANCH:=release/3.11
 mod:
 	GOPROXY=direct GOSUMDB=off go get yunion.io/x/onecloud@$(RELEASE_BRANCH)
 	#go get $(patsubst %,%@master,$(shell GO111MODULE=on go mod edit -print | sed -n -e 's|.*\(yunion.io/x/[a-z].*\) v.*|\1|p' | grep -v '/onecloud$$'))

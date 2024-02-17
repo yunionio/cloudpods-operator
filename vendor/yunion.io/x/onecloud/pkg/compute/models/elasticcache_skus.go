@@ -474,7 +474,7 @@ func (self *SCloudregion) newFromPublicCloudSku(ctx context.Context, userCred mc
 		zoneMaps[zone.ExternalId] = zone.Id
 	}
 
-	skuUrl := fmt.Sprintf("%s/%s/%s.json", meta.ElasticCacheBase, self.ExternalId, externalId)
+	skuUrl := self.getMetaUrl(meta.ElasticCacheBase, externalId)
 	sku := &SElasticcacheSku{}
 	sku.SetModelManager(ElasticcacheSkuManager, sku)
 	err = meta.Get(skuUrl, sku)
@@ -641,7 +641,7 @@ func (manager *SElasticcacheSkuManager) PerformActionSync(ctx context.Context, u
 	}
 
 	for _, v := range keyV {
-		if err := v.Validate(data); err != nil {
+		if err := v.Validate(ctx, data); err != nil {
 			return nil, err
 		}
 	}
@@ -806,6 +806,10 @@ func SyncElasticCacheSkus(ctx context.Context, userCred mcclient.TokenCredential
 			return
 		}
 	}
+	cloudregions := fetchSkuSyncCloudregions()
+	if len(cloudregions) == 0 {
+		return
+	}
 
 	meta, err := yunionmeta.FetchYunionmeta(ctx)
 	if err != nil {
@@ -819,7 +823,6 @@ func SyncElasticCacheSkus(ctx context.Context, userCred mcclient.TokenCredential
 		return
 	}
 
-	cloudregions := fetchSkuSyncCloudregions()
 	for i := range cloudregions {
 		region := &cloudregions[i]
 

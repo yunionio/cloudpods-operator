@@ -38,12 +38,15 @@ type IHostDriver interface {
 	RequestPrepareSaveDiskOnHost(ctx context.Context, host *SHost, disk *SDisk, imageId string, task taskman.ITask) error
 	RequestSaveUploadImageOnHost(ctx context.Context, host *SHost, disk *SDisk, imageId string, task taskman.ITask, data jsonutils.JSONObject) error
 
+	// create disk
 	RequestAllocateDiskOnStorage(ctx context.Context, userCred mcclient.TokenCredential, host *SHost, storage *SStorage, disk *SDisk, task taskman.ITask, input api.DiskAllocateInput) error
 	RequestRebuildDiskOnStorage(ctx context.Context, host *SHost, storage *SStorage, disk *SDisk, task taskman.ITask, input api.DiskAllocateInput) error
 
+	// delete disk
 	RequestDeallocateDiskOnHost(ctx context.Context, host *SHost, storage *SStorage, disk *SDisk, task taskman.ITask) error
 	RequestDeallocateBackupDiskOnHost(ctx context.Context, host *SHost, storage *SStorage, disk *SDisk, task taskman.ITask) error
 
+	// resize disk
 	RequestResizeDiskOnHost(ctx context.Context, host *SHost, storage *SStorage, disk *SDisk, size int64, task taskman.ITask) error
 
 	RequestDeleteSnapshotsWithStorage(ctx context.Context, host *SHost, snapshot *SSnapshot, task taskman.ITask) error
@@ -52,7 +55,7 @@ type IHostDriver interface {
 	PrepareConvert(host *SHost, image, raid string, data jsonutils.JSONObject) (*api.ServerCreateInput, error)
 	PrepareUnconvert(host *SHost) error
 	FinishUnconvert(ctx context.Context, userCred mcclient.TokenCredential, host *SHost) error
-	FinishConvert(userCred mcclient.TokenCredential, host *SHost, guest *SGuest, hostType string) error
+	FinishConvert(ctx context.Context, userCred mcclient.TokenCredential, host *SHost, guest *SGuest, hostType string) error
 	ConvertFailed(host *SHost) error
 	GetRaidScheme(host *SHost, raid string) (string, error)
 

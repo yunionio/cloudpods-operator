@@ -16,7 +16,6 @@ package compute
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"yunion.io/x/jsonutils"
@@ -24,7 +23,6 @@ import (
 
 	"yunion.io/x/onecloud/pkg/apis"
 	"yunion.io/x/onecloud/pkg/apis/billing"
-	"yunion.io/x/onecloud/pkg/apis/cloudcommon/db"
 	imageapi "yunion.io/x/onecloud/pkg/apis/image"
 	"yunion.io/x/onecloud/pkg/httperrors"
 )
@@ -75,6 +73,8 @@ type ServerListInput struct {
 	// 列出操作系统为指定值的主机
 	// enum: linux,windows,vmware
 	OsType []string `json:"os_type"`
+	// 操作系统发行版
+	OsDist []string `json:"os_dist"`
 
 	// 对列表结果按照磁盘大小进行排序
 	// enum: asc,desc
@@ -123,6 +123,9 @@ type ServerListInput struct {
 	SrcMacCheck *bool `json:"src_mac_check"`
 
 	InstanceType []string `json:"instance_type"`
+
+	// 根据镜像发行版排序
+	OrderByOsDist string `json:"order_by_os_dist"`
 
 	// 是否调度到宿主机上
 	WithHost *bool `json:"with_host"`
@@ -226,6 +229,8 @@ type ServerDetails struct {
 	Macs string `json:"macs"`
 	// 网卡信息
 	Nics []GuestnetworkShortDesc `json:"nics"`
+	// 附属IP
+	SubIPs []string `json:"sub_ips"`
 
 	// 归属VPC
 	Vpc string `json:"vpc"`
@@ -250,7 +255,9 @@ type ServerDetails struct {
 	// 直通设备（GPU）列表
 	IsolatedDevices []SIsolatedDevice `json:"isolated_devices"`
 	// 是否支持GPU
-	IsGpu bool `json:"is_gpu"`
+	IsGpu    bool   `json:"is_gpu"`
+	GpuModel string `json:"gpu_model"`
+	GpuCount string `json:"gpu_count"`
 
 	// Cdrom信息
 	Cdrom []Cdrom `json:"cdrom"`
@@ -277,6 +284,22 @@ type Cdrom struct {
 	Ordinal   int    `json:"ordinal"`
 	Detail    string `json:"detail"`
 	BootIndex int8   `json:"boot_index"`
+}
+
+type IMetricResource interface {
+	GetMetricTags() map[string]string
+}
+
+func AppendMetricTags(ret map[string]string, res ...IMetricResource) map[string]string {
+	if ret == nil {
+		ret = map[string]string{}
+	}
+	for _, r := range res {
+		for k, v := range r.GetMetricTags() {
+			ret[k] = v
+		}
+	}
+	return ret
 }
 
 func (self ServerDetails) GetMetricTags() map[string]string {
@@ -307,15 +330,8 @@ func (self ServerDetails) GetMetricTags() map[string]string {
 		"account_id":          self.AccountId,
 		"external_id":         self.ExternalId,
 	}
-	for k, v := range self.Metadata {
-		if strings.HasPrefix(k, db.USER_TAG_PREFIX) {
-			if strings.Contains(k, "login_key") || strings.Contains(v, "=") {
-				continue
-			}
-			ret[k] = v
-		}
-	}
-	return ret
+
+	return AppendMetricTags(ret, self.MetadataResourceInfo, self.ProjectizedResourceInfo)
 }
 
 func (self ServerDetails) GetMetricPairs() map[string]string {
@@ -329,24 +345,25 @@ func (self ServerDetails) GetMetricPairs() map[string]string {
 
 // GuestDiskInfo describe the information of disk on the guest.
 type GuestDiskInfo struct {
-	Id          string `json:"id"`
-	Name        string `json:"name"`
-	FsFormat    string `json:"fs,omitempty"`
-	DiskType    string `json:"disk_type"`
-	Index       int8   `json:"index"`
-	BootIndex   int8   `json:"boot_index"`
-	SizeMb      int    `json:"size"`
-	DiskFormat  string `json:"disk_format"`
-	Driver      string `json:"driver"`
-	CacheMode   string `json:"cache_mode"`
-	AioMode     string `json:"aio_mode"`
-	MediumType  string `json:"medium_type"`
-	StorageType string `json:"storage_type"`
-	Iops        int    `json:"iops"`
-	Bps         int    `json:"bps"`
-	ImageId     string `json:"image_id,omitempty"`
-	Image       string `json:"image,omitemtpy"`
-	StorageId   string `json:"storage_id"`
+	Id            string `json:"id"`
+	Name          string `json:"name"`
+	FsFormat      string `json:"fs,omitempty"`
+	DiskType      string `json:"disk_type"`
+	Index         int8   `json:"index"`
+	BootIndex     int8   `json:"boot_index"`
+	SizeMb        int    `json:"size"`
+	DiskFormat    string `json:"disk_format"`
+	Driver        string `json:"driver"`
+	CacheMode     string `json:"cache_mode"`
+	AioMode       string `json:"aio_mode"`
+	MediumType    string `json:"medium_type"`
+	StorageType   string `json:"storage_type"`
+	Iops          int    `json:"iops"`
+	Bps           int    `json:"bps"`
+	ImageId       string `json:"image_id,omitempty"`
+	Image         string `json:"image,omitemtpy"`
+	StorageId     string `json:"storage_id"`
+	Preallocation string `json:"preallocation"`
 }
 
 func (self GuestDiskInfo) ShortDesc() string {
@@ -442,13 +459,16 @@ type GuestAutoRenewInput struct {
 	Duration string `json:"duration"`
 }
 
-type ConvertEsxiToKvmInput struct {
+type ConvertToKvmInput struct {
 	apis.Meta
 
 	// target hypervisor
 	TargetHypervisor string `json:"target_hypervisor"`
 	// 指定转换的宿主机
 	PreferHost string `json:"prefer_host"`
+
+	// dest guest network configs
+	Networks []*NetworkConfig `json:"networks"`
 }
 
 type GuestSaveToTemplateInput struct {
@@ -659,6 +679,14 @@ type ServerDetachnetworkInput struct {
 	IpAddr string `json:"ip_addr"`
 	// 通过Mac解绑网卡, 优先级低于ip_addr
 	Mac string `json:"mac"`
+	// 解绑后不立即同步配置
+	DisableSyncConfig *bool `json:"disable_sync_config"`
+	// 强制卸载，无论虚拟机的状态，仅更新数据库
+	Force *bool `json:"force"`
+}
+
+func (input ServerDetachnetworkInput) IsForce() bool {
+	return input.Force != nil && *input.Force
 }
 
 type ServerMigrateForecastInput struct {
@@ -751,15 +779,24 @@ type ServerChangeConfigInput struct {
 	// swagger: ignore
 	Flavor string `json:"flavor" yunion-deprecated-by:"instance_type"`
 
+	// cpu卡槽数
+	// vmware 若开机调整配置时,需要保证调整前及调整后 vcpu_count / cpu_sockets 保持不变
+	// vmware开机调整配置同样需要注意 https://kb.vmware.com/s/article/2008405
+	CpuSockets *int `json:"cpu_sockets"`
+
 	// cpu大小
-	VcpuCount int `json:"vcpu_count"`
+	VcpuCount *int `json:"vcpu_count"`
 	// 内存大小, 1024M, 1G
 	VmemSize string `json:"vmem_size"`
 
 	// 调整完配置后是否自动启动
 	AutoStart bool `json:"auto_start"`
 
+	// disks start from index 1, i.e. cannot change size of system disk(1st disk)
 	Disks []DiskConfig `json:"disks"`
+
+	SetTrafficLimits   []ServerNicTrafficLimit
+	ResetTrafficLimits []ServerNicTrafficLimit
 }
 
 type ServerUpdateInput struct {
@@ -793,6 +830,7 @@ type GuestJsonDesc struct {
 	Description    string `json:"description"`
 	UUID           string `json:"uuid"`
 	Mem            int    `json:"mem"`
+	CpuSockets     int    `json:"cpu_sockets"`
 	Cpu            int    `json:"cpu"`
 	Vga            string `json:"vga"`
 	Vdi            string `json:"vdi"`
@@ -860,6 +898,8 @@ type GuestJsonDesc struct {
 	EncryptKeyId string `json:"encrypt_key_id,omitempty"`
 
 	IsDaemon bool `json:"is_daemon"`
+
+	LightMode bool `json:"light_mode"`
 }
 
 type ServerSetBootIndexInput struct {
@@ -985,6 +1025,58 @@ type ServerGetCPUSetCoresResp struct {
 	HostUsedCores []int `json:"host_used_cores"`
 }
 
+type ServerGetHardwareInfoInput struct{}
+
+type ServerHardwareInfoMotherboard struct {
+	Manufacturer string `json:"manufacturer"`
+	Model        string `json:"model"`
+	OemName      string `json:"oem_name"`
+	SN           string `json:"sn"`
+	Version      string `json:"version"`
+}
+
+type ServerHardwareInfoCPU struct {
+	Model string `json:"model"`
+	Count int    `json:"count"`
+}
+
+type ServerHardwareInfoMemory struct {
+	SizeMB int `json:"size_mb"`
+}
+
+type ServerHardwareInfoDisk struct {
+	Id        string `json:"id"`
+	StorageId string `json:"storage_id"`
+	Model     string `json:"model"`
+	SizeMB    int    `json:"size_mb"`
+	// Disk's backend bandwidth. The unit is MB/s
+	Bandwidth float64 `json:"bandwidth"`
+}
+
+type ServerHardwareInfoGPUPCIEInfo struct {
+	Throughput string `json:"pcie_throughput"`
+	LaneWidth  int    `json:"pcie_lane_width"`
+}
+
+type ServerHardwareInfoGPU struct {
+	*IsolatedDeviceModelHardwareInfo
+
+	// isolate device id
+	Id string `json:"id"`
+	// GPU model name
+	Model string `json:"model"`
+	// PCIE information
+	PCIEInfo *IsolatedDevicePCIEInfo `json:"pcie_info"`
+}
+
+type ServerGetHardwareInfoResp struct {
+	Motherboard *ServerHardwareInfoMotherboard `json:"motherboard"`
+	CPU         *ServerHardwareInfoCPU         `json:"cpu"`
+	Memory      *ServerHardwareInfoMemory      `json:"memory"`
+	Disks       []*ServerHardwareInfoDisk      `json:"disk"`
+	GPUs        []*ServerHardwareInfoGPU       `json:"gpu"`
+}
+
 type ServerMonitorInput struct {
 	COMMAND string
 	QMP     bool
@@ -1076,8 +1168,8 @@ type ServerNicTrafficLimit struct {
 }
 
 type GuestAddSubIpsInput struct {
-	Mac    string   `json:"mac"`
-	IpAddr string   `json:"ip_addr"`
+	ServerNetworkInfo
+
 	Count  int      `json:"count"`
 	SubIps []string `json:"sub_ips"`
 
@@ -1104,4 +1196,112 @@ type ServerLoginInfoOutput struct {
 	LoginKey string `json:"login_key"`
 	Keypair  string `json:"keypair"`
 	Password string `json:"password"`
+}
+
+type GuestPerformStartInput struct {
+	// 指定启动虚拟机的Qemu版本，可选值：2.12.1, 4.2.0
+	// 仅适用于KVM虚拟机
+	QemuVersion string `json:"qemu_version"`
+}
+
+type ServerSetOSInfoInput struct {
+	// OS type, e.g.: Linux, Windows
+	Type string `json:"type" help:"OS type, e.g.: Linux, Windows"`
+	// OS distribution, e.g.: CentOS, Ubuntu, Windows Server 2016 Datacenter
+	Distribution string `json:"distribution" help:"OS distribution, e.g.: CentOS, Ubuntu, Windows Server 2016 Datacenter"`
+	// OS version, e.g: 7.9, 22.04, 6.3
+	Version string `json:"version" help:"OS version, e.g.: 7.9, 22.04, 6.3"`
+	Arch    string `json:"arch" help:"OS arch, e.g.: x86_64, aarch64"`
+}
+
+type ServerNetworkInfo struct {
+	Index   int    `json:"index"`
+	Mac     string `json:"mac"`
+	IpAddr  string `json:"ip_addr"`
+	Ip6Addr string `json:"ip6_addr"`
+}
+
+type ServerChangeIpaddrInput struct {
+	ServerNetworkInfo
+
+	NetDesc string         `json:"net_desc"`
+	NetConf *NetworkConfig `json:"net_conf"`
+
+	Reserve *bool `json:"reserve"`
+
+	RestartNetwork *bool `json:"restart_network"`
+}
+
+type ServerChangeBandwidthInput struct {
+	ServerNetworkInfo
+
+	Bandwidth int `json:"bandwidth"`
+}
+
+type ServerChangeConfigSpecs struct {
+	CpuSockets   int    `json:"cpu_sockets"`
+	VcpuCount    int    `json:"vcpu_count"`
+	VmemSize     int    `json:"vmem_size"`
+	InstanceType string `json:"instance_type"`
+}
+
+type DiskResizeSpec struct {
+	DiskId    string
+	SizeMb    int
+	OldSizeMb int
+}
+
+type ServerChangeConfigSettings struct {
+	Old ServerChangeConfigSpecs `json:"old"`
+
+	ServerChangeConfigSpecs
+
+	InstanceTypeFamily string `json:"instance_type_family"`
+	// disks to resize
+	Resize []*DiskResizeSpec `json:"resize"`
+	// disks to create
+	Create []*DiskConfig `json:"create"`
+
+	AutoStart   bool `json:"auto_start"`
+	GuestOnline bool `json:"guest_online"`
+
+	SetTrafficLimits   []ServerNicTrafficLimit `json:"set_traffic_limits"`
+	ResetTrafficLimits []ServerNicTrafficLimit `json:"reset_traffic_limits"`
+
+	SchedDesc jsonutils.JSONObject `json:"sched_desc"`
+}
+
+func (conf ServerChangeConfigSettings) CpuChanged() bool {
+	return conf.VcpuCount != conf.Old.VcpuCount
+}
+
+func (conf ServerChangeConfigSettings) AddedCpu() int {
+	addCpu := conf.VcpuCount - conf.Old.VcpuCount
+	if addCpu < 0 {
+		addCpu = 0
+	}
+	return addCpu
+}
+
+func (conf ServerChangeConfigSettings) MemChanged() bool {
+	return conf.VmemSize != conf.Old.VmemSize
+}
+
+func (conf ServerChangeConfigSettings) AddedMem() int {
+	addMem := conf.VmemSize - conf.Old.VmemSize
+	if addMem < 0 {
+		addMem = 0
+	}
+	return addMem
+}
+
+func (conf ServerChangeConfigSettings) AddedDisk() int {
+	var size int
+	for _, resize := range conf.Resize {
+		size += resize.SizeMb - resize.OldSizeMb
+	}
+	for _, create := range conf.Create {
+		size += create.SizeMb
+	}
+	return size
 }

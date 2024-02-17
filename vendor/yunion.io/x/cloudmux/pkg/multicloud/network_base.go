@@ -12,23 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package compute
+package multicloud
 
-import (
-	"yunion.io/x/onecloud/pkg/mcclient/modulebase"
-	"yunion.io/x/onecloud/pkg/mcclient/modules"
-)
+type SNetworkBase struct {
+	SResourceBase
+}
 
-var (
-	SecGroupCaches modulebase.ResourceManager
-)
+func (net *SNetworkBase) GetIp6Start() string {
+	return ""
+}
 
-func init() {
-	SecGroupCaches = modules.NewComputeManager("secgroupcache", "secgroupcaches",
-		[]string{"ID", "Name", "Descritpion", "Status",
-			"Vpc_Id", "Vpc", "Region", "Account",
-			"Secgroup_Id"},
-		[]string{""})
+func (net *SNetworkBase) GetIp6End() string {
+	return ""
+}
 
-	modules.RegisterCompute(&SecGroupCaches)
+func (net *SNetworkBase) GetIp6Mask() uint8 {
+	return 0
+}
+
+func (net *SNetworkBase) GetGateway6() string {
+	return ""
 }

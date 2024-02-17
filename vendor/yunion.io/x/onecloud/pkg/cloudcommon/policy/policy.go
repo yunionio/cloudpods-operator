@@ -30,6 +30,7 @@ import (
 	"yunion.io/x/pkg/util/rbacscope"
 
 	"yunion.io/x/onecloud/pkg/apis"
+	identity_api "yunion.io/x/onecloud/pkg/apis/identity"
 	"yunion.io/x/onecloud/pkg/appsrv"
 	"yunion.io/x/onecloud/pkg/cloudcommon/consts"
 	"yunion.io/x/onecloud/pkg/httperrors"
@@ -92,11 +93,34 @@ type sPolicyData struct {
 	Policy        jsonutils.JSONObject `json:"policy"`
 	DomainTags    tagutils.TTagSet     `json:"domain_tags"`
 	ProjectTags   tagutils.TTagSet     `json:"project_tags"`
-	ResourceTags  tagutils.TTagSet     `json:"resource_tags"`
+	ObjectTags    tagutils.TTagSet     `json:"resource_tags"`
+
+	OrgNodes []identity_api.SOrganizationNodeInfo `json:"org_nodes"`
 }
 
 func (data sPolicyData) getPolicy() (*rbacutils.SPolicy, error) {
-	return rbacutils.DecodePolicyData(data.DomainTags, data.ProjectTags, data.ResourceTags, data.Policy)
+	var domainTags, projectTags, objectTags tagutils.TTagSetList
+	if len(data.DomainTags) > 0 {
+		domainTags = domainTags.Append(data.DomainTags)
+	}
+	if len(data.ProjectTags) > 0 {
+		projectTags = projectTags.Append(data.ProjectTags)
+	}
+	if len(data.ObjectTags) > 0 {
+		objectTags = objectTags.Append(data.ObjectTags)
+	}
+	for i := range data.OrgNodes {
+		orgNode := data.OrgNodes[i]
+		switch orgNode.Type {
+		case identity_api.OrgTypeDomain:
+			domainTags = domainTags.Append(orgNode.Tags)
+		case identity_api.OrgTypeProject:
+			projectTags = projectTags.Append(orgNode.Tags)
+		case identity_api.OrgTypeObject:
+			objectTags = objectTags.Append(orgNode.Tags)
+		}
+	}
+	return rbacutils.DecodePolicyData(domainTags, projectTags, objectTags, data.Policy)
 }
 
 func (manager *SPolicyManager) init(refreshInterval time.Duration, workerCount int) {
@@ -339,6 +363,9 @@ func (manager *SPolicyManager) allowWithoutCache(policies rbacutils.TPolicySet, 
 		log.Warningf("no policies fetched for scope %s", scope)
 	} else {
 		matchRules = policies.GetMatchRules(service, resource, action, extra...)
+		if consts.IsRbacDebug() {
+			log.Debugf("service %s resource %s action %s extra %s matchRules: %s", service, resource, action, jsonutils.Marshal(extra), jsonutils.Marshal(matchRules))
+		}
 	}
 
 	scopedDeny := false
@@ -369,26 +396,31 @@ func (manager *SPolicyManager) allowWithoutCache(policies rbacutils.TPolicySet, 
 		matchRules = append(matchRules, rule)
 	}
 
-	// try default policies
-	defaultPolicies, ok := manager.defaultPolicies[scope]
-	if ok {
-		for i := range defaultPolicies {
-			isMatched, _ := defaultPolicies[i].Match(userCred)
-			if !isMatched {
-				continue
-			}
-			rule := defaultPolicies[i].Rules.GetMatchRule(service, resource, action, extra...)
-			if rule != nil {
-				matchRules = append(matchRules,
-					rbacutils.SPolicyMatch{
-						Rule: *rule,
-					},
-				)
+	result := matchRules.GetResult()
+	if result.Result.IsDeny() {
+		// denied, try default policies
+		defaultPolicies, ok := manager.defaultPolicies[scope]
+		if ok {
+			for i := range defaultPolicies {
+				isMatched, _ := defaultPolicies[i].Match(userCred)
+				if !isMatched {
+					continue
+				}
+				rule := defaultPolicies[i].Rules.GetMatchRule(service, resource, action, extra...)
+				if rule != nil {
+					if consts.IsRbacDebug() {
+						log.Debugf("service: %s resource: %s action: %s extra: %s match default policy: %s match rule: %s", service, resource, action, jsonutils.Marshal(extra), jsonutils.Marshal(defaultPolicies[i]), jsonutils.Marshal(rule))
+					}
+					matchRules = append(matchRules,
+						rbacutils.SPolicyMatch{
+							Rule: *rule,
+						},
+					)
+				}
 			}
 		}
+		result = matchRules.GetResult()
 	}
-
-	result := matchRules.GetResult()
 	if consts.IsRbacDebug() {
 		log.Debugf("[RBAC: %s] %s %s %s %s permission %s userCred: %s MatchRules: %d(%s)", scope, service, resource, action, jsonutils.Marshal(extra), result, userCred, len(matchRules), jsonutils.Marshal(matchRules))
 	}
@@ -464,9 +496,9 @@ func explainPolicyInternal(userCred mcclient.TokenCredential, policyReq jsonutil
 			result = rbacutils.PolicyDeny
 			if match != nil {
 				result.Result = match.Rule.Result
-				result.DomainTags = tagutils.TTagSetList{match.DomainTags}
-				result.ProjectTags = tagutils.TTagSetList{match.ProjectTags}
-				result.ObjectTags = tagutils.TTagSetList{match.ObjectTags}
+				result.DomainTags = match.DomainTags
+				result.ProjectTags = match.ProjectTags
+				result.ObjectTags = match.ObjectTags
 			}
 		}
 	}

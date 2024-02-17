@@ -79,7 +79,7 @@ type SInstanceSnapshot struct {
 	// 套餐名称
 	InstanceType string `width:"64" charset:"utf8" nullable:"true" list:"user" create:"optional"`
 	// 主机快照磁盘容量和
-	SizeMb int `nullable:"false"`
+	SizeMb int `nullable:"false" list:"user"`
 	// 镜像ID
 	ImageId string `width:"36" charset:"ascii" nullable:"true" list:"user"`
 	// 是否保存内存
@@ -134,7 +134,7 @@ func (manager *SInstanceSnapshotManager) ListItemFilter(
 
 	guestStr := query.ServerId
 	if len(guestStr) > 0 {
-		guestObj, err := GuestManager.FetchByIdOrName(userCred, guestStr)
+		guestObj, err := GuestManager.FetchByIdOrName(ctx, userCred, guestStr)
 		if err != nil {
 			if errors.Cause(err) == sql.ErrNoRows {
 				return nil, httperrors.NewResourceNotFoundError2("guests", guestStr)
@@ -280,7 +280,7 @@ func (self *SInstanceSnapshot) getMoreDetails(userCred mcclient.TokenCredential,
 			}
 		}
 	} else if guest != nil {
-		out.Size = self.SizeMb
+		out.Size = self.SizeMb * 1024 * 1024
 		disk, err := guest.GetSystemDisk()
 		if err != nil {
 			log.Errorf("unable to GetSystemDisk of guest %q", guest.GetId())
@@ -499,6 +499,7 @@ func (self *SInstanceSnapshot) ToInstanceCreateInput(
 		sourceInput.Secgroups = inputSecgs
 	}
 	sourceInput.OsType = self.OsType
+	sourceInput.OsArch = self.OsArch
 	sourceInput.InstanceType = self.InstanceType
 	if len(sourceInput.Networks) == 0 {
 		sourceInput.Networks = serverConfig.Networks
@@ -552,7 +553,7 @@ func (self *SInstanceSnapshot) GetUsages() []db.IUsage {
 	}
 }
 
-func TotalInstanceSnapshotCount(scope rbacscope.TRbacScope, ownerId mcclient.IIdentityProvider, rangeObjs []db.IStandaloneModel, providers []string, brands []string, cloudEnv string, policyResult rbacutils.SPolicyResult) (int, error) {
+func TotalInstanceSnapshotCount(ctx context.Context, scope rbacscope.TRbacScope, ownerId mcclient.IIdentityProvider, rangeObjs []db.IStandaloneModel, providers []string, brands []string, cloudEnv string, policyResult rbacutils.SPolicyResult) (int, error) {
 	q := InstanceSnapshotManager.Query()
 
 	switch scope {
@@ -563,7 +564,7 @@ func TotalInstanceSnapshotCount(scope rbacscope.TRbacScope, ownerId mcclient.IId
 		q = q.Equals("tenant_id", ownerId.GetProjectId())
 	}
 
-	q = db.ObjectIdQueryWithPolicyResult(q, InstanceSnapshotManager, policyResult)
+	q = db.ObjectIdQueryWithPolicyResult(ctx, q, InstanceSnapshotManager, policyResult)
 
 	q = RangeObjectsFilter(q, rangeObjs, q.Field("cloudregion_id"), nil, q.Field("manager_id"), nil, nil)
 	q = CloudProviderFilter(q, q.Field("manager_id"), providers, brands, cloudEnv)
@@ -600,7 +601,7 @@ func (self *SInstanceSnapshot) StartInstanceSnapshotDeleteTask(
 		log.Errorf("%s", err)
 		return err
 	}
-	self.SetStatus(userCred, api.INSTANCE_SNAPSHOT_START_DELETE, "InstanceSnapshotDeleteTask")
+	self.SetStatus(ctx, userCred, api.INSTANCE_SNAPSHOT_START_DELETE, "InstanceSnapshotDeleteTask")
 	task.ScheduleRun(nil)
 	return nil
 }
@@ -642,7 +643,7 @@ func (is *SInstanceSnapshot) syncRemoveCloudInstanceSnapshot(ctx context.Context
 
 	err := is.ValidateDeleteCondition(ctx, nil)
 	if err != nil {
-		err = is.SetStatus(userCred, api.INSTANCE_SNAPSHOT_UNKNOWN, "sync to delete")
+		err = is.SetStatus(ctx, userCred, api.INSTANCE_SNAPSHOT_UNKNOWN, "sync to delete")
 	} else {
 		err = is.RealDelete(ctx, userCred)
 	}

@@ -330,6 +330,7 @@ type SEsCountStat struct {
 }
 
 func (man *SElasticSearchManager) TotalCount(
+	ctx context.Context,
 	scope rbacscope.TRbacScope,
 	ownerId mcclient.IIdentityProvider,
 	rangeObjs []db.IStandaloneModel,
@@ -340,7 +341,7 @@ func (man *SElasticSearchManager) TotalCount(
 	esq = scopeOwnerIdFilter(esq, scope, ownerId)
 	esq = CloudProviderFilter(esq, esq.Field("manager_id"), providers, brands, cloudEnv)
 	esq = RangeObjectsFilter(esq, rangeObjs, esq.Field("cloudregion_id"), nil, esq.Field("manager_id"), nil, nil)
-	esq = db.ObjectIdQueryWithPolicyResult(esq, man, policyResult)
+	esq = db.ObjectIdQueryWithPolicyResult(ctx, esq, man, policyResult)
 
 	sq := esq.SubQuery()
 	q := sq.Query(sqlchemy.COUNT("total_es_count"),
@@ -378,7 +379,7 @@ func (self *SElasticSearch) StartDeleteTask(ctx context.Context, userCred mcclie
 	if err != nil {
 		return err
 	}
-	self.SetStatus(userCred, api.ELASTIC_SEARCH_STATUS_DELETING, "")
+	self.SetStatus(ctx, userCred, api.ELASTIC_SEARCH_STATUS_DELETING, "")
 	task.ScheduleRun(nil)
 	return nil
 }
@@ -507,9 +508,12 @@ func (self *SElasticSearch) SyncWithCloudElasticSearch(ctx context.Context, user
 		})
 	}
 
-	syncVirtualResourceMetadata(ctx, userCred, self, ext)
+	if account := self.GetCloudaccount(); account != nil {
+		syncVirtualResourceMetadata(ctx, userCred, self, ext, account.ReadOnly)
+	}
+
 	if provider := self.GetCloudprovider(); provider != nil {
-		SyncCloudProject(ctx, userCred, self, provider.GetOwnerId(), ext, provider.Id)
+		SyncCloudProject(ctx, userCred, self, provider.GetOwnerId(), ext, provider)
 	}
 	db.OpsLog.LogSyncUpdate(self, diff, userCred)
 	return nil
@@ -610,9 +614,9 @@ func (self *SCloudregion) newFromCloudElasticSearch(ctx context.Context, userCre
 		Action: notifyclient.ActionSyncCreate,
 	})
 	// 同步标签
-	syncVirtualResourceMetadata(ctx, userCred, &es, ext)
+	syncVirtualResourceMetadata(ctx, userCred, &es, ext, false)
 	// 同步项目归属
-	SyncCloudProject(ctx, userCred, &es, provider.GetOwnerId(), ext, provider.Id)
+	SyncCloudProject(ctx, userCred, &es, provider.GetOwnerId(), ext, provider)
 
 	db.OpsLog.LogEvent(&es, db.ACT_CREATE, es.GetShortDesc(ctx), userCred)
 
@@ -686,14 +690,17 @@ func (self *SElasticSearch) StartRemoteUpdateTask(ctx context.Context, userCred 
 	if task, err := taskman.TaskManager.NewTask(ctx, "ElasticSearchRemoteUpdateTask", self, userCred, data, parentTaskId, "", nil); err != nil {
 		return errors.Wrap(err, "Start ElasticSearchRemoteUpdateTask")
 	} else {
-		self.SetStatus(userCred, api.ELASTIC_SEARCH_UPDATE_TAGS, "StartRemoteUpdateTask")
+		self.SetStatus(ctx, userCred, api.ELASTIC_SEARCH_UPDATE_TAGS, "StartRemoteUpdateTask")
 		task.ScheduleRun(nil)
 	}
 	return nil
 }
 
 func (self *SElasticSearch) OnMetadataUpdated(ctx context.Context, userCred mcclient.TokenCredential) {
-	if len(self.ExternalId) == 0 {
+	if len(self.ExternalId) == 0 || options.Options.KeepTagLocalization {
+		return
+	}
+	if account := self.GetCloudaccount(); account != nil && account.ReadOnly {
 		return
 	}
 	err := self.StartRemoteUpdateTask(ctx, userCred, true, "")

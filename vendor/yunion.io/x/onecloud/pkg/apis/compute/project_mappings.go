@@ -55,7 +55,29 @@ type ProjectMappingRuleInfo struct {
 	Domain string `json:"domain"`
 }
 
+func (rule ProjectMappingRuleInfo) IsWide() bool {
+	for _, tag := range rule.Tags {
+		if len(tag.Value) == 0 {
+			return true
+		}
+	}
+	return false
+}
+
 type MappingRules []ProjectMappingRuleInfo
+
+func (rules MappingRules) Rules() MappingRules {
+	normal := []ProjectMappingRuleInfo{}
+	wide := []ProjectMappingRuleInfo{}
+	for _, rule := range rules {
+		if rule.IsWide() {
+			wide = append(wide, rule)
+		} else {
+			normal = append(normal, rule)
+		}
+	}
+	return append(normal, wide...)
+}
 
 func (rule *ProjectMappingRuleInfo) Validate() error {
 	if len(rule.Tags) == 0 {
@@ -79,7 +101,7 @@ func (rule *ProjectMappingRuleInfo) Validate() error {
 	if emptyValueTags != 1 && rule.AutoCreateProject {
 		return httperrors.NewInputParameterError("not support auto_create_project")
 	}
-	if !rule.AutoCreateProject && len(rule.ProjectId) == 0 {
+	if !rule.AutoCreateProject && len(rule.ProjectId) == 0 && len(rule.Project) == 0 {
 		return httperrors.NewInputParameterError("missing project_id")
 	}
 	return nil
@@ -103,6 +125,9 @@ func (self *ProjectMappingRuleInfo) IsMatchTags(_extTags map[string]string) (str
 				newProj = extTag
 			}
 		}
+		if !self.AutoCreateProject && len(self.ProjectId) == 0 && len(self.Project) > 0 {
+			newProj = self.Project
+		}
 		return self.DomainId, self.ProjectId, newProj, true
 	case MAPPING_CONDITION_OR:
 		for _, tag := range self.Tags {
@@ -110,6 +135,8 @@ func (self *ProjectMappingRuleInfo) IsMatchTags(_extTags map[string]string) (str
 			if ok && (len(tag.Value) == 0 || tag.Value == extTag) {
 				if self.AutoCreateProject && len(tag.Value) == 0 && len(extTag) > 0 {
 					return "", "", extTag, true
+				} else if !self.AutoCreateProject && len(self.ProjectId) == 0 && len(self.Project) > 0 {
+					return self.DomainId, self.ProjectId, self.Project, true
 				} else {
 					return self.DomainId, self.ProjectId, "", true
 				}
@@ -143,6 +170,8 @@ type SProjectMappingAccount struct {
 }
 
 type ProjectMappingDetails struct {
+	SProjectMapping
+
 	apis.EnabledStatusInfrasResourceBaseDetails
 
 	Rules []ProjectMappingRuleInfoDetails
@@ -157,6 +186,7 @@ type ProjectMappingDetails struct {
 type ProjectMappingCreateInput struct {
 	apis.EnabledStatusInfrasResourceBaseCreateInput
 
+	// 根据标签key匹配的规则会默认排到列表最后
 	Rules MappingRules
 }
 
@@ -171,6 +201,7 @@ type ProjectMappingResourceInfo struct {
 type ProjectMappingUpdateInput struct {
 	apis.EnabledStatusInfrasResourceBaseUpdateInput
 
+	// 根据标签key匹配的规则会默认排到列表最后
 	Rules MappingRules
 }
 

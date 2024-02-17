@@ -12,25 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package compute
-
-import (
-	"yunion.io/x/onecloud/pkg/mcclient/modulebase"
-	"yunion.io/x/onecloud/pkg/mcclient/modules"
-)
-
-type AccessGroupCacheManager struct {
-	modulebase.ResourceManager
-}
-
-var (
-	AccessGroupCaches AccessGroupCacheManager
-)
-
-func init() {
-	AccessGroupCaches = AccessGroupCacheManager{modules.NewComputeManager("access_group_cache", "access_group_caches",
-		[]string{},
-		[]string{})}
-
-	modules.RegisterCompute(&AccessGroupCaches)
-}
+package sortutils // import "yunion.io/x/pkg/util/sortutils"

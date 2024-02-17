@@ -51,6 +51,8 @@ type GuestnetworkShortDesc struct {
 	VpcId string `json:"vpc_id"`
 	// 所属Network
 	NetworkId string `json:"network_id"`
+	// 附属IP
+	SubIps string `json:"sub_ips"`
 }
 
 type GuestnetworkListInput struct {
@@ -79,6 +81,8 @@ type GuestnetworkUpdateInput struct {
 	BwLimit *int `json:"bw_limit"`
 
 	Index *int8 `json:"index"`
+
+	IsDefault *bool `json:"is_default"`
 }
 
 type GuestnetworkBaseDesc struct {
@@ -100,6 +104,14 @@ type GuestnetworkBaseDesc struct {
 	Index          int8                 `json:"index"`
 	RxTrafficLimit int64                `json:"rx_traffic_limit"`
 	TxTrafficLimit int64                `json:"tx_traffic_limit"`
+	NicType        compute.TNicType     `json:"nic_type"`
+
+	Ip6      string `json:"ip6"`
+	Gateway6 string `json:"gateway6"`
+	Masklen6 uint8  `json:"masklen6"`
+
+	// 是否为缺省路由网关
+	IsDefault bool `json:"is_default"`
 
 	Bridge    string `json:"bridge"`
 	WireId    string `json:"wire_id"`
@@ -112,6 +124,8 @@ type GuestnetworkBaseDesc struct {
 	} `json:"vpc"`
 
 	Networkaddresses jsonutils.JSONObject `json:"networkaddresses"`
+
+	VirtualIps []string `json:"virtual_ips"`
 }
 
 type GuestnetworkJsonDesc struct {
@@ -121,10 +135,9 @@ type GuestnetworkJsonDesc struct {
 	NumQueues int    `json:"num_queues"`
 	Vectors   *int   `json:"vectors"`
 
-	VirtualIps []string `json:"virtual_ips"`
-	ExternalId string   `json:"external_id"`
-	TeamWith   string   `json:"team_with"`
-	Manual     *bool    `json:"manual"`
+	ExternalId string `json:"external_id"`
+	TeamWith   string `json:"team_with"`
+	Manual     *bool  `json:"manual"`
 
 	UpscriptPath   string `json:"upscript_path"`
 	DownscriptPath string `json:"downscript_path"`
@@ -133,12 +146,12 @@ type GuestnetworkJsonDesc struct {
 	Rate        int    `json:"rate"`
 	BaremetalId string `json:"baremetal_id"`
 
-	NicType compute.TNicType `json:"nic_type"`
-
 	LinkUp bool `json:"link_up"`
 }
 
 type SNicTrafficRecord struct {
 	RxTraffic int64
 	TxTraffic int64
+
+	HasBeenSetDown bool
 }

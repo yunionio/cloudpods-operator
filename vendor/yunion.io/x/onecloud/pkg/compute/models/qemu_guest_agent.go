@@ -58,7 +58,7 @@ func (self *SGuest) PerformQgaSetPassword(
 	if err != nil {
 		return nil, err
 	}
-	self.SetStatus(userCred, api.VM_QGA_SET_PASSWORD, "")
+	self.SetStatus(ctx, userCred, api.VM_QGA_SET_PASSWORD, "")
 	self.UpdateQgaStatus(api.QGA_STATUS_EXCUTING)
 	params := jsonutils.Marshal(input).(*jsonutils.JSONDict)
 	task, err := taskman.TaskManager.NewTask(ctx, "GuestQgaSetPasswordTask", self, userCred, params, "", "", nil)
@@ -128,4 +128,15 @@ func (self *SGuest) PerformQgaGetNetwork(
 	}
 	host, _ := self.GetHost()
 	return self.GetDriver().QgaRequestGetNetwork(ctx, userCred, nil, host, self)
+}
+
+func (self *SGuest) startQgaSyncOsInfoTask(ctx context.Context, userCred mcclient.TokenCredential, parentTaskId string) error {
+	self.SetStatus(ctx, userCred, api.VM_QGA_SYNC_OS_INFO, "")
+	kwargs := jsonutils.NewDict()
+	task, err := taskman.TaskManager.NewTask(ctx, "GuestQgaSyncOsInfoTask", self, userCred, kwargs, parentTaskId, "", nil)
+	if err != nil {
+		return err
+	}
+	task.ScheduleRun(nil)
+	return nil
 }

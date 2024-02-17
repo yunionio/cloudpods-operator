@@ -25,7 +25,6 @@ import (
 	"yunion.io/x/pkg/errors"
 	"yunion.io/x/pkg/tristate"
 	"yunion.io/x/pkg/util/compare"
-	"yunion.io/x/pkg/utils"
 	"yunion.io/x/sqlchemy"
 
 	"yunion.io/x/onecloud/pkg/apis"
@@ -78,7 +77,7 @@ func (manager *SGuestManager) FetchCustomizeColumns(
 			}
 		}
 	}
-	if len(fields) == 0 || fields.Contains("ips") {
+	/*if len(fields) == 0 || fields.Contains("ips") {
 		gips := fetchGuestIPs(guestIds, tristate.False)
 		if gips != nil {
 			for i := range rows {
@@ -87,7 +86,7 @@ func (manager *SGuestManager) FetchCustomizeColumns(
 				}
 			}
 		}
-	}
+	}*/
 	if len(fields) == 0 || fields.Contains("vip") {
 		gvips := fetchGuestVips(guestIds)
 		if gvips != nil {
@@ -108,26 +107,47 @@ func (manager *SGuestManager) FetchCustomizeColumns(
 			}
 		}
 	}
-	if len(fields) == 0 || fields.Contains("macs") {
-		gMacs := fetchGuestMacs(guestIds, tristate.False)
-		if gMacs != nil {
-			for i := range rows {
-				if gMac, ok := gMacs[guestIds[i]]; ok {
-					rows[i].Macs = strings.Join(gMac, ",")
-				}
-			}
-		}
-	}
-	if len(fields) == 0 || fields.Contains("nics") {
+
+	if len(fields) == 0 || fields.Contains("ips") || fields.Contains("macs") || fields.Contains("nics") || fields.Contains("subips") {
 		nicsMap := fetchGuestNICs(ctx, guestIds, tristate.False)
 		if nicsMap != nil {
 			for i := range rows {
 				if nics, ok := nicsMap[guestIds[i]]; ok {
-					rows[i].Nics = nics
+					if len(fields) == 0 || fields.Contains("nics") {
+						rows[i].Nics = nics
+					}
+					if len(fields) == 0 || fields.Contains("macs") {
+						macs := make([]string, 0, len(nics))
+						for _, nic := range nics {
+							macs = append(macs, nic.Mac)
+						}
+						rows[i].Macs = strings.Join(macs, ",")
+					}
+					if len(fields) == 0 || fields.Contains("ips") {
+						ips := make([]string, 0, len(nics))
+						for _, nic := range nics {
+							ips = append(ips, nic.IpAddr)
+							if len(nic.Ip6Addr) > 0 {
+								ips = append(ips, nic.Ip6Addr)
+							}
+						}
+						rows[i].IPs = strings.Join(ips, ",")
+					}
+					if len(fields) == 0 || fields.Contains("subips") {
+						subips := make([]string, 0)
+						for _, nic := range nics {
+							if len(nic.SubIps) > 0 {
+								ips := strings.Split(nic.SubIps, ",")
+								subips = append(subips, ips...)
+							}
+						}
+						rows[i].SubIPs = subips
+					}
 				}
 			}
 		}
 	}
+
 	if len(fields) == 0 || fields.Contains("vpc") || fields.Contains("vpc_id") {
 		gvpcs := fetchGuestVpcs(guestIds)
 		if gvpcs != nil {
@@ -209,11 +229,14 @@ func (manager *SGuestManager) FetchCustomizeColumns(
 				}
 			}
 		}
-		instanceTypes := fetchGuestGpuInstanceTypes(guestIds)
-		if len(instanceTypes) > 0 {
+		info, _ := fetchGuestGpuInstanceTypes(guestIds)
+		if len(info) > 0 {
 			for i := range rows {
-				if utils.IsInStringArray(guests[i].InstanceType, instanceTypes) {
+				gpu, ok := info[guests[i].InstanceType]
+				if ok {
 					rows[i].IsGpu = true
+					rows[i].GpuModel = gpu.Model
+					rows[i].GpuCount = gpu.Amount
 				}
 			}
 		}
@@ -302,6 +325,7 @@ func fetchGuestDisksInfo(guestIds []string) map[string][]api.GuestDiskInfo {
 		guestdisks.Field("guest_id"),
 		guestdisks.Field("boot_index"),
 		disks.Field("storage_id"),
+		disks.Field("preallocation"),
 	)
 	q = q.Join(guestdisks, sqlchemy.Equals(guestdisks.Field("disk_id"), disks.Field("id")))
 	q = q.Join(storages, sqlchemy.Equals(disks.Field("storage_id"), storages.Field("id")))
@@ -438,39 +462,15 @@ func fetchGuestVipEips(guestIds []string) map[string][]string {
 	return ret
 }
 
-func fetchGuestMacs(guestIds []string, virtual tristate.TriState) map[string][]string {
-	guestnetworks := GuestnetworkManager.Query().SubQuery()
-	q := guestnetworks.Query(guestnetworks.Field("guest_id"), guestnetworks.Field("mac_addr"))
-	q = q.In("guest_id", guestIds)
-	if virtual.IsTrue() {
-		q = q.IsTrue("virtual")
-	} else if virtual.IsFalse() {
-		q = q.IsFalse("virtual")
-	}
-	q = q.IsNotEmpty("mac_addr")
-	q = q.Asc("mac_addr")
-	type sGuestIdMacAddr struct {
-		GuestId string
-		MacAddr string
-	}
-	gims := make([]sGuestIdMacAddr, 0)
-	err := q.All(&gims)
-	if err != nil && errors.Cause(err) != sql.ErrNoRows {
-		return nil
-	}
-	ret := make(map[string][]string)
-	for i := range gims {
-		if _, ok := ret[gims[i].GuestId]; !ok {
-			ret[gims[i].GuestId] = make([]string, 0)
-		}
-		ret[gims[i].GuestId] = append(ret[gims[i].GuestId], gims[i].MacAddr)
-	}
-	return ret
-}
-
 func fetchGuestNICs(ctx context.Context, guestIds []string, virtual tristate.TriState) map[string][]api.GuestnetworkShortDesc {
 	netq := NetworkManager.Query().SubQuery()
 	wirq := WireManager.Query().SubQuery()
+
+	subIPQ := NetworkAddressManager.Query("parent_id").Equals("parent_type", api.NetworkAddressParentTypeGuestnetwork)
+	subIPQ = subIPQ.AppendField(sqlchemy.GROUP_CONCAT("sub_ips", subIPQ.Field("ip_addr")))
+	subIPQ = subIPQ.GroupBy(subIPQ.Field("parent_id"))
+	subIP := subIPQ.SubQuery()
+
 	gnwq := GuestnetworkManager.Query()
 	q := gnwq.AppendField(
 		gnwq.Field("guest_id"),
@@ -481,9 +481,11 @@ func fetchGuestNICs(ctx context.Context, guestIds []string, virtual tristate.Tri
 		gnwq.Field("team_with"),
 		gnwq.Field("network_id"), // caution: do not alias netq.id as network_id
 		wirq.Field("vpc_id"),
+		subIP.Field("sub_ips"),
 	)
 	q = q.Join(netq, sqlchemy.Equals(netq.Field("id"), gnwq.Field("network_id")))
 	q = q.Join(wirq, sqlchemy.Equals(wirq.Field("id"), netq.Field("wire_id")))
+	q = q.LeftJoin(subIP, sqlchemy.Equals(q.Field("row_id"), subIP.Field("parent_id")))
 	q = q.In("guest_id", guestIds)
 
 	var descs []struct {
@@ -491,7 +493,7 @@ func fetchGuestNICs(ctx context.Context, guestIds []string, virtual tristate.Tri
 		api.GuestnetworkShortDesc
 	}
 	if err := q.All(&descs); err != nil {
-		if err != sql.ErrNoRows {
+		if errors.Cause(err) != sql.ErrNoRows {
 			log.Errorf("query guest nics info: %v", err)
 		}
 		return nil
@@ -673,17 +675,23 @@ func fetchGuestKeypairs(guestIds []string) map[string]sGuestKeypair {
 	return ret
 }
 
-func fetchGuestGpuInstanceTypes(guestIds []string) []string {
+func fetchGuestGpuInstanceTypes(guestIds []string) (map[string]*GpuSpec, error) {
+	ret := map[string]*GpuSpec{}
 	sq := GuestManager.Query("instance_type").In("id", guestIds).SubQuery()
-	q := ServerSkuManager.Query("name").In("name", sq).GT("gpu_count", 0).Distinct()
-	instanceTypes := []string{}
-	skus, _ := q.AllStringMap()
-	for i := range skus {
-		for _, v := range skus[i] {
-			instanceTypes = append(instanceTypes, v)
-		}
+	q := ServerSkuManager.Query("name", "gpu_spec", "gpu_count").In("name", sq).IsNotEmpty("gpu_spec").Distinct()
+	gpus := []struct {
+		Name     string
+		GpuSpec  string
+		GpuCount string
+	}{}
+	err := q.All(&gpus)
+	if err != nil {
+		return ret, err
 	}
-	return instanceTypes
+	for _, gpu := range gpus {
+		ret[gpu.Name] = &GpuSpec{Model: gpu.GpuSpec, Amount: gpu.GpuCount}
+	}
+	return ret, nil
 }
 
 func fetchGuestIsolatedDevices(guestIds []string) map[string][]api.SIsolatedDevice {
