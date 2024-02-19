@@ -46,16 +46,36 @@ func (conn *Connection) IsDatabaseExists(db string) (bool, error) {
 	return false, nil
 }
 
-func (conn *Connection) IsUserExists(username string) (bool, error) {
-	var count int
-	q := fmt.Sprintf("SELECT COUNT(*) FROM system.users WHERE name = '%s'", username)
-	if err := conn.db.QueryRow(q).Scan(&count); err != nil {
-		return false, errors.Wrapf(err, "check user %s exists", username)
+func (conn *Connection) checkMySQLGrant(username string) (bool, error) {
+	q := fmt.Sprintf("SELECT COUNT(*) FROM system.grants WHERE user_name = '%s' AND access_type = 'MYSQL'", username)
+	count, err := conn.checkCount(q)
+	if err != nil {
+		return false, errors.Wrap(err, "check user exist")
 	}
 	if count > 0 {
 		return true, nil
 	}
 	return false, nil
+}
+
+func (conn *Connection) IsUserExists(username string) (bool, error) {
+	q := fmt.Sprintf("SELECT COUNT(*) FROM system.users WHERE name = '%s'", username)
+	count, err := conn.checkCount(q)
+	if err != nil {
+		return false, errors.Wrap(err, "check user exist")
+	}
+	if count > 0 {
+		return conn.checkMySQLGrant(username)
+	}
+	return false, nil
+}
+
+func (conn *Connection) checkCount(sql string) (int, error) {
+	var count int
+	if err := conn.db.QueryRow(sql).Scan(&count); err != nil {
+		return -1, errors.Wrapf(err, sql)
+	}
+	return count, nil
 }
 
 func (conn *Connection) dropUser(username string) error {
