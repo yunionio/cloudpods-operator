@@ -55,6 +55,10 @@ func (m *regionManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alph
 	return dbCfg
 }
 
+func (m *regionManager) getDBEngine(oc *v1alpha1.OnecloudCluster) v1alpha1.TDBEngineType {
+	return oc.Spec.GetDbEngine(oc.Spec.RegionServer.DbEngine)
+}
+
 func (m *regionManager) getClickhouseConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
 	return &cfg.RegionServer.ClickhouseConf
 }

@@ -11,6 +11,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/util/clickhouse"
+	"yunion.io/x/onecloud-operator/pkg/util/dameng"
 	"yunion.io/x/onecloud-operator/pkg/util/dbutil"
 	"yunion.io/x/onecloud-operator/pkg/util/mysql"
 )
@@ -19,28 +20,38 @@ func getMysqlDBConnectionByCluster(oc *v1alpha1.OnecloudCluster) (dbutil.IConnec
 	return mysql.NewConnection(&oc.Spec.Mysql)
 }
 
+func getDamengDBConnectionByCluster(oc *v1alpha1.OnecloudCluster) (dbutil.IConnection, error) {
+	return dameng.NewConnection(&oc.Spec.Dameng)
+}
+
 func getClickhouseDBConnectionByCluster(oc *v1alpha1.OnecloudCluster) (dbutil.IConnection, error) {
 	return clickhouse.NewConnection(&oc.Spec.Clickhouse)
 }
 
-func EnsureClusterDBUser(oc *v1alpha1.OnecloudCluster, dbConfig v1alpha1.DBConfig) error {
-	return ensureClusterDBUser(oc, dbConfig, "mysql")
+func EnsureClusterMySQLUser(oc *v1alpha1.OnecloudCluster, dbConfig v1alpha1.DBConfig) error {
+	return ensureClusterDBUser(oc, dbConfig, v1alpha1.DBEngineMySQL)
+}
+
+func EnsureClusterDamengUser(oc *v1alpha1.OnecloudCluster, dbConfig v1alpha1.DBConfig) error {
+	return ensureClusterDBUser(oc, dbConfig, v1alpha1.DBEngineDameng)
 }
 
 func EnsureClusterClickhouseUser(oc *v1alpha1.OnecloudCluster, dbConfig v1alpha1.DBConfig) error {
-	return ensureClusterDBUser(oc, dbConfig, "clickhouse")
+	return ensureClusterDBUser(oc, dbConfig, v1alpha1.DBEngineClickhouse)
 }
 
-func ensureClusterDBUser(oc *v1alpha1.OnecloudCluster, dbConfig v1alpha1.DBConfig, driver string) error {
+func ensureClusterDBUser(oc *v1alpha1.OnecloudCluster, dbConfig v1alpha1.DBConfig, driver v1alpha1.TDBEngineType) error {
 	dbName := dbConfig.Database
 	username := dbConfig.Username
 	password := dbConfig.Password
 	var connfactory func(oc *v1alpha1.OnecloudCluster) (dbutil.IConnection, error)
 	switch driver {
-	case "mysql":
+	case v1alpha1.DBEngineMySQL:
 		connfactory = getMysqlDBConnectionByCluster
-	case "clickhouse":
+	case v1alpha1.DBEngineClickhouse:
 		connfactory = getClickhouseDBConnectionByCluster
+	case v1alpha1.DBEngineDameng:
+		connfactory = getDamengDBConnectionByCluster
 	default:
 		return fmt.Errorf("unknown db driver %s", driver)
 	}

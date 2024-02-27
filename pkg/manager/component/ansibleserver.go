@@ -52,6 +52,10 @@ func (m *ansibleManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alp
 	return component.NewAnsibleServer().GetDefaultDBConfig(cfg)
 }
 
+func (m *ansibleManager) getDBEngine(oc *v1alpha1.OnecloudCluster) v1alpha1.TDBEngineType {
+	return oc.Spec.GetDbEngine(oc.Spec.AnsibleServer.DbEngine)
+}
+
 func (m *ansibleManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
 	return component.NewAnsibleServer().GetDefaultCloudUser(cfg)
 }
