@@ -51,6 +51,10 @@ func (m *cloudidManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alp
 	return component.NewCloudId().GetDefaultDBConfig(cfg)
 }
 
+func (m *cloudidManager) getDBEngine(oc *v1alpha1.OnecloudCluster) v1alpha1.TDBEngineType {
+	return oc.Spec.GetDbEngine(oc.Spec.CloudId.DbEngine)
+}
+
 func (m *cloudidManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
 	return component.NewCloudId().GetDefaultCloudUser(cfg)
 }

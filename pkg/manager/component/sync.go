@@ -30,6 +30,7 @@ import (
 type syncManager interface {
 	getProductVersions() []v1alpha1.ProductVersion
 	getComponentManager() *ComponentManager
+	getDBEngine(oc *v1alpha1.OnecloudCluster) v1alpha1.TDBEngineType
 	getDBConfig(*v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig
 	getClickhouseConfig(*v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig
 	getCloudUser(*v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser

@@ -220,6 +220,10 @@ type OnecloudClusterSpec struct {
 	Mysql Mysql `json:"mysql"`
 	// Clickhouse holds configuration for clickhouse
 	Clickhouse Clickhouse `json:"clickhouse"`
+	// Dameng holds configuration for dameng database
+	Dameng Dameng `json:"dameng"`
+	// db_engine holds the global db_engine setting
+	DbEngine TDBEngineType `json:"db_engine"`
 	// Version is onecloud components version
 	Version string `json:"version"`
 	// CertSANs sets extra Subject Alternative Names for the Cluster signing cert.
@@ -335,6 +339,17 @@ type OnecloudClusterSpec struct {
 	// Cloudmux holds configuration for cloudmux
 	Cloudmux CloudmuxSpec              `json:"cloudmux"`
 	Extdb    DeploymentServicePortSpec `json:"extdb"`
+}
+
+func (s OnecloudClusterSpec) GetDbEngine(srvSpec TDBEngineType) TDBEngineType {
+	if len(srvSpec) > 0 {
+		return srvSpec
+	}
+	if len(s.DbEngine) > 0 {
+		return s.DbEngine
+	}
+	// mysql is the default
+	return DBEngineMySQL
 }
 
 // OnecloudClusterStatus describes cluster status
@@ -556,6 +571,9 @@ type Mysql struct {
 // Clickhouse describe a clickhouse server
 type Clickhouse Mysql
 
+// Dameng describe a DAMENG DB server
+type Dameng Mysql
+
 // Minio hols configration for minio S3 object storage backend
 type Minio struct {
 	Enable bool      `json:"enable"`
@@ -592,7 +610,8 @@ type WebconsoleSpec struct {
 
 type DeploymentServicePortSpec struct {
 	DeploymentSpec
-	Service ServiceSpec `json:"service"`
+	Service  ServiceSpec   `json:"service"`
+	DbEngine TDBEngineType `json:"db_engine"`
 }
 
 type CronJobSpec struct {
@@ -620,6 +639,8 @@ type DaemonSetSpec struct {
 type YunionagentSpec struct {
 	DaemonSetSpec
 	Service ServiceSpec `json:"service"`
+
+	DbEngine TDBEngineType `json:"db_engine"`
 }
 
 type StatefulDeploymentSpec struct {
@@ -630,6 +651,8 @@ type StatefulDeploymentSpec struct {
 type MeterSpec struct {
 	StatefulDeploymentSpec
 	Service ServiceSpec `json:"service"`
+
+	DbEngine TDBEngineType `json:"db_engine"`
 }
 
 type InfluxdbSpec struct {
@@ -661,12 +684,16 @@ type KeystoneSpec struct {
 	PublicService     ServiceSpec `json:"publicService"`
 	AdminService      ServiceSpec `json:"adminService"`
 	BootstrapPassword string      `json:"bootstrapPassword"`
+
+	DbEngine TDBEngineType `json:"db_engine"`
 }
 
 type GlanceSpec struct {
 	StatefulDeploymentSpec
 	Service    ServiceSpec `json:"service"`
 	SwitchToS3 bool        `json:"switchToS3"`
+
+	DbEngine TDBEngineType `json:"db_engine"`
 }
 
 type MinioMode string
@@ -922,6 +949,8 @@ type NotifySpec struct {
 	Service ServiceSpec `json:"service"`
 
 	Plugins ContainerSpec `json:"plugins"`
+
+	DbEngine TDBEngineType `json:"db_engine"`
 }
 
 type CloudmonSpec struct {
@@ -1071,6 +1100,14 @@ type ResourceRequirement struct {
 	// Storage is storage size a pod requires
 	Storage string `json:"storage,omitempty"`
 }
+
+type TDBEngineType string
+
+const (
+	DBEngineMySQL      = TDBEngineType("mysql")
+	DBEngineClickhouse = TDBEngineType("clickhouse")
+	DBEngineDameng     = TDBEngineType("dameng")
+)
 
 type DBConfig struct {
 	Database string `json:"database"`

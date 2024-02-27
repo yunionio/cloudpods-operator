@@ -173,6 +173,11 @@ func (m *itsmManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1
 	return &tmp
 }
 
+func (m *itsmManager) getDBEngine(oc *v1alpha1.OnecloudCluster) v1alpha1.TDBEngineType {
+	// always mysql
+	return v1alpha1.DBEngineMySQL
+}
+
 func (m *itsmManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
 	return &cfg.Itsm.CloudUser
 }

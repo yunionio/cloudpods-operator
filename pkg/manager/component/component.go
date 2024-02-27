@@ -246,9 +246,20 @@ func (m *ComponentManager) syncConfigMap(
 	{
 		dbConfig := dbConfigFactory(clustercfg)
 		if dbConfig != nil {
-			if err := component.EnsureClusterDBUser(oc, *dbConfig); err != nil {
-				return errorswrap.Wrap(err, "ensure cluster db user")
+			dbEngine := f.getDBEngine(oc)
+			switch dbEngine {
+			case v1alpha1.DBEngineDameng:
+				if err := component.EnsureClusterDamengUser(oc, *dbConfig); err != nil {
+					return errorswrap.Wrap(err, "ensure cluster dameng db user")
+				}
+			case v1alpha1.DBEngineMySQL:
+				fallthrough
+			default:
+				if err := component.EnsureClusterMySQLUser(oc, *dbConfig); err != nil {
+					return errorswrap.Wrap(err, "ensure cluster mysql db user")
+				}
 			}
+
 		}
 	}
 	if len(oc.Spec.Clickhouse.Host) > 0 {
@@ -1358,6 +1369,10 @@ func (m *ComponentManager) multiZoneSync(oc *v1alpha1.OnecloudCluster, wantedZon
 
 func (m *ComponentManager) getDBConfig(_ *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
 	return nil
+}
+
+func (m *ComponentManager) getDBEngine(oc *v1alpha1.OnecloudCluster) v1alpha1.TDBEngineType {
+	return ""
 }
 
 func (m *ComponentManager) getClickhouseConfig(_ *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

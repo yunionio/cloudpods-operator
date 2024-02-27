@@ -55,7 +55,16 @@ func (r region) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudCl
 	}
 	config := cfg.RegionServer
 	spec := oc.Spec.RegionServer
-	option.SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
+
+	switch oc.Spec.GetDbEngine(oc.Spec.RegionServer.DbEngine) {
+	case v1alpha1.DBEngineDameng:
+		option.SetDamengOptions(&opt.DBOptions, oc.Spec.Dameng, config.DB)
+	case v1alpha1.DBEngineMySQL:
+		fallthrough
+	default:
+		option.SetMysqlOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
+	}
+
 	option.SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
 	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
 	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceDBCommonOptions.ServiceCommonOptions)
