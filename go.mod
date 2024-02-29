@@ -3,6 +3,7 @@ module yunion.io/x/onecloud-operator
 go 1.18
 
 require (
+	gitee.com/chunanyong/dm v1.8.14
 	github.com/ClickHouse/clickhouse-go v1.5.4
 	github.com/coreos/go-semver v0.3.0
 	github.com/docker/distribution v0.0.0-20170726174610-edc3ab29cdff
@@ -21,7 +22,7 @@ require (
 	k8s.io/klog v0.3.3
 	yunion.io/x/jsonutils v1.0.1-0.20240203102553-4096f103b401
 	yunion.io/x/log v1.0.1-0.20230411060016-feb3f46ab361
-	yunion.io/x/onecloud v0.0.0-20240217110032-450a27b8921e
+	yunion.io/x/onecloud v0.0.0-20240226121845-92ee483837c8
 	yunion.io/x/pkg v1.10.1-0.20240127153242-cdf9dc071f4f
 	yunion.io/x/structarg v0.0.0-20231017124457-df4d5009457c
 )
@@ -51,6 +52,7 @@ require (
 	github.com/golang-plus/uuid v1.0.0 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/golang/snappy v0.0.1 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/gofuzz v1.1.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
@@ -123,7 +125,7 @@ require (
 	moul.io/http2curl/v2 v2.3.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect
 	sigs.k8s.io/yaml v1.2.0 // indirect
-	yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20240205093912-f8af0aface0f // indirect
+	yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20240227041139-197cdc57e348 // indirect
 	yunion.io/x/executor v0.0.0-20230705125604-c5ac3141db32 // indirect
 	yunion.io/x/s3cli v0.0.0-20190917004522-13ac36d8687e // indirect
 	yunion.io/x/sqlchemy v1.1.3-0.20240210161427-e48bb9a658b7 // indirect

@@ -2,6 +2,7 @@ package component
 
 import (
 	"fmt"
+
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/util/option"
@@ -38,7 +39,16 @@ func (r webconsole) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.Oneclo
 		return nil, err
 	}
 	config := cfg.Webconsole
-	option.SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
+
+	switch oc.Spec.GetDbEngine(oc.Spec.Webconsole.DbEngine) {
+	case v1alpha1.DBEngineDameng:
+		option.SetDamengOptions(&opt.DBOptions, oc.Spec.Dameng, config.DB)
+	case v1alpha1.DBEngineMySQL:
+		fallthrough
+	default:
+		option.SetMysqlOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
+	}
+
 	option.SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
 	opt.AutoSyncTable = true
 	option.SetOptionsServiceTLS(&opt.BaseOptions, false)

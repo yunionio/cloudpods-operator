@@ -52,6 +52,10 @@ func (m *yunoinconfManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1
 	return &cfg.Yunionconf.DB
 }
 
+func (m *yunoinconfManager) getDBEngine(oc *v1alpha1.OnecloudCluster) v1alpha1.TDBEngineType {
+	return oc.Spec.GetDbEngine(oc.Spec.Yunionconf.DbEngine)
+}
+
 func (m *yunoinconfManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
 	return &cfg.Yunionconf.CloudUser
 }

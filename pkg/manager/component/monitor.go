@@ -52,6 +52,10 @@ func (m *monitorManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alp
 	return &cfg.Monitor.DB
 }
 
+func (m *monitorManager) getDBEngine(oc *v1alpha1.OnecloudCluster) v1alpha1.TDBEngineType {
+	return oc.Spec.GetDbEngine(oc.Spec.Monitor.DbEngine)
+}
+
 func (m *monitorManager) getClickhouseConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
 	return &cfg.Monitor.ClickhouseConf
 }

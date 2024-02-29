@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"yunion.io/x/log"
+	"yunion.io/x/pkg/errors"
 
 	"yunion.io/x/onecloud/pkg/cloudcommon/db"
 	"yunion.io/x/onecloud/pkg/cloudcommon/db/proxy"
@@ -56,7 +57,6 @@ func InitDB() error {
 		LoadbalancerListenerRuleManager,
 		LoadbalancerBackendGroupManager,
 		LoadbalancerBackendManager,
-		CachedLoadbalancerCertificateManager,
 		LoadbalancerClusterManager,
 		SchedtagManager,
 		DynamicschedtagManager,
@@ -82,7 +82,7 @@ func InitDB() error {
 		now := time.Now()
 		err := manager.InitializeData()
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "%s InitializeData", manager.Keyword())
 		}
 		if cost := time.Now().Sub(now); cost > time.Duration(time.Second)*15 {
 			log.Infof("%s InitializeData cost %s", manager.Keyword(), cost.Round(time.Second))

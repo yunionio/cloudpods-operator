@@ -69,6 +69,10 @@ func (m *glanceManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alph
 	return &cfg.Glance.DB
 }
 
+func (m *glanceManager) getDBEngine(oc *v1alpha1.OnecloudCluster) v1alpha1.TDBEngineType {
+	return oc.Spec.GetDbEngine(oc.Spec.Glance.DbEngine)
+}
+
 func (m *glanceManager) getClickhouseConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
 	return &cfg.Glance.ClickhouseConf
 }

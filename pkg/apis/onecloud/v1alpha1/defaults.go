@@ -135,6 +135,7 @@ func clearContainerSpec(spec *ContainerSpec) {
 func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 	setDefaults_Mysql(&obj.Mysql)
 	setDefaults_Clickhouse(&obj.Clickhouse)
+	setDefaults_Dameng(&obj.Dameng)
 	if obj.ProductVersion == "" {
 		obj.ProductVersion = ProductVersionFullStack
 	}
@@ -464,6 +465,15 @@ func setDefaults_Clickhouse(obj *Clickhouse) {
 	}
 	if obj.Port == 0 {
 		obj.Port = 9000
+	}
+}
+
+func setDefaults_Dameng(obj *Dameng) {
+	if obj.Username == "" {
+		obj.Username = "sysdba"
+	}
+	if obj.Port == 0 {
+		obj.Port = 5236
 	}
 }
 
