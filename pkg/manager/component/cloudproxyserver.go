@@ -57,6 +57,10 @@ func (m *cloudproxyManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1
 	return &cfg.Cloudproxy.DB
 }
 
+func (m *cloudproxyManager) getDBEngine(oc *v1alpha1.OnecloudCluster) v1alpha1.TDBEngineType {
+	return oc.Spec.GetDbEngine(oc.Spec.Cloudproxy.DbEngine)
+}
+
 func (m *cloudproxyManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
 	return &cfg.Cloudproxy.CloudUser
 }
@@ -71,7 +75,16 @@ func (m *cloudproxyManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 		return nil, false, err
 	}
 	config := cfg.Cloudproxy
-	option.SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
+
+	switch oc.Spec.GetDbEngine(oc.Spec.Cloudproxy.DbEngine) {
+	case v1alpha1.DBEngineDameng:
+		option.SetDamengOptions(&opt.DBOptions, oc.Spec.Dameng, config.DB)
+	case v1alpha1.DBEngineMySQL:
+		fallthrough
+	default:
+		option.SetMysqlOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
+	}
+
 	option.SetOptionsServiceTLS(&opt.CommonOptions.BaseOptions, false)
 	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 	opt.AutoSyncTable = true

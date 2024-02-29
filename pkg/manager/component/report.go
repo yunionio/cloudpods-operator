@@ -60,6 +60,10 @@ func (m *reportManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alph
 	return &cfg.Report.DB
 }
 
+func (m *reportManager) getDBEngine(oc *v1alpha1.OnecloudCluster) v1alpha1.TDBEngineType {
+	return oc.Spec.GetDbEngine(oc.Spec.Report.DbEngine)
+}
+
 func (m *reportManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
 	return &cfg.Report.CloudUser
 }
@@ -76,7 +80,16 @@ func (m *reportManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 		return nil, false, err
 	}
 	config := cfg.Report
-	option.SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
+
+	switch oc.Spec.GetDbEngine(oc.Spec.Report.DbEngine) {
+	case v1alpha1.DBEngineDameng:
+		option.SetDamengOptions(&opt.DBOptions, oc.Spec.Dameng, config.DB)
+	case v1alpha1.DBEngineMySQL:
+		fallthrough
+	default:
+		option.SetMysqlOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
+	}
+
 	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
 	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 	opt.AutoSyncTable = true

@@ -5904,7 +5904,7 @@ func (self *SGuest) getSecgroupsBySecgroupExternalIds(externalIds []string) ([]S
 
 func (self *SGuest) SyncVMSecgroups(ctx context.Context, userCred mcclient.TokenCredential, externalIds []string) error {
 	// clear secgroup if vm not support security group
-	if self.GetDriver().GetMaxSecurityGroupCount() == 0 {
+	if self.GetDriver().GetMaxSecurityGroupCount() == 0 || len(externalIds) == 0 {
 		_, err := db.Update(self, func() error {
 			self.SecgrpId = ""
 			self.AdminSecgrpId = ""
@@ -6344,6 +6344,9 @@ func (self *SGuest) ToNetworksConfig() []*api.NetworkConfig {
 		netConf.Wire = network.WireId
 		netConf.Network = network.Id
 		netConf.Exit = guestNetwork.IsExit()
+		if len(guestNetwork.Ip6Addr) > 0 {
+			netConf.RequireIPv6 = true
+		}
 		// netConf.Private
 		// netConf.Reserved
 		netConf.Driver = guestNetwork.Driver

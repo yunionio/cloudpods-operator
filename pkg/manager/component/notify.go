@@ -54,6 +54,10 @@ func (m *notifyManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alph
 	return &cfg.Notify.DB
 }
 
+func (m *notifyManager) getDBEngine(oc *v1alpha1.OnecloudCluster) v1alpha1.TDBEngineType {
+	return oc.Spec.GetDbEngine(oc.Spec.Notify.DbEngine)
+}
+
 func (m *notifyManager) getClickhouseConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
 	return &cfg.Notify.ClickhouseConf
 }

@@ -183,8 +183,8 @@ func (m *prepareManager) syncComponentDB(
 	if dbConfig != nil {
 		// NOTE: always sync user
 		controller.SyncUser = true
-		if err := EnsureClusterDBUser(oc, *dbConfig); err != nil {
-			return errors.Wrap(err, "ensure cluster db user")
+		if err := EnsureClusterMySQLUser(oc, *dbConfig); err != nil {
+			return errors.Wrap(err, "ensure cluster mysql db user")
 		}
 	}
 

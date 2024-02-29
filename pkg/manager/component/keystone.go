@@ -57,6 +57,10 @@ func (m *keystoneManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1al
 	return dbCfg
 }
 
+func (m *keystoneManager) getDBEngine(oc *v1alpha1.OnecloudCluster) v1alpha1.TDBEngineType {
+	return oc.Spec.GetDbEngine(oc.Spec.Keystone.DbEngine)
+}
+
 func (m *keystoneManager) getClickhouseConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
 	return component.NewKeystone().GetDefaultClickhouseConfig(cfg)
 }

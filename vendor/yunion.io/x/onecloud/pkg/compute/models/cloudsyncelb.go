@@ -48,13 +48,13 @@ func syncRegionLoadbalancerCertificates(
 	}
 	result := func() compare.SyncResult {
 		defer syncResults.AddSqlCost(LoadbalancerCertificateManager)()
-		return provider.SyncLoadbalancerCertificates(ctx, userCred, localRegion, certificates, syncRange.Xor)
+		return localRegion.SyncLoadbalancerCertificates(ctx, userCred, provider, certificates, syncRange.Xor)
 	}()
 
-	syncResults.Add(CachedLoadbalancerCertificateManager, result)
+	syncResults.Add(LoadbalancerCertificateManager, result)
 
 	msg := result.Result()
-	log.Infof("SyncLoadbalancerCachedCertificates for region %s result: %s", localRegion.Name, msg)
+	log.Infof("SyncLoadbalancerCertificates for region %s result: %s", localRegion.Name, msg)
 	if result.IsError() {
 		return
 	}
@@ -80,13 +80,13 @@ func syncRegionLoadbalancerAcls(
 	}
 	result := func() compare.SyncResult {
 		defer syncResults.AddSqlCost(LoadbalancerAclManager)()
-		return CachedLoadbalancerAclManager.SyncLoadbalancerAcls(ctx, userCred, provider, localRegion, acls, syncRange)
+		return localRegion.SyncLoadbalancerAcls(ctx, userCred, provider, acls, syncRange.Xor)
 	}()
 
-	syncResults.Add(CachedLoadbalancerAclManager, result)
+	syncResults.Add(LoadbalancerAclManager, result)
 
 	msg := result.Result()
-	log.Infof("SyncLoadbalancerCachedAcls for region %s result: %s", localRegion.Name, msg)
+	log.Infof("SyncLoadbalancerAcls for region %s result: %s", localRegion.Name, msg)
 	if result.IsError() {
 		return
 	}
@@ -148,6 +148,25 @@ func syncLbPeripherals(ctx context.Context, userCred mcclient.TokenCredential, p
 	if err != nil {
 		log.Errorf("syncLoadbalancerListeners error: %v", err)
 	}
+
+	err = syncLoadbalancerSecurityGroups(ctx, userCred, local, remote)
+	if err != nil {
+		log.Errorf("syncLoadbalancerSecurityGroups error: %v", err)
+	}
+}
+
+func syncLoadbalancerSecurityGroups(ctx context.Context, userCred mcclient.TokenCredential, localLb *SLoadbalancer, remoteLb cloudprovider.ICloudLoadbalancer) error {
+	secIds, err := remoteLb.GetSecurityGroupIds()
+	if err != nil {
+		return errors.Wrapf(err, "GetSecurityGroupIds")
+	}
+	result := localLb.SyncSecurityGroups(ctx, userCred, secIds)
+	msg := result.Result()
+	log.Infof("SyncSecurityGroups for Loadbalancer %s result: %s", localLb.Name, msg)
+	if result.IsError() {
+		return result.AllError()
+	}
+	return nil
 }
 
 func syncLoadbalancerEip(ctx context.Context, userCred mcclient.TokenCredential, provider *SCloudprovider, localLb *SLoadbalancer, remoteLb cloudprovider.ICloudLoadbalancer) error {

@@ -68,7 +68,7 @@ func (m *monitorStackManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 
 	spec := &oc.Spec.MonitorStack
 	if !spec.Grafana.Disable {
-		if err := component.EnsureClusterDBUser(oc, clustercfg.Grafana.DB); err != nil {
+		if err := component.EnsureClusterMySQLUser(oc, clustercfg.Grafana.DB); err != nil {
 			return errors.Wrap(err, "ensure grafana db config")
 		}
 	}

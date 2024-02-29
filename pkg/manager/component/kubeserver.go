@@ -53,6 +53,10 @@ func (m *kubeManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1
 	return &cfg.KubeServer.DB
 }
 
+func (m *kubeManager) getDBEngine(oc *v1alpha1.OnecloudCluster) v1alpha1.TDBEngineType {
+	return oc.Spec.GetDbEngine(oc.Spec.KubeServer.DbEngine)
+}
+
 func (m *kubeManager) getClickhouseConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
 	return &cfg.KubeServer.ClickhouseConf
 }

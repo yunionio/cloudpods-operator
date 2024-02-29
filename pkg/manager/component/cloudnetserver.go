@@ -58,6 +58,10 @@ func (m *cloudnetManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1al
 	return &cfg.Cloudnet.DB
 }
 
+func (m *cloudnetManager) getDBEngine(oc *v1alpha1.OnecloudCluster) v1alpha1.TDBEngineType {
+	return oc.Spec.GetDbEngine(oc.Spec.Cloudnet.DbEngine)
+}
+
 func (m *cloudnetManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
 	return &cfg.Cloudnet.CloudUser
 }
@@ -74,7 +78,16 @@ func (m *cloudnetManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 		return nil, false, err
 	}
 	config := cfg.Cloudnet
-	option.SetDBOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
+
+	switch oc.Spec.GetDbEngine(oc.Spec.Cloudnet.DbEngine) {
+	case v1alpha1.DBEngineDameng:
+		option.SetDamengOptions(&opt.DBOptions, oc.Spec.Dameng, config.DB)
+	case v1alpha1.DBEngineMySQL:
+		fallthrough
+	default:
+		option.SetMysqlOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
+	}
+
 	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
 	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 	opt.AutoSyncTable = true
