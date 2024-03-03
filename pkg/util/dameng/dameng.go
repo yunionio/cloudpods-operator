@@ -64,14 +64,13 @@ func (conn *Connection) DB() *sql.DB {
 func (conn *Connection) IsDatabaseExists(db string) (bool, error) {
 	// check schema existence
 	var dbName string
-	err := conn.db.
-		QueryRow(`SELECT DISTINCT object_name FROM all_objects WHERE object_type='SCH' AND object_name = '%s';`, db).
-		Scan(&dbName)
+	query := fmt.Sprintf(`SELECT DISTINCT object_name FROM all_objects WHERE object_type='SCH' AND object_name = '%s';`, db)
+	err := conn.db.QueryRow(query).Scan(&dbName)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return false, nil
 		}
-		return false, errors.Wrap(err, "do query")
+		return false, errors.Wrapf(err, "do query %s", query)
 	}
 	if dbName == db {
 		return true, nil
@@ -83,7 +82,7 @@ func (conn *Connection) IsUserExists(username string) (bool, error) {
 	var count int
 	q := fmt.Sprintf("SELECT COUNT(*) FROM dba_users WHERE username = '%s'", username)
 	if err := conn.db.QueryRow(q).Scan(&count); err != nil {
-		return false, errors.Wrapf(err, "check user %s exists", username)
+		return false, errors.Wrapf(err, "check user %s exists: %s", username, q)
 	}
 	if count > 0 {
 		return true, nil
@@ -144,19 +143,19 @@ func (conn *Connection) CreateUser(username string, password string, database st
 func (conn *Connection) alterUserPassword(username string, password string) error {
 	sql := fmt.Sprintf(`ALTER USER %s IDENTIFIED BY %s`, username, password)
 	_, err := conn.db.Exec(sql)
-	return err
+	return errors.Wrapf(err, "exec %s", sql)
 }
 
 func (conn *Connection) createUserPassword(username string, password string) error {
 	sql := fmt.Sprintf(`CREATE USER %s IDENTIFIED BY %s`, username, password)
 	_, err := conn.db.Exec(sql)
-	return err
+	return errors.Wrapf(err, "exec %s", sql)
 }
 
 func (conn *Connection) ensureUserRoles(username string) error {
 	sql := fmt.Sprintf(`GRANT resource,public TO %s`, username)
 	_, err := conn.db.Exec(sql)
-	return err
+	return errors.Wrapf(err, "exec %s", sql)
 }
 
 func (conn *Connection) CreateDatabase(db string) error {
@@ -164,15 +163,16 @@ func (conn *Connection) CreateDatabase(db string) error {
 }
 
 func (conn *Connection) createSchemaForUser(db string, username string) error {
-	_, err := conn.db.Exec(fmt.Sprintf("CREATE SCHEMA %s AUTHORIZATION %s", db, username))
-	return err
+	sql := fmt.Sprintf("CREATE SCHEMA %s AUTHORIZATION %s", db, username)
+	_, err := conn.db.Exec(sql)
+	return errors.Wrapf(err, "exec %s", sql)
 }
 
 func (conn *Connection) isSchemaOwnerUser(db string, username string) (bool, error) {
 	var count int
 	q := fmt.Sprintf(`SELECT COUNT(*) FROM SYSOBJECTS A, DBA_USERS B WHERE A.PID=B.USER_ID AND A.TYPE$='SCH' AND B.USERNAME='%s' AND A.NAME='%s';`, username, db)
 	if err := conn.db.QueryRow(q).Scan(&count); err != nil {
-		return false, errors.Wrapf(err, "isSchemaOwnerUser %s %s", db, username)
+		return false, errors.Wrapf(err, "isSchemaOwnerUser %s %s %s", db, username, q)
 	}
 	if count > 0 {
 		return true, nil
