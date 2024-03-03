@@ -177,16 +177,14 @@ func NewTelegrafVolume(
 			MountPath: path.Join(hostRoot, "/sys"),
 		},
 		{
-			Name:             "root",
-			ReadOnly:         true,
-			MountPath:        hostRoot,
-			MountPropagation: &bidirectional,
+			Name:      "root",
+			ReadOnly:  true,
+			MountPath: hostRoot,
 		},
 		{
-			Name:             "run",
-			ReadOnly:         false,
-			MountPath:        "/var/run",
-			MountPropagation: &bidirectional,
+			Name:      "run",
+			ReadOnly:  false,
+			MountPath: "/var/run",
 		},
 		{
 			Name:      "dev",
