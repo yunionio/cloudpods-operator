@@ -179,8 +179,7 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }
 
-    location /webconsole/sftp {
-        proxy_pass {{.WebconsoleURL}};
+    location /api/v1/webconsole/sftp {
         client_max_body_size 0;
         proxy_http_version 1.1;
         proxy_request_buffering off;
@@ -188,6 +187,8 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $remote_addr;
+        rewrite ^/api/v1/(.*)$ /$1 break;
+        proxy_pass {{.WebconsoleURL}};
     }
 
     location ~ ^/(vnc|spice|wmks|sol) {
