@@ -67,12 +67,18 @@ func (k keystone) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.Onecloud
 	option.SetOptionsServiceTLS(&opt.BaseOptions, oc.Spec.Keystone.DisableTLS)
 	option.SetServiceBaseOptions(&opt.BaseOptions, oc.GetRegion(), config.ServiceBaseConfig)
 
-	opt.BootstrapAdminUserPassword = oc.Spec.Keystone.BootstrapPassword
-	// always reset admin user password to ensure password is correct
-	opt.ResetAdminUserPassword = true
 	opt.AdminPort = constants.KeystoneAdminPort
 
 	return opt, nil
+}
+
+func (k keystone) GetServiceInitConfig(oc *v1alpha1.OnecloudCluster) map[string]interface{} {
+	ret := map[string]interface{}{
+		"bootstrap_admin_user_password": oc.Spec.Keystone.BootstrapPassword,
+		// always reset admin user password to ensure password is correct
+		"ResetAdminUserPassword": true,
+	}
+	return ret
 }
 
 func (k keystone) GetDefaultDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

@@ -42,6 +42,10 @@ func (bs baseService) GetOptions() interface{} {
 	return bs.options
 }
 
+func (c baseService) GetServiceInitConfig(oc *v1alpha1.OnecloudCluster) map[string]interface{} {
+	return map[string]interface{}{}
+}
+
 func (c baseService) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (interface{}, error) {
 	return nil, nil
 }

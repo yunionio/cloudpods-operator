@@ -64,21 +64,23 @@ func (g glance) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudCl
 	option.SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
 	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
 	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceDBCommonOptions.ServiceCommonOptions)
-
-	opt.FilesystemStoreDatadir = constants.GlanceFileStoreDir
-	//opt.TorrentStoreDir = constants.GlanceTorrentStoreDir
-	opt.EnableTorrentService = false
 	// TODO: fix this
 	opt.AutoSyncTable = true
 	opt.Port = config.Port
-
-	if oc.Spec.ProductVersion == v1alpha1.ProductVersionCMP {
-		opt.EnableRemoteExecutor = false
-		opt.TargetImageFormats = []string{"qcow2", "vmdk"}
-	} else {
-		opt.EnableRemoteExecutor = true
-	}
 	return opt, nil
+}
+
+func (g glance) GetServiceInitConfig(oc *v1alpha1.OnecloudCluster) map[string]interface{} {
+	ret := map[string]interface{}{
+		"filesystem_store_datadir": constants.GlanceFileStoreDir,
+		"enable_torrent_service":   false,
+		"enable_remote_executor":   true,
+	}
+	if oc.Spec.ProductVersion == v1alpha1.ProductVersionCMP {
+		ret["enable_remote_executor"] = false
+		ret["target_image_formats"] = []string{"qcow2", "vmdk"}
+	}
+	return ret
 }
 
 func (g glance) GetPhaseControl(man controller.ComponentManager) controller.PhaseControl {

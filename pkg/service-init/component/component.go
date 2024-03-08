@@ -23,6 +23,7 @@ type Component interface {
 	BuildClusterConfigCloudUser(clsCfg *v1alpha1.OnecloudClusterConfig, user v1alpha1.CloudUser) error
 
 	GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (interface{}, error)
+	GetServiceInitConfig(oc *v1alpha1.OnecloudCluster) map[string]interface{}
 	GetOptions() interface{}
 	GetDefaultDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig
 	GetDefaultClickhouseConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig

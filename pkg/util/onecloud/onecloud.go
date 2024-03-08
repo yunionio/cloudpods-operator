@@ -15,7 +15,9 @@
 package onecloud
 
 import (
+	"context"
 	"net/http"
+	"reflect"
 	"strings"
 
 	"golang.org/x/sync/errgroup"
@@ -24,11 +26,14 @@ import (
 	"yunion.io/x/log"
 	"yunion.io/x/pkg/errors"
 	"yunion.io/x/pkg/util/httputils"
+	"yunion.io/x/pkg/utils"
 
 	ansibleapi "yunion.io/x/onecloud/pkg/apis/ansible"
 	devtoolapi "yunion.io/x/onecloud/pkg/apis/devtool"
+	identityapi "yunion.io/x/onecloud/pkg/apis/identity"
 	monitorapi "yunion.io/x/onecloud/pkg/apis/monitor"
 	"yunion.io/x/onecloud/pkg/mcclient"
+	"yunion.io/x/onecloud/pkg/mcclient/auth"
 	"yunion.io/x/onecloud/pkg/mcclient/modulebase"
 	ansible_modules "yunion.io/x/onecloud/pkg/mcclient/modules/ansible"
 	"yunion.io/x/onecloud/pkg/mcclient/modules/compute"
@@ -887,4 +892,40 @@ func EnsureAgentAnsiblePlaybookRef(s *mcclient.ClientSession) error {
 		}
 	}
 	return nil
+}
+
+func GetConfig(opt interface{}) jsonutils.JSONObject {
+	config := jsonutils.Marshal(opt)
+	options, ok := config.(*jsonutils.JSONDict)
+	if !ok {
+		return config
+	}
+	rv := reflect.Indirect(reflect.ValueOf(opt))
+	if !(rv.FieldByName("CommonOptions").IsValid() ||
+		(rv.FieldByName("DBOptions").IsValid() && rv.FieldByName("BaseOptions").IsValid())) { // keystone
+		return config
+	}
+	for _, k := range options.SortedKeys() {
+		if !utils.IsInArray(k, identityapi.ServiceBlacklistOptionMap["default"]) {
+			options.Remove(k)
+		}
+	}
+	return options
+}
+
+func InitServiceConfig(service, region string, opts map[string]interface{}) error {
+	s := auth.GetAdminSession(context.Background(), region)
+	resp, err := identity.ServicesV3.GetSpecific(s, service, "config", nil)
+	if err != nil {
+		return errors.Wrapf(err, "get spec")
+	}
+	values := jsonutils.NewDict()
+	for k, v := range opts {
+		if resp.Contains("config", "default", k) {
+			continue
+		}
+		values.Add(jsonutils.Marshal(v), "config", "default", k)
+	}
+	_, err = identity.ServicesV3.PerformAction(s, service, "config", values)
+	return err
 }
