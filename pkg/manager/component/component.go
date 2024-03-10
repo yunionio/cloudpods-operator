@@ -957,11 +957,11 @@ func generateLivenessProbe(path string, port int32) *v1.Probe {
 
 func generateReadinessProbe(path string, port int32) *v1.Probe {
 	return &v1.Probe{
-		InitialDelaySeconds: 30,
-		PeriodSeconds:       15,
-		FailureThreshold:    3,
+		InitialDelaySeconds: 15,
+		PeriodSeconds:       5,
+		FailureThreshold:    2,
 		SuccessThreshold:    3,
-		TimeoutSeconds:      5,
+		TimeoutSeconds:      3,
 		Handler: v1.Handler{
 			HTTPGet: &v1.HTTPGetAction{
 				Path: path,
