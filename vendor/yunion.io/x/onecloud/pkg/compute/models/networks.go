@@ -615,7 +615,7 @@ func (snet *SNetwork) GetGuestIpv4StartAddress() netutils.IPV4Addr {
 }
 
 func (snet *SNetwork) IsExitNetwork() bool {
-	return netutils.IsExitAddress(snet.GetGuestIpv4StartAddress())
+	return len(snet.ExternalId) == 0 && netutils.IsExitAddress(snet.GetGuestIpv4StartAddress())
 }
 
 func (manager *SNetworkManager) getNetworksByWire(ctx context.Context, wire *SWire) ([]SNetwork, error) {
@@ -789,8 +789,8 @@ func (snet *SNetwork) SyncWithCloudNetwork(ctx context.Context, userCred mcclien
 }
 
 func (manager *SNetworkManager) newFromCloudNetwork(ctx context.Context, userCred mcclient.TokenCredential, extNet cloudprovider.ICloudNetwork, wire *SWire, syncOwnerId mcclient.IIdentityProvider, provider *SCloudprovider) (*SNetwork, error) {
-	net := SNetwork{}
-	net.SetModelManager(manager, &net)
+	net := &SNetwork{}
+	net.SetModelManager(manager, net)
 
 	net.Status = extNet.GetStatus()
 	net.ExternalId = extNet.GetGlobalId()
@@ -800,6 +800,11 @@ func (manager *SNetworkManager) newFromCloudNetwork(ctx context.Context, userCre
 	net.GuestIpMask = extNet.GetIpMask()
 	net.GuestGateway = extNet.GetGateway()
 	net.ServerType = extNet.GetServerType()
+	net.GuestIp6Start = extNet.GetIp6Start()
+	net.GuestIp6End = extNet.GetIp6End()
+	net.GuestIp6Mask = extNet.GetIp6Mask()
+	net.GuestGateway6 = extNet.GetGateway6()
+
 	// net.IsPublic = extNet.GetIsPublic()
 	// extScope := extNet.GetPublicScope()
 	// if extScope == rbacutils.ScopeDomain && !consts.GetNonDefaultDomainProjects() {
@@ -823,16 +828,16 @@ func (manager *SNetworkManager) newFromCloudNetwork(ctx context.Context, userCre
 		}
 		net.Name = newName
 
-		return manager.TableSpec().Insert(ctx, &net)
+		return manager.TableSpec().Insert(ctx, net)
 	}()
 	if err != nil {
 		return nil, errors.Wrapf(err, "Insert")
 	}
 
-	syncVirtualResourceMetadata(ctx, userCred, &net, extNet, false)
+	syncVirtualResourceMetadata(ctx, userCred, net, extNet, false)
 
 	if provider != nil {
-		SyncCloudProject(ctx, userCred, &net, syncOwnerId, extNet, provider)
+		SyncCloudProject(ctx, userCred, net, syncOwnerId, extNet, provider)
 		shareInfo := provider.getAccountShareInfo()
 		if utils.IsInStringArray(provider.Provider, api.PRIVATE_CLOUD_PROVIDERS) && extNet.GetPublicScope() == rbacscope.ScopeNone {
 			shareInfo = apis.SAccountShareInfo{
@@ -843,13 +848,13 @@ func (manager *SNetworkManager) newFromCloudNetwork(ctx context.Context, userCre
 		net.SyncShareState(ctx, userCred, shareInfo)
 	}
 
-	db.OpsLog.LogEvent(&net, db.ACT_CREATE, net.GetShortDesc(ctx), userCred)
+	db.OpsLog.LogEvent(net, db.ACT_CREATE, net.GetShortDesc(ctx), userCred)
 	notifyclient.EventNotify(ctx, userCred, notifyclient.SEventNotifyParam{
-		Obj:    &net,
+		Obj:    net,
 		Action: notifyclient.ActionSyncCreate,
 	})
 
-	return &net, nil
+	return net, nil
 }
 
 func (net *SNetwork) IsAddressInRange(address netutils.IPV4Addr) bool {
@@ -2633,31 +2638,53 @@ func (manager *SNetworkManager) ListItemFilter(
 
 	if len(ips) > 0 {
 		conditions := []sqlchemy.ICondition{}
-		for _, ip := range ips {
-			if len(ip) == 0 {
+		for _, ipstr := range ips {
+			if len(ipstr) == 0 {
 				continue
 			}
-			ipIa, err := parseIpToIntArray(ip)
-			if err != nil {
-				return nil, err
-			}
-
-			ipSa := []string{"0", "0", "0", "0"}
-			for i := range ipIa {
-				ipSa[i] = strconv.Itoa(ipIa[i])
-			}
-			fullIp := strings.Join(ipSa, ".")
-
-			ipField := sqlchemy.INET_ATON(sqlchemy.NewStringField(fullIp))
-			ipStart := sqlchemy.INET_ATON(q.Field("guest_ip_start"))
-			ipEnd := sqlchemy.INET_ATON(q.Field("guest_ip_end"))
 
 			var ipCondtion sqlchemy.ICondition
-			if exactIpMatch {
-				ipCondtion = sqlchemy.Between(ipField, ipStart, ipEnd)
+			if ip4Addr, err := netutils.NewIPV4Addr(ipstr); err == nil {
+				// ipv4 address, exactly
+				ipStart := sqlchemy.INET_ATON(q.Field("guest_ip_start"))
+				ipEnd := sqlchemy.INET_ATON(q.Field("guest_ip_end"))
+
+				ipCondtion = sqlchemy.AND(
+					sqlchemy.GE(ipEnd, uint32(ip4Addr)),
+					sqlchemy.LE(ipStart, uint32(ip4Addr)),
+				)
+				if !exactIpMatch {
+					ipCondtion = sqlchemy.OR(
+						ipCondtion,
+						sqlchemy.Contains(q.Field("guest_ip_start"), ipstr),
+						sqlchemy.Contains(q.Field("guest_ip_end"), ipstr),
+					)
+				}
+			} else if ip6Addr, err := netutils.NewIPV6Addr(ipstr); err == nil {
+				// ipv6 address, exactly
+				ipStart := q.Field("guest_ip6_start")
+				ipEnd := q.Field("guest_ip6_end")
+
+				ipCondtion = sqlchemy.AND(
+					sqlchemy.GE(ipEnd, ip6Addr.String()),
+					sqlchemy.LE(ipStart, ip6Addr.String()),
+				)
+				if !exactIpMatch {
+					ipCondtion = sqlchemy.OR(
+						ipCondtion,
+						sqlchemy.Contains(q.Field("guest_ip6_start"), ipstr),
+						sqlchemy.Contains(q.Field("guest_ip6_end"), ipstr),
+					)
+				}
 			} else {
-				ipCondtion = sqlchemy.OR(sqlchemy.Between(ipField, ipStart, ipEnd), sqlchemy.Contains(q.Field("guest_ip_start"), ip), sqlchemy.Contains(q.Field("guest_ip_end"), ip))
+				ipCondtion = sqlchemy.OR(
+					sqlchemy.Contains(q.Field("guest_ip_start"), ipstr),
+					sqlchemy.Contains(q.Field("guest_ip_end"), ipstr),
+					sqlchemy.Contains(q.Field("guest_ip6_start"), ipstr),
+					sqlchemy.Contains(q.Field("guest_ip6_end"), ipstr),
+				)
 			}
+
 			conditions = append(conditions, ipCondtion)
 		}
 		q = q.Filter(sqlchemy.OR(conditions...))
@@ -3342,6 +3369,7 @@ func (network *SNetwork) PerformChangeOwner(ctx context.Context, userCred mcclie
 }
 
 func (network *SNetwork) getUsedAddressQuery(ctx context.Context, userCred mcclient.TokenCredential, owner mcclient.IIdentityProvider, scope rbacscope.TRbacScope, addrOnly bool) *sqlchemy.SQuery {
+	usedAddressQueryProviders := getUsedAddressQueryProviders()
 	var (
 		args = &usedAddressQueryArgs{
 			network:  network,
@@ -3355,12 +3383,14 @@ func (network *SNetwork) getUsedAddressQuery(ctx context.Context, userCred mccli
 	)
 
 	for _, provider := range usedAddressQueryProviders {
-		queries = append(queries, provider.usedAddressQuery(ctx, args))
+		q := provider.usedAddressQuery(ctx, args)
+		queries = append(queries, q)
 	}
 	return sqlchemy.Union(queries...).Query()
 }
 
 func (network *SNetwork) getUsedAddressQuery6(ctx context.Context, userCred mcclient.TokenCredential, owner mcclient.IIdentityProvider, scope rbacscope.TRbacScope, addrOnly bool) *sqlchemy.SQuery {
+	usedAddress6QueryProviders := getUsedAddress6QueryProviders()
 	var (
 		args = &usedAddressQueryArgs{
 			network:  network,
@@ -3374,7 +3404,8 @@ func (network *SNetwork) getUsedAddressQuery6(ctx context.Context, userCred mccl
 	)
 
 	for _, provider := range usedAddress6QueryProviders {
-		queries = append(queries, provider.usedAddressQuery(ctx, args))
+		q := provider.usedAddressQuery(ctx, args)
+		queries = append(queries, q)
 	}
 	return sqlchemy.Union(queries...).Query()
 }
