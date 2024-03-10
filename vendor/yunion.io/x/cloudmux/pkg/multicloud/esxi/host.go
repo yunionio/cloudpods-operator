@@ -769,6 +769,7 @@ func (host *SHost) CreateVM(desc *cloudprovider.SManagedVMCreateConfig) (cloudpr
 
 type SCreateVMParam struct {
 	Name                 string
+	Desc                 string `json:"description"`
 	Uuid                 string
 	OsName               string
 	CpuSockets           int
@@ -1052,10 +1053,7 @@ func (host *SHost) DoCreateVM(ctx context.Context, ds *SDatastore, params SCreat
 		guestId = "windows7Server64Guest"
 	}
 
-	version := "vmx-10"
-	if host.isVersion50() {
-		version = "vmx-08"
-	}
+	version := host.getVmVersion()
 
 	if params.CpuSockets == 0 {
 		params.CpuSockets = 1
@@ -1065,6 +1063,7 @@ func (host *SHost) DoCreateVM(ctx context.Context, ds *SDatastore, params SCreat
 
 	spec := types.VirtualMachineConfigSpec{
 		Name:              name,
+		Annotation:        params.Desc,
 		Version:           version,
 		Uuid:              params.Uuid,
 		GuestId:           guestId,
@@ -1302,6 +1301,7 @@ func (host *SHost) CloneVM(ctx context.Context, from *SVirtualMachine, snapshot 
 	perSocket := params.Cpu / params.CpuSockets
 	spec := types.VirtualMachineConfigSpec{
 		Name:              name,
+		Annotation:        params.Desc,
 		Uuid:              params.Uuid,
 		NumCPUs:           int32(params.Cpu),
 		NumCoresPerSocket: int32(perSocket),
@@ -1433,6 +1433,19 @@ func (host *SHost) CloneVM(ctx context.Context, from *SVirtualMachine, snapshot 
 			return vm, nil
 		}
 	}
+
+	task, err = vm.getVmObj().UpgradeVM(ctx, host.getVmVersion())
+	if err != nil {
+		log.Errorf("upgrade vm %s error: %v", vm.GetName(), err)
+		return vm, nil
+	}
+
+	err = task.Wait(ctx)
+	if err != nil {
+		log.Errorf("wait vm %s upgrade error: %v", vm.GetName(), err)
+		return vm, nil
+	}
+
 	return vm, nil
 }
 
@@ -1455,6 +1468,29 @@ func (host *SHost) isVersion50() bool {
 		return true
 	}
 	return false
+}
+
+func (host *SHost) getVmVersion() string {
+	ver := func() string {
+		version := host.GetVersion()
+		if len(version) >= 3 {
+			return version[:3]
+		}
+		return version
+	}()
+	version, ok := map[string]string{
+		"5.0": "vmx-08",
+		"5.1": "vmx-09",
+		"5.5": "vmx-10",
+		"6.0": "vmx-11",
+		"6.5": "vmx-13",
+		"6.7": "vmx-14",
+		"7.0": "vmx-17",
+	}[ver]
+	if ok {
+		return version
+	}
+	return "vmx-10"
 }
 
 func (host *SHost) GetIHostNics() ([]cloudprovider.ICloudHostNetInterface, error) {

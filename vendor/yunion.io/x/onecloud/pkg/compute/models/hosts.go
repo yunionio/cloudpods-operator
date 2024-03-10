@@ -1196,7 +1196,7 @@ func (hh *SHostManager) GetPropertyHostTypeCount(ctx context.Context, userCred m
 	hcso := sqlchemy.Equals(hosts.Field("host_type"), api.HOST_TYPE_HCSO)
 	cs.When(hcso, sqlchemy.COUNT("", sqlchemy.DISTINCT("", hosts.Field("external_id"))))
 	cs.Else(sqlchemy.COUNT("", hosts.Field("id")))
-	q := hosts.Query(hosts.Field("host_type"), sqlchemy.NewFunction(cs, "count"))
+	q := hosts.Query(hosts.Field("host_type"), sqlchemy.NewFunction(cs, "count", true))
 	return hh.getCount(ctx, userCred, q, query)
 }
 
@@ -1651,7 +1651,7 @@ func (hh *SHost) GetGuestCount() (int, error) {
 
 func (hh *SHost) GetContainerCount(status []string) (int, error) {
 	q := hh.GetGuestsQuery()
-	q = q.Filter(sqlchemy.Equals(q.Field("hypervisor"), api.HYPERVISOR_CONTAINER))
+	q = q.Filter(sqlchemy.Equals(q.Field("hypervisor"), api.HYPERVISOR_POD))
 	if len(status) > 0 {
 		q = q.In("status", status)
 	}
@@ -1742,7 +1742,12 @@ func (h *SHost) getNetInterfacesInternal(wireId string, nicTypes []compute.TNicT
 		q = q.Equals("wire_id", wireId)
 	}
 	if len(nicTypes) > 0 {
-		q = q.In("nic_type", nicTypes)
+		//q.IsNullOrEmpty()
+		if ok, _ := utils.InArray(compute.NIC_TYPE_NORMAL, nicTypes); ok {
+			q = q.Filter(sqlchemy.OR(sqlchemy.In(q.Field("nic_type"), nicTypes), sqlchemy.IsNull(q.Field("nic_type"))))
+		} else {
+			q = q.In("nic_type", nicTypes)
+		}
 	}
 	q = q.Asc("index")
 	q = q.Asc("vlan_id")
@@ -3214,7 +3219,7 @@ func (manager *SHostManager) FetchGuestCnt(hostIds []string) map[string]*sGuestC
 		return ret
 	}
 	guests := []SGuest{}
-	err := GuestManager.RawQuery().IsFalse("deleted").In("host_id", hostIds).NotEquals("hypervisor", api.HYPERVISOR_CONTAINER).All(&guests)
+	err := GuestManager.RawQuery().IsFalse("deleted").In("host_id", hostIds).NotEquals("hypervisor", api.HYPERVISOR_POD).All(&guests)
 	if err != nil {
 		log.Errorf("query host %s guests error: %v", hostIds, err)
 	}
@@ -3241,7 +3246,7 @@ func (manager *SHostManager) FetchGuestCnt(hostIds []string) map[string]*sGuestC
 		}
 	}
 
-	GuestManager.RawQuery().IsFalse("deleted").In("backup_host_id", hostIds).NotEquals("hypervisor", api.HYPERVISOR_CONTAINER).All(&guests)
+	GuestManager.RawQuery().IsFalse("deleted").In("backup_host_id", hostIds).NotEquals("hypervisor", api.HYPERVISOR_POD).All(&guests)
 	for _, guest := range guests {
 		_, ok := ret[guest.BackupHostId]
 		if !ok {

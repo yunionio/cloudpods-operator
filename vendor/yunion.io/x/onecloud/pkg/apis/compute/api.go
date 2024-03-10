@@ -287,6 +287,7 @@ type IsolatedDeviceConfig struct {
 	NetworkIndex *int8  `json:"network_index"`
 	WireId       string `json:"wire_id"`
 	DiskIndex    *int8  `json:"disk_index"`
+	DevicePath   string `json:"device_path"`
 }
 
 type BaremetalDiskConfig struct {
@@ -627,6 +628,8 @@ type ServerCreateInput struct {
 
 	// 指定用于新建主机的主机镜像ID
 	GuestImageID string `json:"guest_image_id"`
+
+	Pod *PodCreateInput `json:"pod"`
 }
 
 func (input *ServerCreateInput) AfterUnmarshal() {

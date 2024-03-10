@@ -41,6 +41,7 @@ import (
 	proxyapi "yunion.io/x/onecloud/pkg/apis/cloudcommon/proxy"
 	api "yunion.io/x/onecloud/pkg/apis/compute"
 	"yunion.io/x/onecloud/pkg/apis/notify"
+	"yunion.io/x/onecloud/pkg/cloudcommon/consts"
 	"yunion.io/x/onecloud/pkg/cloudcommon/db"
 	"yunion.io/x/onecloud/pkg/cloudcommon/db/lockman"
 	"yunion.io/x/onecloud/pkg/cloudcommon/db/proxy"
@@ -1933,7 +1934,8 @@ func (account *SCloudaccount) PerformChangeOwner(ctx context.Context, userCred m
 }
 
 func (account *SCloudaccount) PerformChangeProject(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input apis.PerformChangeProjectOwnerInput) (jsonutils.JSONObject, error) {
-	if account.IsShared() {
+	// 未开启三级权限(默认共享), 允许更改项目
+	if consts.GetNonDefaultDomainProjects() && account.IsShared() {
 		return nil, errors.Wrap(httperrors.ErrInvalidStatus, "cannot change owner when shared!")
 	}
 
@@ -2874,7 +2876,7 @@ func (acnt *SCloudaccount) GetExternalProjectsByProjectIdOrName(projectId, name 
 			sqlchemy.Equals(q.Field("name"), name),
 			sqlchemy.Equals(q.Field("tenant_id"), projectId),
 		),
-	)
+	).Desc("priority")
 	err := db.FetchModelObjects(ExternalProjectManager, q, &projects)
 	if err != nil {
 		return nil, errors.Wrap(err, "db.FetchModelObjects")
@@ -2994,7 +2996,7 @@ func GetAvailableExternalProject(local *db.STenant, projects []SExternalProject)
 	return ret
 }
 
-// 若本地项目映射了多个云上项目，则在云上随机找一个项目
+// 若本地项目映射了多个云上项目，则在根据优先级找优先级最大的云上项目
 // 若本地项目没有映射云上任何项目，则在云上新建一个同名项目
 // 若本地项目a映射云上项目b，但b项目不可用,则看云上是否有a项目，有则直接使用,若没有则在云上创建a-1, a-2类似项目
 func (acnt *SCloudaccount) SyncProject(ctx context.Context, userCred mcclient.TokenCredential, projectId string) (string, error) {

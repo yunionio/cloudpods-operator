@@ -12,27 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cloudid
+package compute
 
-import "yunion.io/x/onecloud/pkg/apis"
-
-const (
-	CLOUD_POLICY_CACHE_STATUS_CACHING = "caching"
-	CLOUD_POLICY_CACHE_STATUS_READY   = "ready"
+import (
+	"yunion.io/x/onecloud/pkg/mcclient/modulebase"
+	"yunion.io/x/onecloud/pkg/mcclient/modules"
 )
 
-type CloudpolicycacheListInput struct {
-	apis.StatusStandaloneResourceListInput
-
-	// 根据权限过滤
-	CloudpolicyId string `json:"cloudpolicy_id"`
-
-	// 根据云账号过滤
-	CloudaccountId string `json:"cloudaccount_id"`
+type ContainerManager struct {
+	modulebase.ResourceManager
 }
 
-type CloudpolicycacheDetails struct {
-	apis.StatusStandaloneResourceDetails
-	CloudaccountResourceDetails
-	CloudproviderResourceDetails
+var (
+	Containers ContainerManager
+)
+
+func init() {
+	Containers = ContainerManager{
+		modules.NewComputeManager("container", "containers",
+			[]string{"ID", "Name", "Guest_ID", "Spec", "Status"},
+			[]string{}),
+	}
+	modules.RegisterCompute(&Containers)
 }
