@@ -67,6 +67,14 @@ func (m *telegrafManager) newTelegrafDaemonSet(
 						Value: path.Join(hostRoot, "/sys"),
 					},
 					{
+						Name:  "HOST_VAR",
+						Value: path.Join(hostRoot, "/var"),
+					},
+					{
+						Name:  "HOST_RUN",
+						Value: path.Join(hostRoot, "/run"),
+					},
+					{
 						Name:  "HOST_MOUNT_PREFIX",
 						Value: hostRoot,
 					},
@@ -159,50 +167,23 @@ func NewTelegrafVolume(
 		volumes:      make([]corev1.Volume, 0),
 		volumeMounts: make([]corev1.VolumeMount, 0),
 	}
-	var bidirectional = corev1.MountPropagationBidirectional
-	h.volumeMounts = append(h.volumeMounts, []corev1.VolumeMount{
-		{
+	h.volumeMounts = append(h.volumeMounts,
+		corev1.VolumeMount{
 			Name:      "etc-telegraf",
 			ReadOnly:  false,
 			MountPath: "/etc/telegraf",
 		},
-		{
-			Name:      "proc",
-			ReadOnly:  true,
-			MountPath: path.Join(hostRoot, "/proc"),
-		},
-		{
-			Name:      "sys",
-			ReadOnly:  true,
-			MountPath: path.Join(hostRoot, "/sys"),
-		},
-		{
+		corev1.VolumeMount{
 			Name:      "root",
 			ReadOnly:  true,
 			MountPath: hostRoot,
 		},
-		{
-			Name:      "run",
-			ReadOnly:  false,
-			MountPath: "/var/run",
-		},
-		{
-			Name:      "dev",
-			ReadOnly:  false,
-			MountPath: "/dev",
-		},
-		{
-			Name:             "cloud",
-			ReadOnly:         false,
-			MountPath:        "/opt/cloud",
-			MountPropagation: &bidirectional,
-		},
-	}...)
+	)
 
 	var volSrcType = corev1.HostPathDirectoryOrCreate
 	var hostPathDirectory = corev1.HostPathDirectory
-	h.volumes = append(h.volumes, []corev1.Volume{
-		{
+	h.volumes = append(h.volumes,
+		corev1.Volume{
 			Name: "etc-telegraf",
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
@@ -211,34 +192,7 @@ func NewTelegrafVolume(
 				},
 			},
 		},
-		{
-			Name: "proc",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/proc",
-					Type: &hostPathDirectory,
-				},
-			},
-		},
-		{
-			Name: "run",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/run",
-					Type: &hostPathDirectory,
-				},
-			},
-		},
-		{
-			Name: "sys",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/sys",
-					Type: &hostPathDirectory,
-				},
-			},
-		},
-		{
+		corev1.Volume{
 			Name: "root",
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
@@ -247,24 +201,6 @@ func NewTelegrafVolume(
 				},
 			},
 		},
-		{
-			Name: "dev",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/dev",
-					Type: &hostPathDirectory,
-				},
-			},
-		},
-		{
-			Name: "cloud",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/opt/cloud",
-					Type: &hostPathDirectory,
-				},
-			},
-		},
-	}...)
+	)
 	return h
 }
