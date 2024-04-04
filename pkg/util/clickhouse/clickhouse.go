@@ -107,6 +107,22 @@ func (conn *Connection) CreateUser(username string, password string, database st
 	return nil
 }
 
+func (conn *Connection) UpdateUser(username string, password string, database string) error {
+	passhash := sha256hash(password)
+	for _, sql := range []string{
+		fmt.Sprintf("ALTER USER %s IDENTIFIED WITH sha256_hash BY '%s' HOST ANY", username, passhash),
+		fmt.Sprintf("GRANT ALL ON %s.* TO %s", database, username),
+		fmt.Sprintf("GRANT MYSQL ON *.* TO %s", username),
+	} {
+		_, err := conn.db.Exec(sql)
+		if err != nil {
+			return errors.Wrapf(err, "exec %s", sql)
+		}
+	}
+
+	return nil
+}
+
 func (conn *Connection) CreateDatabase(db string) error {
 	_, err := conn.db.Exec(fmt.Sprintf("CREATE DATABASE IF NOT EXISTS `%s`", db))
 	return err

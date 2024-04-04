@@ -90,23 +90,61 @@ func (conn *Connection) IsUserExists(username string) (bool, error) {
 	return false, nil
 }
 
-func (conn *Connection) CreateUser(username string, password string, database string) error {
-	exist, err := conn.IsUserExists(username)
+func (conn *Connection) UpdateUser(username string, password string, database string) error {
+	// ensure change password
+	err := conn.alterUserPassword(username, password)
 	if err != nil {
-		return errors.Wrap(err, "IsUserExists")
+		return errors.Wrap(err, "alterUserPassword")
 	}
-	if exist {
-		// ensure change password
-		err := conn.alterUserPassword(username, password)
+
+	{
+		err := conn.ensureUserRoleSchema(username, database)
 		if err != nil {
-			return errors.Wrap(err, "alterUserPassword")
+			return errors.Wrap(err, "ensureUserRoleSchema")
 		}
-	} else {
-		// create user
-		err := conn.createUserPassword(username, password)
+	}
+	return nil
+}
+
+func (conn *Connection) ensureUserRoleSchema(username string, database string) error {
+
+	// ensure user roles
+	{
+		err := conn.ensureUserRoles(username)
 		if err != nil {
-			return errors.Wrap(err, "createUserPassword")
+			return errors.Wrap(err, "ensureUserRoles")
 		}
+	}
+	{
+		// ensure user owners schema
+		exist, err := conn.IsDatabaseExists(database)
+		if err != nil {
+			return errors.Wrap(err, "IsDatabaseExists")
+		}
+		if !exist {
+			err := conn.createSchemaForUser(database, username)
+			if err != nil {
+				return errors.Wrap(err, "ensureUserRoles")
+			}
+		} else {
+			owns, err := conn.isSchemaOwnerUser(database, username)
+			if err != nil {
+				return errors.Wrap(err, "isSchemaOwnerUser")
+			}
+			if !owns {
+				return errors.Wrapf(httperrors.ErrConflict, "schema %s not belong to user %s", database, username)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (conn *Connection) CreateUser(username string, password string, database string) error {
+	// create user
+	err := conn.createUserPassword(username, password)
+	if err != nil {
+		return errors.Wrap(err, "createUserPassword")
 	}
 	// ensure user roles
 	{
