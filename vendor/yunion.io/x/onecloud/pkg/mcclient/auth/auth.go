@@ -20,6 +20,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"yunion.io/x/jsonutils"
@@ -161,16 +162,29 @@ type authManager struct {
 	accessKeyCache   *sAccessKeyCache
 }
 
+var (
+	authManagerInstane *authManager
+	authManagerLock    *sync.Mutex = &sync.Mutex{}
+)
+
 func newAuthManager(cli *mcclient.Client, info *AuthInfo) *authManager {
-	authm := &authManager{
+	authManagerLock.Lock()
+	defer authManagerLock.Unlock()
+
+	if authManagerInstane != nil {
+		authManagerInstane.client = cli
+		authManagerInstane.info = info
+		return authManagerInstane
+	}
+	authManagerInstane = &authManager{
 		client:           cli,
 		info:             info,
 		tokenCacheVerify: NewTokenCacheVerify(),
 		accessKeyCache:   newAccessKeyCache(),
 	}
-	authm.InitSync(authm)
-	go authm.startRefreshRevokeTokens()
-	return authm
+	authManagerInstane.InitSync(authManagerInstane)
+	go authManagerInstane.startRefreshRevokeTokens()
+	return authManagerInstane
 }
 
 func (a *authManager) startRefreshRevokeTokens() {
@@ -263,12 +277,12 @@ func (a *authManager) authAdmin() error {
 	}
 }
 
-func (a *authManager) DoSync(first bool) (time.Duration, error) {
+func (a *authManager) DoSync(first bool, timeout bool) (time.Duration, error) {
 	err := a.authAdmin()
 	if err != nil {
 		return time.Minute, errors.Wrap(err, "authAdmin")
 	} else {
-		return a.adminCredential.GetExpires().Sub(time.Now()) / 2, nil
+		return time.Until(a.adminCredential.GetExpires()) / 2, nil
 	}
 }
 
@@ -281,7 +295,7 @@ func (a *authManager) Name() string {
 }
 
 func (a *authManager) reAuth() {
-	a.SyncOnce()
+	a.SyncOnce(false, false)
 }
 
 func (a *authManager) GetServiceURL(service, region, zone, endpointType string) (string, error) {
