@@ -69,8 +69,12 @@ func EnsureDBUser(conn dbutil.IConnection, dbName string, username string, passw
 	if err != nil {
 		return errors.Wrap(err, "check user exists")
 	}
-	if !userExists || controller.SyncUser {
+	if !userExists {
 		if err := conn.CreateUser(username, password, dbName); err != nil {
+			return errors.Wrapf(err, "create user %q for database %q", username, dbName)
+		}
+	} else if controller.SyncUser {
+		if err := conn.UpdateUser(username, password, dbName); err != nil {
 			return errors.Wrapf(err, "create user %q for database %q", username, dbName)
 		}
 	}

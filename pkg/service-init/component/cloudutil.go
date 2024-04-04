@@ -37,13 +37,14 @@ func EnsureServiceAccount(s *mcclient.ClientSession, account v1alpha1.CloudUser)
 		if !controller.SyncUser {
 			return nil
 		} else {
+			// no need to check, just update QJ
 			// password not change
-			if _, err := LoginByServiceAccount(s, account); err == nil {
-				return nil
-			}
+			// if _, err := LoginByServiceAccount(s, account); err == nil {
+			//	return nil
+			// }
 			id, _ := obj.GetString("id")
 			if _, err := onecloud.ChangeUserPassword(s, id, password); err != nil {
-				return errors.Wrapf(err, "user %s already exists, update password", username)
+				return errors.Wrapf(err, "user %s(%s) already exists, update password", username, id)
 			}
 			return nil
 		}
