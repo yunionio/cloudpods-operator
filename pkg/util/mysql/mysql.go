@@ -28,7 +28,7 @@ import (
 )
 
 var (
-	AllHosts = []string{"%", "127.0.0.1"}
+	allHosts = []string{"%", "127.0.0.1"}
 )
 
 type Connection struct {
@@ -157,7 +157,7 @@ func (conn *Connection) DropUserByHosts(username string, hosts []string) error {
 }
 
 func (conn *Connection) DropUser(username string) error {
-	return conn.DropUserByHosts(username, AllHosts)
+	return conn.DropUserByHosts(username, allHosts)
 }
 
 func (conn *Connection) DropUserByHost(username string, address string) error {
@@ -192,10 +192,23 @@ func (conn *Connection) CreateUser(username string, password string, database st
 	if database == "" {
 		database = "*"
 	}
-	addrs := AllHosts
+	addrs := allHosts
 	if err := conn.DropUser(username); err != nil {
 		return errors.Wrapf(err, "Delete user %s", username)
 	}
+	for _, addr := range addrs {
+		if err := conn.Grant(username, password, database, addr); err != nil {
+			return errors.Wrapf(err, "Grant user %s@%s to database %s", username, addr, database)
+		}
+	}
+	return nil
+}
+
+func (conn *Connection) UpdateUser(username string, password string, database string) error {
+	if database == "" {
+		database = "*"
+	}
+	addrs := allHosts
 	for _, addr := range addrs {
 		if err := conn.Grant(username, password, database, addr); err != nil {
 			return errors.Wrapf(err, "Grant user %s@%s to database %s", username, addr, database)
