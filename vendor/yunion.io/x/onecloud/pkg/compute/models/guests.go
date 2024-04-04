@@ -1042,9 +1042,9 @@ func (guest *SGuest) GetVpc() (*SVpc, error) {
 	if network == nil {
 		return nil, errors.Wrapf(err, "failed getting network for guest %s(%s)", guest.Name, guest.Id)
 	}
-	vpc, _ := network.GetVpc()
-	if vpc == nil {
-		return nil, errors.Wrapf(err, "failed getting vpc of guest network %s(%s)", network.Name, network.Id)
+	vpc, err := network.GetVpc()
+	if err != nil {
+		return nil, errors.Wrapf(err, "GetVpc")
 	}
 	return vpc, nil
 }
@@ -2974,13 +2974,6 @@ func (self *SGuest) SyncRemoveCloudVM(ctx context.Context, userCred mcclient.Tok
 		}
 	}
 
-	if !lostNamePattern.MatchString(self.Name) {
-		db.Update(self, func() error {
-			self.Name = fmt.Sprintf("%s-lost@%s", self.Name, timeutils.ShortDate(time.Now()))
-			return nil
-		})
-	}
-
 	if self.Status != api.VM_UNKNOWN {
 		self.SetStatus(ctx, userCred, api.VM_UNKNOWN, "Sync lost")
 	}
@@ -2994,6 +2987,15 @@ func (self *SGuest) SyncRemoveCloudVM(ctx context.Context, userCred mcclient.Tok
 		notifyclient.EventNotify(ctx, userCred, notifyclient.SEventNotifyParam{
 			Obj:    self,
 			Action: notifyclient.ActionSyncDelete,
+		})
+
+		return nil
+	}
+
+	if !lostNamePattern.MatchString(self.Name) {
+		db.Update(self, func() error {
+			self.Name = fmt.Sprintf("%s-lost@%s", self.Name, timeutils.ShortDate(time.Now()))
+			return nil
 		})
 	}
 

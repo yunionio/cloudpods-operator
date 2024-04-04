@@ -854,7 +854,7 @@ sigs.k8s.io/structured-merge-diff/v4/value
 # sigs.k8s.io/yaml v1.2.0
 ## explicit; go 1.12
 sigs.k8s.io/yaml
-# yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20240301021156-19058e27fbbc
+# yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20240402114036-d4f834cee170
 ## explicit; go 1.18
 yunion.io/x/cloudmux/pkg/apis
 yunion.io/x/cloudmux/pkg/apis/billing
@@ -871,11 +871,11 @@ yunion.io/x/executor/client
 # yunion.io/x/jsonutils v1.0.1-0.20240203102553-4096f103b401
 ## explicit; go 1.18
 yunion.io/x/jsonutils
-# yunion.io/x/log v1.0.1-0.20230411060016-feb3f46ab361
+# yunion.io/x/log v1.0.1-0.20240305175729-7cf2d6cd5a91
 ## explicit; go 1.12
 yunion.io/x/log
 yunion.io/x/log/hooks
-# yunion.io/x/onecloud v0.0.0-20240303034702-e79a81eb0ace
+# yunion.io/x/onecloud v0.0.0-20240403063904-9eae3cf56474
 ## explicit; go 1.18
 yunion.io/x/onecloud/cmd/climc/shell
 yunion.io/x/onecloud/locales
@@ -887,7 +887,6 @@ yunion.io/x/onecloud/pkg/apis/ansible
 yunion.io/x/onecloud/pkg/apis/billing
 yunion.io/x/onecloud/pkg/apis/cloudcommon/db
 yunion.io/x/onecloud/pkg/apis/cloudcommon/proxy
-yunion.io/x/onecloud/pkg/apis/cloudid
 yunion.io/x/onecloud/pkg/apis/cloudproxy
 yunion.io/x/onecloud/pkg/apis/compute
 yunion.io/x/onecloud/pkg/apis/devtool
@@ -959,7 +958,6 @@ yunion.io/x/onecloud/pkg/mcclient/models
 yunion.io/x/onecloud/pkg/mcclient/modulebase
 yunion.io/x/onecloud/pkg/mcclient/modules
 yunion.io/x/onecloud/pkg/mcclient/modules/ansible
-yunion.io/x/onecloud/pkg/mcclient/modules/cloudid
 yunion.io/x/onecloud/pkg/mcclient/modules/cloudproxy
 yunion.io/x/onecloud/pkg/mcclient/modules/compute
 yunion.io/x/onecloud/pkg/mcclient/modules/devtool
@@ -1023,7 +1021,7 @@ yunion.io/x/onecloud/pkg/util/yunionmeta
 yunion.io/x/onecloud/pkg/vpcagent/options
 yunion.io/x/onecloud/pkg/webconsole/options
 yunion.io/x/onecloud/pkg/yunionconf/options
-# yunion.io/x/pkg v1.10.1-0.20240303050651-73685b15a96e
+# yunion.io/x/pkg v1.10.1-0.20240324150220-11d9be90fa6c
 ## explicit; go 1.18
 yunion.io/x/pkg/appctx
 yunion.io/x/pkg/errors
@@ -1071,7 +1069,7 @@ yunion.io/x/pkg/utils
 # yunion.io/x/s3cli v0.0.0-20190917004522-13ac36d8687e
 ## explicit; go 1.12
 yunion.io/x/s3cli
-# yunion.io/x/sqlchemy v1.1.3-0.20240303023826-a40d7fe1f0a9
+# yunion.io/x/sqlchemy v1.1.3-0.20240326090913-96da8bf92408
 ## explicit; go 1.17
 yunion.io/x/sqlchemy
 yunion.io/x/sqlchemy/backends/clickhouse

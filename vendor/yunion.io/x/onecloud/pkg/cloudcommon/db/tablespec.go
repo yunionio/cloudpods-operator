@@ -57,6 +57,8 @@ type ITableSpec interface {
 	GetTableSpec() *sqlchemy.STableSpec
 
 	GetDBName() sqlchemy.DBName
+
+	InformUpdate(ctx context.Context, dt interface{}, oldObj *jsonutils.JSONDict)
 }
 
 type sTableSpec struct {
@@ -312,4 +314,8 @@ func (ts *sTableSpec) informUpdate(ctx context.Context, dt interface{}, oldObj *
 		}
 	}
 	nopanic.Run(nf)
+}
+
+func (ts *sTableSpec) InformUpdate(ctx context.Context, dt interface{}, oldObj *jsonutils.JSONDict) {
+	ts.informUpdate(ctx, dt, oldObj)
 }

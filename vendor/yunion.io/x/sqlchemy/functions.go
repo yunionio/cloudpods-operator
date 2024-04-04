@@ -17,8 +17,6 @@ package sqlchemy
 import (
 	"fmt"
 	"strings"
-
-	"yunion.io/x/log"
 )
 
 // IFunctionQueryField is a special type of field that is an aggregate function
@@ -39,10 +37,11 @@ type IFunction interface {
 
 // NewFunction creates a field with SQL function
 // for example: SUM(count) as total
-func NewFunction(ifunc IFunction, name string) IQueryField {
+func NewFunction(ifunc IFunction, name string, isAggre bool) IQueryField {
 	return &SFunctionFieldBase{
 		IFunction: ifunc,
 		alias:     name,
+		aggregate: isAggre,
 	}
 }
 
@@ -74,12 +73,6 @@ func (ff *SFunctionFieldBase) Reference() string {
 
 // Expression implementation of SFunctionFieldBase for IQueryField
 func (ff *SFunctionFieldBase) Expression() string {
-	if len(ff.alias) > 0 {
-		qChar := ff.getQuoteChar()
-		// add alias
-		return fmt.Sprintf("%s AS %s%s%s", ff.expression(), qChar, ff.alias, qChar)
-	}
-	// no alias
 	return ff.expression()
 }
 
@@ -116,12 +109,7 @@ type sExprFunction struct {
 func (ff *sExprFunction) expression() string {
 	fieldRefs := make([]interface{}, 0)
 	for _, f := range ff.fields {
-		switch tf := f.(type) {
-		case *SFunctionFieldBase:
-			fieldRefs = append(fieldRefs, tf.expression())
-		default:
-			fieldRefs = append(fieldRefs, tf.Reference())
-		}
+		fieldRefs = append(fieldRefs, f.Expression())
 	}
 	return fmt.Sprintf(ff.function, fieldRefs...)
 }
@@ -142,7 +130,9 @@ func (ff *sExprFunction) database() *SDatabase {
 			return db
 		}
 	}
-	log.Debugf("no fields function? %s", ff.expression())
+	// if ff.function != "COUNT(*)" {
+	// 	log.Debugf("no fields function? %s", ff.expression())
+	// }
 	return nil
 }
 
@@ -181,6 +171,11 @@ func MIN(name string, field IQueryField) IQueryField {
 // SUM represents the SQL function SUM
 func SUM(name string, field IQueryField) IQueryField {
 	return getFieldBackend(field).SUM(name, field)
+}
+
+// AVG represents the SQL function SUM
+func AVG(name string, field IQueryField) IQueryField {
+	return getFieldBackend(field).AVG(name, field)
 }
 
 // LOWER represents the SQL function SUM
@@ -222,12 +217,7 @@ type SConstField struct {
 
 // Expression implementation of SConstField for IQueryField
 func (s *SConstField) Expression() string {
-	name := s.Name()
-	if len(name) == 0 {
-		return s.Reference()
-	} else {
-		return fmt.Sprintf("%s AS %s", s.Reference(), name)
-	}
+	return s.Reference()
 }
 
 // Name implementation of SConstField for IQueryField
@@ -276,12 +266,7 @@ type SStringField struct {
 
 // Expression implementation of SStringField for IQueryField
 func (s *SStringField) Expression() string {
-	name := s.Name()
-	if len(name) == 0 {
-		return s.Reference()
-	} else {
-		return fmt.Sprintf("%s AS %s", s.Reference(), name)
-	}
+	return s.Reference()
 }
 
 // Name implementation of SStringField for IQueryField
@@ -371,6 +356,21 @@ func DATE_FORMAT(name string, field IQueryField, format string) IQueryField {
 // CAST represents a SQL function cast types
 func CAST(field IQueryField, typeStr string, fieldname string) IQueryField {
 	return getFieldBackend(field).CAST(field, typeStr, fieldname)
+}
+
+// CASTString represents a SQL function cast any type to String
+func CASTString(field IQueryField, fieldname string) IQueryField {
+	return getFieldBackend(field).CASTString(field, fieldname)
+}
+
+// CASTInt represents a SQL function cast any type to Integer
+func CASTInt(field IQueryField, fieldname string) IQueryField {
+	return getFieldBackend(field).CASTInt(field, fieldname)
+}
+
+// CASTFloat represents a SQL function cast any type to Float
+func CASTFloat(field IQueryField, fieldname string) IQueryField {
+	return getFieldBackend(field).CASTFloat(field, fieldname)
 }
 
 // LENGTH represents a SQL function of LENGTH

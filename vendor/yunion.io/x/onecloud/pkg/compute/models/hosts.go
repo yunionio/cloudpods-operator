@@ -1196,7 +1196,7 @@ func (hh *SHostManager) GetPropertyHostTypeCount(ctx context.Context, userCred m
 	hcso := sqlchemy.Equals(hosts.Field("host_type"), api.HOST_TYPE_HCSO)
 	cs.When(hcso, sqlchemy.COUNT("", sqlchemy.DISTINCT("", hosts.Field("external_id"))))
 	cs.Else(sqlchemy.COUNT("", hosts.Field("id")))
-	q := hosts.Query(hosts.Field("host_type"), sqlchemy.NewFunction(cs, "count"))
+	q := hosts.Query(hosts.Field("host_type"), sqlchemy.NewFunction(cs, "count", true))
 	return hh.getCount(ctx, userCred, q, query)
 }
 
@@ -1742,7 +1742,12 @@ func (h *SHost) getNetInterfacesInternal(wireId string, nicTypes []compute.TNicT
 		q = q.Equals("wire_id", wireId)
 	}
 	if len(nicTypes) > 0 {
-		q = q.In("nic_type", nicTypes)
+		//q.IsNullOrEmpty()
+		if ok, _ := utils.InArray(compute.NIC_TYPE_NORMAL, nicTypes); ok {
+			q = q.Filter(sqlchemy.OR(sqlchemy.In(q.Field("nic_type"), nicTypes), sqlchemy.IsNull(q.Field("nic_type"))))
+		} else {
+			q = q.In("nic_type", nicTypes)
+		}
 	}
 	q = q.Asc("index")
 	q = q.Asc("vlan_id")
