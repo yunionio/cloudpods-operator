@@ -69,11 +69,13 @@ mkdir -p %s/etc/yunion/pki
 mount --bind /etc/yunion/pki %s/etc/yunion/pki
 mkdir -p %s/opt/yunion/bin
 mount --bind /opt/yunion/bin %s/opt/yunion/bin
+mount --bind /dev %s/dev
 chroot %s /opt/yunion/bin/%s --config /etc/yunion/%s.conf --common-config-file /etc/yunion/common/common.conf`,
 							YUNION_HOST_ROOT,
 							YUNION_HOST_ROOT, YUNION_HOST_ROOT,
 							YUNION_HOST_ROOT,
 							YUNION_HOST_ROOT, YUNION_HOST_ROOT,
+							YUNION_HOST_ROOT,
 							YUNION_HOST_ROOT,
 							YUNION_HOST_ROOT,
 							YUNION_HOST_ROOT,
