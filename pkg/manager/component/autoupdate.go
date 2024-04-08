@@ -39,6 +39,9 @@ func (m *autoUpdateManager) getComponentType() v1alpha1.ComponentType {
 }
 
 func (m *autoUpdateManager) Sync(oc *v1alpha1.OnecloudCluster) error {
+	if !IsEnterpriseEdition(oc) {
+		return nil
+	}
 	return syncComponent(m, oc, oc.Spec.AutoUpdate.Disable, "")
 }
 
