@@ -21,6 +21,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 
+	"yunion.io/x/log"
 	"yunion.io/x/pkg/errors"
 
 	apis "yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -28,7 +29,7 @@ import (
 )
 
 var (
-	AllHosts = []string{"%", "127.0.0.1"}
+	allHosts = []string{"%", "127.0.0.1"}
 )
 
 type Connection struct {
@@ -133,18 +134,15 @@ func (conn *Connection) IsUserExists(username string) (bool, error) {
 }
 
 func (conn *Connection) isUserExists(username string, host string) (bool, error) {
-	var count int
-	q := fmt.Sprintf("SELECT COUNT(*) FROM mysql.user WHERE user = '%s'", username)
+	q := fmt.Sprintf("SHOW GRANTS FOR '%s'", username)
 	if len(host) != 0 {
-		q = fmt.Sprintf("%s AND host = '%s'", q, host)
+		q = fmt.Sprintf("%s@'%s'", q, host)
 	}
-	if err := conn.db.QueryRow(q).Scan(&count); err != nil {
-		return false, errors.Wrapf(err, "check user %s@%s exists", username, host)
+	_, err := conn.db.Exec(q)
+	if err != nil {
+		return false, errors.Wrapf(err, "exec %s", q)
 	}
-	if count > 0 {
-		return true, nil
-	}
-	return false, nil
+	return true, nil
 }
 
 func (conn *Connection) DropUserByHosts(username string, hosts []string) error {
@@ -157,7 +155,7 @@ func (conn *Connection) DropUserByHosts(username string, hosts []string) error {
 }
 
 func (conn *Connection) DropUser(username string) error {
-	return conn.DropUserByHosts(username, AllHosts)
+	return conn.DropUserByHosts(username, allHosts)
 }
 
 func (conn *Connection) DropUserByHost(username string, address string) error {
@@ -174,7 +172,10 @@ func (conn *Connection) DropUserByHost(username string, address string) error {
 	}
 	q := fmt.Sprintf("DROP USER %s", userIdx)
 	_, err = conn.db.Exec(q)
-	return err
+	if err != nil {
+		log.Errorf("drop user %s fail %s", username, err)
+	}
+	return nil
 }
 
 func (conn *Connection) Grant(username string, password string, database string, address string) error {
@@ -184,15 +185,32 @@ func (conn *Connection) Grant(username string, password string, database string,
 	if database == "" {
 		database = "*"
 	}
-	_, err := conn.db.Exec(fmt.Sprintf("GRANT ALL ON `%s`.* to '%s'@'%s' IDENTIFIED BY '%s'", database, username, address, password))
-	return err
+	{
+		sql := fmt.Sprintf("CREATE USER '%s'@'%s' IDENTIFIED BY '%s'", username, address, password)
+		_, err := conn.db.Exec(sql)
+		if err != nil {
+			return errors.Wrap(err, sql)
+		}
+	}
+	{
+		sql := fmt.Sprintf("GRANT ALL PRIVILEGES ON %s.* TO '%s'@'%s'", database, username, address)
+		_, err := conn.db.Exec(sql)
+		if err != nil {
+			return errors.Wrap(err, sql)
+		}
+	}
+	return nil
 }
 
 func (conn *Connection) CreateUser(username string, password string, database string) error {
+	return conn.UpdateUser(username, password, database)
+}
+
+func (conn *Connection) UpdateUser(username string, password string, database string) error {
 	if database == "" {
 		database = "*"
 	}
-	addrs := AllHosts
+	addrs := allHosts
 	if err := conn.DropUser(username); err != nil {
 		return errors.Wrapf(err, "Delete user %s", username)
 	}
