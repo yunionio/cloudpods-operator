@@ -186,6 +186,7 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 			"xsky",
 			"proxmox",
 			"oraclecloud",
+			"ksyun",
 		}
 		setupKeysEdge := []string{
 			"onecloud",
