@@ -2,6 +2,7 @@ package component
 
 import (
 	"fmt"
+	"sort"
 
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
@@ -20,6 +21,12 @@ import (
 func init() {
 	RegisterComponent(NewYunionconf())
 }
+
+const (
+	FEAT_VOLCENGINE   = "volcengine"
+	FEAT_ORACLE_CLOUD = "oraclecloud"
+	FEAT_KSYUN        = "ksyun"
+)
 
 type yunionconfSvc struct {
 	*baseService
@@ -102,10 +109,25 @@ func (pc *yunionconfPC) Setup() error {
 }
 
 type GlobalSettingsValue struct {
-	SetupKeys                []string `json:"setupKeys"`
-	SetupKeysVersion         string   `json:"setupKeysVersion"`
-	SetupOneStackInitialized bool     `json:"setupOneStackInitialized"`
-	ProductVersion           string   `json:"productVersion"`
+	SetupKeys                []string        `json:"setupKeys"`
+	SetupKeysVersion         string          `json:"setupKeysVersion"`
+	SetupOneStackInitialized bool            `json:"setupOneStackInitialized"`
+	ProductVersion           string          `json:"productVersion"`
+	UserDefinedKeys          map[string]bool `json:"userDefinedKeys"`
+}
+
+func NewGlobalSettingsValue(setupKeys []string, oneStackInited bool, productVersion v1alpha1.ProductVersion) *GlobalSettingsValue {
+	inputValue := &GlobalSettingsValue{
+		SetupKeys:                setupKeys,
+		SetupKeysVersion:         "3.0",
+		SetupOneStackInitialized: oneStackInited,
+		ProductVersion:           string(productVersion),
+		UserDefinedKeys:          make(map[string]bool),
+	}
+	for _, key := range setupKeys {
+		inputValue.UserDefinedKeys[key] = true
+	}
+	return inputValue
 }
 
 func (v GlobalSettingsValue) Equal(o GlobalSettingsValue) bool {
@@ -124,6 +146,46 @@ func (v GlobalSettingsValue) Equal(o GlobalSettingsValue) bool {
 		return false
 	}
 	return true
+}
+
+func (v *GlobalSettingsValue) CalculateSetupKeys(oldSettings GlobalSettingsValue) {
+	// 旧配置打开的功能
+	for _, pKey := range oldSettings.SetupKeys {
+		v.UserDefinedKeys[pKey] = true
+	}
+	if len(oldSettings.UserDefinedKeys) == 0 {
+		oldSettings.UserDefinedKeys = make(map[string]bool)
+	}
+	oldSs := sets.NewString(oldSettings.SetupKeys...)
+	// 根据旧配置，关闭或打开现有功能
+	if len(oldSettings.UserDefinedKeys) == 0 {
+		// 关闭不需要的新功能
+		for _, sK := range v.SetupKeys {
+			if len(oldSettings.UserDefinedKeys) == 0 && !oldSs.Has(sK) {
+				v.UserDefinedKeys[sK] = false
+			}
+		}
+		// 打开必要的新功能(这个只需要在就配置升级上来的时候启用)
+		newFeatures := sets.NewString(FEAT_VOLCENGINE, FEAT_ORACLE_CLOUD, FEAT_KSYUN)
+		for _, nf := range newFeatures.List() {
+			if _, ok := oldSettings.UserDefinedKeys[nf]; !ok {
+				v.UserDefinedKeys[nf] = true
+			}
+		}
+	}
+
+	// 旧配置用户定义开关的功能
+	for pKey, pKeyOn := range oldSettings.UserDefinedKeys {
+		v.UserDefinedKeys[pKey] = pKeyOn
+	}
+	calSetupKeys := []string{}
+	for k, isOn := range v.UserDefinedKeys {
+		if isOn {
+			calSetupKeys = append(calSetupKeys, k)
+		}
+	}
+	sort.Strings(calSetupKeys)
+	v.SetupKeys = calSetupKeys
 }
 
 func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
@@ -167,7 +229,7 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 			"google",
 			"huawei",
 			"qcloud",
-			"volcengine",
+			FEAT_VOLCENGINE,
 			// "ucloud",
 			// "ecloud",
 			// "jdcloud",
@@ -185,8 +247,8 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 			"ceph",
 			"xsky",
 			"proxmox",
-			"oraclecloud",
-			"ksyun",
+			FEAT_ORACLE_CLOUD,
+			FEAT_KSYUN,
 		}
 		setupKeysEdge := []string{
 			"onecloud",
@@ -225,15 +287,13 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 			setupKeys = append(setupKeys, "k8s", "bill")
 		}
 		setupKeys = append(setupKeys, "default")
-		inputValue := GlobalSettingsValue{
-			SetupKeys:                setupKeys,
-			SetupKeysVersion:         "3.0",
-			SetupOneStackInitialized: oneStackInited,
-			ProductVersion:           string(oc.Spec.ProductVersion),
-		}
 
-		if currentValue != nil && currentValue.ProductVersion != inputValue.ProductVersion {
-			needUpdate = !currentValue.Equal(inputValue)
+		// construct default GlobalSettingsValue
+		inputValue := NewGlobalSettingsValue(setupKeys, oneStackInited, oc.Spec.ProductVersion)
+
+		if currentValue != nil {
+			inputValue.CalculateSetupKeys(*currentValue)
+			needUpdate = !currentValue.Equal(*inputValue)
 		}
 
 		input := map[string]interface{}{
