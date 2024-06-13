@@ -26,6 +26,9 @@ const (
 	FEAT_VOLCENGINE   = "volcengine"
 	FEAT_ORACLE_CLOUD = "oraclecloud"
 	FEAT_KSYUN        = "ksyun"
+
+	FEAT_VMWARE  = "vmware"
+	FEAT_PROXMOX = "proxmox"
 )
 
 type yunionconfSvc struct {
@@ -166,7 +169,12 @@ func (v *GlobalSettingsValue) CalculateSetupKeys(oldSettings GlobalSettingsValue
 			}
 		}
 		// 打开必要的新功能(这个只需要在就配置升级上来的时候启用)
-		newFeatures := sets.NewString(FEAT_VOLCENGINE, FEAT_ORACLE_CLOUD, FEAT_KSYUN)
+		newFeatures := sets.NewString()
+		if v.ProductVersion == string(v1alpha1.ProductVersionCMP) || v.ProductVersion == string(v1alpha1.ProductVersionFullStack) {
+			newFeatures = sets.NewString(FEAT_VOLCENGINE, FEAT_ORACLE_CLOUD, FEAT_KSYUN)
+		} else if v.ProductVersion == string(v1alpha1.ProductVersionEdge) {
+			newFeatures = sets.NewString(FEAT_VMWARE, FEAT_PROXMOX)
+		}
 		for _, nf := range newFeatures.List() {
 			if _, ok := oldSettings.UserDefinedKeys[nf]; !ok {
 				v.UserDefinedKeys[nf] = true
@@ -233,7 +241,7 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 			// "ucloud",
 			// "ecloud",
 			// "jdcloud",
-			"vmware",
+			FEAT_VMWARE,
 			"openstack",
 			// "dstack",
 			// "zstack",
@@ -246,7 +254,7 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 			"s3",
 			"ceph",
 			"xsky",
-			"proxmox",
+			FEAT_PROXMOX,
 			FEAT_ORACLE_CLOUD,
 			FEAT_KSYUN,
 		}
@@ -255,6 +263,8 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 			"onestack",
 			"baremetal",
 			"lb",
+			FEAT_VMWARE,
+			FEAT_PROXMOX,
 		}
 		setupKeysFull := []string{}
 		setupKeysFull = append(setupKeysFull, setupKeysCmp...)
