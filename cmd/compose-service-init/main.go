@@ -6,7 +6,9 @@ import (
 	"os"
 
 	"yunion.io/x/log"
+	"yunion.io/x/pkg/util/sets"
 
+	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/service-init/component"
 	"yunion.io/x/onecloud-operator/pkg/version"
@@ -27,6 +29,12 @@ var (
 	step string
 
 	Component string
+
+	ProductVersion string
+
+	publicIp string
+
+	edition string
 )
 
 func init() {
@@ -48,7 +56,24 @@ func init() {
 	// component
 	flag.StringVar(&Component, "component", "", "Service component to init")
 
+	// productVersion
+	flag.StringVar(&ProductVersion, "product-version", string(v1alpha1.ProductVersionCMP), "Product version")
+
+	// edition
+	flag.StringVar(&edition, "edition", string(constants.OnecloudCommunityEdition), "Edition")
+
+	flag.StringVar(&publicIp, "public-ip", "127.0.0.1", "Public IP")
+
 	flag.Parse()
+
+	initFlagByEnv()
+}
+
+func initFlagByEnv() {
+	pIP, ok := os.LookupEnv("PUBLIC_IP")
+	if ok && pIP != "" {
+		publicIp = pIP
+	}
 }
 
 func main() {
@@ -64,7 +89,17 @@ func main() {
 		Password: mysqlPassword,
 	}
 	prepareMan := component.NewPrepareManager()
-	cluster, err := prepareMan.ConstructCluster(dbConfig, targetConfigDir)
+	if !sets.NewString(string(v1alpha1.ProductVersionCMP), string(v1alpha1.ProductVersionBaremetal)).Has(ProductVersion) {
+		log.Fatalf("unsupported product version: %s", ProductVersion)
+	}
+
+	if ProductVersion != string(v1alpha1.ProductVersionCMP) {
+		if publicIp == "127.0.0.1" {
+			log.Fatalf("public-ip of product version %s shouldn't be %s", ProductVersion, publicIp)
+		}
+	}
+
+	cluster, err := prepareMan.ConstructCluster(dbConfig, publicIp, targetConfigDir, v1alpha1.ProductVersion(ProductVersion))
 	if err != nil {
 		log.Fatalf("construct cluster error: %v", err)
 	}
