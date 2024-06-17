@@ -12,6 +12,7 @@ func NewDockerComposeCluster(
 	accessIp string,
 	defaultRegion string,
 	version string,
+	productVersion v1alpha1.ProductVersion,
 ) *v1alpha1.OnecloudCluster {
 	cluster := &v1alpha1.OnecloudCluster{
 		ObjectMeta: metav1.ObjectMeta{
@@ -22,7 +23,7 @@ func NewDockerComposeCluster(
 			LoadBalancerEndpoint: accessIp,
 			Region:               defaultRegion,
 			Version:              version,
-			ProductVersion:       v1alpha1.ProductVersionCMP,
+			ProductVersion:       productVersion,
 		},
 	}
 	scheme.Scheme.Default(cluster)

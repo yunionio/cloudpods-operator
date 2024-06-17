@@ -266,6 +266,12 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 			FEAT_VMWARE,
 			FEAT_PROXMOX,
 		}
+		setupKeysBaremetal := []string{
+			"onecloud",
+			"onestack",
+			"baremetal",
+			"lb",
+		}
 		setupKeysFull := []string{}
 		setupKeysFull = append(setupKeysFull, setupKeysCmp...)
 		setupKeysFull = append(setupKeysFull, setupKeysEdge...)
@@ -276,6 +282,8 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 			oneStackInited = true
 		case v1alpha1.ProductVersionEdge:
 			setupKeys = setupKeysEdge
+		case v1alpha1.ProductVersionBaremetal:
+			setupKeys = setupKeysBaremetal
 		default:
 			setupKeys = setupKeysFull
 		}

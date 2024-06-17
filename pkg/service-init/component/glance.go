@@ -75,6 +75,8 @@ func (g glance) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudCl
 	if oc.Spec.ProductVersion == v1alpha1.ProductVersionCMP {
 		opt.EnableRemoteExecutor = false
 		opt.TargetImageFormats = []string{"qcow2", "vmdk"}
+	} else if oc.Spec.ProductVersion == v1alpha1.ProductVersionBaremetal {
+		opt.EnableRemoteExecutor = false
 	} else {
 		opt.EnableRemoteExecutor = true
 	}
