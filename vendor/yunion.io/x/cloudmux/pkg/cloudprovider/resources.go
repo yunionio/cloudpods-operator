@@ -284,11 +284,9 @@ type ICloudHost interface {
 	GetIVMs() ([]ICloudVM, error)
 	GetIVMById(id string) (ICloudVM, error)
 
-	// GetIWires() ([]ICloudWire, error)
 	GetIStorages() ([]ICloudStorage, error)
 	GetIStorageById(id string) (ICloudStorage, error)
 
-	// GetStatus() string     // os status
 	GetEnabled() bool      // is enabled
 	GetHostStatus() string // service status
 	GetAccessIp() string   //
@@ -308,6 +306,8 @@ type ICloudHost interface {
 	GetStorageSizeMB() int64
 	GetStorageType() string
 	GetHostType() string
+	GetStorageDriver() string
+	GetStorageInfo() jsonutils.JSONObject
 
 	GetIsMaintenance() bool
 	GetVersion() string
@@ -899,11 +899,6 @@ type ICloudSku interface {
 
 type ICloudProject interface {
 	ICloudResource
-
-	GetDomainId() string
-	GetDomainName() string
-
-	GetAccountId() string
 }
 
 type ICloudNatGateway interface {
@@ -1478,6 +1473,21 @@ type ICloudWafInstance interface {
 	// 绑定的资源列表
 	GetCloudResources() ([]SCloudResource, error)
 
+	// 前面是否有代理服务
+	GetIsAccessProduct() bool
+	GetAccessHeaders() []string
+	GetHttpPorts() []int
+	GetHttpsPorts() []int
+	GetCname() string
+	// 源站地址
+	GetSourceIps() []string
+	// 回源地址
+	GetCcList() []string
+	GetCertId() string
+	GetCertName() string
+	GetUpstreamScheme() string
+	GetUpstreamPort() int
+
 	Delete() error
 }
 
@@ -1577,19 +1587,63 @@ type ICloudKafka interface {
 	Delete() error
 }
 
+type AppBackupConfig struct {
+	Enabled               bool
+	FrequencyInterval     int
+	FrequencyUnit         string
+	RetentionPeriodInDays int
+}
+
 type ICloudApp interface {
 	IVirtualResource
 	GetEnvironments() ([]ICloudAppEnvironment, error)
 	GetTechStack() string
-	GetType() string
-	GetKind() string
 	GetOsType() TOsType
+	GetIpAddress() string
+	GetHostname() string
+	GetServerFarm() string
+	GetBackups() ([]IAppBackup, error)
+	GetPublicNetworkAccess() string
+	GetNetworkId() string
+	GetHybirdConnections() ([]IAppHybirdConnection, error)
+	GetCertificates() ([]IAppCertificate, error)
+	GetBackupConfig() AppBackupConfig
+	GetDomains() ([]IAppDomain, error)
+}
+
+type IAppDomain interface {
+	GetGlobalId() string
+	GetName() string
+	GetStatus() string
+	GetSslState() string
+}
+
+type IAppCertificate interface {
+	GetGlobalId() string
+	GetName() string
+	GetSubjectName() string
+	GetIssuer() string
+	GetIssueDate() time.Time
+	GetThumbprint() string
+	GetExpireTime() time.Time
+}
+
+type IAppHybirdConnection interface {
+	GetGlobalId() string
+	GetName() string
+	GetHostname() string
+	GetNamespace() string
+	GetPort() int
+}
+
+type IAppBackup interface {
+	GetGlobalId() string
+	GetName() string
+	GetType() string
 }
 
 type ICloudAppEnvironment interface {
 	IVirtualResource
-	GetInstanceType() (string, error)
-	GetInstanceNumber() (int, error)
 }
 
 type ICloudDBInstanceSku interface {

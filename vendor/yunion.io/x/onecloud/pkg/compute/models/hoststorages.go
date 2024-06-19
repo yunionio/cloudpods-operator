@@ -36,6 +36,7 @@ import (
 
 const ErrStorageInUse = errors.Error("StorageInUse")
 
+// +onecloud:swagger-gen-ignore
 type SHoststorageManager struct {
 	SHostJointsManager
 	SStorageResourceBaseManager
@@ -60,6 +61,7 @@ func init() {
 	})
 }
 
+// +onecloud:model-api-gen
 type SHoststorage struct {
 	SHostJointsBase
 
@@ -155,7 +157,12 @@ func (manager *SHoststorageManager) ValidateCreateData(ctx context.Context, user
 	}
 	host := hostObj.(*SHost)
 
-	input, err = host.GetHostDriver().ValidateAttachStorage(ctx, userCred, host, storage, input)
+	driver, err := host.GetHostDriver()
+	if err != nil {
+		return input, errors.Wrapf(err, "GetHostDriver")
+	}
+
+	input, err = driver.ValidateAttachStorage(ctx, userCred, host, storage, input)
 	if err != nil {
 		return input, err
 	}
@@ -312,12 +319,22 @@ func (self *SHoststorage) Detach(ctx context.Context, userCred mcclient.TokenCre
 	return db.DetachJoint(ctx, userCred, self)
 }
 
-func (manager *SHoststorageManager) GetStorages(hostId string) ([]SHoststorage, error) {
+func (manager *SHoststorageManager) GetHostStoragesByHostId(hostId string) ([]SHoststorage, error) {
 	hoststorage := make([]SHoststorage, 0)
-	hoststorages := HoststorageManager.Query().SubQuery()
-	err := hoststorages.Query().Equals("host_id", hostId).All(&hoststorage)
+	hoststoragesQ := HoststorageManager.Query().Equals("host_id", hostId)
+	err := db.FetchModelObjects(manager, hoststoragesQ, &hoststorage)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "FetchModelObjects")
+	}
+	return hoststorage, nil
+}
+
+func (manager *SHoststorageManager) GetHostStoragesByStorageId(storageId string) ([]SHoststorage, error) {
+	hoststorage := make([]SHoststorage, 0)
+	hoststoragesQ := HoststorageManager.Query().Equals("storage_id", storageId)
+	err := db.FetchModelObjects(manager, hoststoragesQ, &hoststorage)
+	if err != nil {
+		return nil, errors.Wrap(err, "FetchModelObjects")
 	}
 	return hoststorage, nil
 }

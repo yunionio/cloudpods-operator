@@ -34,6 +34,7 @@ import (
 	"yunion.io/x/onecloud/pkg/util/stringutils2"
 )
 
+// +onecloud:swagger-gen-ignore
 type SLoadbalancernetworkManager struct {
 	db.SVirtualJointResourceBaseManager
 	SLoadbalancerResourceBaseManager
@@ -58,6 +59,7 @@ func init() {
 	})
 }
 
+// +onecloud:model-api-gen
 type SLoadbalancerNetwork struct {
 	db.SVirtualJointResourceBase
 
@@ -188,6 +190,7 @@ func (m *SLoadbalancernetworkManager) syncLoadbalancerNetwork(ctx context.Contex
 	}
 	if len(lns) == 0 {
 		ln := &SLoadbalancerNetwork{LoadbalancerId: req.Loadbalancer.Id, NetworkId: req.NetworkId, IpAddr: req.Address}
+		ln.SetModelManager(LoadbalancernetworkManager, ln)
 		return m.TableSpec().Insert(ctx, ln)
 	}
 	for i := 0; i < len(lns); i++ {

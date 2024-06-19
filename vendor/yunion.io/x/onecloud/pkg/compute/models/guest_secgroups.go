@@ -44,7 +44,12 @@ func (self *SGuest) PerformAddSecgroup(
 		return nil, httperrors.NewInputParameterError("Cannot add security groups in status %s", self.Status)
 	}
 
-	maxCount := self.GetDriver().GetMaxSecurityGroupCount()
+	drv, err := self.GetDriver()
+	if err != nil {
+		return nil, err
+	}
+
+	maxCount := drv.GetMaxSecurityGroupCount()
 	if maxCount == 0 {
 		return nil, httperrors.NewUnsupportOperationError("Cannot add security groups for hypervisor %s", self.Hypervisor)
 	}
@@ -120,6 +125,7 @@ func (self *SGuest) saveDefaultSecgroupId(userCred mcclient.TokenCredential, sec
 	return nil
 }
 
+// 解绑安全组
 func (self *SGuest) PerformRevokeSecgroup(
 	ctx context.Context,
 	userCred mcclient.TokenCredential,
@@ -173,6 +179,7 @@ func (self *SGuest) PerformRevokeSecgroup(
 	return nil, self.StartSyncTask(ctx, userCred, true, "")
 }
 
+// 解绑管理员安全组
 func (self *SGuest) PerformRevokeAdminSecgroup(
 	ctx context.Context,
 	userCred mcclient.TokenCredential,
@@ -219,6 +226,7 @@ func (self *SGuest) PerformAssignSecgroup(
 	return self.performAssignSecgroup(ctx, userCred, query, input, false)
 }
 
+// +onecloud:swagger-gen-ignore
 func (self *SGuest) PerformAssignAdminSecgroup(
 	ctx context.Context,
 	userCred mcclient.TokenCredential,
@@ -287,7 +295,12 @@ func (self *SGuest) PerformSetSecgroup(
 		return nil, httperrors.NewMissingParameterError("secgroup_ids")
 	}
 
-	maxCount := self.GetDriver().GetMaxSecurityGroupCount()
+	drv, err := self.GetDriver()
+	if err != nil {
+		return nil, err
+	}
+
+	maxCount := drv.GetMaxSecurityGroupCount()
 	if maxCount == 0 {
 		return nil, httperrors.NewUnsupportOperationError("Cannot set security group for this guest %s", self.Name)
 	}

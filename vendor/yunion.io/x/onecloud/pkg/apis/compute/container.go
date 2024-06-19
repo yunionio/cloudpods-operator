@@ -35,6 +35,8 @@ const (
 	CONTAINER_DEV_NETINT_CA_ASIC   = "NETINT_CA_ASIC"
 	CONTAINER_DEV_NETINT_CA_QUADRA = "NETINT_CA_QUADRA"
 	CONTAINER_DEV_NVIDIA_GPU       = "NVIDIA_GPU"
+	CONTAINER_DEV_NVIDIA_MPS       = "NVIDIA_MPS"
+	CONTAINER_DEV_ASCEND_NPU       = "ASCEND_NPU"
 )
 
 const (
@@ -47,6 +49,8 @@ const (
 	CONTAINER_STATUS_PULLED_IMAGE       = "pulled_image"
 	CONTAINER_STATUS_CREATING           = "creating"
 	CONTAINER_STATUS_CREATE_FAILED      = "create_failed"
+	CONTAINER_STATUS_SAVING_IMAGE       = "saving_image"
+	CONTAINER_STATUS_SAVE_IMAGE_FAILED  = "save_image_failed"
 	CONTAINER_STATUS_STARTING           = "starting"
 	CONTAINER_STATUS_START_FAILED       = "start_failed"
 	CONTAINER_STATUS_STOPPING           = "stopping"
@@ -67,9 +71,9 @@ const (
 
 type ContainerSpec struct {
 	apis.ContainerSpec
-	// Mounts for the container.
-	// Mounts []*ContainerMount `json:"mounts"`
-	Devices []*ContainerDevice `json:"devices"`
+	// Volume mounts
+	VolumeMounts []*apis.ContainerVolumeMount `json:"volume_mounts"`
+	Devices      []*ContainerDevice           `json:"devices"`
 }
 
 func (c *ContainerSpec) String() string {
@@ -110,12 +114,6 @@ type ContainerSyncStatusResponse struct {
 	Status string `json:"status"`
 }
 
-type ContainerDesc struct {
-	Id   string         `json:"id"`
-	Name string         `json:"name"`
-	Spec *ContainerSpec `json:"spec"`
-}
-
 type ContainerHostDevice struct {
 	// Path of the device within the container.
 	ContainerPath string `json:"container_path"`
@@ -137,4 +135,34 @@ type ContainerDevice struct {
 	Type           apis.ContainerDeviceType `json:"type"`
 	IsolatedDevice *ContainerIsolatedDevice `json:"isolated_device"`
 	Host           *ContainerHostDevice     `json:"host"`
+}
+
+type ContainerSaveVolumeMountToImageInput struct {
+	Name         string `json:"name"`
+	GenerateName string `json:"generate_name"`
+	Notes        string `json:"notes"`
+	Index        int    `json:"index"`
+}
+
+type ContainerExecInfoOutput struct {
+	HostUri     string `json:"host_uri"`
+	PodId       string `json:"pod_id"`
+	ContainerId string `json:"container_id"`
+}
+
+type ContainerExecInput struct {
+	Command []string `json:"command"`
+	Tty     bool     `json:"tty"`
+}
+
+type ContainerExecSyncInput struct {
+	Command []string `json:"command"`
+	// Timeout in seconds to stop the command. Default: 0 (run forever).
+	Timeout int64 `json:"timeout"`
+}
+
+type ContainerExecSyncResponse struct {
+	Stdout   string `json:"stdout"`
+	Stderr   string `json:"stderr"`
+	ExitCode int32  `json:"exit_code"`
 }

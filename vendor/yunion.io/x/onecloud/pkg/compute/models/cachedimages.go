@@ -255,6 +255,7 @@ func (manager *SCachedimageManager) cacheGlanceImageInfo(ctx context.Context, us
 		Status      string
 		IsPublic    bool
 		ProjectId   string `json:"tenant_id"`
+		DomainId    string
 		PublicScope string
 	}{}
 	err := info.Unmarshal(&img)
@@ -273,7 +274,7 @@ func (manager *SCachedimageManager) cacheGlanceImageInfo(ctx context.Context, us
 
 	err = manager.RawQuery().Equals("id", img.Id).First(&imageCache)
 	if err != nil {
-		if err == sql.ErrNoRows { // insert
+		if errors.Cause(err) == sql.ErrNoRows { // insert
 			imageCache.Id = img.Id
 			imageCache.Name = img.Name
 			imageCache.Size = img.Size
@@ -281,6 +282,8 @@ func (manager *SCachedimageManager) cacheGlanceImageInfo(ctx context.Context, us
 			imageCache.Status = img.Status
 			imageCache.IsPublic = img.IsPublic
 			imageCache.PublicScope = img.PublicScope
+			imageCache.ProjectId = img.ProjectId
+			imageCache.DomainId = img.DomainId
 			imageCache.LastSync = timeutils.UtcNow()
 
 			err = manager.TableSpec().Insert(ctx, &imageCache)
@@ -302,6 +305,8 @@ func (manager *SCachedimageManager) cacheGlanceImageInfo(ctx context.Context, us
 			imageCache.IsPublic = img.IsPublic
 			imageCache.PublicScope = img.PublicScope
 			imageCache.LastSync = timeutils.UtcNow()
+			imageCache.ProjectId = img.ProjectId
+			imageCache.DomainId = img.DomainId
 			if imageCache.Deleted == true {
 				imageCache.Deleted = false
 				imageCache.DeletedAt = time.Time{}
@@ -848,21 +853,29 @@ func (manager *SCachedimageManager) ListItemFilter(
 
 	{
 		var idFilter bool
-		storagecachedImages := StoragecachedimageManager.Query().SubQuery()
+		storagecachedImages := StoragecachedimageManager.Query("cachedimage_id").Equals("status", api.CACHED_IMAGE_STATUS_ACTIVE).SubQuery()
 		storageCaches := StoragecacheManager.Query().SubQuery()
-		var storages *sqlchemy.SSubQuery
 
-		if query.Valid == nil {
-			storages = StorageManager.Query().SubQuery()
-		} else if *query.Valid {
+		storagesQ := StorageManager.Query()
+		if query.Valid {
 			idFilter = true
-			storages = StorageManager.Query().In("status", []string{api.STORAGE_ENABLED, api.STORAGE_ONLINE}).IsTrue("enabled").SubQuery()
-		} else {
-			idFilter = true
-			stroage := StorageManager.Query()
-			storages = stroage.Filter(sqlchemy.OR(sqlchemy.NotIn(stroage.Field("status"), []string{}), sqlchemy.IsFalse(stroage.Field("enabled")))).SubQuery()
+			storagesQ = storagesQ.In("status", []string{api.STORAGE_ENABLED, api.STORAGE_ONLINE}).IsTrue("enabled")
 		}
-		zones := ZoneManager.Query().SubQuery()
+		if len(query.CloudproviderId) > 0 {
+			idFilter = true
+			storagesQ = storagesQ.In("manager_id", query.CloudproviderId)
+		}
+		storages := storagesQ.SubQuery()
+		zonesQ := ZoneManager.Query()
+		if len(query.ZoneId) > 0 {
+			idFilter = true
+			zonesQ = zonesQ.Equals("id", query.ZoneId)
+		}
+		if len(query.CloudregionId) > 0 {
+			idFilter = true
+			zonesQ = zonesQ.In("cloudregion_id", query.CloudregionId)
+		}
+		zones := zonesQ.SubQuery()
 
 		subq := storagecachedImages.Query(storagecachedImages.Field("cachedimage_id"))
 		subq = subq.Join(storageCaches, sqlchemy.Equals(storagecachedImages.Field("storagecache_id"), storageCaches.Field("id")))
@@ -871,40 +884,10 @@ func (manager *SCachedimageManager) ListItemFilter(
 
 		if len(query.HostSchedtagId) > 0 {
 			idFilter = true
-			schedTagObj, err := SchedtagManager.FetchByIdOrName(ctx, userCred, query.HostSchedtagId)
-			if err != nil {
-				if errors.Cause(err) == sql.ErrNoRows {
-					return nil, errors.Wrapf(httperrors.ErrResourceNotFound, "%s %s", SchedtagManager.Keyword(), query.HostSchedtagId)
-				} else {
-					return nil, errors.Wrap(err, "SchedtagManager.FetchByIdOrName")
-				}
-			}
 			hoststorages := HoststorageManager.Query("host_id", "storage_id").SubQuery()
-			hostschedtags := HostschedtagManager.Query().Equals("schedtag_id", schedTagObj.GetId()).SubQuery()
+			hostschedtags := HostschedtagManager.Query().Equals("schedtag_id", query.HostSchedtagId).SubQuery()
 			subq = subq.Join(hoststorages, sqlchemy.Equals(hoststorages.Field("storage_id"), storages.Field("id")))
 			subq = subq.Join(hostschedtags, sqlchemy.Equals(hostschedtags.Field("host_id"), hoststorages.Field("host_id")))
-		}
-		subq = subq.Filter(sqlchemy.Equals(storagecachedImages.Field("status"), api.CACHED_IMAGE_STATUS_ACTIVE))
-
-		subq = subq.Snapshot()
-
-		subq, err = managedResourceFilterByAccount(ctx, subq, query.ManagedResourceListInput, "", nil)
-		if err != nil {
-			return nil, errors.Wrap(err, "managedResourceFilterByAccount")
-		}
-
-		subq, err = managedResourceFilterByRegion(ctx, subq, query.RegionalFilterListInput, "", nil)
-		if err != nil {
-			return nil, errors.Wrap(err, "_managedResourceFilterByRegion")
-		}
-
-		subq, err = managedResourceFilterByZone(ctx, subq, query.ZonalFilterListInput, "", nil)
-		if err != nil {
-			return nil, errors.Wrap(err, "_managedResourceFilterByZone")
-		}
-
-		if subq.IsAltered() {
-			idFilter = true
 		}
 
 		if idFilter {
@@ -957,6 +940,12 @@ func (manager *SCachedimageManager) ListItemExportKeys(ctx context.Context, q *s
 
 // 清理已经删除的镜像缓存
 func (manager *SCachedimageManager) AutoCleanImageCaches(ctx context.Context, userCred mcclient.TokenCredential, isStart bool) {
+	defer func() {
+		err := manager.cleanExternalImages()
+		if err != nil {
+			log.Errorf("cleanExternalImages error: %v", err)
+		}
+	}()
 	lastSync := time.Now().Add(time.Duration(-1*api.CACHED_IMAGE_REFERENCE_SESSION_EXPIRE_SECONDS) * time.Second)
 	q := manager.Query()
 	q = q.LT("last_sync", lastSync).Equals("status", api.CACHED_IMAGE_STATUS_ACTIVE).IsNullOrEmpty("external_id").Limit(50)
@@ -990,6 +979,94 @@ func (manager *SCachedimageManager) AutoCleanImageCaches(ctx context.Context, us
 			return nil
 		})
 	}
+}
+
+func (manager *SCachedimageManager) getExpireExternalImageIds() ([]string, error) {
+	ids := []string{}
+	templatedIds := DiskManager.Query("template_id").IsNotEmpty("template_id").Distinct().SubQuery()
+	cachedimageIds := StoragecachedimageManager.Query("cachedimage_id").Distinct().SubQuery()
+	externalIds := CloudimageManager.Query("external_id").Distinct().SubQuery()
+	q := manager.RawQuery("id")
+	q = q.Filter(
+		sqlchemy.AND(
+			sqlchemy.IsNotEmpty(q.Field("external_id")),
+			sqlchemy.NotIn(q.Field("id"), templatedIds),
+			sqlchemy.NotIn(q.Field("id"), cachedimageIds),
+			sqlchemy.NotIn(q.Field("external_id"), externalIds),
+		),
+	)
+	rows, err := q.Rows()
+	if err != nil {
+		if errors.Cause(err) == sql.ErrNoRows {
+			return ids, nil
+		}
+		return nil, errors.Wrap(err, "Query")
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		err := rows.Scan(&id)
+		if err != nil {
+			return nil, errors.Wrapf(err, "rows.Scan")
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
+func (manager *SCachedimageManager) cleanExternalImages() error {
+	ids, err := manager.getExpireExternalImageIds()
+	if err != nil {
+		return errors.Wrapf(err, "getExpireExternalImageIds")
+	}
+
+	if len(ids) == 0 {
+		return nil
+	}
+
+	var splitByLen = func(data []string, splitLen int) [][]string {
+		var result [][]string
+		for i := 0; i < len(data); i += splitLen {
+			end := i + splitLen
+			if end > len(data) {
+				end = len(data)
+			}
+			result = append(result, data[i:end])
+		}
+		return result
+	}
+
+	var purge = func(ids []string) error {
+		vars := []interface{}{}
+		placeholders := make([]string, len(ids))
+		for i := range placeholders {
+			placeholders[i] = "?"
+			vars = append(vars, ids[i])
+		}
+		placeholder := strings.Join(placeholders, ",")
+		sql := fmt.Sprintf(
+			"delete from %s where id in (%s)",
+			manager.TableSpec().Name(), placeholder,
+		)
+		_, err = sqlchemy.GetDB().Exec(
+			sql, vars...,
+		)
+		if err != nil {
+			return errors.Wrapf(err, strings.ReplaceAll(sql, "?", "%s"), vars...)
+		}
+		return nil
+	}
+
+	idsArr := splitByLen(ids, 100)
+	for i := range idsArr {
+		err = purge(idsArr[i])
+		if err != nil {
+			return errors.Wrapf(err, "purge")
+		}
+	}
+
+	log.Debugf("clean %d expired external images", len(ids))
+	return nil
 }
 
 func (image *SCachedimage) GetAllClassMetadata() (map[string]string, error) {

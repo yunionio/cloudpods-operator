@@ -48,14 +48,18 @@ func (self *SGuest) PerformConvertToKvm(
 	if len(self.GetMetadata(ctx, api.SERVER_META_CONVERTED_SERVER, userCred)) > 0 {
 		return nil, httperrors.NewBadRequestError("guest has been converted")
 	}
-	switch self.Hypervisor {
-	case api.HYPERVISOR_ESXI:
-		return self.ConvertEsxiToKvm(ctx, userCred, data)
-	case api.HYPERVISOR_CLOUDPODS:
-		return self.ConvertCloudpodsToKvm(ctx, userCred, data)
-	default:
-		return nil, httperrors.NewBadRequestError("not support %s", self.Hypervisor)
+	drv, err := self.GetDriver()
+	if err != nil {
+		return nil, err
 	}
+
+	if drv.GetProvider() == api.CLOUD_PROVIDER_ONECLOUD && drv.GetHypervisor() == api.HYPERVISOR_ESXI {
+		return self.ConvertEsxiToKvm(ctx, userCred, data)
+	}
+	if drv.GetProvider() == api.CLOUD_PROVIDER_CLOUDPODS && drv.GetHypervisor() == api.HYPERVISOR_DEFAULT {
+		return self.ConvertCloudpodsToKvm(ctx, userCred, data)
+	}
+	return nil, httperrors.NewBadRequestError("not support %s", self.Hypervisor)
 }
 
 func (self *SGuest) ConvertCloudpodsToKvm(ctx context.Context, userCred mcclient.TokenCredential, data *api.ConvertToKvmInput) (jsonutils.JSONObject, error) {
@@ -90,6 +94,10 @@ func (self *SGuest) ConvertCloudpodsToKvm(ctx context.Context, userCred mcclient
 			createInput.Networks[i].Network = data.Networks[i].Network
 			createInput.Networks[i].Address = data.Networks[i].Address
 			createInput.Networks[i].Schedtags = data.Networks[i].Schedtags
+		} else {
+			createInput.Networks[i].Network = ""
+			createInput.Networks[i].Address = ""
+			createInput.Networks[i].Schedtags = nil
 		}
 	}
 
@@ -129,6 +137,21 @@ func (self *SGuest) ConvertEsxiToKvm(ctx context.Context, userCred mcclient.Toke
 	if err != nil {
 		return nil, errors.Wrap(err, "create converted server")
 	}
+
+	if data.Networks != nil && len(data.Networks) != len(createInput.Networks) {
+		return nil, httperrors.NewInputParameterError("input network configs length must equal guestnetworks length")
+	}
+
+	for i := 0; i < len(createInput.Networks); i++ {
+		createInput.Networks[i].Network = ""
+		createInput.Networks[i].Wire = ""
+		if data.Networks != nil {
+			createInput.Networks[i].Network = data.Networks[i].Network
+			createInput.Networks[i].Address = data.Networks[i].Address
+			createInput.Networks[i].Schedtags = data.Networks[i].Schedtags
+		}
+	}
+
 	return nil, self.StartConvertToKvmTask(ctx, userCred, "GuestConvertEsxiToKvmTask", preferHost, newGuest, createInput)
 }
 
