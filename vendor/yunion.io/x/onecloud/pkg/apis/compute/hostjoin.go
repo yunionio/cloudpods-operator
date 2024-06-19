@@ -27,7 +27,8 @@ type HostJointResourceDetailsBase struct {
 type HostJointResourceDetails struct {
 	apis.JointResourceBaseDetails
 
-	HostJointResourceDetailsBase
+	// HostJointResourceDetailsBase
+	HostResourceInfo
 }
 
 type HostJointsListInput struct {

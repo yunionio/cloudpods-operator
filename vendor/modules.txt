@@ -120,7 +120,7 @@ github.com/golang/protobuf/ptypes/timestamp
 # github.com/golang/snappy v0.0.1
 ## explicit
 github.com/golang/snappy
-# github.com/google/go-cmp v0.5.9
+# github.com/google/go-cmp v0.6.0
 ## explicit; go 1.13
 github.com/google/go-cmp/cmp
 github.com/google/go-cmp/cmp/internal/diff
@@ -130,7 +130,7 @@ github.com/google/go-cmp/cmp/internal/value
 # github.com/google/gofuzz v1.1.0
 ## explicit; go 1.12
 github.com/google/gofuzz
-# github.com/google/uuid v1.3.0
+# github.com/google/uuid v1.6.0
 ## explicit
 github.com/google/uuid
 # github.com/googleapis/gnostic v0.4.1
@@ -290,6 +290,12 @@ github.com/tredoe/osutil/v2/userutil/crypt/sha512_crypt
 # github.com/ugorji/go/codec v1.1.7
 ## explicit
 github.com/ugorji/go/codec
+# github.com/ulikunitz/xz v0.5.12
+## explicit; go 1.12
+github.com/ulikunitz/xz
+github.com/ulikunitz/xz/internal/hash
+github.com/ulikunitz/xz/internal/xlog
+github.com/ulikunitz/xz/lzma
 # github.com/vishvananda/netlink v1.1.0
 ## explicit; go 1.12
 github.com/vishvananda/netlink
@@ -297,19 +303,26 @@ github.com/vishvananda/netlink/nl
 # github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74
 ## explicit; go 1.12
 github.com/vishvananda/netns
-# github.com/vmware/govmomi v0.20.1
-## explicit
+# github.com/vmware/govmomi v0.37.1
+## explicit; go 1.19
 github.com/vmware/govmomi
+github.com/vmware/govmomi/history
+github.com/vmware/govmomi/internal
+github.com/vmware/govmomi/internal/version
 github.com/vmware/govmomi/nfc
 github.com/vmware/govmomi/object
 github.com/vmware/govmomi/ovf
 github.com/vmware/govmomi/performance
 github.com/vmware/govmomi/property
 github.com/vmware/govmomi/session
+github.com/vmware/govmomi/session/keepalive
 github.com/vmware/govmomi/task
+github.com/vmware/govmomi/vapi/internal
+github.com/vmware/govmomi/vapi/rest
 github.com/vmware/govmomi/view
 github.com/vmware/govmomi/vim25
 github.com/vmware/govmomi/vim25/debug
+github.com/vmware/govmomi/vim25/json
 github.com/vmware/govmomi/vim25/methods
 github.com/vmware/govmomi/vim25/mo
 github.com/vmware/govmomi/vim25/progress
@@ -854,7 +867,7 @@ sigs.k8s.io/structured-merge-diff/v4/value
 # sigs.k8s.io/yaml v1.2.0
 ## explicit; go 1.12
 sigs.k8s.io/yaml
-# yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20240402114036-d4f834cee170
+# yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20240617060756-e174e60e95f7
 ## explicit; go 1.18
 yunion.io/x/cloudmux/pkg/apis
 yunion.io/x/cloudmux/pkg/apis/billing
@@ -875,7 +888,7 @@ yunion.io/x/jsonutils
 ## explicit; go 1.12
 yunion.io/x/log
 yunion.io/x/log/hooks
-# yunion.io/x/onecloud v0.0.0-20240403063904-9eae3cf56474
+# yunion.io/x/onecloud v0.0.0-20240619013355-51de4f705915
 ## explicit; go 1.18
 yunion.io/x/onecloud/cmd/climc/shell
 yunion.io/x/onecloud/locales
@@ -887,6 +900,7 @@ yunion.io/x/onecloud/pkg/apis/ansible
 yunion.io/x/onecloud/pkg/apis/billing
 yunion.io/x/onecloud/pkg/apis/cloudcommon/db
 yunion.io/x/onecloud/pkg/apis/cloudcommon/proxy
+yunion.io/x/onecloud/pkg/apis/cloudprovider
 yunion.io/x/onecloud/pkg/apis/cloudproxy
 yunion.io/x/onecloud/pkg/apis/compute
 yunion.io/x/onecloud/pkg/apis/devtool
@@ -994,6 +1008,7 @@ yunion.io/x/onecloud/pkg/util/ctx
 yunion.io/x/onecloud/pkg/util/dbutils
 yunion.io/x/onecloud/pkg/util/excelutils
 yunion.io/x/onecloud/pkg/util/fileutils2
+yunion.io/x/onecloud/pkg/util/filterclause
 yunion.io/x/onecloud/pkg/util/fstabutils
 yunion.io/x/onecloud/pkg/util/hashcache
 yunion.io/x/onecloud/pkg/util/influxdb
@@ -1021,7 +1036,7 @@ yunion.io/x/onecloud/pkg/util/yunionmeta
 yunion.io/x/onecloud/pkg/vpcagent/options
 yunion.io/x/onecloud/pkg/webconsole/options
 yunion.io/x/onecloud/pkg/yunionconf/options
-# yunion.io/x/pkg v1.10.1-0.20240324150220-11d9be90fa6c
+# yunion.io/x/pkg v1.10.1-0.20240601050854-9e3452bf4d47
 ## explicit; go 1.18
 yunion.io/x/pkg/appctx
 yunion.io/x/pkg/errors
@@ -1040,7 +1055,6 @@ yunion.io/x/pkg/util/compare
 yunion.io/x/pkg/util/delayedwork
 yunion.io/x/pkg/util/errors
 yunion.io/x/pkg/util/fileutils
-yunion.io/x/pkg/util/filterclause
 yunion.io/x/pkg/util/httputils
 yunion.io/x/pkg/util/imagetools
 yunion.io/x/pkg/util/netutils
@@ -1069,7 +1083,7 @@ yunion.io/x/pkg/utils
 # yunion.io/x/s3cli v0.0.0-20190917004522-13ac36d8687e
 ## explicit; go 1.12
 yunion.io/x/s3cli
-# yunion.io/x/sqlchemy v1.1.3-0.20240326090913-96da8bf92408
+# yunion.io/x/sqlchemy v1.1.3-0.20240530085133-5058648977dd
 ## explicit; go 1.17
 yunion.io/x/sqlchemy
 yunion.io/x/sqlchemy/backends/clickhouse

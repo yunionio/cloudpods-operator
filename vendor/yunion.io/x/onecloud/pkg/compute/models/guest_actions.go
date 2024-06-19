@@ -1044,7 +1044,7 @@ func (self *SGuest) PerformStart(
 		}
 		if self.isAllDisksReady() {
 			kwargs := jsonutils.Marshal(input).(*jsonutils.JSONDict)
-			err := self.GetDriver().PerformStart(ctx, userCred, self, kwargs)
+			err := self.GetDriver().PerformStart(ctx, userCred, self, kwargs, "")
 			return nil, err
 		} else {
 			return nil, httperrors.NewInvalidStatusError("Some disk not ready")
@@ -1184,12 +1184,16 @@ func (self *SGuest) NotifyAdminServerEvent(ctx context.Context, event string, pr
 	notifyclient.SystemNotifyWithCtx(ctx, priority, event, kwargs)
 }
 
-func (self *SGuest) StartGuestStopTask(ctx context.Context, userCred mcclient.TokenCredential, isForce, stopCharging bool, parentTaskId string) error {
+func (self *SGuest) StartGuestStopTask(ctx context.Context, userCred mcclient.TokenCredential, timeoutSecs int, isForce, stopCharging bool, parentTaskId string) error {
 	if len(parentTaskId) == 0 {
 		self.SetStatus(ctx, userCred, api.VM_START_STOP, "")
 	}
 	params := jsonutils.NewDict()
-	params.Add(jsonutils.NewBool(isForce), "is_force")
+	if isForce {
+		params.Add(jsonutils.NewBool(isForce), "is_force")
+	} else {
+		params.Add(jsonutils.NewInt(int64(timeoutSecs)), "timeout")
+	}
 	params.Add(jsonutils.NewBool(stopCharging), "stop_charging")
 	if len(parentTaskId) > 0 {
 		params.Add(jsonutils.JSONTrue, "subtask")
@@ -1505,7 +1509,7 @@ func (self *SGuest) fixFakeServerInfo(ctx context.Context, userCred mcclient.Tok
 		if len(networks[i].IpAddr) > 0 {
 			continue
 		}
-		network := networks[i].GetNetwork()
+		network, _ := networks[i].GetNetwork()
 		if network != nil {
 			db.Update(&networks[i], func() error {
 				networks[i].IpAddr, _ = network.GetFreeIP(ctx, userCred, nil, nil, "", api.IPAllocationRandom, false, api.AddressTypeIPv4)
@@ -2050,7 +2054,7 @@ func (self *SGuest) startAttachIsolatedDevices(ctx context.Context, userCred mcc
 	host, _ := self.GetHost()
 	lockman.LockObject(ctx, host)
 	defer lockman.ReleaseObject(ctx, host)
-	devs, err := IsolatedDeviceManager.GetDevsOnHost(host.Id, devModel, count)
+	devs, err := IsolatedDeviceManager.GetUnusedDevsOnHost(host.Id, devModel, count)
 	if err != nil {
 		return httperrors.NewInternalServerError("fetch gpu failed %s", err)
 	}
@@ -2150,7 +2154,7 @@ func (self *SGuest) startAttachIsolatedDevGeneral(ctx context.Context, userCred 
 	return err
 }
 
-func (self *SGuest) attachIsolatedDevice(ctx context.Context, userCred mcclient.TokenCredential, dev *SIsolatedDevice, networkIndex, diskIndex *int8) error {
+func (self *SGuest) attachIsolatedDevice(ctx context.Context, userCred mcclient.TokenCredential, dev *SIsolatedDevice, networkIndex *int, diskIndex *int8) error {
 	if len(dev.GuestId) > 0 {
 		return fmt.Errorf("Isolated device already attached to another guest: %s", dev.GuestId)
 	}
@@ -2469,7 +2473,10 @@ func (self *SGuest) PerformChangeIpaddr(
 		taskData.Set("restart_network", jsonutils.JSONTrue)
 		taskData.Set("prev_ip", jsonutils.NewString(gn.IpAddr))
 		taskData.Set("prev_mac", jsonutils.NewString(newMacAddr))
-		net := ngn.GetNetwork()
+		net, err := ngn.GetNetwork()
+		if err != nil {
+			return nil, errors.Wrapf(err, "GetNetwork")
+		}
 		taskData.Set("is_vpc_network", jsonutils.NewBool(net.isOneCloudVpcNetwork()))
 		taskData.Set("ip_mask", jsonutils.NewString(ipMask))
 		taskData.Set("gateway", jsonutils.NewString(newGateway))
@@ -2553,6 +2560,29 @@ func (self *SGuest) PerformDetachnetwork(
 		return nil, httperrors.NewMissingParameterError("net_id")
 	}
 
+	removeNics := make(map[string]*SGuestnetwork)
+	for i := range gns {
+		removeNics[gns[i].MacAddr] = &gns[i]
+	}
+
+	slaveNics, err := self.GetSlaveNetworks()
+	if err != nil {
+		return nil, errors.Wrap(err, "GetSlaveNetworks")
+	}
+
+	for i := range slaveNics {
+		teamMac := slaveNics[i].TeamWith
+		if len(teamMac) > 0 {
+			if _, ok := removeNics[teamMac]; ok {
+				// to remove slave's master NIC, should also remove slave itself
+				if _, ok2 := removeNics[slaveNics[i].MacAddr]; !ok2 {
+					// otherwise, report the error
+					return nil, errors.Wrap(errors.ErrInvalidStatus, "")
+				}
+			}
+		}
+	}
+
 	err = self.detachNetworks(ctx, userCred, gns, input.Reserve)
 	if err != nil {
 		return nil, errors.Wrap(err, "detachNetworks")
@@ -2588,10 +2618,15 @@ func (guest *SGuest) fixDefaultGateway(ctx context.Context, userCred mcclient.To
 	nicList := netutils2.SNicInfoList{}
 	nics, _ := guest.GetNetworks("")
 	for i := range nics {
-		net := nics[i].GetNetwork()
-		nicList = nicList.Add(nics[i].IpAddr, nics[i].MacAddr, net.GuestGateway)
-		if nics[i].IsDefault {
-			defaultGwCnt++
+		if nics[i].Virtual || len(nics[i].TeamWith) > 0 {
+			continue
+		}
+		net, _ := nics[i].GetNetwork()
+		if net != nil {
+			nicList = nicList.Add(nics[i].IpAddr, nics[i].MacAddr, net.GuestGateway)
+			if nics[i].IsDefault {
+				defaultGwCnt++
+			}
 		}
 	}
 	if defaultGwCnt != 1 {
@@ -3119,13 +3154,25 @@ func (self *SGuest) PerformStatus(ctx context.Context, userCred mcclient.TokenCr
 		}
 	}
 
-	if ispId := self.GetMetadata(ctx, api.BASE_INSTANCE_SNAPSHOT_ID, userCred); len(ispId) > 0 {
-		ispM, err := InstanceSnapshotManager.FetchById(ispId)
-		if err == nil {
-			isp := ispM.(*SInstanceSnapshot)
-			isp.DecRefCount(ctx, userCred)
+	if input.Status == api.VM_RUNNING && input.BlockJobsCount == 0 {
+		if ispId := self.GetMetadata(ctx, api.BASE_INSTANCE_SNAPSHOT_ID, userCred); len(ispId) > 0 {
+			var disksMerged = true
+			disks, _ := self.GetDisks()
+			for _, disk := range disks {
+				if disk.GetMetadata(ctx, "merge_snapshot", userCred) == "true" {
+					disksMerged = false
+				}
+			}
+
+			if disksMerged {
+				ispM, err := InstanceSnapshotManager.FetchById(ispId)
+				if err == nil {
+					isp := ispM.(*SInstanceSnapshot)
+					isp.DecRefCount(ctx, userCred)
+				}
+				self.SetMetadata(ctx, api.BASE_INSTANCE_SNAPSHOT_ID, "", userCred)
+			}
 		}
-		self.SetMetadata(ctx, api.BASE_INSTANCE_SNAPSHOT_ID, "", userCred)
 	}
 
 	if preStatus != self.Status && !self.isNotRunningStatus(preStatus) && self.isNotRunningStatus(self.Status) {
@@ -3145,7 +3192,7 @@ func (self *SGuest) PerformStop(ctx context.Context, userCred mcclient.TokenCred
 		if err := self.ValidateEncryption(ctx, userCred); err != nil {
 			return nil, errors.Wrap(httperrors.ErrForbidden, "encryption key not accessible")
 		}
-		return nil, self.StartGuestStopTask(ctx, userCred, input.IsForce, input.StopCharging, "")
+		return nil, self.StartGuestStopTask(ctx, userCred, input.TimeoutSecs, input.IsForce, input.StopCharging, "")
 	}
 	return nil, httperrors.NewInvalidStatusError("Cannot stop server in status %s", self.Status)
 }
@@ -3780,7 +3827,7 @@ func (self *SGuest) guestDisksStorageTypeIsLocal() bool {
 	disks, _ := self.GetDisks()
 	for _, disk := range disks {
 		storage, _ := disk.GetStorage()
-		if storage.StorageType != api.STORAGE_LOCAL {
+		if storage.StorageType != api.STORAGE_LOCAL && storage.StorageType != api.STORAGE_LVM {
 			return false
 		}
 	}
@@ -3791,7 +3838,7 @@ func (self *SGuest) guestDisksStorageTypeIsShared() bool {
 	disks, _ := self.GetDisks()
 	for _, disk := range disks {
 		storage, _ := disk.GetStorage()
-		if storage.StorageType == api.STORAGE_LOCAL {
+		if storage.StorageType == api.STORAGE_LOCAL || storage.StorageType == api.STORAGE_LVM {
 			return false
 		}
 	}
@@ -4853,17 +4900,17 @@ func (self *SGuest) validateCreateInstanceSnapshot(
 		if err != nil {
 			return nil, input, errors.Wrapf(err, "GetDisks")
 		}
-		for i := 0; i < len(disks); i++ {
-			if storage, _ := disks[i].GetStorage(); utils.IsInStringArray(storage.StorageType, api.FIEL_STORAGE) {
-				count, err := SnapshotManager.GetDiskManualSnapshotCount(disks[i].Id)
-				if err != nil {
-					return nil, input, httperrors.NewInternalServerError("%v", err)
-				}
-				if count >= options.Options.DefaultMaxManualSnapshotCount {
-					return nil, input, httperrors.NewBadRequestError("guests disk %d snapshot full, can't take anymore", i)
-				}
-			}
-		}
+		//for i := 0; i < len(disks); i++ {
+		//	if storage, _ := disks[i].GetStorage(); utils.IsInStringArray(storage.StorageType, api.FIEL_STORAGE) {
+		//		count, err := SnapshotManager.GetDiskManualSnapshotCount(disks[i].Id)
+		//		if err != nil {
+		//			return nil, input, httperrors.NewInternalServerError("%v", err)
+		//		}
+		//		if count >= options.Options.DefaultMaxManualSnapshotCount {
+		//			return nil, input, httperrors.NewBadRequestError("guests disk %d snapshot full, can't take anymore", i)
+		//		}
+		//	}
+		//}
 		pendingUsage.Snapshot = len(disks)
 	}
 	keys, err := self.GetRegionalQuotaKeys()
