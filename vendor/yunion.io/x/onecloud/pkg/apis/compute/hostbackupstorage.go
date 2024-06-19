@@ -15,29 +15,33 @@
 package compute
 
 import (
-	"yunion.io/x/jsonutils"
-
 	"yunion.io/x/onecloud/pkg/apis"
 )
 
-type DnsTrafficPolicyCreateInput struct {
-	apis.EnabledStatusInfrasResourceBaseCreateInput
+type HostBackupstorageDetails struct {
+	HostJointResourceDetails
 
-	Provider    string `json:"provider"`
-	PolicyType  string `json:"policy_type"`
-	PolicyValue string `json:"policy_value"`
-	// 额外参数
-	Options *jsonutils.JSONDict `json:"options"`
+	SHostBackupstorage
+
+	// 存储名称
+	Backupstorage string `json:"backupstorage"`
+	// 存储大小
+	CapacityMb int64 `json:"capacity_mb"`
+	// 存储类型
+	// example: local
+	StorageType string `json:"storage_type"`
+	// 是否启用
+	Enabled bool `json:"enabled"`
 }
 
-type DnsTrafficPolicyDetails struct {
-	apis.EnabledStatusInfrasResourceBaseDetails
-	SDnsTrafficPolicy
+type HostBackupstorageListInput struct {
+	HostJointsListInput
+
+	BackupstorageFilterListInput
 }
 
-type DnsTrafficPolicyListInput struct {
-	apis.EnabledStatusInfrasResourceBaseListInput
-
-	Provider   []string `json:"provider"`
-	PolicyType string   `json:"policy_type"`
+type HostBackupstorageCreateInput struct {
+	apis.JoinResourceBaseCreateInput
+	BackupstorageId string `json:"backupstorage_id"`
+	HostId          string `json:"host_id"`
 }

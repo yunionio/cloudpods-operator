@@ -20,8 +20,8 @@ require (
 	k8s.io/client-go v0.19.3
 	k8s.io/klog v0.3.3
 	yunion.io/x/jsonutils v1.0.1-0.20240203102553-4096f103b401
-	yunion.io/x/log v1.0.1-0.20230411060016-feb3f46ab361
-	yunion.io/x/onecloud v0.3.10-0-alpha2.0.20240217110022-3253857e944b
+	yunion.io/x/log v1.0.1-0.20240305175729-7cf2d6cd5a91
+	yunion.io/x/onecloud v0.3.10-0-alpha2.0.20240619073524-98e3d7fde986
 	yunion.io/x/pkg v1.10.0
 	yunion.io/x/structarg v0.0.0-20231017124457-df4d5009457c
 )
@@ -51,9 +51,9 @@ require (
 	github.com/golang-plus/uuid v1.0.0 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/google/go-cmp v0.5.9 // indirect
+	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/gofuzz v1.1.0 // indirect
-	github.com/google/uuid v1.3.0 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/gnostic v0.4.1 // indirect
 	github.com/hako/durafmt v0.0.0-20180520121703-7b7ae1e72ead // indirect
 	github.com/hashicorp/golang-lru v0.5.1 // indirect
@@ -123,7 +123,7 @@ require (
 	moul.io/http2curl/v2 v2.3.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect
 	sigs.k8s.io/yaml v1.2.0 // indirect
-	yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20240205093919-71ce2c413593 // indirect
+	yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20240604020740-92aebe8ed047 // indirect
 	yunion.io/x/executor v0.0.0-20230705125604-c5ac3141db32 // indirect
 	yunion.io/x/s3cli v0.0.0-20190917004522-13ac36d8687e // indirect
 	yunion.io/x/sqlchemy v1.1.2 // indirect

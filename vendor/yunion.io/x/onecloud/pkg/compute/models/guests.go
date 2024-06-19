@@ -1040,9 +1040,9 @@ func (guest *SGuest) GetVpc() (*SVpc, error) {
 	if network == nil {
 		return nil, errors.Wrapf(err, "failed getting network for guest %s(%s)", guest.Name, guest.Id)
 	}
-	vpc, _ := network.GetVpc()
-	if vpc == nil {
-		return nil, errors.Wrapf(err, "failed getting vpc of guest network %s(%s)", network.Name, network.Id)
+	vpc, err := network.GetVpc()
+	if err != nil {
+		return nil, errors.Wrapf(err, "GetVpc")
 	}
 	return vpc, nil
 }
@@ -2250,6 +2250,10 @@ func (guest *SGuest) PostCreate(ctx context.Context, userCred mcclient.TokenCred
 	if jsonutils.QueryBoolean(data, imageapi.IMAGE_DISABLE_USB_KBD, false) {
 		guest.SetMetadata(ctx, imageapi.IMAGE_DISABLE_USB_KBD, "true", userCred)
 	}
+	matcherJson, _ := data.Get(api.BAREMETAL_SERVER_METATA_ROOT_DISK_MATCHER)
+	if matcherJson != nil {
+		guest.SetMetadata(ctx, api.BAREMETAL_SERVER_METATA_ROOT_DISK_MATCHER, matcherJson, userCred)
+	}
 
 	userData, _ := data.GetString("user_data")
 	if len(userData) > 0 {
@@ -2919,6 +2923,10 @@ func (self *SGuest) syncRemoveCloudVM(ctx context.Context, userCred mcclient.Tok
 		return errors.Wrap(err, "GetIVMById")
 	}
 
+	if self.Status != api.VM_UNKNOWN {
+		self.SetStatus(userCred, api.VM_UNKNOWN, "Sync lost")
+	}
+
 	if options.Options.EnableSyncPurge {
 		log.Debugf("purge removed resource %s", self.Name)
 		err := self.purge(ctx, userCred)
@@ -2929,6 +2937,8 @@ func (self *SGuest) syncRemoveCloudVM(ctx context.Context, userCred mcclient.Tok
 			Obj:    self,
 			Action: notifyclient.ActionSyncDelete,
 		})
+
+		return nil
 	}
 
 	if !lostNamePattern.MatchString(self.Name) {
@@ -2938,9 +2948,6 @@ func (self *SGuest) syncRemoveCloudVM(ctx context.Context, userCred mcclient.Tok
 		})
 	}
 
-	if self.Status != api.VM_UNKNOWN {
-		self.SetStatus(userCred, api.VM_UNKNOWN, "Sync lost")
-	}
 	return nil
 }
 
@@ -3180,15 +3187,11 @@ func (manager *SGuestManager) newCloudVM(ctx context.Context, userCred mcclient.
 		lockman.LockRawObject(ctx, manager.Keyword(), "name")
 		defer lockman.ReleaseRawObject(ctx, manager.Keyword(), "name")
 
-		if options.Options.EnableSyncName {
-			guest.Name = extVM.GetName()
-		} else {
-			newName, err := db.GenerateName(ctx, manager, syncOwnerId, extVM.GetName())
-			if err != nil {
-				return errors.Wrapf(err, "db.GenerateName")
-			}
-			guest.Name = newName
+		newName, err := db.GenerateName(ctx, manager, syncOwnerId, extVM.GetName())
+		if err != nil {
+			return errors.Wrapf(err, "db.GenerateName")
 		}
+		guest.Name = newName
 
 		return manager.TableSpec().Insert(ctx, &guest)
 	}()
@@ -5944,7 +5947,7 @@ func (self *SGuest) FillDiskSchedDesc(desc *api.ServerConfigs) {
 	for i := 0; i < len(guestDisks); i++ {
 		diskConf := guestDisks[i].ToDiskConfig()
 		// HACK: storage used by self, so earse it
-		if diskConf.Backend == api.STORAGE_LOCAL {
+		if !utils.IsInStringArray(diskConf.Backend, api.SHARED_STORAGE) {
 			diskConf.Storage = ""
 		}
 		desc.Disks = append(desc.Disks, diskConf)
@@ -6659,4 +6662,25 @@ func (guest *SGuest) IsSriov() bool {
 		}
 	}
 	return false
+}
+
+func (guest *SGuest) getDisksCandidateHostIds() ([]string, error) {
+	disks, err := guest.GetDisks()
+	if err != nil {
+		return nil, errors.Wrap(err, "guest.GetDisks")
+	}
+	ret := stringutils2.NewSortedStrings(nil)
+	for i := range disks {
+		candidates, err := disks[i].getCandidateHostIds()
+		if err != nil {
+			return nil, errors.Wrap(err, "getCandidateHostIds")
+		}
+		sorted := stringutils2.NewSortedStrings(candidates)
+		if i > 0 {
+			ret = stringutils2.Intersect(ret, sorted)
+		} else {
+			ret = sorted
+		}
+	}
+	return ret, nil
 }

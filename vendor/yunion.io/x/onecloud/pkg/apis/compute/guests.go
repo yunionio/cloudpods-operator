@@ -16,7 +16,6 @@ package compute
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"yunion.io/x/jsonutils"
@@ -24,7 +23,6 @@ import (
 
 	"yunion.io/x/onecloud/pkg/apis"
 	"yunion.io/x/onecloud/pkg/apis/billing"
-	"yunion.io/x/onecloud/pkg/apis/cloudcommon/db"
 	imageapi "yunion.io/x/onecloud/pkg/apis/image"
 	"yunion.io/x/onecloud/pkg/httperrors"
 )
@@ -284,6 +282,22 @@ type Cdrom struct {
 	BootIndex int8   `json:"boot_index"`
 }
 
+type IMetricResource interface {
+	GetMetricTags() map[string]string
+}
+
+func AppendMetricTags(ret map[string]string, res ...IMetricResource) map[string]string {
+	if ret == nil {
+		ret = map[string]string{}
+	}
+	for _, r := range res {
+		for k, v := range r.GetMetricTags() {
+			ret[k] = v
+		}
+	}
+	return ret
+}
+
 func (self ServerDetails) GetMetricTags() map[string]string {
 	ret := map[string]string{
 		"id":                  self.Id,
@@ -312,15 +326,8 @@ func (self ServerDetails) GetMetricTags() map[string]string {
 		"account_id":          self.AccountId,
 		"external_id":         self.ExternalId,
 	}
-	for k, v := range self.Metadata {
-		if strings.HasPrefix(k, db.USER_TAG_PREFIX) {
-			if strings.Contains(k, "login_key") || strings.Contains(v, "=") {
-				continue
-			}
-			ret[k] = v
-		}
-	}
-	return ret
+
+	return AppendMetricTags(ret, self.MetadataResourceInfo, self.ProjectizedResourceInfo)
 }
 
 func (self ServerDetails) GetMetricPairs() map[string]string {
@@ -597,6 +604,9 @@ type ServerResetInput struct {
 type ServerStopInput struct {
 	// 是否强制关机
 	IsForce bool `json:"is_force"`
+
+	// 关机等待时间，如果是强制关机，则等待时间为0，如果不设置，默认为30秒
+	TimeoutSecs int `json:"timeout_secs"`
 
 	// 是否关机停止计费, 若平台不支持停止计费，此参数无作用
 	// 目前仅阿里云，腾讯云此参数生效
