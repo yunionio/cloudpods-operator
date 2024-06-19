@@ -41,6 +41,7 @@ import (
 	"yunion.io/x/onecloud/pkg/cloudcommon/consts"
 	"yunion.io/x/onecloud/pkg/httperrors"
 	"yunion.io/x/onecloud/pkg/util/atexit"
+	"yunion.io/x/onecloud/pkg/util/fileutils2"
 	"yunion.io/x/onecloud/pkg/util/httputils"
 )
 
@@ -58,9 +59,11 @@ type BaseOptions struct {
 
 	DebugClient bool `help:"Switch on/off mcclient debugs" default:"false"`
 
-	LogLevel        string `help:"log level" default:"info" choices:"debug|info|warn|error"`
-	LogVerboseLevel int    `help:"log verbosity level" default:"0"`
-	LogFilePrefix   string `help:"prefix of log files"`
+	LogLevel           string `help:"log level" default:"info" choices:"debug|info|warn|error"`
+	LogWithTimeZone    string `help:"log time zone" default:"UTC"`
+	LogTimestampFormat string `help:"log time format" default:"2006-01-02 15:04:05"`
+	LogVerboseLevel    int    `help:"log verbosity level" default:"0"`
+	LogFilePrefix      string `help:"prefix of log files"`
 
 	CorsHosts []string `help:"List of hostname that allow CORS"`
 	TempPath  string   `help:"Path for store temp file, at least 40G space" default:"/opt/yunion/tmp"`
@@ -68,6 +71,8 @@ type BaseOptions struct {
 	ApplicationID      string `help:"Application ID"`
 	RequestWorkerCount int    `default:"8" help:"Request worker thread count, default is 8"`
 	TaskWorkerCount    int    `default:"4" help:"Task manager worker thread count, default is 4"`
+
+	DefaultProcessTimeoutSeconds int `default:"60" help:"request process timeout, default is 60 seconds"`
 
 	EnableSsl   bool   `help:"Enable https"`
 	SslCaCerts  string `help:"ssl certificate ca root file, separating ca and cert file is not encouraged" alias:"ca-file"`
@@ -141,7 +146,9 @@ type HostCommonOptions struct {
 	ExecutorSocketPath     string `help:"Executor socket path" default:"/var/run/onecloud/exec.sock"`
 	DeployServerSocketPath string `help:"Deploy server listen socket path" default:"/var/run/onecloud/deploy.sock"`
 
-	EnableRemoteExecutor bool `help:"Enable remote executor" default:"false"`
+	EnableRemoteExecutor          bool   `help:"Enable remote executor" default:"false"`
+	ExecutorConnectTimeoutSeconds int    `help:"executor client connection timeout in seconds, default is 30" default:"30"`
+	ImageDeployDriver             string `help:"Image deploy driver" default:"qemu-kvm" choices:"qemu-kvm|nbd|libguestfs"`
 }
 
 type DBOptions struct {
@@ -257,7 +264,15 @@ func (opt *DBOptions) GetClickhouseConnStr() (string, string, error) {
 	return "clickhouse", opt.Clickhouse, nil
 }
 
+func ParseOptionsIgnoreNoConfigfile(optStruct interface{}, args []string, configFileName string, serviceType string) {
+	parseOptions(optStruct, args, configFileName, serviceType, true)
+}
+
 func ParseOptions(optStruct interface{}, args []string, configFileName string, serviceType string) {
+	parseOptions(optStruct, args, configFileName, serviceType, false)
+}
+
+func parseOptions(optStruct interface{}, args []string, configFileName string, serviceType string, ignoreNoConfigfile bool) {
 	if len(serviceType) == 0 {
 		log.Fatalf("ServiceType must provided!")
 	}
@@ -307,10 +322,14 @@ func ParseOptions(optStruct interface{}, args []string, configFileName string, s
 	}
 
 	if len(optionsRef.Config) > 0 {
-		log.Infof("Use configuration file: %s", optionsRef.Config)
-		err = parser.ParseFile(optionsRef.Config)
-		if err != nil {
-			log.Fatalf("Parse configuration file: %v", err)
+		if !fileutils2.Exists(optionsRef.Config) && !ignoreNoConfigfile {
+			log.Fatalf("Configuration file %s not exist", optionsRef.Config)
+		} else if fileutils2.Exists(optionsRef.Config) {
+			log.Infof("Use configuration file: %s", optionsRef.Config)
+			err = parser.ParseFile(optionsRef.Config)
+			if err != nil {
+				log.Fatalf("Parse configuration file: %v", err)
+			}
 		}
 	}
 
@@ -320,6 +339,8 @@ func ParseOptions(optStruct interface{}, args []string, configFileName string, s
 		optionsRef.ApplicationID = serviceName
 	}
 
+	httperrors.SetTimeZone(optionsRef.TimeZone)
+
 	// log configuration
 	log.SetVerboseLevel(int32(optionsRef.LogVerboseLevel))
 	err = log.SetLogLevelByString(log.Logger(), optionsRef.LogLevel)
@@ -328,7 +349,8 @@ func ParseOptions(optStruct interface{}, args []string, configFileName string, s
 	}
 	log.Infof("Set log level to %q", optionsRef.LogLevel)
 	log.Logger().Formatter = &log.TextFormatter{
-		TimestampFormat: "2006-01-02 15:04:05",
+		TimeZone:        optionsRef.LogWithTimeZone,
+		TimestampFormat: optionsRef.LogTimestampFormat,
 	}
 	if optionsRef.LogFilePrefix != "" {
 		dir, name := filepath.Split(optionsRef.LogFilePrefix)

@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"yunion.io/x/jsonutils"
-	"yunion.io/x/log"
 	"yunion.io/x/pkg/errors"
 	"yunion.io/x/pkg/gotypes"
 	"yunion.io/x/pkg/tristate"
@@ -72,9 +71,9 @@ func GetStringValue(dat interface{}) string {
 	serializable, ok := value.Interface().(gotypes.ISerializable)
 	if ok {
 		return serializable.String()
+	} else {
+		return jsonutils.Marshal(value.Interface()).String()
 	}
-	log.Errorf("cannot convert %v to string", value)
-	return ""
 }
 
 func setValueBySQLString(value reflect.Value, val string) error {
@@ -138,6 +137,9 @@ func setValueBySQLString(value reflect.Value, val string) error {
 		if err != nil {
 			return errors.Wrapf(err, "jsonutils.ParseString %s", val)
 		}
+		if jsonV == jsonutils.JSONNull {
+			return nil
+		}
 		jsonA, err := jsonV.GetArray()
 		if err != nil {
 			return errors.Wrap(err, "jsonV.GetArray")
@@ -159,20 +161,14 @@ func setValueBySQLString(value reflect.Value, val string) error {
 		if err != nil {
 			return errors.Wrapf(err, "jsonutils.ParseString %s", val)
 		}
-		jsonM, err := jsonV.GetMap()
-		if err != nil {
-			return errors.Wrapf(err, "jsonV.GetMap")
+		if jsonV == jsonutils.JSONNull {
+			return nil
 		}
 		mapValue := reflect.MakeMap(value.Type())
 		value.Set(mapValue)
-		for k, jsonV := range jsonM {
-			elemValue := reflect.New(value.Type().Elem()).Elem()
-			jsonStr, _ := jsonV.GetString()
-			err := setValueBySQLString(elemValue, jsonStr)
-			if err != nil {
-				return errors.Wrapf(err, "TestSetValueBySQLString %s", jsonV.String())
-			}
-			value.SetMapIndex(reflect.ValueOf(k), elemValue)
+		err = jsonV.Unmarshal(mapValue.Interface())
+		if err != nil {
+			return errors.Wrapf(err, "jsonV.Unmarshal")
 		}
 		return nil
 	default:
@@ -193,6 +189,9 @@ func setValueBySQLString(value reflect.Value, val string) error {
 			if err != nil {
 				return errors.Wrapf(err, "%s not a json string: %s", val, err)
 			}
+			if jsonV == jsonutils.JSONNull {
+				return nil
+			}
 			newVal := reflect.New(value.Type())
 			err = jsonV.Unmarshal(newVal.Interface())
 			if err != nil {
@@ -200,7 +199,6 @@ func setValueBySQLString(value reflect.Value, val string) error {
 			}
 			value.Set(reflect.Indirect(newVal))
 			return nil
-			// return errors.Wrapf(ErrNotSupported, "not supported type: %s", valueType)
 		}
 	}
 }

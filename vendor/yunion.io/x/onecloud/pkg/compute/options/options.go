@@ -98,10 +98,8 @@ type ComputeOptions struct {
 	BaremetalPreparePackageUrl string `help:"Baremetal online register package"`
 
 	// snapshot options
-	AutoSnapshotDay               int `default:"1" help:"Days auto snapshot disks, default 1 day"`
-	AutoSnapshotHour              int `default:"2" help:"What hour take sanpshot, default 02:00"`
-	DefaultMaxSnapshotCount       int `default:"9" help:"Per Disk max snapshot count, default 9"`
-	DefaultMaxManualSnapshotCount int `default:"2" help:"Per Disk max manual snapshot count, default 2"`
+	AutoSnapshotDay  int `default:"1" help:"Days auto snapshot disks, default 1 day"`
+	AutoSnapshotHour int `default:"2" help:"What hour take sanpshot, default 02:00"`
 
 	//snapshot policy options
 	RetentionDaysLimit  int `default:"49" help:"Days of snapshot retention, default 49 days"`
@@ -197,6 +195,9 @@ type ComputeOptions struct {
 	KvmMonitorAgentUseMetadataService bool   `help:"Monitor agent report metrics to metadata service on host" default:"true"`
 	MonitorEndpointType               string `help:"specify monitor endpoint type" default:"public"`
 	ForceUseOriginVnc                 bool   `help:"force openstack use origin vnc console" default:"true"`
+
+	LocalDataDiskMinSizeGB int `help:"Data disk min size when using local storage" default:"10"`
+	LocalDataDiskMaxSizeGB int `help:"Data disk max size when using local storage" default:"40960"`
 
 	esxi.EsxiOptions
 }

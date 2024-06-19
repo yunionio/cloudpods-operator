@@ -210,7 +210,6 @@ func generatePolicies(scope rbacutils.TRbacScope, def sPolicyDefinition) []SPoli
 
 	var roleConfs []sRoleConf
 	if len(def.Services) > 0 {
-		var roleConfs []sRoleConf
 		if len(def.AvailableRoles) == 0 || utils.IsInStringArray("admin", def.AvailableRoles) {
 			roleConfs = append(roleConfs, sRoleConf{
 				name:       "admin",

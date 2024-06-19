@@ -73,7 +73,7 @@ func (ff *SFunctionFieldBase) Name() string {
 
 // Label implementation of SFunctionFieldBase for IQueryField
 func (ff *SFunctionFieldBase) Label(label string) IQueryField {
-	if len(label) > 0 && label != ff.alias {
+	if len(label) > 0 {
 		ff.alias = label
 	}
 	return ff
@@ -321,6 +321,11 @@ func TimestampAdd(name string, field IQueryField, offsetSeconds int) IQueryField
 // TIMESTAMPADD represents a SQL function TimestampAdd
 func TIMESTAMPADD(name string, field IQueryField, offsetSeconds int) IQueryField {
 	return getFieldBackend(field).TIMESTAMPADD(name, field, offsetSeconds)
+}
+
+// DATE_FORMAT represents a SQL function DATE_FORMAT
+func DATE_FORMAT(name string, field IQueryField, format string) IQueryField {
+	return getFieldBackend(field).DATE_FORMAT(name, field, format)
 }
 
 // CAST represents a SQL function cast types

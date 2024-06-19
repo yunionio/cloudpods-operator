@@ -67,13 +67,14 @@ type HostListInput struct {
 
 	StorageFilterListInput
 	UsableResourceListInput
+	BackupstorageFilterListInput
 
 	// filter by ResourceType
 	ResourceType string `json:"resource_type"`
 	// filter by mac of any network interface
 	AnyMac string `json:"any_mac"`
 	// filter by ip of any network interface
-	AnyIp string `json:"any_ip"`
+	AnyIp []string `json:"any_ip"`
 	// filter storages not attached to this host
 	StorageNotAttached *bool `json:"storage_not_attached"`
 	// filter by Hypervisor
@@ -273,6 +274,9 @@ type HostResourceInfo struct {
 
 	// 宿主机序列号
 	HostSN string `json:"host_sn"`
+
+	// 宿主是否启用
+	HostEnabled bool `json:"host_enabled"`
 
 	// 宿主机状态
 	HostStatus string `json:"host_status"`

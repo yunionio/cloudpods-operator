@@ -70,6 +70,40 @@ type SQuery struct {
 	db *SDatabase
 }
 
+func (self *SQuery) Copy() *SQuery {
+	q := &SQuery{
+		rawSql:     self.rawSql,
+		fields:     []IQueryField{},
+		distinct:   self.distinct,
+		from:       self.from,
+		joins:      []sQueryJoin{},
+		where:      self.where,
+		groupBy:    []IQueryField{},
+		orderBy:    []sQueryOrder{},
+		limit:      self.limit,
+		offset:     self.offset,
+		fieldCache: map[string]IQueryField{},
+		snapshot:   self.snapshot,
+		db:         self.db,
+	}
+	for i := range self.fields {
+		q.fields = append(q.fields, self.fields[i])
+	}
+	for i := range self.joins {
+		q.joins = append(q.joins, self.joins[i])
+	}
+	for i := range self.groupBy {
+		q.groupBy = append(q.groupBy, self.groupBy[i])
+	}
+	for i := range self.orderBy {
+		q.orderBy = append(q.orderBy, self.orderBy[i])
+	}
+	for k, field := range self.fieldCache {
+		q.fieldCache[k] = field
+	}
+	return q
+}
+
 // IsGroupBy returns wether the query contains group by clauses
 func (tq *SQuery) IsGroupBy() bool {
 	return len(tq.groupBy) > 0
@@ -81,6 +115,7 @@ func (tq *SQuery) HasField(f IQueryField) bool {
 	}
 	for i := range tq.fields {
 		fi := tq.fields[i]
+		// log.Debugf("field at %d: %s", i, fi.Name())
 		if fi.Name() == f.Name() {
 			return true
 		}
@@ -90,6 +125,7 @@ func (tq *SQuery) HasField(f IQueryField) bool {
 
 // AppendField appends query field to a query
 func (tq *SQuery) AppendField(f ...IQueryField) *SQuery {
+	// log.Debugf("AppendField tq has fields %d", len(tq.fields))
 	for i := range f {
 		if !tq.HasField(f[i]) {
 			tq.fields = append(tq.fields, f[i])
