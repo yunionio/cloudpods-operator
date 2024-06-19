@@ -140,7 +140,8 @@ func (conn *Connection) isUserExists(username string, host string) (bool, error)
 	}
 	_, err := conn.db.Exec(q)
 	if err != nil {
-		return false, errors.Wrapf(err, "exec %s", q)
+		log.Errorf("%s fail %s", q, err)
+		return false, nil
 	}
 	return true, nil
 }

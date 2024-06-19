@@ -22,8 +22,8 @@ require (
 	k8s.io/klog v0.3.3
 	yunion.io/x/jsonutils v1.0.1-0.20240203102553-4096f103b401
 	yunion.io/x/log v1.0.1-0.20240305175729-7cf2d6cd5a91
-	yunion.io/x/onecloud v0.0.0-20240403063904-9eae3cf56474
-	yunion.io/x/pkg v1.10.1-0.20240324150220-11d9be90fa6c
+	yunion.io/x/onecloud v0.0.0-20240619013355-51de4f705915
+	yunion.io/x/pkg v1.10.1-0.20240601050854-9e3452bf4d47
 	yunion.io/x/structarg v0.0.0-20231017124457-df4d5009457c
 )
 
@@ -53,9 +53,9 @@ require (
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
-	github.com/google/go-cmp v0.5.9 // indirect
+	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/gofuzz v1.1.0 // indirect
-	github.com/google/uuid v1.3.0 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/gnostic v0.4.1 // indirect
 	github.com/hako/durafmt v0.0.0-20180520121703-7b7ae1e72ead // indirect
 	github.com/hashicorp/golang-lru v0.5.1 // indirect
@@ -93,9 +93,10 @@ require (
 	github.com/tklauser/numcpus v0.4.0 // indirect
 	github.com/tredoe/osutil/v2 v2.0.0-rc.16 // indirect
 	github.com/ugorji/go/codec v1.1.7 // indirect
+	github.com/ulikunitz/xz v0.5.12 // indirect
 	github.com/vishvananda/netlink v1.1.0 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
-	github.com/vmware/govmomi v0.20.1 // indirect
+	github.com/vmware/govmomi v0.37.1 // indirect
 	github.com/xuri/efp v0.0.0-20220603152613-6918739fd470 // indirect
 	github.com/xuri/excelize/v2 v2.7.1 // indirect
 	github.com/xuri/nfp v0.0.0-20220409054826-5e722a1d9e22 // indirect
@@ -125,10 +126,10 @@ require (
 	moul.io/http2curl/v2 v2.3.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect
 	sigs.k8s.io/yaml v1.2.0 // indirect
-	yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20240402114036-d4f834cee170 // indirect
+	yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20240617060756-e174e60e95f7 // indirect
 	yunion.io/x/executor v0.0.0-20230705125604-c5ac3141db32 // indirect
 	yunion.io/x/s3cli v0.0.0-20190917004522-13ac36d8687e // indirect
-	yunion.io/x/sqlchemy v1.1.3-0.20240326090913-96da8bf92408 // indirect
+	yunion.io/x/sqlchemy v1.1.3-0.20240530085133-5058648977dd // indirect
 )
 
 replace (

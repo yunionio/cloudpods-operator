@@ -793,7 +793,10 @@ func (d *sLinuxRootFs) DeployTelegraf(config string) (bool, error) {
 		return false, errors.Wrap(err, "chmod supervise run script")
 	}
 	initCmd := fmt.Sprintf("%s/supervise %s", cloudMonitorPath, telegrafPath)
-	err = d.installInitScript("telegraf", initCmd)
+	if d.isSupportSystemd() {
+		initCmd = path.Join(telegrafPath, "run")
+	}
+	err = d.installInitScript("telegraf", initCmd, false)
 	if err != nil {
 		return false, errors.Wrap(err, "installInitScript")
 	}
@@ -841,7 +844,7 @@ func (d *sDebianLikeRootFs) PrepareFsForTemplate(rootFs IDiskPartition) error {
 	netplanDir := "/etc/netplan/"
 	if rootFs.Exists(netplanDir, false) {
 		for _, f := range rootFs.ListDir(netplanDir, false) {
-			rootFs.Remove(netplanDir+f, false)
+			rootFs.Remove(filepath.Join(netplanDir, f), false)
 		}
 	}
 	return nil
@@ -885,16 +888,6 @@ func getNicTeamingConfigCmds(slaves []*types.SServerNic) string {
 	return cmds.String()
 }
 
-func (d *sDebianLikeRootFs) deployNetplanConfigFile(rootFs IDiskPartition, nics []*types.SServerNic) error {
-	netplanDir := "/etc/netplan/"
-	dirExists := rootFs.Exists(netplanDir, false)
-	if !dirExists {
-		return nil
-	}
-
-	return nil
-}
-
 func (d *sDebianLikeRootFs) DeployNetworkingScripts(rootFs IDiskPartition, nics []*types.SServerNic) error {
 	if err := d.sLinuxRootFs.DeployNetworkingScripts(rootFs, nics); err != nil {
 		return err
@@ -914,21 +907,22 @@ func (d *sDebianLikeRootFs) DeployNetworkingScripts(rootFs IDiskPartition, nics 
 	// ToServerNics(nics)
 	allNics, bondNics := convertNicConfigs(nics)
 
-	netplanDir := "/etc/netplan"
-	if rootFs.Exists(netplanDir, false) {
-		for _, f := range rootFs.ListDir(netplanDir, false) {
-			rootFs.Remove(netplanDir+f, false)
-		}
-		netplanConfig := NewNetplanConfig(allNics, bondNics)
-		if err := rootFs.FilePutContents(path.Join(netplanDir, "config.yaml"), netplanConfig.YAMLString(), false, false); err != nil {
-			return errors.Wrap(err, "Put netplan config")
-		}
-	}
-
 	mainNic := getMainNic(allNics)
 	var mainIp string
 	if mainNic != nil {
 		mainIp = mainNic.Ip
+	}
+
+	netplanDir := "/etc/netplan"
+	if rootFs.Exists(netplanDir, false) {
+		for _, f := range rootFs.ListDir(netplanDir, false) {
+			rootFs.Remove(filepath.Join(netplanDir, f), false)
+		}
+		netplanConfig := NewNetplanConfig(allNics, bondNics, mainIp)
+		log.Debugf("netplanConfig:\n %s", netplanConfig.YAMLString())
+		if err := rootFs.FilePutContents(path.Join(netplanDir, "config.yaml"), netplanConfig.YAMLString(), false, false); err != nil {
+			return errors.Wrap(err, "Put netplan config")
+		}
 	}
 
 	var systemdResolveConfig strings.Builder
@@ -951,6 +945,7 @@ func (d *sDebianLikeRootFs) DeployNetworkingScripts(rootFs IDiskPartition, nics 
 			cmds.WriteString(fmt.Sprintf("iface %s inet static\n", nicDesc.Name))
 			cmds.WriteString(fmt.Sprintf("    address %s\n", nicDesc.Ip))
 			cmds.WriteString(fmt.Sprintf("    netmask %s\n", netmask))
+			cmds.WriteString(fmt.Sprintf("    hwaddress ether %s\n", nicDesc.Mac))
 			if len(nicDesc.Gateway) > 0 && nicDesc.Ip == mainIp {
 				cmds.WriteString(fmt.Sprintf("    gateway %s\n", nicDesc.Gateway))
 			}
@@ -1379,15 +1374,20 @@ func (r *sRedhatLikeRootFs) deployNetworkingScripts(rootFs IDiskPartition, nics 
 			cmds.WriteString(fmt.Sprintf("MTU=%d\n", nicDesc.Mtu))
 		}
 		if len(nicDesc.Mac) > 0 && nicDesc.NicType != api.NIC_TYPE_INFINIBAND {
-			cmds.WriteString("HWADDR=")
-			cmds.WriteString(nicDesc.Mac)
-			cmds.WriteString("\n")
+			if len(nicDesc.TeamingSlaves) == 0 {
+				// only real physical nic can set HWADDR
+				cmds.WriteString("HWADDR=")
+				cmds.WriteString(nicDesc.Mac)
+				cmds.WriteString("\n")
+			}
 			cmds.WriteString("MACADDR=")
 			cmds.WriteString(nicDesc.Mac)
 			cmds.WriteString("\n")
 		}
-		if len(nicDesc.TeamingSlaves) != 0 {
-			cmds.WriteString(`BONDING_OPTS="mode=4 miimon=100"\n`)
+		if len(nicDesc.TeamingSlaves) > 0 {
+			// bonding
+			cmds.WriteString(`BONDING_OPTS="mode=4 miimon=100"`)
+			cmds.WriteString("\n")
 		}
 		if nicDesc.TeamingMaster != nil {
 			cmds.WriteString("BOOTPROTO=none\n")

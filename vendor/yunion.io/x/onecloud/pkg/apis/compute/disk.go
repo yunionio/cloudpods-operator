@@ -233,11 +233,6 @@ type DiskDetails struct {
 
 	// 自动快照策略
 	Snapshotpolicies []SimpleSnapshotPolicy `json:"snapshotpolicies"`
-
-	// 手动快照数量
-	ManualSnapshotCount int `json:"manual_snapshot_count"`
-	// 最多可创建手动快照数量
-	MaxManualSnapshotCount int `json:"max_manual_snapshot_count"`
 }
 
 type DiskResourceInfoBase struct {
@@ -322,6 +317,7 @@ type DiskAllocateFromBackupInput struct {
 type DiskDeleteInput struct {
 	SkipRecycle      *bool
 	EsxiFlatFilePath string
+	CleanSnapshots   bool
 }
 
 type DiskResetInput struct {
@@ -329,6 +325,12 @@ type DiskResetInput struct {
 	AutoStart  bool   `json:"auto_start"`
 }
 
+type DiskMigrateInput struct {
+	TargetStorageId string `json:"target_storage_id"`
+}
+
 type DiskSnapshotpolicyInput struct {
 	SnapshotpolicyId string `json:"snapshotpolicy_id"`
 }
+
+type DiskRebuildInput struct{}

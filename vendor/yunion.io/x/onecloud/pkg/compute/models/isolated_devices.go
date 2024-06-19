@@ -97,7 +97,7 @@ type SIsolatedDevice struct {
 	// 云主机Id
 	GuestId string `width:"36" charset:"ascii" nullable:"true" index:"true" list:"domain"`
 	// guest network index
-	NetworkIndex int8 `nullable:"true" default:"-1" list:"user" update:"user"`
+	NetworkIndex int `nullable:"true" default:"-1" list:"user" update:"user"`
 	// Nic wire id
 	WireId string `width:"36" charset:"ascii" nullable:"true" index:"true" list:"domain" update:"domain" create:"domain_optional"`
 	// Offload interface name
@@ -982,7 +982,20 @@ func (manager *SIsolatedDeviceManager) DeleteDevicesByHost(ctx context.Context, 
 	}
 }
 
-func (manager *SIsolatedDeviceManager) GetDevsOnHost(hostId string, model string, count int) ([]SIsolatedDevice, error) {
+func (manager *SIsolatedDeviceManager) GetAllDevsOnHost(hostId string) ([]SIsolatedDevice, error) {
+	devs := make([]SIsolatedDevice, 0)
+	q := manager.Query().Equals("host_id", hostId)
+	err := db.FetchModelObjects(manager, q, &devs)
+	if err != nil {
+		return nil, err
+	}
+	if len(devs) == 0 {
+		return nil, nil
+	}
+	return devs, nil
+}
+
+func (manager *SIsolatedDeviceManager) GetUnusedDevsOnHost(hostId string, model string, count int) ([]SIsolatedDevice, error) {
 	devs := make([]SIsolatedDevice, 0)
 	q := manager.Query().Equals("host_id", hostId).Equals("model", model).IsNullOrEmpty("guest_id").Limit(count)
 	err := db.FetchModelObjects(manager, q, &devs)
@@ -1094,7 +1107,7 @@ func (model *SIsolatedDevice) GetOwnerId() mcclient.IIdentityProvider {
 	return nil
 }
 
-func (model *SIsolatedDevice) SetNetworkIndex(idx int8) error {
+func (model *SIsolatedDevice) SetNetworkIndex(idx int) error {
 	_, err := db.Update(model, func() error {
 		model.NetworkIndex = idx
 		return nil

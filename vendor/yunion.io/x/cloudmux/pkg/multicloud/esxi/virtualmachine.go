@@ -220,7 +220,7 @@ func (svm *SVirtualMachine) GetGlobalId() string {
 }
 
 func (svm *SVirtualMachine) GetHostname() string {
-	return svm.GetName()
+	return ""
 }
 
 func (svm *SVirtualMachine) GetDescription() string {
@@ -470,7 +470,7 @@ func (vm *SVirtualMachine) getNormalizedOsInfo() *imagetools.ImageInfo {
 			osInfo := imagetools.NormalizeImageInfo("", string(osInfo.OsArch), string(osInfo.OsType), osInfo.OsDistribution, osInfo.OsVersion)
 			vm.osInfo = &osInfo
 		} else {
-			osInfo := imagetools.NormalizeImageInfo("", "", "", "", "")
+			osInfo := imagetools.NormalizeImageInfo(vm.GetName(), "", "", "", "")
 			vm.osInfo = &osInfo
 		}
 	}

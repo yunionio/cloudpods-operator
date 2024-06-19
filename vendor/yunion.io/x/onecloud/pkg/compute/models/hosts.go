@@ -75,6 +75,8 @@ type SHostManager struct {
 	SZoneResourceBaseManager
 	SManagedResourceBaseManager
 	SHostnameResourceBaseManager
+
+	SBackupstorageResourceBaseManager
 }
 
 var HostManager *SHostManager
@@ -334,6 +336,22 @@ func (manager *SHostManager) ListItemFilter(
 		}
 	}
 
+	if len(query.BackupstorageId) > 0 {
+		hbsQ := HostBackupstorageManager.Query("host_id", "backupstorage_id")
+		hbsQ, err = manager.SBackupstorageResourceBaseManager.ListItemFilter(ctx, hbsQ, userCred, query.BackupstorageFilterListInput)
+		if err != nil {
+			return q, errors.Wrap(err, "SBackupStorageResouceBaseManager.ListItemFiled")
+		}
+		hbsSubQ := hbsQ.SubQuery()
+		q = q.LeftJoin(hbsSubQ, sqlchemy.Equals(q.Field("id"), hbsSubQ.Field("host_id")))
+		notAttached := (query.StorageNotAttached != nil && *query.StorageNotAttached)
+		if !notAttached {
+			q = q.Filter(sqlchemy.IsNotNull(hbsSubQ.Field("backupstorage_id")))
+		} else {
+			q = q.Filter(sqlchemy.IsNull(hbsSubQ.Field("backupstorage_id")))
+		}
+	}
+
 	hostStorageType := query.HostStorageType
 	if len(hostStorageType) > 0 {
 		hoststorages := HoststorageManager.Query()
@@ -477,7 +495,10 @@ func (manager *SHostManager) ListItemFilter(
 			if len(nets) > 0 {
 				wires := []string{}
 				for i := 0; i < len(nets); i++ {
-					net := nets[i].GetNetwork()
+					net, _ := nets[i].GetNetwork()
+					if net == nil {
+						continue
+					}
 					vpc, _ := net.GetVpc()
 					if vpc.Id != api.DEFAULT_VPC_ID {
 						q = q.IsNotEmpty("ovn_version")
@@ -1527,8 +1548,69 @@ func (hh *SHost) getAttachedWires() []SWire {
 	return ret
 }
 
-func (hh *SHostManager) GetEnabledKvmHost() (*SHost, error) {
-	hostq := HostManager.Query().IsTrue("enabled").Equals("host_status", api.HOST_ONLINE).In("host_type", []string{api.HOST_TYPE_HYPERVISOR, api.HOST_TYPE_KVM})
+func (hh *SHostManager) GetEnabledKvmHostForBackupStorage(bs *SBackupStorage) (*SHost, error) {
+	hbs, err := HostBackupstorageManager.GetBackupStoragesByBackup(bs.Id)
+	if err != nil {
+		return nil, errors.Wrap(err, "GetBackupStoragesByBackup")
+	}
+	candidates := make([]string, 0)
+	for i := range hbs {
+		candidates = append(candidates, hbs[i].HostId)
+	}
+	host, err := HostManager.GetEnabledKvmHost(candidates)
+	if err != nil {
+		return nil, errors.Wrap(err, "GetEnabledKvmHost")
+	}
+	return host, nil
+}
+
+func (hh *SHostManager) GetEnabledKvmHostForDiskBackup(backup *SDiskBackup) (*SHost, error) {
+	bs, err := backup.GetBackupStorage()
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to get backupStorage")
+	}
+	storage, err := backup.GetStorage()
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to get storage of diskbackup")
+	}
+
+	hbs, err := HostBackupstorageManager.GetBackupStoragesByBackup(bs.Id)
+	if err != nil {
+		return nil, errors.Wrap(err, "HostBackupstorageManager.GetBackupStoragesByBackup")
+	}
+	hbsCandidates := stringutils2.NewSortedStrings(nil)
+	for i := range hbs {
+		hbsCandidates = hbsCandidates.Append(hbs[i].HostId)
+	}
+	hss, err := HoststorageManager.GetHostStoragesByStorageId(storage.Id)
+	if err != nil {
+		return nil, errors.Wrap(err, "HoststorageManager.GetStorages")
+	}
+	hssCandidates := stringutils2.NewSortedStrings(nil)
+	for i := range hss {
+		hssCandidates = hssCandidates.Append(hss[i].HostId)
+	}
+	var candidates []string
+	if len(hbsCandidates) == 0 {
+		candidates = []string(hssCandidates)
+	} else {
+		candidates = []string(stringutils2.Intersect(hbsCandidates, hssCandidates))
+	}
+
+	host, err := HostManager.GetEnabledKvmHost(candidates)
+	if err != nil {
+		return nil, errors.Wrap(err, "GetEnabledKvmHost")
+	}
+	return host, nil
+}
+
+func (hh *SHostManager) GetEnabledKvmHost(candidates []string) (*SHost, error) {
+	hostq := HostManager.Query().IsTrue("enabled")
+	hostq = hostq.Equals("host_status", api.HOST_ONLINE)
+	hostq = hostq.In("host_type", []string{api.HOST_TYPE_HYPERVISOR, api.HOST_TYPE_KVM})
+	if len(candidates) > 0 {
+		hostq = hostq.In("id", candidates)
+	}
 	host := SHost{}
 	err := hostq.First(&host)
 	if err != nil {
@@ -4649,14 +4731,14 @@ func (h *SHost) PerformAddNetif(
 		}
 	}
 
-	err = h.addNetif(ctx, userCred, mac, vlan, wire, ipAddr, int(rate), nicType, int8(index), isLinkUp,
+	err = h.addNetif(ctx, userCred, mac, vlan, wire, ipAddr, int(rate), nicType, index, isLinkUp,
 		int16(mtu), reset, netIf, bridge, reserve, requireDesignatedIp)
 	return nil, errors.Wrap(err, "addNetif")
 }
 
 func (h *SHost) addNetif(ctx context.Context, userCred mcclient.TokenCredential,
 	mac string, vlanId int, wire string, ipAddr string,
-	rate int, nicType compute.TNicType, index int8, linkUp tristate.TriState, mtu int16,
+	rate int, nicType compute.TNicType, index int, linkUp tristate.TriState, mtu int16,
 	reset bool, strInterface *string, strBridge *string,
 	reserve bool, requireDesignatedIp bool,
 ) error {
@@ -4732,7 +4814,7 @@ func (h *SHost) addNetif(ctx context.Context, userCred mcclient.TokenCredential,
 	if nicType != "" && nicType != netif.NicType {
 		netif.NicType = nicType
 	}
-	if index >= 0 && index != netif.Index {
+	if index >= 0 {
 		netif.Index = index
 	}
 	if !linkUp.IsNone() && linkUp.Bool() != netif.LinkUp {
@@ -4746,6 +4828,28 @@ func (h *SHost) addNetif(ctx context.Context, userCred mcclient.TokenCredential,
 	}
 	if strBridge != nil {
 		netif.Bridge = *strBridge
+	}
+	// ensure index is unique on host
+	{
+		ifs := h.GetHostNetInterfaces()
+		dupIdx := false
+		var maxIdx int
+		for i := range ifs {
+			if ifs[i].Mac == netif.Mac && ifs[i].VlanId == netif.VlanId {
+				// find self, skip
+				continue
+			}
+			if netif.Index == ifs[i].Index {
+				// duplicate nic index
+				dupIdx = true
+			}
+			if maxIdx < ifs[i].Index {
+				maxIdx = ifs[i].Index
+			}
+		}
+		if dupIdx {
+			netif.Index = maxIdx + 1
+		}
 	}
 	err = NetInterfaceManager.TableSpec().InsertOrUpdate(ctx, netif)
 	if err != nil {
@@ -5641,7 +5745,7 @@ func (host *SHost) SyncHostExternalNics(ctx context.Context, userCred mcclient.T
 			}
 		}
 		err = host.addNetif(ctx, userCred, extNic.GetMac(), extNic.GetVlanId(), wireId, extNic.GetIpAddr(), 0,
-			compute.TNicType(extNic.GetNicType()), extNic.GetIndex(),
+			compute.TNicType(extNic.GetNicType()), int(extNic.GetIndex()),
 			extNic.IsLinkUp(), int16(extNic.GetMtu()), false, strNetIf, strBridge, true, true)
 		if err != nil {
 			result.AddError(err)
@@ -6517,6 +6621,73 @@ func (manager *SHostManager) InitializeData() error {
 
 func (hh *SHost) PerformProbeIsolatedDevices(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
 	return hh.GetHostDriver().RequestProbeIsolatedDevices(ctx, userCred, hh, data)
+}
+
+func (hh *SHost) PerformSyncIsolatedDevices(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
+	devs, err := IsolatedDeviceManager.GetAllDevsOnHost(hh.Id)
+	if err != nil {
+		return nil, err
+	}
+	reqDevs, err := data.GetArray("isolated_devices")
+	if err != nil {
+		return nil, httperrors.NewMissingParameterError("isolated_devices")
+	}
+
+	retDevs := jsonutils.NewArray()
+	foundDevIndex := map[int]struct{}{}
+	for i := range devs {
+		dev, err := IsolatedDeviceManager.FetchById(devs[i].Id)
+		if err != nil {
+			return nil, err
+		}
+
+		foundDev := false
+		for j := range reqDevs {
+			venderDeviceId, _ := reqDevs[j].GetString("vendor_device_id")
+			devAddr, _ := reqDevs[j].GetString("addr")
+			mdevId, _ := reqDevs[j].GetString("mdev_id")
+			if devs[i].VendorDeviceId == venderDeviceId && devs[i].Addr == devAddr && devs[i].MdevId == mdevId {
+				// update isolated device
+				devRet, err := db.DoUpdate(IsolatedDeviceManager, dev, ctx, userCred, jsonutils.NewDict(), reqDevs[j])
+				if err != nil {
+					return nil, err
+				}
+				retDevs.Add(devRet)
+				foundDevIndex[j] = struct{}{}
+				foundDev = true
+			}
+		}
+
+		if !foundDev {
+			// detach isolated device
+			isolatedDev := dev.(*SIsolatedDevice)
+			params := jsonutils.NewDict()
+			params.Set("purge", jsonutils.JSONTrue)
+			_, err := isolatedDev.PerformPurge(ctx, userCred, nil, params)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	for i := range reqDevs {
+		if _, ok := foundDevIndex[i]; ok {
+			continue
+		}
+		// create isolated device
+		dev, err := db.DoCreate(IsolatedDeviceManager, ctx, userCred, nil, reqDevs[i], userCred)
+		if err != nil {
+			return nil, err
+		}
+		devRet, err := db.GetItemDetails(IsolatedDeviceManager, dev, ctx, userCred)
+		if err != nil {
+			return nil, err
+		}
+		retDevs.Add(devRet)
+	}
+	res := jsonutils.NewDict()
+	res.Set("isolated_devices", retDevs)
+	return res, nil
 }
 
 func (hh *SHost) GetPinnedCpusetCores(ctx context.Context, userCred mcclient.TokenCredential) (map[string][]int, error) {

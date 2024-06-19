@@ -177,6 +177,8 @@ type SCloudaccount struct {
 
 	// 跳过部分资源同步
 	SkipSyncResources *api.SkipSyncResources `length:"medium" get:"user" update:"domain" list:"user"`
+
+	EnableAutoSyncResource tristate.TriState `get:"user" update:"domain" create:"optional" list:"user" default:"true"`
 }
 
 func (acnt *SCloudaccount) IsNotSkipSyncResource(res lockman.ILockedClass) bool {
@@ -519,6 +521,9 @@ func (manager *SCloudaccountManager) validateCreateData(
 	}
 	input.IsPublicCloud = providerDriver.IsPublicCloud()
 	input.IsOnPremise = providerDriver.IsOnPremise()
+	if providerDriver.IsReadOnly() {
+		input.ReadOnly = true
+	}
 
 	if !input.SkipDuplicateAccountCheck {
 		q := manager.Query().Equals("provider", input.Provider)
@@ -576,7 +581,10 @@ func (manager *SCloudaccountManager) validateCreateData(
 		if err != nil {
 			return input, err
 		}
-		regions := provider.GetIRegions()
+		regions, err := provider.GetIRegions()
+		if err != nil {
+			return input, err
+		}
 		for _, region := range regions {
 			input.SubAccounts.Cloudregions = append(input.SubAccounts.Cloudregions, struct {
 				Id     string
@@ -680,10 +688,6 @@ func (acnt *SCloudaccount) getPassword() (string, error) {
 func (acnt *SCloudaccount) PerformSync(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input api.SyncRangeInput) (jsonutils.JSONObject, error) {
 	if !acnt.GetEnabled() {
 		return nil, httperrors.NewInvalidStatusError("Account disabled")
-	}
-
-	if acnt.SyncStatus != api.CLOUD_PROVIDER_SYNC_STATUS_IDLE {
-		return nil, httperrors.NewInvalidStatusError("Account is not idle")
 	}
 
 	syncRange := SSyncRange{SyncRangeInput: input}
@@ -2463,7 +2467,7 @@ func (account *SCloudaccount) syncAccountStatus(ctx context.Context, userCred mc
 		if providers[i].GetEnabled() {
 			_, err := providers[i].prepareCloudproviderRegions(ctx, userCred)
 			if err != nil {
-				return errors.Wrapf(err, "prepareCloudproviderRegions for provider %s", providers[i].Name)
+				providers[i].SetStatus(ctx, userCred, api.CLOUD_PROVIDER_DISCONNECTED, errors.Wrapf(err, "prepareCloudproviderRegions").Error())
 			}
 		}
 	}

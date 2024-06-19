@@ -127,7 +127,7 @@ type SNetwork struct {
 
 	// 服务器类型
 	// example: server
-	ServerType string `width:"16" charset:"ascii" default:"guest" nullable:"true" list:"user" create:"optional"`
+	ServerType string `width:"16" charset:"ascii" default:"guest" nullable:"true" list:"user" update:"admin" create:"optional"`
 
 	// 分配策略
 	AllocPolicy string `width:"16" charset:"ascii" nullable:"true" get:"user" update:"user" create:"optional"`
@@ -372,7 +372,7 @@ func (snet *SNetwork) getFreeIP(addrTable map[string]bool, recentUsedAddrTable m
 			return "", err
 		}
 		if !iprange.Contains(candIP) {
-			return "", httperrors.NewInputParameterError("candidate %s out of range", candidate)
+			return "", httperrors.NewInputParameterError("candidate %s out of range %s", candidate, iprange.String())
 		}
 		if _, ok := addrTable[candidate]; !ok {
 			return candidate, nil
@@ -1031,7 +1031,7 @@ func (manager *SNetworkManager) TotalPortCount(
 
 type SNicConfig struct {
 	Mac    string
-	Index  int8
+	Index  int
 	Ifname string
 }
 
@@ -2205,6 +2205,10 @@ func (snet *SNetwork) validateUpdateData(ctx context.Context, userCred mcclient.
 		if snet.ServerType != api.NETWORK_TYPE_GUEST {
 			return input, httperrors.NewInputParameterError("network server_type %s not support auto alloc", snet.ServerType)
 		}
+	}
+
+	if len(input.ServerType) > 0 && !utils.IsInArray(input.ServerType, api.ALL_NETWORK_TYPES) {
+		return input, errors.Wrapf(httperrors.ErrInputParameter, "invalid server_type %q", input.ServerType)
 	}
 
 	return input, nil
@@ -3458,19 +3462,38 @@ func (network *SNetwork) GetDetailsAddresses(
 	return output, nil
 }
 
+func (network *SNetwork) GetUsedAddressDetails(ctx context.Context, addr string) (*api.SNetworkUsedAddress, error) {
+	address, err := network.GetAddressDetails(ctx, nil, nil, rbacscope.ScopeSystem)
+	if err != nil {
+		return nil, errors.Wrapf(err, "GetAddressDetails")
+	}
+	for i := range address {
+		if address[i].IpAddr == addr || address[i].Ip6Addr == addr {
+			return &address[i], nil
+		}
+	}
+	return nil, errors.Wrapf(errors.ErrNotFound, addr)
+}
+
+func (network *SNetwork) GetAddressDetails(ctx context.Context, userCred mcclient.TokenCredential, owner mcclient.IIdentityProvider, scope rbacscope.TRbacScope) ([]api.SNetworkUsedAddress, error) {
+	netAddrs := make([]api.SNetworkUsedAddress, 0)
+	q := network.getUsedAddressQuery(ctx, userCred, owner, scope, false)
+	err := q.All(&netAddrs)
+	if err != nil {
+		return nil, httperrors.NewGeneralError(err)
+	}
+	sort.Sort(SNetworkUsedAddressList(netAddrs))
+	return netAddrs, nil
+}
+
 func (network *SNetwork) fetchAddressDetails(ctx context.Context, userCred mcclient.TokenCredential, owner mcclient.IIdentityProvider, scope rbacscope.TRbacScope) (api.GetNetworkAddressesOutput, error) {
 	output := api.GetNetworkAddressesOutput{}
 	{
-		netAddrs := make([]api.SNetworkUsedAddress, 0)
-		q := network.getUsedAddressQuery(ctx, userCred, owner, scope, false)
-		err := q.All(&netAddrs)
+		var err error
+		output.Addresses, err = network.GetAddressDetails(ctx, userCred, owner, scope)
 		if err != nil {
-			return output, httperrors.NewGeneralError(err)
+			return output, err
 		}
-
-		sort.Sort(SNetworkUsedAddressList(netAddrs))
-
-		output.Addresses = netAddrs
 	}
 	{
 		netAddrs6 := make([]api.SNetworkUsedAddress, 0)

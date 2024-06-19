@@ -83,6 +83,11 @@ type BackupStorageDetails struct {
 
 type BackupStorageListInput struct {
 	apis.EnabledStatusInfrasResourceBaseListInput
+
+	// filter by server_id
+	ServerId string `json:"server_id"`
+	// filter by disk_id
+	DiskId string `json:"disk_id"`
 }
 
 type DiskBackupListInput struct {
@@ -112,6 +117,8 @@ type DiskBackupDetails struct {
 	BackupStorageName string `json:"backup_storage_name"`
 	// description: 是否是子备份
 	IsSubBackup bool `json:"is_sub_backup"`
+
+	SDiskBackup
 }
 
 type DiskBackupCreateInput struct {
