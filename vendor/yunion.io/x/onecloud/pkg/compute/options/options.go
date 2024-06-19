@@ -100,10 +100,8 @@ type ComputeOptions struct {
 	BaremetalPreparePackageUrl string `help:"Baremetal online register package"`
 
 	// snapshot options
-	AutoSnapshotDay               int `default:"1" help:"Days auto snapshot disks, default 1 day"`
-	AutoSnapshotHour              int `default:"2" help:"What hour take sanpshot, default 02:00"`
-	DefaultMaxSnapshotCount       int `default:"9" help:"Per Disk max snapshot count, default 9"`
-	DefaultMaxManualSnapshotCount int `default:"2" help:"Per Disk max manual snapshot count, default 2"`
+	AutoSnapshotDay  int `default:"1" help:"Days auto snapshot disks, default 1 day"`
+	AutoSnapshotHour int `default:"2" help:"What hour take sanpshot, default 02:00"`
 
 	//snapshot policy options
 	RetentionDaysLimit int `default:"49" help:"Days of snapshot retention, default 49 days"`
@@ -224,6 +222,8 @@ type ComputeOptions struct {
 	ResourceExpiredNotifyDays []int `help:"The notify of resource expired" default:"1,3,30"`
 
 	esxi.EsxiOptions
+
+	NetworkAlwaysManualConfig bool `help:"always manually configure network settings" default:"false"`
 }
 
 type SCapabilityOptions struct {

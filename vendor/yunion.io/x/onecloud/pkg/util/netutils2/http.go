@@ -16,25 +16,10 @@ package netutils2
 
 import (
 	"net/http"
-	"strings"
+
+	"yunion.io/x/pkg/util/netutils"
 )
 
 func GetHttpRequestIp(r *http.Request) string {
-	ipStr := r.Header.Get("X-Forwarded-For")
-	if len(ipStr) > 0 {
-		ipList := strings.Split(ipStr, ",")
-		if len(ipList) > 0 {
-			return ipList[0]
-		}
-	}
-	ipStr = r.Header.Get("X-Real-Ip")
-	if len(ipStr) > 0 {
-		return ipStr
-	}
-	ipStr = r.RemoteAddr
-	colonPos := strings.Index(ipStr, ":")
-	if colonPos > 0 {
-		ipStr = ipStr[:colonPos]
-	}
-	return ipStr
+	return netutils.GetHttpRequestIp(r)
 }

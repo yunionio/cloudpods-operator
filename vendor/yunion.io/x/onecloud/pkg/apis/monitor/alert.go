@@ -155,6 +155,7 @@ type AlertListInput struct {
 	apis.StatusStandaloneResourceListInput
 	// 以报警是否启用/禁用过滤列表
 	// Enabled *bool `json:"enabled"`
+	MonitorResourceId []string `json:"monitor_resource_id"`
 }
 
 type AlertDetails struct {
@@ -178,12 +179,13 @@ type ResultLogEntry struct {
 
 // EvalMatch represents the series violating the threshold.
 type EvalMatch struct {
-	Condition string            `json:"condition"`
-	Value     *float64          `json:"value"`
-	ValueStr  string            `json:"value_str"`
-	Metric    string            `json:"metric"`
-	Tags      map[string]string `json:"tags"`
-	Unit      string            `json:"unit"`
+	Condition    string               `json:"condition"`
+	Value        *float64             `json:"value"`
+	ValueStr     string               `json:"value_str"`
+	Metric       string               `json:"metric"`
+	Tags         map[string]string    `json:"tags"`
+	Unit         string               `json:"unit"`
+	AlertDetails jsonutils.JSONObject `json:"alert_details"`
 }
 
 type AlertTestRunOutput struct {

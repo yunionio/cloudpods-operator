@@ -187,14 +187,18 @@ func (self *SGuest) doPrepaidRecycleNoLock(ctx context.Context, userCred mcclien
 		}
 		ifname := fmt.Sprintf("eth%d", i)
 		brname := fmt.Sprintf("br%d", i)
+		net, err := guestnics[i].GetNetwork()
+		if err != nil {
+			return errors.Wrapf(err, "GetNetwork")
+		}
 		err = fakeHost.addNetif(ctx, userCred,
 			guestnics[i].MacAddr,
 			1,
-			guestnics[i].GetNetwork().WireId,
+			net.WireId,
 			"",
 			1000,
 			nicType,
-			int8(i),
+			i,
 			tristate.True,
 			1500,
 			false,
@@ -727,7 +731,17 @@ func (self *SHost) PerformRenewPrepaidRecycle(ctx context.Context, userCred mccl
 		return nil, httperrors.NewInputParameterError("invalid duration %s: %s", durationStr, err)
 	}
 
-	if !GetDriver(api.HOSTTYPE_HYPERVISOR[self.HostType]).IsSupportedBillingCycle(bc) {
+	hostDriver, err := self.GetHostDriver()
+	if err != nil {
+		return nil, errors.Wrapf(err, "GetHostDriver")
+	}
+
+	driver, err := GetDriver(hostDriver.GetHypervisor(), hostDriver.GetProvider())
+	if err != nil {
+		return nil, err
+	}
+
+	if !driver.IsSupportedBillingCycle(bc) {
 		return nil, httperrors.NewInputParameterError("unsupported duration %s", durationStr)
 	}
 

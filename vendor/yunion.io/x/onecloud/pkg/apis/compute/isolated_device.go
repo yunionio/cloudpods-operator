@@ -125,7 +125,7 @@ type IsolatedDeviceJsonDesc struct {
 	Addr                string `json:"addr"`
 	VendorDeviceId      string `json:"vendor_device_id"`
 	Vendor              string `json:"vendor"`
-	NetworkIndex        int8   `json:"network_index"`
+	NetworkIndex        int    `json:"network_index"`
 	IsInfinibandNic     bool   `json:"is_infiniband_nic"`
 	OvsOffloadInterface string `json:"ovs_offload_interface"`
 	DiskIndex           int8   `json:"disk_index"`
@@ -194,6 +194,9 @@ type IsolatedDeviceModelListInput struct {
 
 	// 支持热插拔 HotPluggable
 	HotPluggable bool `json:"hot_pluggable"`
+
+	// 宿主机 Id
+	HostId string `json:"host_id"`
 }
 
 type IsolatedDeviceModelHardwareInfo struct {
@@ -328,4 +331,20 @@ func (info IsolatedDevicePCIEInfo) GetThroughputPerLane() PCIEVersionThroughput 
 		}
 	}
 	return NewPCIEVersionThroughput(PCIEVersionUnknown)
+}
+
+type HostIsolatedDeviceModelDetails struct {
+	SHostJointsBase
+	HostJointResourceDetails
+	// 宿主机Id
+	HostId string `json:"host_id"`
+	// 存储Id
+	IsolatedDeviceModelId string `json:"isolated_device_model_id"`
+
+	Model             string
+	VendorId          string
+	DeviceId          string
+	DevType           string
+	HotPluggable      bool
+	DisableAutoDetect bool
 }
