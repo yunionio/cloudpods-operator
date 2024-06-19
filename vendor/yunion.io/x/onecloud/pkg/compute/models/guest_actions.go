@@ -1183,12 +1183,16 @@ func (self *SGuest) NotifyAdminServerEvent(ctx context.Context, event string, pr
 	notifyclient.SystemNotifyWithCtx(ctx, priority, event, kwargs)
 }
 
-func (self *SGuest) StartGuestStopTask(ctx context.Context, userCred mcclient.TokenCredential, isForce, stopCharging bool, parentTaskId string) error {
+func (self *SGuest) StartGuestStopTask(ctx context.Context, userCred mcclient.TokenCredential, timeoutSecs int, isForce, stopCharging bool, parentTaskId string) error {
 	if len(parentTaskId) == 0 {
 		self.SetStatus(userCred, api.VM_START_STOP, "")
 	}
 	params := jsonutils.NewDict()
-	params.Add(jsonutils.NewBool(isForce), "is_force")
+	if isForce {
+		params.Add(jsonutils.NewBool(isForce), "is_force")
+	} else {
+		params.Add(jsonutils.NewInt(int64(timeoutSecs)), "timeout")
+	}
 	params.Add(jsonutils.NewBool(stopCharging), "stop_charging")
 	if len(parentTaskId) > 0 {
 		params.Add(jsonutils.JSONTrue, "subtask")
@@ -3107,13 +3111,25 @@ func (self *SGuest) PerformStatus(ctx context.Context, userCred mcclient.TokenCr
 		}
 	}
 
-	if ispId := self.GetMetadata(ctx, api.BASE_INSTANCE_SNAPSHOT_ID, userCred); len(ispId) > 0 {
-		ispM, err := InstanceSnapshotManager.FetchById(ispId)
-		if err == nil {
-			isp := ispM.(*SInstanceSnapshot)
-			isp.DecRefCount(ctx, userCred)
+	if input.Status == api.VM_RUNNING && input.BlockJobsCount == 0 {
+		if ispId := self.GetMetadata(ctx, api.BASE_INSTANCE_SNAPSHOT_ID, userCred); len(ispId) > 0 {
+			var disksMerged = true
+			disks, _ := self.GetDisks()
+			for _, disk := range disks {
+				if disk.GetMetadata(ctx, "merge_snapshot", userCred) == "true" {
+					disksMerged = false
+				}
+			}
+
+			if disksMerged {
+				ispM, err := InstanceSnapshotManager.FetchById(ispId)
+				if err == nil {
+					isp := ispM.(*SInstanceSnapshot)
+					isp.DecRefCount(ctx, userCred)
+				}
+				self.SetMetadata(ctx, api.BASE_INSTANCE_SNAPSHOT_ID, "", userCred)
+			}
 		}
-		self.SetMetadata(ctx, api.BASE_INSTANCE_SNAPSHOT_ID, "", userCred)
 	}
 
 	if preStatus != self.Status && !self.isNotRunningStatus(preStatus) && self.isNotRunningStatus(self.Status) {
@@ -3133,7 +3149,7 @@ func (self *SGuest) PerformStop(ctx context.Context, userCred mcclient.TokenCred
 		if err := self.ValidateEncryption(ctx, userCred); err != nil {
 			return nil, errors.Wrap(httperrors.ErrForbidden, "encryption key not accessible")
 		}
-		return nil, self.StartGuestStopTask(ctx, userCred, input.IsForce, input.StopCharging, "")
+		return nil, self.StartGuestStopTask(ctx, userCred, input.TimeoutSecs, input.IsForce, input.StopCharging, "")
 	}
 	return nil, httperrors.NewInvalidStatusError("Cannot stop server in status %s", self.Status)
 }
@@ -3768,7 +3784,7 @@ func (self *SGuest) guestDisksStorageTypeIsLocal() bool {
 	disks, _ := self.GetDisks()
 	for _, disk := range disks {
 		storage, _ := disk.GetStorage()
-		if storage.StorageType != api.STORAGE_LOCAL {
+		if storage.StorageType != api.STORAGE_LOCAL && storage.StorageType != api.STORAGE_LVM {
 			return false
 		}
 	}
@@ -3779,7 +3795,7 @@ func (self *SGuest) guestDisksStorageTypeIsShared() bool {
 	disks, _ := self.GetDisks()
 	for _, disk := range disks {
 		storage, _ := disk.GetStorage()
-		if storage.StorageType == api.STORAGE_LOCAL {
+		if storage.StorageType == api.STORAGE_LOCAL || storage.StorageType == api.STORAGE_LVM {
 			return false
 		}
 	}
@@ -4871,17 +4887,17 @@ func (self *SGuest) validateCreateInstanceSnapshot(
 		if err != nil {
 			return nil, input, errors.Wrapf(err, "GetDisks")
 		}
-		for i := 0; i < len(disks); i++ {
-			if storage, _ := disks[i].GetStorage(); utils.IsInStringArray(storage.StorageType, api.FIEL_STORAGE) {
-				count, err := SnapshotManager.GetDiskManualSnapshotCount(disks[i].Id)
-				if err != nil {
-					return nil, input, httperrors.NewInternalServerError("%v", err)
-				}
-				if count >= options.Options.DefaultMaxManualSnapshotCount {
-					return nil, input, httperrors.NewBadRequestError("guests disk %d snapshot full, can't take anymore", i)
-				}
-			}
-		}
+		//for i := 0; i < len(disks); i++ {
+		//	if storage, _ := disks[i].GetStorage(); utils.IsInStringArray(storage.StorageType, api.FIEL_STORAGE) {
+		//		count, err := SnapshotManager.GetDiskManualSnapshotCount(disks[i].Id)
+		//		if err != nil {
+		//			return nil, input, httperrors.NewInternalServerError("%v", err)
+		//		}
+		//		if count >= options.Options.DefaultMaxManualSnapshotCount {
+		//			return nil, input, httperrors.NewBadRequestError("guests disk %d snapshot full, can't take anymore", i)
+		//		}
+		//	}
+		//}
 		pendingUsage.Snapshot = len(disks)
 	}
 	keys, err := self.GetRegionalQuotaKeys()

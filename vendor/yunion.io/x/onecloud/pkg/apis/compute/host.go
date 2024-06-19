@@ -69,6 +69,7 @@ type HostListInput struct {
 
 	StorageFilterListInput
 	UsableResourceListInput
+	BackupstorageFilterListInput
 
 	// filter by ResourceType
 	ResourceType string `json:"resource_type"`
@@ -253,7 +254,8 @@ func (self HostDetails) GetMetricTags() map[string]string {
 		"account_id":     self.AccountId,
 		"external_id":    self.ExternalId,
 	}
-	return ret
+
+	return AppendMetricTags(ret, self.MetadataResourceInfo)
 }
 
 func (self HostDetails) GetMetricPairs() map[string]string {
@@ -497,6 +499,8 @@ type HostUpdateInput struct {
 
 	// 主机启动模式, 可能值位PXE和ISO
 	BootMode string `json:"boot_mode"`
+
+	EnableNumaAllocate *bool `json:"enable_numa_allocate"`
 }
 
 type HostOfflineInput struct {

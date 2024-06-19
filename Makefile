@@ -65,9 +65,13 @@ check: goimports-check
 .PHONY: check
 
 RELEASE_BRANCH:=release/3.10
+GOPROXY ?= direct
+
 mod:
-	GOPROXY=direct GOSUMDB=off go get yunion.io/x/onecloud@$(RELEASE_BRANCH)
-	#go get $(patsubst %,%@master,$(shell GO111MODULE=on go mod edit -print | sed -n -e 's|.*\(yunion.io/x/[a-z].*\) v.*|\1|p' | grep -v '/onecloud$$'))
+	GOPROXY=$(GOPROXY) GONOSUMDB=yunion.io/x go get yunion.io/x/onecloud@$(RELEASE_BRANCH)  yunion.io/x/cloudmux@$(RELEASE_BRANCH)
+	GOPROXY=$(GOPROXY) GONOSUMDB=yunion.io/x go get -d yunion.io/x/sqlchemy@v1.1.2
+	GOPROXY=$(GOPROXY) GONOSUMDB=yunion.io/x go get -d yunion.io/x/pkg@v1.10.0
+	go get $(patsubst %,%@master,$(shell GO111MODULE=on go mod edit -print | sed -n -e 's|.*\(yunion.io/x/[a-z].*\) v.*|\1|p' | grep -v '/onecloud$$' | grep -v '/cloudmux$$' | grep -v '/sqlchemy$$' | grep -v '/pkg$$' ))
 	go mod tidy
 	go mod vendor -v
 

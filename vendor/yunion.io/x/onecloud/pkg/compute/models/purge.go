@@ -31,20 +31,7 @@ import (
 )
 
 func (self *SCloudregion) purgeAll(ctx context.Context, managerId string) error {
-	zones, err := self.GetZones()
-	if err != nil {
-		return errors.Wrapf(err, "GetZones")
-	}
-	for i := range zones {
-		lockman.LockObject(ctx, &zones[i])
-		defer lockman.ReleaseObject(ctx, &zones[i])
-
-		err = zones[i].purgeAll(ctx, managerId)
-		if err != nil {
-			return errors.Wrapf(err, "zone purgeAll %s", zones[i].Name)
-		}
-	}
-	err = self.purgeAccessGroups(ctx, managerId)
+	err := self.purgeAccessGroups(ctx, managerId)
 	if err != nil {
 		return errors.Wrapf(err, "purgeAccessGroups")
 	}
@@ -77,7 +64,22 @@ func (self *SCloudregion) purgeAll(ctx context.Context, managerId string) error 
 		return errors.Wrapf(err, "purgeResources")
 	}
 
-	cprCount, err := CloudproviderRegionManager.Query().Equals("cloudregion_id", self.Id).CountWithError()
+	// fix #20036 避免regional子网未删除, 导致zone残留
+	zones, err := self.GetZones()
+	if err != nil {
+		return errors.Wrapf(err, "GetZones")
+	}
+	for i := range zones {
+		lockman.LockObject(ctx, &zones[i])
+		defer lockman.ReleaseObject(ctx, &zones[i])
+
+		err = zones[i].purgeAll(ctx, managerId)
+		if err != nil {
+			return errors.Wrapf(err, "zone purgeAll %s", zones[i].Name)
+		}
+	}
+
+	cprCount, err := CloudproviderRegionManager.Query().Equals("cloudregion_id", self.Id).NotEquals("cloudprovider_id", managerId).CountWithError()
 	if err != nil {
 		return errors.Wrapf(err, "cpr count")
 	}
@@ -655,6 +657,7 @@ func (self *SZone) purgeHosts(ctx context.Context, managerId string) error {
 	hosts := HostManager.Query("id").Equals("manager_id", managerId).Equals("zone_id", self.Id)
 	isolateds := IsolatedDeviceManager.Query("id").In("host_id", hosts.SubQuery())
 	hoststorages := HoststorageManager.Query("row_id").In("host_id", hosts.SubQuery())
+	hostbackupStorages := HostBackupstorageManager.Query("row_id").In("host_id", hosts.SubQuery())
 	hostwires := HostwireManager.Query("row_id").In("host_id", hosts.SubQuery())
 	guests := GuestManager.Query("id").In("host_id", hosts.SubQuery())
 	guestdisks := GuestdiskManager.Query("row_id").In("guest_id", guests.SubQuery())
@@ -703,6 +706,7 @@ func (self *SZone) purgeHosts(ctx context.Context, managerId string) error {
 		{manager: InstanceBackupManager, key: "id", q: instancebackups},
 		{manager: GuestManager, key: "id", q: guests},
 		{manager: HoststorageManager, key: "row_id", q: hoststorages},
+		{manager: HostBackupstorageManager, key: "row_id", q: hostbackupStorages},
 		{manager: HostwireManager, key: "row_id", q: hostwires},
 		{manager: IsolatedDeviceManager, key: "id", q: isolateds},
 		{manager: HostManager, key: "id", q: hosts},
@@ -719,6 +723,7 @@ func (self *SZone) purgeHosts(ctx context.Context, managerId string) error {
 func (self *SHost) purge(ctx context.Context, userCred mcclient.TokenCredential) error {
 	isolateds := IsolatedDeviceManager.Query("id").Equals("host_id", self.Id)
 	hoststorages := HoststorageManager.Query("row_id").Equals("host_id", self.Id)
+	hostbackupStorages := HostBackupstorageManager.Query("row_id").Equals("host_id", self.Id)
 	hostwires := HostwireManager.Query("row_id").Equals("host_id", self.Id)
 	guests := GuestManager.Query("id").Equals("host_id", self.Id)
 	guestdisks := GuestdiskManager.Query("row_id").In("guest_id", guests.SubQuery())
@@ -759,6 +764,7 @@ func (self *SHost) purge(ctx context.Context, userCred mcclient.TokenCredential)
 		{manager: InstanceBackupManager, key: "id", q: instancebackups},
 		{manager: GuestManager, key: "id", q: guests},
 		{manager: HoststorageManager, key: "row_id", q: hoststorages},
+		{manager: HostBackupstorageManager, key: "row_id", q: hostbackupStorages},
 		{manager: HostwireManager, key: "row_id", q: hostwires},
 		{manager: IsolatedDeviceManager, key: "id", q: isolateds},
 	}
@@ -810,6 +816,10 @@ func (self *SGuest) purge(ctx context.Context, userCred mcclient.TokenCredential
 		if err != nil {
 			return err
 		}
+	}
+	eip, _ := self.GetElasticIp()
+	if eip != nil {
+		eip.Dissociate(ctx, userCred)
 	}
 	return self.SVirtualResourceBase.Delete(ctx, userCred)
 }

@@ -24,6 +24,7 @@ import (
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
 	"yunion.io/x/pkg/errors"
+	"yunion.io/x/pkg/gotypes"
 	"yunion.io/x/pkg/util/netutils"
 	randutil "yunion.io/x/pkg/util/rand"
 	"yunion.io/x/pkg/util/rbacscope"
@@ -719,7 +720,7 @@ func (manager *SGuestnetworkManager) DeleteGuestNics(ctx context.Context, userCr
 			return errors.Wrap(err, "GetIsolatedDeviceByNetworkIndex")
 		}
 		net := gn.GetNetwork()
-		if regutils.MatchIP4Addr(gn.IpAddr) || regutils.MatchIP6Addr(gn.Ip6Addr) {
+		if !gotypes.IsNil(net) && (regutils.MatchIP4Addr(gn.IpAddr) || regutils.MatchIP6Addr(gn.Ip6Addr)) {
 			net.updateDnsRecord(&gn, false)
 			if regutils.MatchIP4Addr(gn.IpAddr) {
 				// ??
@@ -738,8 +739,10 @@ func (manager *SGuestnetworkManager) DeleteGuestNics(ctx context.Context, userCr
 			}
 		}
 
-		if reserve && regutils.MatchIP4Addr(gn.IpAddr) {
-			ReservedipManager.ReserveIP(userCred, net, gn.IpAddr, "Delete to reserve")
+		if !gotypes.IsNil(net) {
+			if reserve && regutils.MatchIP4Addr(gn.IpAddr) {
+				ReservedipManager.ReserveIP(userCred, net, gn.IpAddr, "Delete to reserve")
+			}
 		}
 	}
 	return nil
@@ -763,7 +766,10 @@ func (manager *SGuestnetworkManager) getGuestNicByIP(ip string, networkId string
 
 func (gn *SGuestnetwork) LogDetachEvent(ctx context.Context, userCred mcclient.TokenCredential, guest *SGuest, network *SNetwork) {
 	if network == nil {
-		netTmp, _ := NetworkManager.FetchById(gn.NetworkId)
+		netTmp, err := NetworkManager.FetchById(gn.NetworkId)
+		if err != nil {
+			return
+		}
 		network = netTmp.(*SNetwork)
 	}
 	db.OpsLog.LogDetachEvent(ctx, guest, network, userCred, nil)
