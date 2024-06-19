@@ -18,6 +18,7 @@ import (
 	"context"
 	"net/http"
 	"runtime/debug"
+	"time"
 
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
@@ -25,6 +26,24 @@ import (
 	"yunion.io/x/onecloud/pkg/i18n"
 	"yunion.io/x/onecloud/pkg/util/httputils"
 )
+
+var (
+	timeZone *time.Location
+)
+
+func init() {
+	timeZone = time.Local
+}
+
+func GetTimeZone() *time.Location {
+	return timeZone
+}
+
+func SetTimeZone(tzStr string) {
+	if tz, _ := time.LoadLocation(tzStr); tz != nil {
+		timeZone = tz
+	}
+}
 
 func SendHTTPErrorHeader(w http.ResponseWriter, statusCode int) {
 	w.Header().Set("Content-Type", "application/json")
@@ -84,7 +103,8 @@ func HTTPError(ctx context.Context, w http.ResponseWriter, msg string, statusCod
 		Class:   class,
 		Details: details,
 	}
-	body := jsonutils.Marshal(err)
+	body := jsonutils.Marshal(err).(*jsonutils.JSONDict)
+	body.Set("time", jsonutils.NewString(time.Now().In(timeZone).Format(time.RFC3339)))
 	w.Write([]byte(body.String()))
 	log.Errorf("Send error %s", details)
 	if statusCode >= 500 {

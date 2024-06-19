@@ -632,7 +632,7 @@ func (self *SBaseProvider) GetIModelartsPoolById(id string) (ICloudModelartsPool
 	return nil, errors.Wrapf(ErrNotImplemented, "GetIModelartsPoolDetail")
 }
 
-func (self *SBaseProvider) CreateIModelartsPool(pool *ModelartsPoolCreateOption) (ICloudModelartsPool, error) {
+func (self *SBaseProvider) CreateIModelartsPool(pool *ModelartsPoolCreateOption, callback func(id string)) (ICloudModelartsPool, error) {
 	return nil, errors.Wrapf(ErrNotImplemented, "CreateIModelartsPool")
 }
 
@@ -940,6 +940,7 @@ type ICloudModelartsPool interface {
 	GetInstanceType() string
 	GetWorkType() string
 	GetNodeCount() int
+	GetStatusMessage() string
 	ChangeConfig(opts *ModelartsPoolChangeConfigOptions) error
 }
 

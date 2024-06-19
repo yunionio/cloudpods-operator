@@ -78,7 +78,9 @@ type ServerListInput struct {
 
 	OrderByIp string `json:"order_by_ip"`
 	// 根据ip查找机器
-	IpAddr string `json:"ip_addr"`
+	IpAddr string `json:"ip_addr" yunion-deprecated-by:"ip_addrs"`
+	// 根据多个ip查找机器
+	IpAddrs []string `json:"ip_addrs"`
 
 	// 列出可以挂载指定EIP的主机
 	UsableServerForEip string `json:"usable_server_for_eip"`
@@ -282,6 +284,9 @@ func (self ServerDetails) GetMetricTags() map[string]string {
 	}
 	for k, v := range self.Metadata {
 		if strings.HasPrefix(k, db.USER_TAG_PREFIX) {
+			if strings.Contains(k, "login_key") || strings.Contains(v, "=") {
+				continue
+			}
 			ret[k] = v
 		}
 	}
@@ -931,12 +936,53 @@ type ServerQemuInfo struct {
 	Cmdline string `json:"cmdline"`
 }
 
+type IPAddress struct {
+	IPAddress     string `json:"ip-address"`
+	IPAddressType string `json:"ip-address-type"`
+	Prefix        int    `json:"prefix"`
+}
+
+type IfnameDetail struct {
+	HardwareAddress string      `json:"hardware-address"`
+	IPAddresses     []IPAddress `json:"ip-addresses"`
+	Name            string      `json:"name"`
+	Statistics      struct {
+		RxBytes   int `json:"rx-bytes"`
+		RxDropped int `json:"rx-dropped"`
+		RxErrs    int `json:"rx-errs"`
+		RxPackets int `json:"rx-packets"`
+		TxBytes   int `json:"tx-bytes"`
+		TxDropped int `json:"tx-dropped"`
+		TxErrs    int `json:"tx-errs"`
+		TxPackets int `json:"tx-packets"`
+	} `json:"statistics"`
+}
+
 type ServerQgaSetPasswordInput struct {
 	Username string
 	Password string
 }
 
+type ServerQgaGuestInfoTaskInput struct {
+}
+
+type ServerQgaSetNetworkInput struct {
+	ServerQgaTimeoutInput
+	Device  string
+	Ipmask  string
+	Gateway string
+}
+
+type ServerQgaGetNetworkInput struct {
+}
+
+type ServerQgaTimeoutInput struct {
+	// qga execute timeout millisecond
+	Timeout int
+}
+
 type ServerQgaCommandInput struct {
+	ServerQgaTimeoutInput
 	Command string
 }
 
