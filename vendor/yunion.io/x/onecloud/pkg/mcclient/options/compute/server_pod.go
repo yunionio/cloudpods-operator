@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 
+	"yunion.io/x/jsonutils"
 	"yunion.io/x/pkg/errors"
 	"yunion.io/x/pkg/util/fileutils"
 	"yunion.io/x/pkg/util/regutils"
@@ -31,11 +32,14 @@ import (
 type PodCreateOptions struct {
 	NAME string `help:"Name of server pod" json:"-"`
 	ServerCreateCommonConfig
-	MEM         string   `help:"Memory size MB" metavar:"MEM" json:"-"`
-	VcpuCount   int      `help:"#CPU cores of VM server, default 1" default:"1" metavar:"<SERVER_CPU_COUNT>" json:"vcpu_count" token:"ncpu"`
-	AllowDelete *bool    `help:"Unlock server to allow deleting" json:"-"`
-	PortMapping []string `help:"Port mapping of the pod and the format is: host_port=8080,port=80,protocol=<tcp|udp>,host_port_range=<int>-<int>" short-token:"p"`
-	Arch        string   `help:"image arch" choices:"aarch64|x86_64"`
+	MEM         string `help:"Memory size MB" metavar:"MEM" json:"-"`
+	VcpuCount   int    `help:"#CPU cores of VM server, default 1" default:"1" metavar:"<SERVER_CPU_COUNT>" json:"vcpu_count" token:"ncpu"`
+	AllowDelete *bool  `help:"Unlock server to allow deleting" json:"-"`
+	//PortMapping []string `help:"Port mapping of the pod and the format is: host_port=8080,port=80,protocol=<tcp|udp>,host_port_range=<int>-<int>" short-token:"p"`
+	Arch      string `help:"image arch" choices:"aarch64|x86_64"`
+	AutoStart bool   `help:"Auto start server after it is created"`
+	PodUid    int64  `help:"UID of pod" default:"0"`
+	PodGid    int64  `help:"GID of pod" default:"0"`
 
 	ContainerCreateCommonOptions
 }
@@ -179,7 +183,7 @@ func (o *PodCreateOptions) Params() (*computeapi.ServerCreateInput, error) {
 	}
 	config.Hypervisor = computeapi.HYPERVISOR_POD
 
-	portMappings := make([]*computeapi.PodPortMapping, 0)
+	/*portMappings := make([]*computeapi.PodPortMapping, 0)
 	if len(o.PortMapping) != 0 {
 		for _, input := range o.PortMapping {
 			pm, err := ParsePodPortMapping(input)
@@ -188,7 +192,7 @@ func (o *PodCreateOptions) Params() (*computeapi.ServerCreateInput, error) {
 			}
 			portMappings = append(portMappings, pm)
 		}
-	}
+	}*/
 
 	spec, err := o.getCreateSpec()
 	if err != nil {
@@ -198,14 +202,23 @@ func (o *PodCreateOptions) Params() (*computeapi.ServerCreateInput, error) {
 	params := &computeapi.ServerCreateInput{
 		ServerConfigs: config,
 		VcpuCount:     o.VcpuCount,
+		AutoStart:     o.AutoStart,
 		Pod: &computeapi.PodCreateInput{
-			PortMappings: portMappings,
+			//PortMappings: portMappings,
 			Containers: []*computeapi.PodContainerCreateInput{
 				{
 					ContainerSpec: *spec,
 				},
 			},
+			SecurityContext: &computeapi.PodSecurityContext{},
 		},
+	}
+
+	if o.Uid != 0 {
+		params.Pod.SecurityContext.RunAsUser = &o.Uid
+	}
+	if o.Gid != 0 {
+		params.Pod.SecurityContext.RunAsGroup = &o.Gid
 	}
 
 	if options.BoolV(o.AllowDelete) {
@@ -233,4 +246,37 @@ func (o *PodCreateOptions) Params() (*computeapi.ServerCreateInput, error) {
 	params.OsArch = o.Arch
 	params.Name = o.NAME
 	return params, nil
+}
+
+type PodExecOptions struct {
+	ContainerExecOptions
+	Scope     string `help:"Scope of containers query" choices:"system|domain|project"`
+	Container string `help:"Container name. If omitted, use the first container." short-token:"c"`
+}
+
+type PodLogOptions struct {
+	ContainerLogOptions
+	Scope     string `help:"Scope of containers query" choices:"system|domain|project"`
+	Container string `help:"Container name. If omitted, use the first container." short-token:"c"`
+}
+
+type PodSetPortMappingOptions struct {
+	ServerIdOptions
+	PortMapping []string `help:"Port mapping of the pod and the format is: host_port=8080,port=80,protocol=<tcp|udp>,host_port_range=<int>-<int>" short-token:"p"`
+}
+
+func (o *PodSetPortMappingOptions) Params() (jsonutils.JSONObject, error) {
+	portMappings := make([]*computeapi.PodPortMapping, 0)
+	if len(o.PortMapping) != 0 {
+		for _, input := range o.PortMapping {
+			pm, err := ParsePodPortMapping(input)
+			if err != nil {
+				return nil, errors.Wrapf(err, "parse port mapping: %s", input)
+			}
+			portMappings = append(portMappings, pm)
+		}
+	}
+	return jsonutils.Marshal(&computeapi.GuestSetPortMappingsInput{
+		PortMappings: portMappings,
+	}), nil
 }

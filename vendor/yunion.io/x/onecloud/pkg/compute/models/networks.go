@@ -35,6 +35,7 @@ import (
 	"yunion.io/x/pkg/util/rand"
 	"yunion.io/x/pkg/util/rbacscope"
 	"yunion.io/x/pkg/util/regutils"
+	"yunion.io/x/pkg/util/sets"
 	"yunion.io/x/pkg/utils"
 	"yunion.io/x/sqlchemy"
 
@@ -127,7 +128,7 @@ type SNetwork struct {
 
 	// 服务器类型
 	// example: server
-	ServerType string `width:"16" charset:"ascii" default:"guest" nullable:"true" list:"user" create:"optional"`
+	ServerType api.TNetworkType `width:"16" charset:"ascii" default:"guest" nullable:"true" list:"user" update:"admin" create:"optional"`
 
 	// 分配策略
 	AllocPolicy string `width:"16" charset:"ascii" nullable:"true" get:"user" update:"user" create:"optional"`
@@ -372,7 +373,7 @@ func (snet *SNetwork) getFreeIP(addrTable map[string]bool, recentUsedAddrTable m
 			return "", err
 		}
 		if !iprange.Contains(candIP) {
-			return "", httperrors.NewInputParameterError("candidate %s out of range", candidate)
+			return "", httperrors.NewInputParameterError("candidate %s out of range %s", candidate, iprange.String())
 		}
 		if _, ok := addrTable[candidate]; !ok {
 			return candidate, nil
@@ -734,7 +735,7 @@ func (snet *SNetwork) SyncWithCloudNetwork(ctx context.Context, userCred mcclien
 		snet.GuestIpEnd = extNet.GetIpEnd()
 		snet.GuestIpMask = extNet.GetIpMask()
 		snet.GuestGateway = extNet.GetGateway()
-		snet.ServerType = extNet.GetServerType()
+		snet.ServerType = api.TNetworkType(extNet.GetServerType())
 
 		snet.GuestIp6Start = extNet.GetIp6Start()
 		snet.GuestIp6End = extNet.GetIp6End()
@@ -799,7 +800,7 @@ func (manager *SNetworkManager) newFromCloudNetwork(ctx context.Context, userCre
 	net.GuestIpEnd = extNet.GetIpEnd()
 	net.GuestIpMask = extNet.GetIpMask()
 	net.GuestGateway = extNet.GetGateway()
-	net.ServerType = extNet.GetServerType()
+	net.ServerType = api.TNetworkType(extNet.GetServerType())
 	net.GuestIp6Start = extNet.GetIp6Start()
 	net.GuestIp6End = extNet.GetIp6End()
 	net.GuestIp6Mask = extNet.GetIp6Mask()
@@ -988,7 +989,7 @@ func (manager *SNetworkManager) TotalPortCount(
 	providers []string, brands []string, cloudEnv string,
 	rangeObjs []db.IStandaloneModel,
 	policyResult rbacutils.SPolicyResult,
-) map[string]NetworkPortStat {
+) map[api.TNetworkType]NetworkPortStat {
 	nets := make([]SNetwork, 0)
 	err := manager.totalPortCountQ(
 		ctx,
@@ -1001,7 +1002,7 @@ func (manager *SNetworkManager) TotalPortCount(
 	if err != nil {
 		log.Errorf("TotalPortCount: %v", err)
 	}
-	ret := make(map[string]NetworkPortStat)
+	ret := make(map[api.TNetworkType]NetworkPortStat)
 	for _, net := range nets {
 		var stat NetworkPortStat
 		var allStat NetworkPortStat
@@ -1031,7 +1032,7 @@ func (manager *SNetworkManager) TotalPortCount(
 
 type SNicConfig struct {
 	Mac    string
-	Index  int8
+	Index  int
 	Ifname string
 }
 
@@ -1189,6 +1190,63 @@ func isValidNetworkInfo(ctx context.Context, userCred mcclient.TokenCredential, 
 		ct, ctExit := NetworkManager.to
 	}
 	*/
+	if len(netConfig.PortMappings) != 0 {
+		for i := range netConfig.PortMappings {
+			if err := validatePortMapping(netConfig.PortMappings[i]); err != nil {
+				return errors.Wrapf(err, "validate port mapping %s", jsonutils.Marshal(netConfig.PortMappings[i]))
+			}
+		}
+	}
+	return nil
+}
+
+func validatePortRange(portRange *api.GuestPortMappingPortRange) error {
+	if portRange != nil {
+		if portRange.Start > portRange.End {
+			return httperrors.NewInputParameterError("port range start %d is large than %d", portRange.Start, portRange.End)
+		}
+		if portRange.Start <= api.GUEST_PORT_MAPPING_RANGE_START {
+			return httperrors.NewInputParameterError("port range start %d <= %d", api.GUEST_PORT_MAPPING_RANGE_START, portRange.Start)
+		}
+		if portRange.End > api.GUEST_PORT_MAPPING_RANGE_END {
+			return httperrors.NewInputParameterError("port range end %d > %d", api.GUEST_PORT_MAPPING_RANGE_END, portRange.End)
+		}
+	}
+	return nil
+}
+
+func validatePort(port int, start int, end int) error {
+	if port < start || port > end {
+		return httperrors.NewInputParameterError("port number %d isn't within %d to %d", port, start, end)
+	}
+	return nil
+}
+
+func validatePortMapping(pm *api.GuestPortMapping) error {
+	if err := validatePortRange(pm.HostPortRange); err != nil {
+		return err
+	}
+	if pm.HostPort != nil {
+		if err := validatePort(*pm.HostPort, api.GUEST_PORT_MAPPING_RANGE_START, api.GUEST_PORT_MAPPING_RANGE_END); err != nil {
+			return errors.Wrap(err, "validate host_port")
+		}
+	}
+	if err := validatePort(pm.Port, 1, 65535); err != nil {
+		return errors.Wrap(err, "validate port")
+	}
+	if pm.Protocol == "" {
+		pm.Protocol = api.GuestPortMappingProtocolTCP
+	}
+	if !sets.NewString(string(api.GuestPortMappingProtocolUDP), string(api.GuestPortMappingProtocolTCP)).Has(string(pm.Protocol)) {
+		return httperrors.NewInputParameterError("unsupported protocol %s", pm.Protocol)
+	}
+	if len(pm.RemoteIps) != 0 {
+		for _, ip := range pm.RemoteIps {
+			if !regutils.MatchIPAddr(ip) && !regutils.MatchCIDR(ip) {
+				return httperrors.NewInputParameterError("invalid ip or prefix %s", ip)
+			}
+		}
+	}
 	return nil
 }
 
@@ -1702,7 +1760,7 @@ func (manager *SNetworkManager) validateEnsureZoneVpc(ctx context.Context, userC
 func (manager *SNetworkManager) ValidateCreateData(ctx context.Context, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, query jsonutils.JSONObject, input api.NetworkCreateInput) (api.NetworkCreateInput, error) {
 	if input.ServerType == "" {
 		input.ServerType = api.NETWORK_TYPE_GUEST
-	} else if !utils.IsInStringArray(input.ServerType, api.ALL_NETWORK_TYPES) {
+	} else if !api.IsInNetworkTypes(input.ServerType, api.ALL_NETWORK_TYPES) {
 		return input, httperrors.NewInputParameterError("Invalid server_type: %s", input.ServerType)
 	}
 
@@ -2205,6 +2263,10 @@ func (snet *SNetwork) validateUpdateData(ctx context.Context, userCred mcclient.
 		if snet.ServerType != api.NETWORK_TYPE_GUEST {
 			return input, httperrors.NewInputParameterError("network server_type %s not support auto alloc", snet.ServerType)
 		}
+	}
+
+	if len(input.ServerType) > 0 && !api.IsInNetworkTypes(input.ServerType, api.ALL_NETWORK_TYPES) {
+		return input, errors.Wrapf(httperrors.ErrInputParameter, "invalid server_type %q", input.ServerType)
 	}
 
 	return input, nil
@@ -3458,19 +3520,38 @@ func (network *SNetwork) GetDetailsAddresses(
 	return output, nil
 }
 
+func (network *SNetwork) GetUsedAddressDetails(ctx context.Context, addr string) (*api.SNetworkUsedAddress, error) {
+	address, err := network.GetAddressDetails(ctx, nil, nil, rbacscope.ScopeSystem)
+	if err != nil {
+		return nil, errors.Wrapf(err, "GetAddressDetails")
+	}
+	for i := range address {
+		if address[i].IpAddr == addr || address[i].Ip6Addr == addr {
+			return &address[i], nil
+		}
+	}
+	return nil, errors.Wrapf(errors.ErrNotFound, addr)
+}
+
+func (network *SNetwork) GetAddressDetails(ctx context.Context, userCred mcclient.TokenCredential, owner mcclient.IIdentityProvider, scope rbacscope.TRbacScope) ([]api.SNetworkUsedAddress, error) {
+	netAddrs := make([]api.SNetworkUsedAddress, 0)
+	q := network.getUsedAddressQuery(ctx, userCred, owner, scope, false)
+	err := q.All(&netAddrs)
+	if err != nil {
+		return nil, httperrors.NewGeneralError(err)
+	}
+	sort.Sort(SNetworkUsedAddressList(netAddrs))
+	return netAddrs, nil
+}
+
 func (network *SNetwork) fetchAddressDetails(ctx context.Context, userCred mcclient.TokenCredential, owner mcclient.IIdentityProvider, scope rbacscope.TRbacScope) (api.GetNetworkAddressesOutput, error) {
 	output := api.GetNetworkAddressesOutput{}
 	{
-		netAddrs := make([]api.SNetworkUsedAddress, 0)
-		q := network.getUsedAddressQuery(ctx, userCred, owner, scope, false)
-		err := q.All(&netAddrs)
+		var err error
+		output.Addresses, err = network.GetAddressDetails(ctx, userCred, owner, scope)
 		if err != nil {
-			return output, httperrors.NewGeneralError(err)
+			return output, err
 		}
-
-		sort.Sort(SNetworkUsedAddressList(netAddrs))
-
-		output.Addresses = netAddrs
 	}
 	{
 		netAddrs6 := make([]api.SNetworkUsedAddress, 0)

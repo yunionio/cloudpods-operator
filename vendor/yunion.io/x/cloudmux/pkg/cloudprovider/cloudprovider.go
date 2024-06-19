@@ -94,10 +94,7 @@ type SCloudaccountCredential struct {
 	OracleUserOCID    string `json:"oracle_user_ocid"`
 	OraclePrivateKey  string `json:"oracle_private_key"`
 
-	// 默认区域Id, Apara及HCSO需要此参数
-	// example: cn-north-2
-	// required: true
-	DefaultRegion string `default:"$DEFAULT_REGION" metavar:"$DEFAULT_REGION"`
+	RegionId string
 
 	// Huawei Cloud Stack Online
 	*SHCSOEndpoints
@@ -166,9 +163,9 @@ type ProviderConfig struct {
 
 	Options *jsonutils.JSONDict
 
-	DefaultRegion string
-	ProxyFunc     httputils.TransportProxyFunc
-	Debug         bool
+	RegionId  string
+	ProxyFunc httputils.TransportProxyFunc
+	Debug     bool
 
 	// 仅用来检测cloudpods是否纳管自身环境(system项目id)
 	AdminProjectId string
@@ -203,6 +200,7 @@ type ICloudProviderFactory interface {
 
 	ValidateChangeBandwidth(instanceId string, bandwidth int64) error
 	ValidateCreateCloudaccountData(ctx context.Context, input SCloudaccountCredential) (SCloudaccount, error)
+	IsReadOnly() bool
 	ValidateUpdateCloudaccountCredential(ctx context.Context, input SCloudaccountCredential, cloudaccount string) (SCloudaccount, error)
 	GetSupportedBrands() []string
 
@@ -249,7 +247,7 @@ type ICloudProvider interface {
 	GetVersion() string
 	GetIamLoginUrl() string
 
-	GetIRegions() []ICloudRegion
+	GetIRegions() ([]ICloudRegion, error)
 	GetIProjects() ([]ICloudProject, error)
 	CreateIProject(name string) (ICloudProject, error)
 	GetIRegionById(id string) (ICloudRegion, error)
@@ -709,6 +707,10 @@ func (factory *baseProviderFactory) IsOnPremise() bool {
 }
 
 func (factory *baseProviderFactory) IsMultiTenant() bool {
+	return false
+}
+
+func (factory *baseProviderFactory) IsReadOnly() bool {
 	return false
 }
 

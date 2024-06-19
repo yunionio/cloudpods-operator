@@ -188,6 +188,9 @@ type SGuest struct {
 	PowerStates string `width:"36" charset:"ascii" nullable:"false" default:"unknown" list:"user" create:"optional"`
 	// Used for guest rescue
 	RescueMode bool `nullable:"false" default:"false" list:"user" create:"optional"`
+
+	// 上次开机时间
+	LastStartAt time.Time `json:"last_start_at" list:"user"`
 }
 
 func (manager *SGuestManager) GetPropertyStatistics(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject) (*apis.StatusStatistic, error) {
@@ -808,6 +811,17 @@ func (manager *SGuestManager) QueryDistinctExtraField(q *sqlchemy.SQuery, field 
 	return q, httperrors.ErrNotFound
 }
 
+func (manager *SGuestManager) QueryDistinctExtraFields(q *sqlchemy.SQuery, resource string, fields []string) (*sqlchemy.SQuery, error) {
+	switch resource {
+	case NetworkManager.Keyword():
+		guestnets := GuestnetworkManager.Query("guest_id", "network_id").SubQuery()
+		q = q.LeftJoin(guestnets, sqlchemy.Equals(q.Field("id"), guestnets.Field("guest_id")))
+
+		return manager.SNetworkResourceBaseManager.QueryDistinctExtraFields(q, resource, fields)
+	}
+	return q, httperrors.ErrNotFound
+}
+
 func (manager *SGuestManager) initHostname() error {
 	guests := []SGuest{}
 	q := manager.Query().IsNullOrEmpty("hostname")
@@ -897,21 +911,50 @@ func (manager *SGuestManager) InitializeData() error {
 func (guest *SGuest) GetHypervisor() string {
 	if len(guest.Hypervisor) == 0 {
 		return api.HYPERVISOR_DEFAULT
-	} else {
-		return guest.Hypervisor
 	}
+	return guest.Hypervisor
 }
 
 func (guest *SGuest) GetHostType() string {
-	return api.HYPERVISOR_HOSTTYPE[guest.Hypervisor]
+	host, err := guest.GetHost()
+	if err != nil {
+		return ""
+	}
+	return host.HostType
 }
 
-func (guest *SGuest) GetDriver() IGuestDriver {
-	hypervisor := guest.GetHypervisor()
-	if !utils.IsInStringArray(hypervisor, api.HYPERVISORS) {
-		log.Fatalf("Unsupported hypervisor %s", hypervisor)
+func (guest *SGuest) GetRegion() (*SCloudregion, error) {
+	hosts := HostManager.Query("zone_id").Equals("id", guest.HostId).SubQuery()
+	zones := ZoneManager.Query("cloudregion_id").In("id", hosts).SubQuery()
+	q := CloudregionManager.Query().In("id", zones)
+	ret := &SCloudregion{}
+	ret.SetModelManager(CloudregionManager, ret)
+	err := q.First(ret)
+	if err != nil {
+		return nil, errors.Wrapf(err, "q.First")
 	}
-	return GetDriver(hypervisor)
+	return ret, nil
+}
+
+func (guest *SGuest) GetZone() (*SZone, error) {
+	hosts := HostManager.Query("zone_id").Equals("id", guest.HostId).SubQuery()
+	q := ZoneManager.Query().In("id", hosts)
+	ret := &SZone{}
+	ret.SetModelManager(ZoneManager, ret)
+	err := q.First(ret)
+	if err != nil {
+		return nil, errors.Wrapf(err, "q.First")
+	}
+	return ret, nil
+}
+
+func (guest *SGuest) GetDriver() (IGuestDriver, error) {
+	hypervisor := guest.GetHypervisor()
+	region, err := guest.GetRegion()
+	if err != nil {
+		return nil, errors.Wrapf(err, "GetRegion")
+	}
+	return GetDriver(hypervisor, region.Provider)
 }
 
 func (guest *SGuest) validateDeleteCondition(ctx context.Context, isPurge bool) error {
@@ -1038,9 +1081,9 @@ func (guest *SGuest) GetVpc() (*SVpc, error) {
 		return nil, errors.Wrapf(err, "failed getting guest network of %s(%s)", guest.Name, guest.Id)
 	}
 	guestnic.SetModelManager(GuestnetworkManager, guestnic)
-	network := guestnic.GetNetwork()
-	if network == nil {
-		return nil, errors.Wrapf(err, "failed getting network for guest %s(%s)", guest.Name, guest.Id)
+	network, err := guestnic.GetNetwork()
+	if err != nil {
+		return nil, errors.Wrapf(err, "GetVpc")
 	}
 	vpc, err := network.GetVpc()
 	if err != nil {
@@ -1055,7 +1098,7 @@ func (guest *SGuest) IsOneCloudVpcNetwork() (bool, error) {
 		return false, errors.Wrap(err, "GetNetworks")
 	}
 	for _, gn := range gns {
-		n := gn.GetNetwork()
+		n, _ := gn.GetNetwork()
 		if n != nil && n.isOneCloudVpcNetwork() {
 			return true, nil
 		}
@@ -1066,6 +1109,16 @@ func (guest *SGuest) IsOneCloudVpcNetwork() (bool, error) {
 func (guest *SGuest) GetNetworks(netId string) ([]SGuestnetwork, error) {
 	guestnics := make([]SGuestnetwork, 0)
 	q := guest.GetNetworksQuery(netId).Asc("index")
+	err := db.FetchModelObjects(GuestnetworkManager, q, &guestnics)
+	if err != nil {
+		return nil, errors.Wrapf(err, "db.FetchModelObjects")
+	}
+	return guestnics, nil
+}
+
+func (guest *SGuest) GetSlaveNetworks() ([]SGuestnetwork, error) {
+	guestnics := make([]SGuestnetwork, 0)
+	q := guest.GetNetworksQuery("").IsNotEmpty("team_with")
 	err := db.FetchModelObjects(GuestnetworkManager, q, &guestnics)
 	if err != nil {
 		return nil, errors.Wrapf(err, "db.FetchModelObjects")
@@ -1219,7 +1272,11 @@ func (guest *SGuest) SetHostIdWithBackup(userCred mcclient.TokenCredential, mast
 }
 
 func (guest *SGuest) ValidateResizeDisk(disk *SDisk, storage *SStorage) error {
-	return guest.GetDriver().ValidateResizeDisk(guest, disk, storage)
+	drv, err := guest.GetDriver()
+	if err != nil {
+		return err
+	}
+	return drv.ValidateResizeDisk(guest, disk, storage)
 }
 
 func ValidateMemData(vmemSize int, driver IGuestDriver) (int, error) {
@@ -1240,13 +1297,15 @@ func ValidateCpuData(vcpuCount int, driver IGuestDriver) (int, error) {
 	return vcpuCount, nil
 }
 
-func ValidateMemCpuData(vmemSize, vcpuCount int, hypervisor string) (int, int, error) {
+func ValidateMemCpuData(vmemSize, vcpuCount int, hypervisor, provider string) (int, int, error) {
 	if len(hypervisor) == 0 {
 		hypervisor = api.HYPERVISOR_DEFAULT
 	}
-	driver := GetDriver(hypervisor)
+	driver, err := GetDriver(hypervisor, provider)
+	if err != nil {
+		return 0, 0, err
+	}
 
-	var err error
 	vmemSize, err = ValidateMemData(vmemSize, driver)
 	if err != nil {
 		return 0, 0, err
@@ -1271,8 +1330,11 @@ func (self *SGuest) ValidateUpdateData(ctx context.Context, userCred mcclient.To
 		}
 	}
 
-	var err error
-	input, err = self.GetDriver().ValidateUpdateData(ctx, self, userCred, input)
+	drv, err := self.GetDriver()
+	if err != nil {
+		return input, err
+	}
+	input, err = drv.ValidateUpdateData(ctx, self, userCred, input)
 	if err != nil {
 		return input, errors.Wrap(err, "GetDriver().ValidateUpdateData")
 	}
@@ -1284,36 +1346,48 @@ func (self *SGuest) ValidateUpdateData(ctx context.Context, userCred mcclient.To
 	return input, nil
 }
 
-func serverCreateInput2ComputeQuotaKeys(input api.ServerCreateInput, ownerId mcclient.IIdentityProvider) SComputeResourceKeys {
-	// input.Hypervisor must be set
-	brand := guessBrandForHypervisor(input.Hypervisor)
-	keys := GetDriver(input.Hypervisor).GetComputeQuotaKeys(
-		rbacscope.ScopeProject,
-		ownerId,
-		brand,
-	)
+func serverCreateInput2ComputeQuotaKeys(input api.ServerCreateInput, ownerId mcclient.IIdentityProvider) (SComputeResourceKeys, error) {
+	var keys SComputeResourceKeys
 	if len(input.PreferHost) > 0 {
-		hostObj, _ := HostManager.FetchById(input.PreferHost)
+		hostObj, err := HostManager.FetchById(input.PreferHost)
+		if err != nil {
+			return keys, err
+		}
 		host := hostObj.(*SHost)
-		zone, _ := host.GetZone()
-		keys.ZoneId = zone.Id
-		keys.RegionId = zone.CloudregionId
-	} else if len(input.PreferZone) > 0 {
-		zoneObj, _ := ZoneManager.FetchById(input.PreferZone)
-		zone := zoneObj.(*SZone)
-		keys.ZoneId = zone.Id
-		keys.RegionId = zone.CloudregionId
-	} else if len(input.PreferWire) > 0 {
-		wireObj, _ := WireManager.FetchById(input.PreferWire)
-		wire := wireObj.(*SWire)
-		zone, _ := wire.GetZone()
-		keys.ZoneId = zone.Id
-		keys.RegionId = zone.CloudregionId
-	} else if len(input.PreferRegion) > 0 {
-		regionObj, _ := CloudregionManager.FetchById(input.PreferRegion)
-		keys.RegionId = regionObj.GetId()
+		input.PreferZone = host.ZoneId
+		keys.ZoneId = host.ZoneId
 	}
-	return keys
+	if len(input.PreferWire) > 0 {
+		wireObj, err := WireManager.FetchById(input.PreferWire)
+		if err != nil {
+			return keys, err
+		}
+		wire := wireObj.(*SWire)
+		if len(wire.ZoneId) > 0 {
+			input.PreferZone = wire.ZoneId
+			keys.ZoneId = wire.ZoneId
+		}
+	}
+	if len(input.PreferZone) > 0 {
+		zoneObj, err := ZoneManager.FetchById(input.PreferZone)
+		if err != nil {
+			return keys, err
+		}
+		zone := zoneObj.(*SZone)
+		input.PreferRegion = zone.CloudregionId
+		keys.ZoneId = zone.Id
+		keys.RegionId = zone.CloudregionId
+	}
+	if len(input.PreferRegion) > 0 {
+		regionObj, err := CloudregionManager.FetchById(input.PreferRegion)
+		if err != nil {
+			return keys, err
+		}
+		region := regionObj.(*SCloudregion)
+		keys.RegionId = region.GetId()
+		keys.Brand = region.Provider
+	}
+	return keys, nil
 }
 
 func (manager *SGuestManager) BatchPreValidate(
@@ -1493,6 +1567,26 @@ func (manager *SGuestManager) validateCreateData(
 		return nil, errors.Wrap(err, "checkGuestImage")
 	}
 
+	if len(input.PreferZone) > 0 && len(input.Provider) == 0 {
+		zoneObj, err := ZoneManager.FetchById(input.PreferZone)
+		if err != nil {
+			return nil, errors.Wrapf(err, "zone fetch by id %s", input.PreferZone)
+		}
+		zone := zoneObj.(*SZone)
+		input.PreferRegion = zone.CloudregionId
+	}
+	if len(input.PreferRegion) > 0 && len(input.Provider) == 0 {
+		regionObj, err := CloudregionManager.FetchById(input.PreferRegion)
+		if err != nil {
+			return nil, errors.Wrapf(err, "region fetch by id %s", input.PreferRegion)
+		}
+		region := regionObj.(*SCloudregion)
+		input.Provider = region.Provider
+	}
+	if len(input.Provider) == 0 {
+		input.Provider = api.CLOUD_PROVIDER_ONECLOUD
+	}
+
 	var hypervisor string
 	// var rootStorageType string
 	var osProf osprofile.SOSProfile
@@ -1645,13 +1739,16 @@ func (manager *SGuestManager) validateCreateData(
 	}
 
 	hypervisor = input.Hypervisor
+	driver, err := GetDriver(hypervisor, input.Provider)
+	if err != nil {
+		return nil, err
+	}
 	if hypervisor != api.HYPERVISOR_POD {
 		// support sku here
 		var sku *SServerSku
 		skuName := input.InstanceType
 		if len(skuName) > 0 {
-			provider := GetDriver(input.Hypervisor).GetProvider()
-			sku, err = ServerSkuManager.FetchSkuByNameAndProvider(skuName, provider, true)
+			sku, err = ServerSkuManager.FetchSkuByNameAndProvider(skuName, input.Provider, true)
 			if err != nil {
 				return nil, err
 			}
@@ -1660,7 +1757,7 @@ func (manager *SGuestManager) validateCreateData(
 			input.VmemSize = sku.MemorySizeMB
 			input.VcpuCount = sku.CpuCoreCount
 		} else {
-			vmemSize, vcpuCount, err := ValidateMemCpuData(input.VmemSize, input.VcpuCount, input.Hypervisor)
+			vmemSize, vcpuCount, err := ValidateMemCpuData(input.VmemSize, input.VcpuCount, input.Hypervisor, input.Provider)
 			if err != nil {
 				return nil, err
 			}
@@ -1713,10 +1810,10 @@ func (manager *SGuestManager) validateCreateData(
 					if len(defaultStorageType) > 0 {
 						rootDiskConfig.Backend = defaultStorageType
 					} else {
-						rootDiskConfig.Backend = GetDriver(hypervisor).GetDefaultSysDiskBackend()
+						rootDiskConfig.Backend = driver.GetDefaultSysDiskBackend()
 					}
 				}
-				sysMinDiskMB := GetDriver(hypervisor).GetMinimalSysDiskSizeGb() * 1024
+				sysMinDiskMB := driver.GetMinimalSysDiskSizeGb() * 1024
 				if rootDiskConfig.SizeMb != api.DISK_SIZE_AUTOEXTEND && rootDiskConfig.SizeMb < sysMinDiskMB {
 					rootDiskConfig.SizeMb = sysMinDiskMB
 				}
@@ -1785,11 +1882,11 @@ func (manager *SGuestManager) validateCreateData(
 			}
 
 			if input.BillingType == billing_api.BILLING_TYPE_POSTPAID {
-				if !GetDriver(hypervisor).IsSupportPostpaidExpire() {
+				if !driver.IsSupportPostpaidExpire() {
 					return nil, httperrors.NewBadRequestError("guest %s unsupport postpaid expire", hypervisor)
 				}
 			} else {
-				if !GetDriver(hypervisor).IsSupportedBillingCycle(billingCycle) {
+				if !driver.IsSupportedBillingCycle(billingCycle) {
 					return nil, httperrors.NewInputParameterError("unsupported duration %s", input.Duration)
 				}
 			}
@@ -1929,7 +2026,7 @@ func (manager *SGuestManager) validateCreateData(
 		input.SecgroupId = options.Options.DefaultSecurityGroupId
 	}
 
-	maxSecgrpCount := GetDriver(hypervisor).GetMaxSecurityGroupCount()
+	maxSecgrpCount := driver.GetMaxSecurityGroupCount()
 	if maxSecgrpCount == 0 { //esxi 不支持安全组
 		input.SecgroupId = ""
 		input.Secgroups = []string{}
@@ -1950,7 +2047,7 @@ func (manager *SGuestManager) validateCreateData(
 		}*/
 
 	if input.ResourceType != api.HostResourceTypePrepaidRecycle {
-		input, err = GetDriver(hypervisor).ValidateCreateData(ctx, userCred, input)
+		input, err = driver.ValidateCreateData(ctx, userCred, input)
 		if err != nil {
 			return nil, err
 		}
@@ -2076,8 +2173,13 @@ func (manager *SGuestManager) ValidateCreateData(ctx context.Context, userCred m
 
 func (manager *SGuestManager) validateEip(ctx context.Context, userCred mcclient.TokenCredential, input *api.ServerCreateInput,
 	preferRegionId string, preferManagerId string) error {
+	driver, err := GetDriver(input.Hypervisor, input.Provider)
+	if err != nil {
+		return err
+	}
 	if input.PublicIpBw > 0 {
-		if !GetDriver(input.Hypervisor).IsSupportPublicIp() {
+
+		if !driver.IsSupportPublicIp() {
 			return httperrors.NewNotImplementedError("public ip not supported for %s", input.Hypervisor)
 		}
 		if len(input.PublicIpChargeType) == 0 {
@@ -2094,7 +2196,7 @@ func (manager *SGuestManager) validateEip(ctx context.Context, userCred mcclient
 	eipStr := input.Eip
 	eipBw := input.EipBw
 	if len(eipStr) > 0 || eipBw > 0 {
-		if !GetDriver(input.Hypervisor).IsSupportEip() {
+		if !driver.IsSupportEip() {
 			return httperrors.NewNotImplementedError("eip not supported for %s", input.Hypervisor)
 		}
 		if len(eipStr) > 0 {
@@ -2142,7 +2244,7 @@ func (manager *SGuestManager) validateEip(ctx context.Context, userCred mcclient
 
 func (self *SGuest) PostUpdate(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) {
 	self.SVirtualResourceBase.PostUpdate(ctx, userCred, query, data)
-	if len(self.ExternalId) > 0 && (data.Contains("name") || data.Contains("__meta__") || data.Contains("description")) {
+	if len(self.ExternalId) > 0 && (data.Contains("name") || data.Contains("__meta__") || data.Contains("description")) || data.Contains("hostname") {
 		err := self.StartRemoteUpdateTask(ctx, userCred, false, "")
 		if err != nil {
 			log.Errorf("StartRemoteUpdateTask fail: %s", err)
@@ -2272,7 +2374,7 @@ func getGuestResourceRequirements(
 		//Ebw:   eBw * count,
 		Eip: eipCnt * count,
 	}
-	keys := serverCreateInput2ComputeQuotaKeys(input, ownerId)
+	keys, _ := serverCreateInput2ComputeQuotaKeys(input, ownerId)
 	req.SetKeys(keys)
 	regionReq.SetKeys(keys.SRegionalCloudResourceKeys)
 	return req, regionReq
@@ -2310,13 +2412,19 @@ func (guest *SGuest) PostCreate(ctx context.Context, userCred mcclient.TokenCred
 	if jsonutils.QueryBoolean(data, imageapi.IMAGE_DISABLE_USB_KBD, false) {
 		guest.SetMetadata(ctx, imageapi.IMAGE_DISABLE_USB_KBD, "true", userCred)
 	}
+	matcherJson, _ := data.Get(api.BAREMETAL_SERVER_METATA_ROOT_DISK_MATCHER)
+	if matcherJson != nil {
+		guest.SetMetadata(ctx, api.BAREMETAL_SERVER_METATA_ROOT_DISK_MATCHER, matcherJson, userCred)
+	}
 
 	userData, _ := data.GetString("user_data")
 	if len(userData) > 0 {
 		guest.setUserData(ctx, userCred, userData)
 	}
 
-	if guest.GetDriver().GetMaxSecurityGroupCount() > 0 {
+	provider, _ := data.GetString("provider")
+	drv, _ := GetDriver(guest.Hypervisor, provider)
+	if drv != nil && drv.GetMaxSecurityGroupCount() > 0 {
 		secgroups, _ := jsonutils.GetStringArray(data, "secgroups")
 		for _, secgroupId := range secgroups {
 			if secgroupId != guest.SecgrpId {
@@ -2497,10 +2605,28 @@ func (self *SGuest) moreExtraInfo(
 		}
 	}
 
-	out.CdromSupport, _ = self.GetDriver().IsSupportCdrom(self)
-	out.FloppySupport, _ = self.GetDriver().IsSupportFloppy(self)
+	drv, _ := self.GetDriver()
+	if drv != nil {
+		out.CdromSupport, _ = drv.IsSupportCdrom(self)
+		out.FloppySupport, _ = drv.IsSupportFloppy(self)
+		out.MonitorUrl = drv.FetchMonitorUrl(ctx, self)
+	}
 
-	out.MonitorUrl = self.GetDriver().FetchMonitorUrl(ctx, self)
+	if drv != nil && drv.GetHypervisor() == api.HYPERVISOR_POD {
+		ctrs, _ := GetContainerManager().GetContainersByPod(self.GetId())
+		desc := make([]*api.PodContainerDesc, len(ctrs))
+		for i := range ctrs {
+			ctr := ctrs[i]
+			desc[i] = &api.PodContainerDesc{
+				Id:   ctr.GetId(),
+				Name: ctr.GetName(),
+			}
+			if ctr.Spec != nil {
+				desc[i].Image = ctr.Spec.Image
+			}
+		}
+		out.Containers = desc
+	}
 
 	return out
 }
@@ -3028,7 +3154,21 @@ func (guest *SGuest) SyncAllWithCloudVM(ctx context.Context, userCred mcclient.T
 }
 
 func (g *SGuest) SyncOsInfo(ctx context.Context, userCred mcclient.TokenCredential, extVM cloudprovider.IOSInfo) error {
-	return g.GetDriver().SyncOsInfo(ctx, userCred, g, extVM)
+	drv, err := g.GetDriver()
+	if err != nil {
+		return err
+	}
+	return drv.SyncOsInfo(ctx, userCred, g, extVM)
+}
+
+func (g *SGuest) SyncHostname(ext cloudprovider.ICloudVM) {
+	hostname := pinyinutils.Text2Pinyin(ext.GetHostname())
+	if len(hostname) > 128 {
+		hostname = hostname[:128]
+	}
+	if len(hostname) > 0 {
+		g.Hostname = hostname
+	}
 }
 
 func (g *SGuest) syncWithCloudVM(ctx context.Context, userCred mcclient.TokenCredential, provider cloudprovider.ICloudProvider, host *SHost, extVM cloudprovider.ICloudVM, syncOwnerId mcclient.IIdentityProvider, syncStatus bool) error {
@@ -3045,13 +3185,9 @@ func (g *SGuest) syncWithCloudVM(ctx context.Context, userCred mcclient.TokenCre
 				g.Name = newName
 			}
 		}
-		hostname := pinyinutils.Text2Pinyin(extVM.GetHostname())
-		if len(hostname) > 128 {
-			hostname = hostname[:128]
-		}
-		if extVM.GetName() != hostname {
-			g.Hostname = hostname
-		}
+
+		g.SyncHostname(extVM)
+
 		if !g.IsFailureStatus() && syncStatus {
 			g.Status = extVM.GetStatus()
 			g.PowerStates = extVM.GetPowerStates()
@@ -3107,7 +3243,8 @@ func (g *SGuest) syncWithCloudVM(ctx context.Context, userCred mcclient.TokenCre
 		if provider.GetFactory().IsSupportPrepaidResources() && !recycle {
 			g.BillingType = extVM.GetBillingType()
 			g.ExpiredAt = extVM.GetExpiredAt()
-			if g.GetDriver().IsSupportSetAutoRenew() {
+			drv, _ := g.GetDriver()
+			if drv != nil && drv.IsSupportSetAutoRenew() {
 				g.AutoRenew = extVM.IsAutoRenew()
 			}
 		}
@@ -3166,7 +3303,11 @@ func (manager *SGuestManager) newCloudVM(ctx context.Context, userCred mcclient.
 	guest.Bios = string(extVM.GetBios())
 	guest.Machine = extVM.GetMachine()
 	guest.Hypervisor = extVM.GetHypervisor()
-	guest.Hostname = pinyinutils.Text2Pinyin(extVM.GetHostname())
+	hostname := extVM.GetHostname()
+	if len(hostname) == 0 {
+		hostname = extVM.GetName()
+	}
+	guest.Hostname = pinyinutils.Text2Pinyin(hostname)
 	guest.InternetMaxBandwidthOut = extVM.GetInternetMaxBandwidthOut()
 	guest.Throughput = extVM.GetThroughput()
 	guest.Description = extVM.GetDescription()
@@ -3178,7 +3319,8 @@ func (manager *SGuestManager) newCloudVM(ctx context.Context, userCred mcclient.
 		if expired := extVM.GetExpiredAt(); !expired.IsZero() {
 			guest.ExpiredAt = expired
 		}
-		if guest.GetDriver().IsSupportSetAutoRenew() {
+		drv, _ := guest.GetDriver()
+		if drv != nil && drv.IsSupportSetAutoRenew() {
 			guest.AutoRenew = extVM.IsAutoRenew()
 		}
 	}
@@ -3253,7 +3395,8 @@ func (manager *SGuestManager) newCloudVM(ctx context.Context, userCred mcclient.
 		Action: notifyclient.ActionSyncCreate,
 	})
 
-	if guest.GetDriver().GetMaxSecurityGroupCount() == 0 {
+	drv, _ := guest.GetDriver()
+	if drv != nil && drv.GetMaxSecurityGroupCount() == 0 {
 		db.Update(&guest, func() error {
 			guest.SecgrpId = ""
 			return nil
@@ -3299,13 +3442,13 @@ func (self *SGuest) getAttach2NetworkCount(net *SNetwork) (int, error) {
 	return q.CountWithError()
 }
 
-func (self *SGuest) getUsableNicIndex() int8 {
+func (self *SGuest) getUsableNicIndex() int {
 	nics, err := self.GetNetworks("")
 	if err != nil {
 		return -1
 	}
-	maxIndex := int8(len(nics))
-	for i := int8(0); i <= maxIndex; i++ {
+	maxIndex := len(nics)
+	for i := 0; i <= maxIndex; i++ {
 		found := true
 		for j := range nics {
 			if nics[j].Index == i {
@@ -3368,7 +3511,8 @@ type Attach2NetworkArgs struct {
 
 	Virtual bool
 
-	IsDefault bool
+	IsDefault    bool
+	PortMappings api.GuestPortMappings
 
 	PendingUsage quotas.IQuota
 }
@@ -3400,6 +3544,7 @@ func (args *Attach2NetworkArgs) onceArgs(i int) attach2NetworkOnceArgs {
 		isDefault: args.IsDefault,
 
 		pendingUsage: args.PendingUsage,
+		portMappings: args.PortMappings,
 	}
 	if i > 0 {
 		r.ipAddr = ""
@@ -3442,6 +3587,7 @@ type attach2NetworkOnceArgs struct {
 	isDefault bool
 
 	pendingUsage quotas.IQuota
+	portMappings api.GuestPortMappings
 }
 
 func (self *SGuest) Attach2Network(
@@ -3517,7 +3663,8 @@ func (self *SGuest) attach2NetworkOnce(
 
 		virtual: args.virtual,
 
-		isDefault: args.isDefault,
+		isDefault:    args.isDefault,
+		portMappings: args.portMappings,
 	}
 	lockman.LockClass(ctx, QuotaManager, self.ProjectId)
 	defer lockman.ReleaseClass(ctx, QuotaManager, self.ProjectId)
@@ -3656,7 +3803,7 @@ func (self *SGuest) SyncVMNics(
 			continue
 		}
 		_, err = db.Update(&commondb[i], func() error {
-			network := commondb[i].GetNetwork()
+			network, _ := commondb[i].GetNetwork()
 			ip := commonext[i].GetIP()
 			ip6 := commonext[i].GetIP6()
 			if len(ip) > 0 {
@@ -4166,10 +4313,13 @@ func (self *SGuest) allocSriovNicDevice(
 	gn *SGuestnetwork, netConfig *api.NetworkConfig,
 	pendingUsageZone quotas.IQuota,
 ) error {
-	net := gn.GetNetwork()
+	net, err := gn.GetNetwork()
+	if err != nil {
+		return errors.Wrapf(err, "GetNetwork")
+	}
 	netConfig.SriovDevice.NetworkIndex = &gn.Index
 	netConfig.SriovDevice.WireId = net.WireId
-	err := self.createIsolatedDeviceOnHost(ctx, userCred, host, netConfig.SriovDevice, pendingUsageZone)
+	err = self.createIsolatedDeviceOnHost(ctx, userCred, host, netConfig.SriovDevice, pendingUsageZone, nil)
 	if err != nil {
 		return errors.Wrap(err, "self.createIsolatedDeviceOnHost")
 	}
@@ -4227,7 +4377,10 @@ func (self *SGuest) attach2NetworkDesc(
 }
 
 func (self *SGuest) attach2NamedNetworkDesc(ctx context.Context, userCred mcclient.TokenCredential, host *SHost, netConfig *api.NetworkConfig, pendingUsage quotas.IQuota) ([]SGuestnetwork, error) {
-	driver := self.GetDriver()
+	driver, err := self.GetDriver()
+	if err != nil {
+		return nil, errors.Wrapf(err, "GetDriver")
+	}
 	net, nicConfs, allocDir, reuseAddr, err := driver.GetNamedNetworkConfiguration(self, ctx, userCred, host, netConfig)
 	if err != nil {
 		if errors.Cause(err) == sql.ErrNoRows {
@@ -4283,7 +4436,8 @@ func (self *SGuest) attach2NamedNetworkDesc(ctx context.Context, userCred mcclie
 			UseDesignatedIP:     reuseAddr,
 			NicConfs:            nicConfs,
 
-			IsDefault: netConfig.IsDefault,
+			IsDefault:    netConfig.IsDefault,
+			PortMappings: netConfig.PortMappings,
 		})
 		if err != nil {
 			return nil, errors.Wrap(err, "Attach2Network fail")
@@ -4296,7 +4450,10 @@ func (self *SGuest) attach2NamedNetworkDesc(ctx context.Context, userCred mcclie
 }
 
 func (self *SGuest) attach2RandomNetwork(ctx context.Context, userCred mcclient.TokenCredential, host *SHost, netConfig *api.NetworkConfig, pendingUsage quotas.IQuota) ([]SGuestnetwork, error) {
-	driver := self.GetDriver()
+	driver, err := self.GetDriver()
+	if err != nil {
+		return nil, err
+	}
 	return driver.Attach2RandomNetwork(self, ctx, userCred, host, netConfig, pendingUsage)
 }
 
@@ -4351,7 +4508,7 @@ func (self *SGuest) attachNVMEDevice(
 ) error {
 	gd := self.GetGuestDisk(disk.Id)
 	diskConfig.NVMEDevice.DiskIndex = &gd.Index
-	err := self.createIsolatedDeviceOnHost(ctx, userCred, host, diskConfig.NVMEDevice, pendingUsage)
+	err := self.createIsolatedDeviceOnHost(ctx, userCred, host, diskConfig.NVMEDevice, pendingUsage, nil)
 	if err != nil {
 		return errors.Wrap(err, "self.createIsolatedDeviceOnHost")
 	}
@@ -4416,10 +4573,15 @@ func (self *SGuest) CreateDiskOnStorage(ctx context.Context, userCred mcclient.T
 }
 
 func (self *SGuest) ChooseHostStorage(host *SHost, diskConfig *api.DiskConfig, candidate *schedapi.CandidateDisk) (*SStorage, error) {
-	if candidate == nil || len(candidate.StorageIds) == 0 {
-		return self.GetDriver().ChooseHostStorage(host, self, diskConfig, nil)
+	drv, err := self.GetDriver()
+	if err != nil {
+		return nil, err
 	}
-	return self.GetDriver().ChooseHostStorage(host, self, diskConfig, candidate.StorageIds)
+
+	if candidate == nil || len(candidate.StorageIds) == 0 {
+		return drv.ChooseHostStorage(host, self, diskConfig, nil)
+	}
+	return drv.ChooseHostStorage(host, self, diskConfig, candidate.StorageIds)
 }
 
 func (self *SGuest) createDiskOnHost(
@@ -4492,11 +4654,12 @@ func (self *SGuest) createDiskOnHost(
 }
 
 func (self *SGuest) CreateIsolatedDeviceOnHost(ctx context.Context, userCred mcclient.TokenCredential, host *SHost, devs []*api.IsolatedDeviceConfig, pendingUsage quotas.IQuota) error {
+	usedDeviceMap := map[string]struct{}{}
 	for _, devConfig := range devs {
 		if devConfig.DevType == api.NIC_TYPE || devConfig.DevType == api.NVME_PT_TYPE {
 			continue
 		}
-		err := self.createIsolatedDeviceOnHost(ctx, userCred, host, devConfig, pendingUsage)
+		err := self.createIsolatedDeviceOnHost(ctx, userCred, host, devConfig, pendingUsage, usedDeviceMap)
 		if err != nil {
 			return err
 		}
@@ -4504,11 +4667,11 @@ func (self *SGuest) CreateIsolatedDeviceOnHost(ctx context.Context, userCred mcc
 	return nil
 }
 
-func (self *SGuest) createIsolatedDeviceOnHost(ctx context.Context, userCred mcclient.TokenCredential, host *SHost, devConfig *api.IsolatedDeviceConfig, pendingUsage quotas.IQuota) error {
+func (self *SGuest) createIsolatedDeviceOnHost(ctx context.Context, userCred mcclient.TokenCredential, host *SHost, devConfig *api.IsolatedDeviceConfig, pendingUsage quotas.IQuota, usedDevMap map[string]struct{}) error {
 	lockman.LockClass(ctx, QuotaManager, self.ProjectId)
 	defer lockman.ReleaseClass(ctx, QuotaManager, self.ProjectId)
 
-	err := IsolatedDeviceManager.attachHostDeviceToGuestByDesc(ctx, self, host, devConfig, userCred)
+	err := IsolatedDeviceManager.attachHostDeviceToGuestByDesc(ctx, self, host, devConfig, userCred, usedDevMap)
 	if err != nil {
 		return err
 	}
@@ -4715,6 +4878,9 @@ func (self *SGuest) AllowDeleteItem(ctx context.Context, userCred mcclient.Token
 
 // 删除虚拟机
 func (self *SGuest) CustomizeDelete(ctx context.Context, userCred mcclient.TokenCredential, query api.ServerDeleteInput, data jsonutils.JSONObject) error {
+	if len(self.HostId) == 0 {
+		return self.RealDelete(ctx, userCred)
+	}
 	return self.StartDeleteGuestTask(ctx, userCred, "", query)
 }
 
@@ -4774,7 +4940,12 @@ func (self *SGuest) isNeedDoResetPasswd() bool {
 func (self *SGuest) GetDeployConfigOnHost(ctx context.Context, userCred mcclient.TokenCredential, host *SHost, params *jsonutils.JSONDict) (*jsonutils.JSONDict, error) {
 	config := jsonutils.NewDict()
 
-	desc, err := self.GetDriver().GetJsonDescAtHost(ctx, userCred, self, host, params)
+	drv, err := self.GetDriver()
+	if err != nil {
+		return nil, err
+	}
+
+	desc, err := drv.GetJsonDescAtHost(ctx, userCred, self, host, params)
 	if err != nil {
 		return nil, errors.Wrapf(err, "GetJsonDescAtHost")
 	}
@@ -4850,7 +5021,7 @@ func (self *SGuest) GetDeployConfigOnHost(ctx context.Context, userCred mcclient
 	config.Add(jsonutils.NewString(onFinish), "on_finish")
 
 	if jsonutils.QueryBoolean(params, "deploy_telegraf", false) {
-		influxdbUrl := self.GetDriver().FetchMonitorUrl(ctx, self)
+		influxdbUrl := drv.FetchMonitorUrl(ctx, self)
 		config.Add(jsonutils.JSONTrue, "deploy_telegraf")
 		serverDetails, err := self.getDetails(ctx, userCred)
 		if err != nil {
@@ -4950,7 +5121,7 @@ func (self *SGuest) GetIsolatedDevices() ([]SIsolatedDevice, error) {
 	return devs, nil
 }
 
-func (self *SGuest) GetIsolatedDeviceByNetworkIndex(index int8) (*SIsolatedDevice, error) {
+func (self *SGuest) GetIsolatedDeviceByNetworkIndex(index int) (*SIsolatedDevice, error) {
 	dev := SIsolatedDevice{}
 	q := IsolatedDeviceManager.Query().Equals("guest_id", self.Id).Equals("network_index", index)
 	if cnt, err := q.CountWithError(); err != nil {
@@ -5475,12 +5646,12 @@ func (self *SGuest) SaveDeployInfo(ctx context.Context, userCred mcclient.TokenC
 		self.saveOsType(userCred, deployInfo.Os)
 		info["os_name"] = deployInfo.Os
 	}
-	driver := self.GetDriver()
+	driver, _ := self.GetDriver()
 	if len(deployInfo.Account) > 0 {
 		info["login_account"] = deployInfo.Account
 		if len(deployInfo.Key) > 0 {
 			info["login_key"] = deployInfo.Key
-			if len(self.KeypairId) > 0 && !driver.IsSupportdDcryptPasswordFromSecretKey() { // Tencent Cloud does not support simultaneous setting of secret keys and passwords
+			if len(self.KeypairId) > 0 && (driver != nil && !driver.IsSupportdDcryptPasswordFromSecretKey()) { // Tencent Cloud does not support simultaneous setting of secret keys and passwords
 				info["login_key"], _ = seclib2.EncryptBase64(self.GetKeypairPublicKey(), "")
 			}
 			info["login_key_timestamp"] = timeutils.UtcNow()
@@ -5729,7 +5900,11 @@ func (manager *SGuestManager) AutoRenewPrepaidServer(ctx context.Context, userCr
 		return
 	}
 	for i := 0; i < len(guests); i += 1 {
-		if len(guests[i].ExternalId) > 0 && !guests[i].GetDriver().IsSupportSetAutoRenew() {
+		drv, err := guests[i].GetDriver()
+		if err != nil {
+			continue
+		}
+		if len(guests[i].ExternalId) > 0 && !drv.IsSupportSetAutoRenew() {
 			err := guests[i].doExternalSync(ctx, userCred)
 			if err == nil && guests[i].IsValidPrePaid() {
 				continue
@@ -5807,75 +5982,76 @@ func (self *SGuest) GetPublicIp() (*SElasticip, error) {
 func (self *SGuest) SyncVMEip(ctx context.Context, userCred mcclient.TokenCredential, provider *SCloudprovider, extEip cloudprovider.ICloudEIP, syncOwnerId mcclient.IIdentityProvider) compare.SyncResult {
 	result := compare.SyncResult{}
 
-	eip, err := self.GetPublicIp()
+	eip, err := self.GetEipOrPublicIp()
 	if err != nil {
-		result.Error(fmt.Errorf("getPublicIp error %s", err))
+		result.Error(fmt.Errorf("GetEipOrPublicIp error %s", err))
 		return result
-	} else if eip == nil {
-		eip, err = self.GetElasticIp()
-		if err != nil {
-			result.Error(fmt.Errorf("getEip error %s", err))
-			return result
-		}
 	}
 
-	region, _ := self.getRegion()
+	region, err := self.getRegion()
+	if err != nil {
+		result.Error(fmt.Errorf("getRegion error %s", err))
+		return result
+	}
 	if eip == nil && extEip == nil {
 		// do nothing
-	} else if eip == nil && extEip != nil {
+		return result
+	}
+	if eip == nil && extEip != nil {
 		// add
 		neip, err := ElasticipManager.getEipByExtEip(ctx, userCred, extEip, provider, region, syncOwnerId)
 		if err != nil {
 			result.AddError(errors.Wrapf(err, "getEipByExtEip"))
-		} else {
-			err = neip.AssociateInstance(ctx, userCred, api.EIP_ASSOCIATE_TYPE_SERVER, self)
-			if err != nil {
-				result.AddError(errors.Wrapf(err, "neip.AssociateInstance"))
-			} else {
-				result.Add()
-			}
+			return result
 		}
-	} else if eip != nil && extEip == nil {
+		err = neip.AssociateInstance(ctx, userCred, api.EIP_ASSOCIATE_TYPE_SERVER, self)
+		if err != nil {
+			result.AddError(errors.Wrapf(err, "neip.AssociateInstance"))
+			return result
+		}
+		result.Add()
+		return result
+	}
+	if eip != nil && extEip == nil {
 		// remove
 		err = eip.Dissociate(ctx, userCred)
 		if err != nil {
 			result.DeleteError(err)
-		} else {
-			result.Delete()
+			return result
 		}
-	} else {
-		// sync
-		if eip.IpAddr != extEip.GetIpAddr() {
-			// remove then add
-			err = eip.Dissociate(ctx, userCred)
-			if err != nil {
-				// fail to remove
-				result.DeleteError(err)
-			} else {
-				result.Delete()
-				neip, err := ElasticipManager.getEipByExtEip(ctx, userCred, extEip, provider, region, syncOwnerId)
-				if err != nil {
-					result.AddError(err)
-				} else {
-					err = neip.AssociateInstance(ctx, userCred, api.EIP_ASSOCIATE_TYPE_SERVER, self)
-					if err != nil {
-						result.AddError(err)
-					} else {
-						result.Add()
-					}
-				}
-			}
-		} else {
-			// do nothing
-			err := eip.SyncWithCloudEip(ctx, userCred, provider, extEip, syncOwnerId)
-			if err != nil {
-				result.UpdateError(err)
-			} else {
-				result.Update()
-			}
-		}
+		result.Delete()
+		return result
 	}
-
+	// sync
+	if eip.IpAddr != extEip.GetIpAddr() {
+		// remove then add
+		err = eip.Dissociate(ctx, userCred)
+		if err != nil {
+			// fail to remove
+			result.DeleteError(err)
+			return result
+		}
+		result.Delete()
+		neip, err := ElasticipManager.getEipByExtEip(ctx, userCred, extEip, provider, region, syncOwnerId)
+		if err != nil {
+			result.AddError(err)
+			return result
+		}
+		err = neip.AssociateInstance(ctx, userCred, api.EIP_ASSOCIATE_TYPE_SERVER, self)
+		if err != nil {
+			result.AddError(err)
+		} else {
+			result.Add()
+		}
+		return result
+	}
+	// do nothing
+	err = eip.SyncWithCloudEip(ctx, userCred, provider, extEip, syncOwnerId)
+	if err != nil {
+		result.UpdateError(err)
+	} else {
+		result.Update()
+	}
 	return result
 }
 
@@ -5905,7 +6081,11 @@ func (self *SGuest) getSecgroupsBySecgroupExternalIds(externalIds []string) ([]S
 
 func (self *SGuest) SyncVMSecgroups(ctx context.Context, userCred mcclient.TokenCredential, externalIds []string) error {
 	// clear secgroup if vm not support security group
-	if self.GetDriver().GetMaxSecurityGroupCount() == 0 || len(externalIds) == 0 {
+	drv, err := self.GetDriver()
+	if err != nil {
+		return err
+	}
+	if drv.GetMaxSecurityGroupCount() == 0 || len(externalIds) == 0 {
 		_, err := db.Update(self, func() error {
 			self.SecgrpId = ""
 			self.AdminSecgrpId = ""
@@ -6076,7 +6256,7 @@ func (self *SGuest) FillDiskSchedDesc(desc *api.ServerConfigs) {
 	for i := 0; i < len(guestDisks); i++ {
 		diskConf := guestDisks[i].ToDiskConfig()
 		// HACK: storage used by self, so earse it
-		if diskConf.Backend == api.STORAGE_LOCAL {
+		if !utils.IsInStringArray(diskConf.Backend, api.SHARED_STORAGE) {
 			diskConf.Storage = ""
 		}
 		desc.Disks = append(desc.Disks, diskConf)
@@ -6202,8 +6382,8 @@ func (self *SGuest) ToCreateInput(ctx context.Context, userCred mcclient.TokenCr
 	userInput.KeypairId = genInput.KeypairId
 	userInput.EipBw = genInput.EipBw
 	userInput.EipChargeType = genInput.EipChargeType
-	provider := self.GetDriver()
-	if provider.IsSupportPublicIp() {
+	drv, _ := self.GetDriver()
+	if drv != nil && drv.IsSupportPublicIp() {
 		userInput.PublicIpBw = genInput.PublicIpBw
 		userInput.PublicIpChargeType = genInput.PublicIpChargeType
 	}
@@ -6277,7 +6457,8 @@ func (self *SGuest) toCreateInput() *api.ServerCreateInput {
 			r.EipBw = eip.Bandwidth
 			r.EipChargeType = eip.ChargeType
 		case api.EIP_MODE_INSTANCE_PUBLICIP:
-			if driver := self.GetDriver(); driver.IsSupportPublicIp() {
+			drv, _ := self.GetDriver()
+			if drv != nil && drv.IsSupportPublicIp() {
 				r.PublicIpBw = eip.Bandwidth
 				r.PublicIpChargeType = eip.ChargeType
 			}
@@ -6332,7 +6513,10 @@ func (self *SGuest) ToNetworksConfig() []*api.NetworkConfig {
 	}
 	for _, guestNetwork := range guestNetworks {
 		netConf := new(api.NetworkConfig)
-		network := guestNetwork.GetNetwork()
+		network, err := guestNetwork.GetNetwork()
+		if err != nil {
+			continue
+		}
 		requireTeaming := false
 		if tg, _ := guestNetwork.GetTeamGuestnetwork(); tg != nil {
 			requireTeaming = true
@@ -6545,23 +6729,22 @@ func (guest *SGuest) GetRegionalQuotaKeys() (quotas.IQuotaKeys, error) {
 	return fetchRegionalQuotaKeys(rbacscope.ScopeProject, guest.GetOwnerId(), region, provider), nil
 }
 
+func (guest *SGuest) GetCloudprovider() (*SCloudprovider, error) {
+	hosts := HostManager.Query("manager_id").Equals("id", guest.HostId).SubQuery()
+	q := CloudproviderManager.Query().In("id", hosts)
+	ret := &SCloudprovider{}
+	ret.SetModelManager(CloudproviderManager, ret)
+	err := q.First(ret)
+	if err != nil {
+		return nil, errors.Wrapf(err, "q.First")
+	}
+	return ret, nil
+}
+
 func (guest *SGuest) GetQuotaKeys() (quotas.IQuotaKeys, error) {
-	host, _ := guest.GetHost()
-	if host == nil {
-		return nil, errors.Wrap(httperrors.ErrInvalidStatus, "no valid host")
-	}
-	provider := host.GetCloudprovider()
-	if provider == nil && len(host.ManagerId) > 0 {
-		return nil, errors.Wrap(httperrors.ErrInvalidStatus, "no valid manager")
-	}
-	zone, _ := host.GetZone()
-	if zone == nil {
-		return nil, errors.Wrap(httperrors.ErrInvalidStatus, "no valid zone")
-	}
+	provider, _ := guest.GetCloudprovider()
+	zone, _ := guest.GetZone()
 	hypervisor := guest.Hypervisor
-	if !utils.IsInStringArray(hypervisor, api.ONECLOUD_HYPERVISORS) {
-		hypervisor = ""
-	}
 	return fetchComputeQuotaKeys(
 		rbacscope.ScopeProject,
 		guest.GetOwnerId(),
@@ -6801,4 +6984,33 @@ func (guest *SGuest) IsSriov() bool {
 		}
 	}
 	return false
+}
+
+func (guest *SGuest) getDisksCandidateHostIds() ([]string, error) {
+	disks, err := guest.GetDisks()
+	if err != nil {
+		return nil, errors.Wrap(err, "guest.GetDisks")
+	}
+	ret := stringutils2.NewSortedStrings(nil)
+	for i := range disks {
+		candidates, err := disks[i].getCandidateHostIds()
+		if err != nil {
+			return nil, errors.Wrap(err, "getCandidateHostIds")
+		}
+		sorted := stringutils2.NewSortedStrings(candidates)
+		if i > 0 {
+			ret = stringutils2.Intersect(ret, sorted)
+		} else {
+			ret = sorted
+		}
+	}
+	return ret, nil
+}
+
+func (guest *SGuest) SaveLastStartAt() error {
+	_, err := db.Update(guest, func() error {
+		guest.LastStartAt = time.Now().UTC()
+		return nil
+	})
+	return errors.Wrap(err, "SaveLastStartAt")
 }

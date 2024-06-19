@@ -79,6 +79,8 @@ type CacheImageInput struct {
 	StoragecacheId string `json:"storagecache_id"`
 	// swagger: ignore
 	Checksum string `json:"checksum"`
+	// swagger: ignore
+	SkipChecksumIfExists bool `json:"skip_checksum_if_exists"`
 }
 
 type StoragecacheResourceInput struct {
@@ -98,6 +100,26 @@ type StoragecacheResourceInfo struct {
 
 	// 存储缓存名称
 	Storagecache string `json:"storagecache"`
+
+	// 关联存储名称
+	Storages []string `json:"storages"`
+
+	// 关联存储信息
+	StorageInfo []StorageInfo `json:"storage_info"`
+}
+
+type StorageInfo struct {
+	Id string `json:"id"`
+
+	Name string `json:"name"`
+
+	StorageType string `json:"storage_type"`
+
+	MediumType string `json:"medium_type"`
+
+	ZoneId string `json:"zone_id"`
+
+	Zone string `json:"zone"`
 }
 
 type StoragecacheFilterListInputBase struct {
