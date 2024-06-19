@@ -14,7 +14,10 @@
 
 package apis
 
-import "yunion.io/x/pkg/util/sets"
+import (
+	"yunion.io/x/pkg/errors"
+	"yunion.io/x/pkg/util/sets"
+)
 
 type ContainerKeyValue struct {
 	Key   string `json:"key"`
@@ -40,6 +43,11 @@ type ContainerLifecyle struct {
 	PostStart *ContainerLifecyleHandler `json:"post_start"`
 }
 
+type ContainerSecurityContext struct {
+	RunAsUser  *int64 `json:"run_as_user,omitempty"`
+	RunAsGroup *int64 `json:"run_as_group,omitempty"`
+}
+
 type ContainerSpec struct {
 	// Image to use.
 	Image string `json:"image"`
@@ -54,14 +62,14 @@ type ContainerSpec struct {
 	// List of environment variable to set in the container.
 	Envs []*ContainerKeyValue `json:"envs"`
 	// Enable lxcfs
-	EnableLxcfs bool `json:"enable_lxcfs"`
-	// Volume mounts
-	VolumeMounts       []*ContainerVolumeMount `json:"volume_mounts"`
-	Capabilities       *ContainerCapability    `json:"capabilities"`
-	Privileged         bool                    `json:"privileged"`
-	Lifecyle           *ContainerLifecyle      `json:"lifecyle"`
-	CgroupDevicesAllow []string                `json:"cgroup_devices_allow"`
-	SimulateCpu        bool                    `json:"simulate_cpu"`
+	EnableLxcfs        bool                      `json:"enable_lxcfs"`
+	Capabilities       *ContainerCapability      `json:"capabilities"`
+	Privileged         bool                      `json:"privileged"`
+	Lifecyle           *ContainerLifecyle        `json:"lifecyle"`
+	CgroupDevicesAllow []string                  `json:"cgroup_devices_allow"`
+	SimulateCpu        bool                      `json:"simulate_cpu"`
+	ShmSizeMB          int                       `json:"shm_size_mb"`
+	SecurityContext    *ContainerSecurityContext `json:"security_context,omitempty"`
 }
 
 type ContainerCapability struct {
@@ -81,6 +89,7 @@ type ContainerVolumeMountType string
 const (
 	CONTAINER_VOLUME_MOUNT_TYPE_DISK      ContainerVolumeMountType = "disk"
 	CONTAINER_VOLUME_MOUNT_TYPE_HOST_PATH ContainerVolumeMountType = "host_path"
+	CONTAINER_VOLUME_MOUNT_TYPE_TEXT      ContainerVolumeMountType = "text"
 )
 
 type ContainerDeviceType string
@@ -111,6 +120,7 @@ type ContainerVolumeMount struct {
 	Type     ContainerVolumeMountType      `json:"type"`
 	Disk     *ContainerVolumeMountDisk     `json:"disk"`
 	HostPath *ContainerVolumeMountHostPath `json:"host_path"`
+	Text     *ContainerVolumeMountText     `json:"text"`
 	// Mounted read-only if true, read-write otherwise (false or unspecified).
 	ReadOnly bool `json:"read_only"`
 	// Path within the container at which the volume should be mounted.  Must
@@ -120,10 +130,44 @@ type ContainerVolumeMount struct {
 	SelinuxRelabel bool `json:"selinux_relabel,omitempty"`
 	// Requested propagation mode.
 	Propagation ContainerMountPropagation `json:"propagation,omitempty"`
+	// Owner permissions
+	FsUser  *int64 `json:"fs_user,omitempty"`
+	FsGroup *int64 `json:"fs_group,omitempty"`
 }
 
+type ContainerOverlayDiskImage struct {
+	DiskId  string `json:"disk_id"`
+	ImageId string `json:"image_id"`
+}
+
+type ContainerDiskOverlayType string
+
+const (
+	CONTAINER_DISK_OVERLAY_TYPE_DIRECTORY  ContainerDiskOverlayType = "directory"
+	CONTAINER_DISK_OVERLAY_TYPE_DISK_IMAGE ContainerDiskOverlayType = "disk_image"
+	CONTAINER_DISK_OVERLAY_TYPE_UNKNOWN    ContainerDiskOverlayType = "unknown"
+)
+
 type ContainerVolumeMountDiskOverlay struct {
-	LowerDir []string `json:"lower_dir"`
+	LowerDir     []string `json:"lower_dir"`
+	UseDiskImage bool     `json:"use_disk_image"`
+}
+
+func (o ContainerVolumeMountDiskOverlay) GetType() ContainerDiskOverlayType {
+	if len(o.LowerDir) != 0 {
+		return CONTAINER_DISK_OVERLAY_TYPE_DIRECTORY
+	}
+	if o.UseDiskImage {
+		return CONTAINER_DISK_OVERLAY_TYPE_DISK_IMAGE
+	}
+	return CONTAINER_DISK_OVERLAY_TYPE_UNKNOWN
+}
+
+func (o ContainerVolumeMountDiskOverlay) IsValid() error {
+	if o.GetType() == CONTAINER_DISK_OVERLAY_TYPE_UNKNOWN {
+		return errors.ErrNotSupported
+	}
+	return nil
 }
 
 type ContainerVolumeMountDisk struct {
@@ -137,11 +181,15 @@ type ContainerVolumeMountDisk struct {
 type ContainerVolumeMountHostPathType string
 
 const (
-	ContainerVolumeMountHostPathTypeDirectory ContainerVolumeMountHostPathType = "directory"
-	ContainerVolumeMountHostPathTypeFile      ContainerVolumeMountHostPathType = "file"
+	CONTAINER_VOLUME_MOUNT_HOST_PATH_TYPE_DIRECTORY ContainerVolumeMountHostPathType = "directory"
+	CONTAINER_VOLUME_MOUNT_HOST_PATH_TYPE_FILE      ContainerVolumeMountHostPathType = "file"
 )
 
 type ContainerVolumeMountHostPath struct {
 	Type ContainerVolumeMountHostPathType `json:"type"`
 	Path string                           `json:"path"`
+}
+
+type ContainerVolumeMountText struct {
+	Content string `json:"content"`
 }

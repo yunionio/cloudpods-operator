@@ -121,6 +121,7 @@ func convertNicConfigs(nics []*types.SServerNic) ([]*types.SServerNic, []*types.
 		nnic.Ip6 = ""
 		nnic.Masklen6 = 0
 		nnic.Gateway6 = ""
+		nnic.IsDefault = false
 		tnic.Name = fmt.Sprintf("%s%d", netDevPrefix, tnic.Index)
 		tnic.TeamingMaster = master
 		tnic.Ip = ""
@@ -129,9 +130,11 @@ func convertNicConfigs(nics []*types.SServerNic) ([]*types.SServerNic, []*types.
 		tnic.Ip6 = ""
 		tnic.Masklen6 = 0
 		tnic.Gateway6 = ""
+		tnic.IsDefault = false
 		master.Name = fmt.Sprintf("bond%d", len(bondNics))
 		master.TeamingSlaves = []*types.SServerNic{&nnic, &tnic}
-		master.Mac = ""
+		// why reset master.Mac?
+		// master.Mac = ""
 		allNics = append(allNics, &nnic, &tnic, master)
 		bondNics = append(bondNics, master)
 	}

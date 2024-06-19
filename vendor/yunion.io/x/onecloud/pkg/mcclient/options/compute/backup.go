@@ -17,6 +17,7 @@ package compute
 import (
 	"yunion.io/x/jsonutils"
 
+	computeapi "yunion.io/x/onecloud/pkg/apis/compute"
 	"yunion.io/x/onecloud/pkg/mcclient/options"
 )
 
@@ -55,12 +56,32 @@ func (opts *DiskBackupDeleteOptions) QueryParams() (jsonutils.JSONObject, error)
 
 type DiskBackupCreateOptions struct {
 	options.BaseCreateOptions
+	AsTarContainerId string   `help:"container id of tar process"`
+	AsTarIncludeFile []string `help:"include file path of tar process"`
+	AsTarExcludeFile []string `help:"exclude file path of tar process"`
+
 	DISKID          string `help:"disk id" json:"disk_id"`
 	BACKUPSTORAGEID string `help:"back storage id" json:"backup_storage_id"`
 }
 
 func (opts *DiskBackupCreateOptions) Params() (jsonutils.JSONObject, error) {
-	return jsonutils.Marshal(opts), nil
+	input := &computeapi.DiskBackupCreateInput{
+		DiskId:          opts.DISKID,
+		BackupStorageId: opts.BACKUPSTORAGEID,
+		BackupAsTar:     new(computeapi.DiskBackupAsTarInput),
+	}
+	input.Name = opts.NAME
+	input.Description = opts.Desc
+	if opts.AsTarContainerId != "" {
+		input.BackupAsTar.ContainerId = opts.AsTarContainerId
+	}
+	if len(opts.AsTarIncludeFile) > 0 {
+		input.BackupAsTar.IncludeFiles = opts.AsTarIncludeFile
+	}
+	if len(opts.AsTarExcludeFile) > 0 {
+		input.BackupAsTar.ExcludeFiles = opts.AsTarExcludeFile
+	}
+	return jsonutils.Marshal(input), nil
 }
 
 type DiskBackupRecoveryOptions struct {
@@ -205,4 +226,39 @@ type InstanceBackupManagerCreateFromPackageOptions struct {
 
 func (opts *InstanceBackupManagerCreateFromPackageOptions) Params() (jsonutils.JSONObject, error) {
 	return jsonutils.Marshal(opts), nil
+}
+
+type HostBackupStorageListOptions struct {
+	options.BaseListOptions
+	Host          string `json:"-" help:"filter by host"`
+	Backupstorage string `json:"-" help:"filter by backupstorage"`
+}
+
+func (opts HostBackupStorageListOptions) GetMasterOpt() string {
+	return opts.Host
+}
+
+func (opts HostBackupStorageListOptions) GetSlaveOpt() string {
+	return opts.Backupstorage
+}
+
+func (opts *HostBackupStorageListOptions) Params() (jsonutils.JSONObject, error) {
+	return options.ListStructToParams(opts)
+}
+
+type HostBackupStorageJoinOptions struct {
+	HOST          string `json:"-" help:"host id"`
+	BACKUPSTORAGE string `json:"-" help:"backup storage id"`
+}
+
+func (opts HostBackupStorageJoinOptions) GetMasterId() string {
+	return opts.HOST
+}
+
+func (opts HostBackupStorageJoinOptions) GetSlaveId() string {
+	return opts.BACKUPSTORAGE
+}
+
+func (opts HostBackupStorageJoinOptions) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.NewDict(), nil
 }

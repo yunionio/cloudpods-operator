@@ -126,7 +126,9 @@ func (manager *SGuestManager) FetchCustomizeColumns(
 					if len(fields) == 0 || fields.Contains("ips") {
 						ips := make([]string, 0, len(nics))
 						for _, nic := range nics {
-							ips = append(ips, nic.IpAddr)
+							if len(nic.IpAddr) > 0 {
+								ips = append(ips, nic.IpAddr)
+							}
 							if len(nic.Ip6Addr) > 0 {
 								ips = append(ips, nic.Ip6Addr)
 							}
@@ -480,6 +482,9 @@ func fetchGuestNICs(ctx context.Context, guestIds []string, virtual tristate.Tri
 		gnwq.Field("mac_addr").Label("mac"),
 		gnwq.Field("team_with"),
 		gnwq.Field("network_id"), // caution: do not alias netq.id as network_id
+
+		gnwq.Field("port_mappings"),
+
 		wirq.Field("vpc_id"),
 		subIP.Field("sub_ips"),
 	)

@@ -16,9 +16,11 @@ package models
 
 import (
 	"context"
+	"fmt"
 
 	"yunion.io/x/jsonutils"
-	"yunion.io/x/log"
+	"yunion.io/x/pkg/errors"
+	"yunion.io/x/pkg/utils"
 
 	api "yunion.io/x/onecloud/pkg/apis/compute"
 	"yunion.io/x/onecloud/pkg/cloudcommon/db/taskman"
@@ -27,12 +29,18 @@ import (
 
 type IHostDriver interface {
 	GetHostType() string
+	GetProvider() string
 	GetHypervisor() string
 
-	CheckAndSetCacheImage(ctx context.Context, userCred mcclient.TokenCredential, host *SHost, storagecache *SStoragecache, task taskman.ITask) error
-	RequestUncacheImage(ctx context.Context, host *SHost, storageCache *SStoragecache, task taskman.ITask) error
+	RequestBaremetalUnmaintence(ctx context.Context, userCred mcclient.TokenCredential, baremetal *SHost, task taskman.ITask) error
+	RequestBaremetalMaintence(ctx context.Context, userCred mcclient.TokenCredential, baremetal *SHost, task taskman.ITask) error
+	RequestSyncBaremetalHostStatus(ctx context.Context, userCred mcclient.TokenCredential, baremetal *SHost, task taskman.ITask) error
+	RequestSyncBaremetalHostConfig(ctx context.Context, userCred mcclient.TokenCredential, baremetal *SHost, task taskman.ITask) error
 
-	ValidateUpdateDisk(ctx context.Context, userCred mcclient.TokenCredential, input api.DiskUpdateInput) (api.DiskUpdateInput, error)
+	CheckAndSetCacheImage(ctx context.Context, userCred mcclient.TokenCredential, host *SHost, storagecache *SStoragecache, task taskman.ITask) error
+	RequestUncacheImage(ctx context.Context, host *SHost, storageCache *SStoragecache, task taskman.ITask, deactivateImage bool) error
+
+	ValidateUpdateDisk(ctx context.Context, userCred mcclient.TokenCredential, input *api.DiskUpdateInput) (*api.DiskUpdateInput, error)
 	ValidateResetDisk(ctx context.Context, userCred mcclient.TokenCredential, disk *SDisk, snapshot *SSnapshot, guests []SGuest, input *api.DiskResetInput) (*api.DiskResetInput, error)
 	ValidateDiskSize(storage *SStorage, sizeGb int) error
 	RequestPrepareSaveDiskOnHost(ctx context.Context, host *SHost, disk *SDisk, imageId string, task taskman.ITask) error
@@ -43,13 +51,16 @@ type IHostDriver interface {
 	RequestRebuildDiskOnStorage(ctx context.Context, host *SHost, storage *SStorage, disk *SDisk, task taskman.ITask, input api.DiskAllocateInput) error
 
 	// delete disk
-	RequestDeallocateDiskOnHost(ctx context.Context, host *SHost, storage *SStorage, disk *SDisk, task taskman.ITask) error
+	RequestDeallocateDiskOnHost(ctx context.Context, host *SHost, storage *SStorage, disk *SDisk, cleanSnapshots bool, task taskman.ITask) error
 	RequestDeallocateBackupDiskOnHost(ctx context.Context, host *SHost, storage *SStorage, disk *SDisk, task taskman.ITask) error
 
 	// resize disk
 	RequestResizeDiskOnHost(ctx context.Context, host *SHost, storage *SStorage, disk *SDisk, size int64, task taskman.ITask) error
+	RequestDiskSrcMigratePrepare(ctx context.Context, host *SHost, disk *SDisk, task taskman.ITask) (jsonutils.JSONObject, error)
+	RequestDiskMigrate(ctx context.Context, targetHost *SHost, targetStorage *SStorage, disk *SDisk, task taskman.ITask, body *jsonutils.JSONDict) error
 
-	RequestDeleteSnapshotsWithStorage(ctx context.Context, host *SHost, snapshot *SSnapshot, task taskman.ITask) error
+	RequestDeleteSnapshotsWithStorage(ctx context.Context, host *SHost, snapshot *SSnapshot, task taskman.ITask, snapshotIds []string) error
+	RequestDeleteSnapshotWithoutGuest(ctx context.Context, host *SHost, snapshot *SSnapshot, params *jsonutils.JSONDict, task taskman.ITask) error
 	RequestResetDisk(ctx context.Context, host *SHost, disk *SDisk, params *jsonutils.JSONDict, task taskman.ITask) error
 	RequestCleanUpDiskSnapshots(ctx context.Context, host *SHost, disk *SDisk, params *jsonutils.JSONDict, task taskman.ITask) error
 	PrepareConvert(host *SHost, image, raid string, data jsonutils.JSONObject) (*api.ServerCreateInput, error)
@@ -76,15 +87,29 @@ func init() {
 }
 
 func RegisterHostDriver(driver IHostDriver) {
-	hostDrivers[driver.GetHostType()] = driver
+	key := fmt.Sprintf("%s-%s", driver.GetHostType(), driver.GetProvider())
+	hostDrivers[key] = driver
 }
 
-func GetHostDriver(hostType string) IHostDriver {
-	driver, ok := hostDrivers[hostType]
+func GetHostDriver(hostType, provider string) (IHostDriver, error) {
+	key := fmt.Sprintf("%s-%s", hostType, provider)
+	driver, ok := hostDrivers[key]
 	if ok {
-		return driver
-	} else {
-		log.Fatalf("Unsupported hostType %s", hostType)
-		return nil
+		return driver, nil
 	}
+	return nil, errors.Wrapf(errors.ErrNotFound, "host type: %s provider: %s", hostType, provider)
+}
+
+func Hypervisors2HostTypes(hypervisors []string) []string {
+	ret := []string{}
+	for _, driver := range hostDrivers {
+		if !utils.IsInStringArray(driver.GetHypervisor(), hypervisors) {
+			continue
+		}
+		if utils.IsInStringArray(driver.GetHostType(), ret) {
+			continue
+		}
+		ret = append(ret, driver.GetHostType())
+	}
+	return ret
 }

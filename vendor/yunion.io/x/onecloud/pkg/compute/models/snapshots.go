@@ -27,7 +27,6 @@ import (
 	"yunion.io/x/pkg/gotypes"
 	"yunion.io/x/pkg/util/compare"
 	"yunion.io/x/pkg/util/rbacscope"
-	"yunion.io/x/pkg/util/timeutils"
 	"yunion.io/x/pkg/utils"
 	"yunion.io/x/sqlchemy"
 
@@ -88,6 +87,7 @@ type SSnapshot struct {
 	// CloudregionId string    `width:"36" charset:"ascii" nullable:"true" list:"user" create:"optional"`
 
 	BackingDiskId string    `width:"36" charset:"ascii" nullable:"true" default:""`
+	DiskBackupId  string    `width:"36" charset:"ascii" nullable:"true" default:""`
 	ExpiredAt     time.Time `nullable:"true" list:"user" create:"optional"`
 }
 
@@ -582,7 +582,7 @@ func (self *SSnapshot) GetFuseUrl() (string, error) {
 		return "", errors.Wrapf(err, "StorageManager.FetchById(%s)", self.StorageId)
 	}
 	storage := iStorage.(*SStorage)
-	if storage.StorageType != api.STORAGE_LOCAL {
+	if storage.StorageType != api.STORAGE_LOCAL && storage.StorageType != api.STORAGE_LVM {
 		return "", nil
 	}
 	host, err := storage.GetMasterHost()
@@ -635,16 +635,6 @@ func (self *SSnapshotManager) GetDiskManualSnapshotCount(diskId string) (int, er
 	return self.Query().Equals("disk_id", diskId).Equals("fake_deleted", false).CountWithError()
 }
 
-func (self *SSnapshotManager) IsDiskSnapshotsNeedConvert(diskId string) (bool, error) {
-	count, err := self.Query().Equals("disk_id", diskId).
-		In("status", []string{api.SNAPSHOT_READY, api.SNAPSHOT_DELETING}).
-		Equals("out_of_chain", false).CountWithError()
-	if err != nil {
-		return false, err
-	}
-	return count >= options.Options.DefaultMaxSnapshotCount, nil
-}
-
 func (self *SSnapshotManager) GetDiskFirstSnapshot(diskId string) *SSnapshot {
 	dest := &SSnapshot{}
 	q := self.Query().SubQuery()
@@ -666,7 +656,7 @@ func (self *SSnapshotManager) GetDiskSnapshotCount(diskId string) (int, error) {
 }
 
 func (self *SSnapshotManager) CreateSnapshot(ctx context.Context, owner mcclient.IIdentityProvider,
-	createdBy, diskId, guestId, location, name string, retentionDay int, isSystem bool) (*SSnapshot, error) {
+	createdBy, diskId, guestId, location, name string, retentionDay int, isSystem bool, diskBackupId string) (*SSnapshot, error) {
 	iDisk, err := DiskManager.FetchById(diskId)
 	if err != nil {
 		return nil, err
@@ -704,6 +694,7 @@ func (self *SSnapshotManager) CreateSnapshot(ctx context.Context, owner mcclient
 		snapshot.ExpiredAt = time.Now().AddDate(0, 0, retentionDay)
 	}
 	snapshot.IsSystem = isSystem
+	snapshot.DiskBackupId = diskBackupId
 	err = SnapshotManager.TableSpec().Insert(ctx, snapshot)
 	if err != nil {
 		return nil, err
@@ -806,12 +797,6 @@ func (self *SSnapshot) PerformSyncstatus(ctx context.Context, userCred mcclient.
 	return nil, StartResourceSyncStatusTask(ctx, userCred, self, "SnapshotSyncstatusTask", "")
 }
 
-func (self *SSnapshotManager) GetPropertyMaxCount(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject) (jsonutils.JSONObject, error) {
-	ret := jsonutils.NewDict()
-	ret.Set("max_count", jsonutils.NewInt(int64(options.Options.DefaultMaxSnapshotCount)))
-	return ret, nil
-}
-
 func (self *SSnapshotManager) GetConvertSnapshot(deleteSnapshot *SSnapshot) (*SSnapshot, error) {
 	dest := &SSnapshot{}
 	q := self.Query()
@@ -839,16 +824,20 @@ func (self *SSnapshotManager) PerformDeleteDiskSnapshots(ctx context.Context, us
 	if snapshots == nil || len(snapshots) == 0 {
 		return nil, httperrors.NewNotFoundError("Disk %s dose not have snapshot", diskId)
 	}
+	snapshotIds := []string{}
 	for i := 0; i < len(snapshots); i++ {
 		if snapshots[i].FakeDeleted == false {
 			return nil, httperrors.NewBadRequestError("Can not delete disk snapshots, have manual snapshot")
 		}
+		snapshotIds = append(snapshotIds, snapshots[i].Id)
 	}
-	err = snapshots[0].StartSnapshotsDeleteTask(ctx, userCred, "")
+	err = snapshots[0].StartSnapshotsDeleteTask(ctx, userCred, "", snapshotIds)
 	return nil, err
 }
 
-func (self *SSnapshot) StartSnapshotsDeleteTask(ctx context.Context, userCred mcclient.TokenCredential, parentTaskId string) error {
+func (self *SSnapshot) StartSnapshotsDeleteTask(ctx context.Context, userCred mcclient.TokenCredential, parentTaskId string, snapshotIds []string) error {
+	data := jsonutils.NewDict()
+	data.Set("snapshot_ids", jsonutils.NewStringArray(snapshotIds))
 	task, err := taskman.TaskManager.NewTask(ctx, "BatchSnapshotsDeleteTask", self, userCred, nil, parentTaskId, "", nil)
 	if err != nil {
 		log.Errorln(err)
@@ -911,18 +900,6 @@ func (self *SSnapshot) GetBackingDisks() ([]string, error) {
 		res = append(res, self.DiskId)
 		return res, nil
 	}
-}
-
-func (self *SSnapshot) FakeDelete(userCred mcclient.TokenCredential) error {
-	_, err := db.Update(self, func() error {
-		self.FakeDeleted = true
-		self.Name += timeutils.IsoTime(time.Now())
-		return nil
-	})
-	if err == nil {
-		db.OpsLog.LogEvent(self, db.ACT_SNAPSHOT_FAKE_DELETE, "snapshot fake delete", userCred)
-	}
-	return err
 }
 
 func (self *SSnapshot) Delete(ctx context.Context, userCred mcclient.TokenCredential) error {

@@ -97,7 +97,7 @@ type SIsolatedDevice struct {
 	// 云主机Id
 	GuestId string `width:"36" charset:"ascii" nullable:"true" index:"true" list:"domain"`
 	// guest network index
-	NetworkIndex int8 `nullable:"true" default:"-1" list:"user" update:"user"`
+	NetworkIndex int `nullable:"true" default:"-1" list:"user" update:"user"`
 	// Nic wire id
 	WireId string `width:"36" charset:"ascii" nullable:"true" index:"true" list:"domain" update:"domain" create:"domain_optional"`
 	// Offload interface name
@@ -131,6 +131,13 @@ type SIsolatedDevice struct {
 	NumHeads string `nullable:"true" list:"domain" update:"domain" create:"domain_optional"`
 	// The maximum number of vGPU instances per physical GPU
 	MaxInstance string `nullable:"true" list:"domain" update:"domain" create:"domain_optional"`
+
+	// MPS perdevice memory limit MB
+	MpsMemoryLimit int `nullable:"true" default:"-1" list:"domain" update:"domain" create:"domain_optional"`
+	// MPS device memory total MB
+	MpsMemoryTotal int `nullable:"true" default:"-1" list:"domain" update:"domain" create:"domain_optional"`
+	// MPS device thread percentage
+	MpsThreadPercentage int `nullable:"true" default:"-1" list:"domain" update:"domain" create:"domain_optional"`
 
 	VendorDeviceId string `width:"16" charset:"ascii" nullable:"true" list:"domain" create:"domain_optional"`
 
@@ -553,11 +560,11 @@ func (manager *SIsolatedDeviceManager) _isValidDeviceInfo(config *api.IsolatedDe
 	return nil
 }
 
-func (manager *SIsolatedDeviceManager) attachHostDeviceToGuestByDesc(ctx context.Context, guest *SGuest, host *SHost, devConfig *api.IsolatedDeviceConfig, userCred mcclient.TokenCredential) error {
+func (manager *SIsolatedDeviceManager) attachHostDeviceToGuestByDesc(ctx context.Context, guest *SGuest, host *SHost, devConfig *api.IsolatedDeviceConfig, userCred mcclient.TokenCredential, usedDevMap map[string]struct{}) error {
 	if len(devConfig.Id) > 0 {
 		return manager.attachSpecificDeviceToGuest(ctx, guest, devConfig, userCred)
 	} else if len(devConfig.DevicePath) > 0 {
-		return manager.attachHostDeviceToGuestByDevicePath(ctx, guest, host, devConfig, userCred)
+		return manager.attachHostDeviceToGuestByDevicePath(ctx, guest, host, devConfig, userCred, usedDevMap)
 	} else {
 		return manager.attachHostDeviceToGuestByModel(ctx, guest, host, devConfig, userCred)
 	}
@@ -575,7 +582,7 @@ func (manager *SIsolatedDeviceManager) attachSpecificDeviceToGuest(ctx context.C
 	return guest.attachIsolatedDevice(ctx, userCred, dev, devConfig.NetworkIndex, devConfig.DiskIndex)
 }
 
-func (manager *SIsolatedDeviceManager) attachHostDeviceToGuestByDevicePath(ctx context.Context, guest *SGuest, host *SHost, devConfig *api.IsolatedDeviceConfig, userCred mcclient.TokenCredential) error {
+func (manager *SIsolatedDeviceManager) attachHostDeviceToGuestByDevicePath(ctx context.Context, guest *SGuest, host *SHost, devConfig *api.IsolatedDeviceConfig, userCred mcclient.TokenCredential, usedDevMap map[string]struct{}) error {
 	if len(devConfig.Model) == 0 || len(devConfig.DevicePath) == 0 {
 		return fmt.Errorf("Model or DevicePath is empty: %#v", devConfig)
 	}
@@ -584,7 +591,16 @@ func (manager *SIsolatedDeviceManager) attachHostDeviceToGuestByDevicePath(ctx c
 	if err != nil || len(devs) == 0 {
 		return fmt.Errorf("Can't found model %s device_path %s on host %s", devConfig.Model, devConfig.DevicePath, host.Id)
 	}
-	selectedDev := devs[0]
+	var selectedDev SIsolatedDevice
+	for i := range devs {
+		if _, ok := usedDevMap[devs[i].DevicePath]; !ok {
+			selectedDev = devs[i]
+			usedDevMap[devs[i].DevicePath] = struct{}{}
+		}
+	}
+	if selectedDev.Id == "" {
+		return fmt.Errorf("Can't found unused model %s device_path %s on host %s", devConfig.Model, devConfig.DevicePath, host.Id)
+	}
 	return guest.attachIsolatedDevice(ctx, userCred, &selectedDev, devConfig.NetworkIndex, devConfig.DiskIndex)
 }
 
@@ -1003,7 +1019,20 @@ func (manager *SIsolatedDeviceManager) DeleteDevicesByHost(ctx context.Context, 
 	}
 }
 
-func (manager *SIsolatedDeviceManager) GetDevsOnHost(hostId string, model string, count int) ([]SIsolatedDevice, error) {
+func (manager *SIsolatedDeviceManager) GetAllDevsOnHost(hostId string) ([]SIsolatedDevice, error) {
+	devs := make([]SIsolatedDevice, 0)
+	q := manager.Query().Equals("host_id", hostId)
+	err := db.FetchModelObjects(manager, q, &devs)
+	if err != nil {
+		return nil, err
+	}
+	if len(devs) == 0 {
+		return nil, nil
+	}
+	return devs, nil
+}
+
+func (manager *SIsolatedDeviceManager) GetUnusedDevsOnHost(hostId string, model string, count int) ([]SIsolatedDevice, error) {
 	devs := make([]SIsolatedDevice, 0)
 	q := manager.Query().Equals("host_id", hostId).Equals("model", model).IsNullOrEmpty("guest_id").Limit(count)
 	err := db.FetchModelObjects(manager, q, &devs)
@@ -1115,7 +1144,7 @@ func (model *SIsolatedDevice) GetOwnerId() mcclient.IIdentityProvider {
 	return nil
 }
 
-func (model *SIsolatedDevice) SetNetworkIndex(idx int8) error {
+func (model *SIsolatedDevice) SetNetworkIndex(idx int) error {
 	_, err := db.Update(model, func() error {
 		model.NetworkIndex = idx
 		return nil

@@ -44,6 +44,8 @@ const (
 	DISK_START_MIGRATE = "start_migrate"
 	DISK_POST_MIGRATE  = "post_migrate"
 	DISK_MIGRATING     = "migrating"
+	DISK_MIGRATE_FAIL  = "migrate_failed"
+	DISK_IMAGE_CACHING = "image_caching" // 缓存镜像中
 
 	DISK_CLONE      = "clone"
 	DISK_CLONE_FAIL = "clone_failed"
@@ -81,7 +83,10 @@ var DISK_PREALLOCATIONS = []string{
 	DISK_PREALLOCATION_FULL,
 }
 
-const DISK_META_EXISTING_PATH = "disk_existing_path"
+const (
+	DISK_META_EXISTING_PATH      = "disk_existing_path"
+	DISK_META_LAST_ATTACHED_HOST = "__disk_last_attached_host"
+)
 
 const (
 	DISK_DRIVER_VIRTIO = "virtio"

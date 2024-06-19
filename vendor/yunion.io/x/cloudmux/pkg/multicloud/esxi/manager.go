@@ -433,7 +433,7 @@ func (cli *SESXiClient) scanAllMObjects(props []string, dst interface{}) error {
 }
 
 func (cli *SESXiClient) SearchVM(id string) (*SVirtualMachine, error) {
-	filter := property.Filter{}
+	filter := property.Match{}
 	filter["summary.config.uuid"] = id
 	var movms []mo.VirtualMachine
 	err := cli.scanMObjectsWithFilter(cli.client.ServiceContent.RootFolder, VIRTUAL_MACHINE_PROPS, &movms, filter)
@@ -453,20 +453,20 @@ func (cli *SESXiClient) SearchVM(id string) (*SVirtualMachine, error) {
 }
 
 func (cli *SESXiClient) SearchTemplateVM(id string) (*SVirtualMachine, error) {
-	filter := property.Filter{}
+	filter := property.Match{}
 	uuid := toTemplateUuid(id)
 	filter["summary.config.uuid"] = uuid
 	var movms []mo.VirtualMachine
 	err := cli.scanMObjectsWithFilter(cli.client.ServiceContent.RootFolder, VIRTUAL_MACHINE_PROPS, &movms, filter)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "scanMObjectsWithFilter")
 	}
 	if len(movms) == 0 {
-		return nil, errors.ErrNotFound
+		return nil, errors.Wrapf(errors.ErrNotFound, "empty templates")
 	}
 	vm := NewVirtualMachine(cli, &movms[0], nil)
 	if !vm.IsTemplate() {
-		return nil, errors.ErrNotFound
+		return nil, errors.Wrapf(errors.ErrNotFound, "%s is not template", vm.GetName())
 	}
 	dc, err := vm.fetchDatacenter()
 	if err != nil {
@@ -476,7 +476,7 @@ func (cli *SESXiClient) SearchTemplateVM(id string) (*SVirtualMachine, error) {
 	return vm, nil
 }
 
-func (cli *SESXiClient) scanMObjectsWithFilter(folder types.ManagedObjectReference, props []string, dst interface{}, filter property.Filter) error {
+func (cli *SESXiClient) scanMObjectsWithFilter(folder types.ManagedObjectReference, props []string, dst interface{}, filter property.Match) error {
 	dstValue := reflect.Indirect(reflect.ValueOf(dst))
 	dstType := dstValue.Type()
 	dstEleType := dstType.Elem()

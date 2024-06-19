@@ -337,13 +337,98 @@ func ParseNetworkConfig(desc string, idx int) (*compute.NetworkConfig, error) {
 			if err != nil {
 				return nil, errors.Wrap(err, "parse tx-traffic-limit")
 			}
-		} else if utils.IsInStringArray(p, compute.ALL_NETWORK_TYPES) {
-			netConfig.NetType = p
+		} else if compute.IsInNetworkTypes(compute.TNetworkType(p), compute.ALL_NETWORK_TYPES) {
+			netConfig.NetType = compute.TNetworkType(p)
 		} else {
 			netConfig.Network = p
 		}
 	}
 	return netConfig, nil
+}
+
+func ParseNetworkConfigPortMappings(descs []string) (map[int]compute.GuestPortMappings, error) {
+	if len(descs) == 0 {
+		return nil, ErrorEmptyDesc
+	}
+	pms := make(map[int]compute.GuestPortMappings, 0)
+	for _, desc := range descs {
+		idx, pm, err := parseNetworkConfigPortMapping(desc)
+		if err != nil {
+			return nil, errors.Wrapf(err, "parse port mapping: %s", desc)
+		}
+		mappings, ok := pms[idx]
+		if !ok {
+			mappings = make([]*compute.GuestPortMapping, 0)
+		}
+		mappings = append(mappings, pm)
+		pms[idx] = mappings
+	}
+
+	return pms, nil
+}
+
+func parseNetworkConfigPortMapping(desc string) (int, *compute.GuestPortMapping, error) {
+	pm := &compute.GuestPortMapping{
+		Protocol: compute.GuestPortMappingProtocolTCP,
+	}
+	idx := 0
+	for _, seg := range strings.Split(desc, ",") {
+		info := strings.Split(seg, "=")
+		if len(info) != 2 {
+			return -1, nil, errors.Errorf("invalid option %s", seg)
+		}
+		key := info[0]
+		val := info[1]
+		switch key {
+		case "index":
+			valIdx, err := strconv.Atoi(val)
+			if err != nil {
+				return -1, nil, errors.Wrapf(err, "invalid index %s", val)
+			}
+			idx = valIdx
+		case "host_port":
+			hp, err := strconv.Atoi(val)
+			if err != nil {
+				return -1, nil, errors.Wrapf(err, "invalid host_port %s", val)
+			}
+			pm.HostPort = &hp
+		case "container_port", "port":
+			cp, err := strconv.Atoi(val)
+			if err != nil {
+				return -1, nil, errors.Wrapf(err, "invalid container_port %s", val)
+			}
+			pm.Port = cp
+		case "proto", "protocol":
+			pm.Protocol = compute.GuestPortMappingProtocol(val)
+		case "host_port_range":
+			rangeParts := strings.Split(val, "-")
+			if len(rangeParts) != 2 {
+				return -1, nil, errors.Errorf("invalid range string %s", val)
+			}
+			start, err := strconv.Atoi(rangeParts[0])
+			if err != nil {
+				return -1, nil, errors.Wrapf(err, "invalid host_port_range %s", rangeParts[0])
+			}
+			end, err := strconv.Atoi(rangeParts[1])
+			if err != nil {
+				return -1, nil, errors.Wrapf(err, "invalid host_port_range %s", rangeParts[1])
+			}
+			pm.HostPortRange = &compute.GuestPortMappingPortRange{
+				Start: start,
+				End:   end,
+			}
+		case "remote_ips", "remote_ip":
+			ips := strings.Split(val, "|")
+			pm.RemoteIps = ips
+		}
+	}
+	if pm.Port == 0 {
+		return -1, nil, errors.Error("container_port must specified")
+	}
+	if idx < 0 {
+		return -1, nil, errors.Errorf("invalid index %d", idx)
+	}
+	return idx, pm, nil
 }
 
 func ParseIsolatedDevice(desc string, idx int) (*compute.IsolatedDeviceConfig, error) {
@@ -369,6 +454,47 @@ func ParseIsolatedDevice(desc string, idx int) (*compute.IsolatedDeviceConfig, e
 		}
 	}
 	return dev, nil
+}
+
+func ParseBaremetalRootDiskMatcher(line string) (*compute.BaremetalRootDiskMatcher, error) {
+	ret := new(compute.BaremetalRootDiskMatcher)
+	for _, seg := range strings.Split(line, ",") {
+		info := strings.Split(seg, "=")
+		if len(info) != 2 {
+			return nil, errors.Errorf("invalid option %s", seg)
+		}
+		key := info[0]
+		val := info[1]
+		switch key {
+		case "size":
+			sizeMB, err := fileutils.GetSizeMb(val, 'M', 1024)
+			if err != nil {
+				return nil, errors.Wrapf(err, "parse size %s", val)
+			}
+			ret.SizeMB = int64(sizeMB)
+		case "device", "dev":
+			ret.Device = val
+		case "size_start":
+			sizeMB, err := fileutils.GetSizeMb(val, 'M', 1024)
+			if err != nil {
+				return nil, errors.Wrapf(err, "parse size_start %s", val)
+			}
+			if ret.SizeMBRange == nil {
+				ret.SizeMBRange = new(compute.RootDiskMatcherSizeMBRange)
+			}
+			ret.SizeMBRange.Start = int64(sizeMB)
+		case "size_end":
+			sizeMB, err := fileutils.GetSizeMb(val, 'M', 1024)
+			if err != nil {
+				return nil, errors.Wrapf(err, "parse size_end %s", val)
+			}
+			if ret.SizeMBRange == nil {
+				ret.SizeMBRange = new(compute.RootDiskMatcherSizeMBRange)
+			}
+			ret.SizeMBRange.End = int64(sizeMB)
+		}
+	}
+	return ret, nil
 }
 
 func ParseBaremetalDiskConfig(desc string) (*compute.BaremetalDiskConfig, error) {
