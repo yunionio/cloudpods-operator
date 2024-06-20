@@ -45,6 +45,7 @@ func (r notify) GetDefaultClickhouseConfig(cfg *v1alpha1.OnecloudClusterConfig) 
 func (r notify) GetDefaultCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
 	return &cfg.Notify.CloudUser
 }
+
 func (r notify) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (interface{}, error) {
 	opt := &options.Options
 	if err := option.SetOptionsDefault(opt, constants.ServiceTypeNotify); err != nil {

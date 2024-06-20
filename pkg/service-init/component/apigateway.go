@@ -46,6 +46,14 @@ func (a apiGateway) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.Oneclo
 
 	return opt, nil
 }
+
+func (a apiGateway) GetServiceInitConfig(oc *v1alpha1.OnecloudCluster) map[string]interface{} {
+	return map[string]interface{}{
+		"ws_port":    constants.APIWebsocketPort,
+		"cors_hosts": oc.Spec.APIGateway.CorsHosts,
+	}
+}
+
 func (a apiGateway) GetDefaultCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
 	return &cfg.APIGateway.CloudUser
 }

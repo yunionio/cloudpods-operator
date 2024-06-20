@@ -82,6 +82,7 @@ func (r kubeServer) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.Oneclo
 
 	return opt, nil
 }
+
 func (r kubeServer) GetPhaseControl(man controller.ComponentManager) controller.PhaseControl {
 	return man.KubeServer(nil)
 }
