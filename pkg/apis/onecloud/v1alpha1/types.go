@@ -174,6 +174,8 @@ const (
 	ProductVersionCMP ProductVersion = "CMP"
 	// ProductVersionEdge: Private Cloud Edge product
 	ProductVersionEdge ProductVersion = "Edge"
+	// ProductVersionBaremetal: Baremetal management product
+	ProductVersionBaremetal ProductVersion = "Baremetal"
 )
 
 // +genclient
