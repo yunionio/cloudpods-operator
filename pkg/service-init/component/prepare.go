@@ -17,7 +17,7 @@ import (
 )
 
 type PrepareManager interface {
-	ConstructCluster(config v1alpha1.Mysql, cfgDir string) (*v1alpha1.OnecloudCluster, error)
+	ConstructCluster(config v1alpha1.Mysql, publicIp string, cfgDir string, pv v1alpha1.ProductVersion) (*v1alpha1.OnecloudCluster, error)
 	ConstructClusterConfig(cfgDir string) (*v1alpha1.OnecloudClusterConfig, error)
 	Init(cpnt Component, oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, targetCfgDir string) error
 	PostInit(cpnt Component, oc *v1alpha1.OnecloudCluster, targetCfgDir string) error
@@ -29,8 +29,8 @@ func NewPrepareManager() PrepareManager {
 	return &prepareManager{}
 }
 
-func (m *prepareManager) ConstructCluster(dbConfig v1alpha1.Mysql, targetDir string) (*v1alpha1.OnecloudCluster, error) {
-	cls := cluster.NewDockerComposeCluster(dbConfig, "127.0.0.1", "region0", "v3.9.8")
+func (m *prepareManager) ConstructCluster(dbConfig v1alpha1.Mysql, publicIp string, targetDir string, pv v1alpha1.ProductVersion) (*v1alpha1.OnecloudCluster, error) {
+	cls := cluster.NewDockerComposeCluster(dbConfig, publicIp, "region0", "v3.9.8", pv)
 	cls.Spec.Etcd.EnableTls = false
 
 	if err := ConstructCluster(targetDir, cls); err != nil {
