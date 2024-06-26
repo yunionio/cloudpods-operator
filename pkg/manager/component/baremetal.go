@@ -15,7 +15,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
-	"yunion.io/x/onecloud-operator/pkg/util/option"
+	"yunion.io/x/onecloud-operator/pkg/service-init/component"
 )
 
 type baremetalManager struct {
@@ -52,17 +52,11 @@ func (m *baremetalManager) getPhaseControl(man controller.ComponentManager, zone
 func (m *baremetalManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
 	zoneId := oc.GetZone(zone)
 
-	opt := &options.Options
-	if err := option.SetOptionsDefault(opt, ""); err != nil {
+	optObj, err := component.NewBaremetal().GetConfig(oc, cfg)
+	if err != nil {
 		return nil, false, err
 	}
-	config := cfg.BaremetalAgent
-	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
-	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
-	opt.Port = constants.BaremetalPort
-	opt.AutoRegisterBaremetal = false
-	opt.LinuxDefaultRootUser = true
-	opt.DefaultIpmiPassword = "YunionDev@123"
+	opt := optObj.(*options.BaremetalOptions)
 	opt.Zone = zoneId
 	return m.newServiceConfigMap(v1alpha1.BaremetalAgentComponentType, zone, oc, opt), false, nil
 }
