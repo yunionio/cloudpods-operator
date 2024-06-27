@@ -115,8 +115,8 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 		components.Telegraf(),
 		components.Region(),
 		components.Scheduler(),
-		components.Web(),
 		components.KubeServer(),
+		components.Webconsole(),
 		components.Glance(),
 		components.RegionDNS(),
 		components.Yunionagent(),
@@ -134,6 +134,7 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 		components.HostHealth(),
 		components.Monitor(),
 		components.Cloudmon(),
+		components.Web(),
 	} {
 		if err := component.Sync(oc); err != nil {
 			if !controller.StopServices {
@@ -153,7 +154,6 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 		components.Cloudproxy(),
 		components.Cloudevent(),
 		components.Devtool(),
-		components.Webconsole(),
 		components.Yunionconf(),
 		components.S3gateway(),
 		components.Notify(),
