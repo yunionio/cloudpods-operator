@@ -27,7 +27,6 @@ import (
 	"yunion.io/x/pkg/errors"
 	"yunion.io/x/pkg/gotypes"
 	"yunion.io/x/pkg/util/rbacscope"
-	"yunion.io/x/pkg/util/sets"
 	"yunion.io/x/pkg/utils"
 	"yunion.io/x/sqlchemy"
 
@@ -132,13 +131,6 @@ type SIsolatedDevice struct {
 	NumHeads string `nullable:"true" list:"domain" update:"domain" create:"domain_optional"`
 	// The maximum number of vGPU instances per physical GPU
 	MaxInstance string `nullable:"true" list:"domain" update:"domain" create:"domain_optional"`
-
-	// MPS perdevice memory limit MB
-	MpsMemoryLimit int `nullable:"true" default:"-1" list:"domain" update:"domain" create:"domain_optional"`
-	// MPS device memory total MB
-	MpsMemoryTotal int `nullable:"true" default:"-1" list:"domain" update:"domain" create:"domain_optional"`
-	// MPS device thread percentage
-	MpsThreadPercentage int `nullable:"true" default:"-1" list:"domain" update:"domain" create:"domain_optional"`
 
 	VendorDeviceId string `width:"16" charset:"ascii" nullable:"true" list:"domain" create:"domain_optional"`
 
@@ -469,7 +461,7 @@ func (self *SIsolatedDevice) getVendor() string {
 }
 
 func (self *SIsolatedDevice) IsGPU() bool {
-	return strings.HasPrefix(self.DevType, "GPU") || sets.NewString(api.CONTAINER_GPU_TYPES...).Has(self.DevType)
+	return strings.HasPrefix(self.DevType, "GPU")
 }
 
 func (manager *SIsolatedDeviceManager) parseDeviceInfo(userCred mcclient.TokenCredential, devConfig *api.IsolatedDeviceConfig) (*api.IsolatedDeviceConfig, error) {
@@ -561,11 +553,11 @@ func (manager *SIsolatedDeviceManager) _isValidDeviceInfo(config *api.IsolatedDe
 	return nil
 }
 
-func (manager *SIsolatedDeviceManager) attachHostDeviceToGuestByDesc(ctx context.Context, guest *SGuest, host *SHost, devConfig *api.IsolatedDeviceConfig, userCred mcclient.TokenCredential, usedDevMap map[string]struct{}) error {
+func (manager *SIsolatedDeviceManager) attachHostDeviceToGuestByDesc(ctx context.Context, guest *SGuest, host *SHost, devConfig *api.IsolatedDeviceConfig, userCred mcclient.TokenCredential) error {
 	if len(devConfig.Id) > 0 {
 		return manager.attachSpecificDeviceToGuest(ctx, guest, devConfig, userCred)
 	} else if len(devConfig.DevicePath) > 0 {
-		return manager.attachHostDeviceToGuestByDevicePath(ctx, guest, host, devConfig, userCred, usedDevMap)
+		return manager.attachHostDeviceToGuestByDevicePath(ctx, guest, host, devConfig, userCred)
 	} else {
 		return manager.attachHostDeviceToGuestByModel(ctx, guest, host, devConfig, userCred)
 	}
@@ -583,7 +575,7 @@ func (manager *SIsolatedDeviceManager) attachSpecificDeviceToGuest(ctx context.C
 	return guest.attachIsolatedDevice(ctx, userCred, dev, devConfig.NetworkIndex, devConfig.DiskIndex)
 }
 
-func (manager *SIsolatedDeviceManager) attachHostDeviceToGuestByDevicePath(ctx context.Context, guest *SGuest, host *SHost, devConfig *api.IsolatedDeviceConfig, userCred mcclient.TokenCredential, usedDevMap map[string]struct{}) error {
+func (manager *SIsolatedDeviceManager) attachHostDeviceToGuestByDevicePath(ctx context.Context, guest *SGuest, host *SHost, devConfig *api.IsolatedDeviceConfig, userCred mcclient.TokenCredential) error {
 	if len(devConfig.Model) == 0 || len(devConfig.DevicePath) == 0 {
 		return fmt.Errorf("Model or DevicePath is empty: %#v", devConfig)
 	}
@@ -592,16 +584,7 @@ func (manager *SIsolatedDeviceManager) attachHostDeviceToGuestByDevicePath(ctx c
 	if err != nil || len(devs) == 0 {
 		return fmt.Errorf("Can't found model %s device_path %s on host %s", devConfig.Model, devConfig.DevicePath, host.Id)
 	}
-	var selectedDev SIsolatedDevice
-	for i := range devs {
-		if _, ok := usedDevMap[devs[i].DevicePath]; !ok {
-			selectedDev = devs[i]
-			usedDevMap[devs[i].DevicePath] = struct{}{}
-		}
-	}
-	if selectedDev.Id == "" {
-		return fmt.Errorf("Can't found unused model %s device_path %s on host %s", devConfig.Model, devConfig.DevicePath, host.Id)
-	}
+	selectedDev := devs[0]
 	return guest.attachIsolatedDevice(ctx, userCred, &selectedDev, devConfig.NetworkIndex, devConfig.DiskIndex)
 }
 

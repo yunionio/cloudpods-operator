@@ -292,7 +292,7 @@ func (account *SCloudaccount) createNetworks(ctx context.Context, accountName st
 
 // NETWORK_TYPE_GUEST     = "guest"
 // NETWORK_TYPE_BAREMETAL = "baremetal"
-func (account *SCloudaccount) createNetwork(ctx context.Context, wireId string, networkType api.TNetworkType, net CANetConf) error {
+func (account *SCloudaccount) createNetwork(ctx context.Context, wireId, networkType string, net CANetConf) error {
 	network := &SNetwork{}
 
 	if hint, err := NetworkManager.NewIfnameHint(net.Name); err != nil {

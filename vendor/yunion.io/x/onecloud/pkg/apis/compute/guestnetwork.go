@@ -15,11 +15,8 @@
 package compute
 
 import (
-	"reflect"
-
 	"yunion.io/x/cloudmux/pkg/apis/compute"
 	"yunion.io/x/jsonutils"
-	"yunion.io/x/pkg/gotypes"
 )
 
 type GuestnetworkDetails struct {
@@ -56,8 +53,6 @@ type GuestnetworkShortDesc struct {
 	NetworkId string `json:"network_id"`
 	// 附属IP
 	SubIps string `json:"sub_ips"`
-	// 端口映射
-	PortMappings GuestPortMappings `json:"port_mappings"`
 }
 
 type GuestnetworkListInput struct {
@@ -87,8 +82,7 @@ type GuestnetworkUpdateInput struct {
 
 	Index *int8 `json:"index"`
 
-	IsDefault    *bool             `json:"is_default"`
-	PortMappings GuestPortMappings `json:"port_mappings"`
+	IsDefault *bool `json:"is_default"`
 }
 
 type GuestnetworkBaseDesc struct {
@@ -131,8 +125,7 @@ type GuestnetworkBaseDesc struct {
 
 	Networkaddresses jsonutils.JSONObject `json:"networkaddresses"`
 
-	VirtualIps   []string          `json:"virtual_ips"`
-	PortMappings GuestPortMappings `json:"port_mappings"`
+	VirtualIps []string `json:"virtual_ips"`
 }
 
 type GuestnetworkJsonDesc struct {
@@ -161,47 +154,4 @@ type SNicTrafficRecord struct {
 	TxTraffic int64
 
 	HasBeenSetDown bool
-}
-
-type GuestPortMappingProtocol string
-
-const (
-	GuestPortMappingProtocolTCP GuestPortMappingProtocol = "tcp"
-	GuestPortMappingProtocolUDP GuestPortMappingProtocol = "udp"
-)
-
-const (
-	GUEST_PORT_MAPPING_RANGE_START = 20000
-	GUEST_PORT_MAPPING_RANGE_END   = 25000
-)
-
-type GuestPortMappingPortRange struct {
-	Start int `json:"start"`
-	End   int `json:"end"`
-}
-
-type GuestPortMapping struct {
-	Protocol      GuestPortMappingProtocol   `json:"protocol"`
-	Port          int                        `json:"port"`
-	HostPort      *int                       `json:"host_port,omitempty"`
-	HostIp        string                     `json:"host_ip"`
-	HostPortRange *GuestPortMappingPortRange `json:"host_port_range,omitempty"`
-	// whitelist for remote ips
-	RemoteIps []string `json:"remote_ips"`
-}
-
-type GuestPortMappings []*GuestPortMapping
-
-func (g GuestPortMappings) String() string {
-	return jsonutils.Marshal(g).String()
-}
-
-func (g GuestPortMappings) IsZero() bool {
-	return len(g) == 0
-}
-
-func init() {
-	gotypes.RegisterSerializable(reflect.TypeOf(&GuestPortMappings{}), func() gotypes.ISerializable {
-		return &GuestPortMappings{}
-	})
 }

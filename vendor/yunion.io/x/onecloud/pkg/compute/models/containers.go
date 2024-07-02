@@ -26,7 +26,6 @@ import (
 	"yunion.io/x/onecloud/pkg/apis"
 	api "yunion.io/x/onecloud/pkg/apis/compute"
 	hostapi "yunion.io/x/onecloud/pkg/apis/host"
-	imageapi "yunion.io/x/onecloud/pkg/apis/image"
 	"yunion.io/x/onecloud/pkg/cloudcommon/db"
 	"yunion.io/x/onecloud/pkg/cloudcommon/db/taskman"
 	"yunion.io/x/onecloud/pkg/httperrors"
@@ -101,11 +100,7 @@ func (m *SContainerManager) ListItemFilter(ctx context.Context, q *sqlchemy.SQue
 		return nil, errors.Wrap(err, "SVirtualResourceBaseManager.ListItemFilter")
 	}
 	if query.GuestId != "" {
-		gst, err := GuestManager.FetchByIdOrName(ctx, userCred, query.GuestId)
-		if err != nil {
-			return nil, errors.Wrapf(err, "fetch guest by %s", query.GuestId)
-		}
-		q = q.Equals("guest_id", gst.GetId())
+		q = q.Equals("guest_id", query.GuestId)
 	}
 	return q, nil
 }
@@ -160,10 +155,6 @@ func (m *SContainerManager) ValidateSpec(ctx context.Context, userCred mcclient.
 		return errors.Wrap(err, "validate lifecycle")
 	}
 
-	if spec.ShmSizeMB != 0 && spec.ShmSizeMB < 64 {
-		return httperrors.NewInputParameterError("/dev/shm size is small than 64MB")
-	}
-
 	return nil
 }
 
@@ -194,7 +185,7 @@ func (m *SContainerManager) ValidateSpecDevice(ctx context.Context, userCred mcc
 }
 
 func (m *SContainerManager) ValidateSpecVolumeMounts(ctx context.Context, userCred mcclient.TokenCredential, pod *SGuest, spec *api.ContainerSpec) error {
-	relation, err := m.GetVolumeMountRelations(pod, spec)
+	relation, err := m.GetVolumeMountRelations(ctx, userCred, pod, spec)
 	if err != nil {
 		return errors.Wrap(err, "GetVolumeMountRelations")
 	}
@@ -205,7 +196,7 @@ func (m *SContainerManager) ValidateSpecVolumeMounts(ctx context.Context, userCr
 		}
 		spec.VolumeMounts[idx] = newVm
 	}
-	if _, err := m.ConvertVolumeMountRelationToSpec(ctx, userCred, relation); err != nil {
+	if _, err := m.ConvertVolumeMountRelationToSpec(relation); err != nil {
 		return errors.Wrap(err, "ConvertVolumeMountRelationToSpec")
 	}
 	return nil
@@ -224,7 +215,7 @@ func (m *SContainerManager) ValidateSpecVolumeMount(ctx context.Context, userCre
 	}
 	vm, err = drv.ValidateCreateData(ctx, userCred, pod, vm)
 	if err != nil {
-		return nil, errors.Wrapf(err, "validate %s create data", drv.GetType())
+		return nil, errors.Wrapf(err, "validate %s create data", vm.Type)
 	}
 	return vm, nil
 }
@@ -251,14 +242,14 @@ func (c *SContainer) CustomizeCreate(ctx context.Context, userCred mcclient.Toke
 func (c *SContainer) PostCreate(ctx context.Context, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, query jsonutils.JSONObject, data jsonutils.JSONObject) {
 	c.SVirtualResourceBase.PostCreate(ctx, userCred, ownerId, query, data)
 	if !jsonutils.QueryBoolean(data, "skip_task", false) {
-		if err := c.StartCreateTask(ctx, userCred, "", nil); err != nil {
+		if err := c.StartCreateTask(ctx, userCred, ""); err != nil {
 			log.Errorf("StartCreateTask error: %v", err)
 		}
 	}
 }
 
-func (c *SContainer) StartCreateTask(ctx context.Context, userCred mcclient.TokenCredential, parentTaskId string, params *jsonutils.JSONDict) error {
-	task, err := taskman.TaskManager.NewTask(ctx, "ContainerCreateTask", c, userCred, params, parentTaskId, "", nil)
+func (c *SContainer) StartCreateTask(ctx context.Context, userCred mcclient.TokenCredential, parentTaskId string) error {
+	task, err := taskman.TaskManager.NewTask(ctx, "ContainerCreateTask", c, userCred, nil, parentTaskId, "", nil)
 	if err != nil {
 		return errors.Wrap(err, "NewTask")
 	}
@@ -297,46 +288,11 @@ type ContainerVolumeMountRelation struct {
 	pod *SGuest
 }
 
-func (vm *ContainerVolumeMountRelation) toHostDiskMount(disk *apis.ContainerVolumeMountDisk) (*hostapi.ContainerVolumeMountDisk, error) {
-	diskObj := DiskManager.FetchDiskById(disk.Id)
-	if diskObj == nil {
-		return nil, errors.Errorf("fetch disk by id %s", disk.Id)
-	}
-	ret := &hostapi.ContainerVolumeMountDisk{
-		Index:           disk.Index,
-		Id:              disk.Id,
-		TemplateId:      diskObj.TemplateId,
-		SubDirectory:    disk.SubDirectory,
-		StorageSizeFile: disk.StorageSizeFile,
-		Overlay:         disk.Overlay,
-	}
-	return ret, nil
+func (vm *ContainerVolumeMountRelation) ToHostMount() (*apis.ContainerVolumeMount, error) {
+	return vm.VolumeMount, nil
 }
 
-func (vm *ContainerVolumeMountRelation) ToHostMount(ctx context.Context, userCred mcclient.TokenCredential) (*hostapi.ContainerVolumeMount, error) {
-	ret := &hostapi.ContainerVolumeMount{
-		Type:           vm.VolumeMount.Type,
-		Disk:           nil,
-		Text:           vm.VolumeMount.Text,
-		HostPath:       vm.VolumeMount.HostPath,
-		ReadOnly:       vm.VolumeMount.ReadOnly,
-		MountPath:      vm.VolumeMount.MountPath,
-		SelinuxRelabel: vm.VolumeMount.SelinuxRelabel,
-		Propagation:    vm.VolumeMount.Propagation,
-		FsUser:         vm.VolumeMount.FsUser,
-		FsGroup:        vm.VolumeMount.FsGroup,
-	}
-	if vm.VolumeMount.Disk != nil {
-		disk, err := vm.toHostDiskMount(vm.VolumeMount.Disk)
-		if err != nil {
-			return nil, errors.Wrap(err, "toHostDiskMount")
-		}
-		ret.Disk = disk
-	}
-	return ret, nil
-}
-
-func (m *SContainerManager) GetVolumeMountRelations(pod *SGuest, spec *api.ContainerSpec) ([]*ContainerVolumeMountRelation, error) {
+func (m *SContainerManager) GetVolumeMountRelations(ctx context.Context, userCred mcclient.TokenCredential, pod *SGuest, spec *api.ContainerSpec) ([]*ContainerVolumeMountRelation, error) {
 	relation := make([]*ContainerVolumeMountRelation, len(spec.VolumeMounts))
 	for idx, vm := range spec.VolumeMounts {
 		tmpVm := vm
@@ -348,8 +304,8 @@ func (m *SContainerManager) GetVolumeMountRelations(pod *SGuest, spec *api.Conta
 	return relation, nil
 }
 
-func (c *SContainer) GetVolumeMountRelations() ([]*ContainerVolumeMountRelation, error) {
-	return GetContainerManager().GetVolumeMountRelations(c.GetPod(), c.Spec)
+func (c *SContainer) GetVolumeMountRelations(ctx context.Context, userCred mcclient.TokenCredential) ([]*ContainerVolumeMountRelation, error) {
+	return GetContainerManager().GetVolumeMountRelations(ctx, userCred, c.GetPod(), c.Spec)
 }
 
 func (c *SContainer) PerformStart(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
@@ -423,10 +379,10 @@ func (c *SContainer) RealDelete(ctx context.Context, userCred mcclient.TokenCred
 	return c.SVirtualResourceBase.Delete(ctx, userCred)
 }
 
-func (m *SContainerManager) ConvertVolumeMountRelationToSpec(ctx context.Context, userCred mcclient.TokenCredential, relation []*ContainerVolumeMountRelation) ([]*hostapi.ContainerVolumeMount, error) {
-	mounts := make([]*hostapi.ContainerVolumeMount, 0)
+func (m *SContainerManager) ConvertVolumeMountRelationToSpec(relation []*ContainerVolumeMountRelation) ([]*apis.ContainerVolumeMount, error) {
+	mounts := make([]*apis.ContainerVolumeMount, 0)
 	for _, r := range relation {
-		mount, err := r.ToHostMount(ctx, userCred)
+		mount, err := r.ToHostMount()
 		if err != nil {
 			return nil, errors.Wrapf(err, "ToMountOrDevice: %#v", r)
 		}
@@ -438,13 +394,19 @@ func (m *SContainerManager) ConvertVolumeMountRelationToSpec(ctx context.Context
 }
 
 func (c *SContainer) ToHostContainerSpec(ctx context.Context, userCred mcclient.TokenCredential) (*hostapi.ContainerSpec, error) {
-	vmRelation, err := c.GetVolumeMountRelations()
+	vmRelation, err := c.GetVolumeMountRelations(ctx, userCred)
 	if err != nil {
 		return nil, errors.Wrap(err, "GetVolumeMountRelations")
 	}
-	mounts, err := GetContainerManager().ConvertVolumeMountRelationToSpec(ctx, userCred, vmRelation)
+	mounts, err := GetContainerManager().ConvertVolumeMountRelationToSpec(vmRelation)
 	if err != nil {
 		return nil, errors.Wrap(err, "ConvertVolumeRelationToSpec")
+	}
+
+	spec := c.Spec.ContainerSpec
+	spec.VolumeMounts = mounts
+	hSpec := &hostapi.ContainerSpec{
+		ContainerSpec: spec,
 	}
 	ctrDevs := make([]*hostapi.ContainerDevice, 0)
 	for _, dev := range c.Spec.Devices {
@@ -454,148 +416,14 @@ func (c *SContainer) ToHostContainerSpec(ctx context.Context, userCred mcclient.
 		}
 		ctrDevs = append(ctrDevs, ctrDev)
 	}
-
-	spec := c.Spec.ContainerSpec
-	hSpec := &hostapi.ContainerSpec{
-		ContainerSpec: spec,
-		VolumeMounts:  mounts,
-		Devices:       ctrDevs,
-	}
+	hSpec.Devices = ctrDevs
 	return hSpec, nil
 }
 
-func (c *SContainer) GetJsonDescAtHost(ctx context.Context, userCred mcclient.TokenCredential) (*hostapi.ContainerDesc, error) {
-	spec, err := c.ToHostContainerSpec(ctx, userCred)
-	if err != nil {
-		return nil, errors.Wrap(err, "ToHostContainerSpec")
-	}
-	return &hostapi.ContainerDesc{
+func (c *SContainer) GetJsonDescAtHost() *api.ContainerDesc {
+	return &api.ContainerDesc{
 		Id:   c.GetId(),
 		Name: c.GetName(),
-		Spec: spec,
-	}, nil
-}
-
-func (c *SContainer) PrepareSaveImage(ctx context.Context, userCred mcclient.TokenCredential, input *api.ContainerSaveVolumeMountToImageInput) (string, error) {
-	imageInput := &CreateGlanceImageInput{
-		Name:         input.Name,
-		GenerateName: input.GenerateName,
-		DiskFormat:   imageapi.IMAGE_DISK_FORMAT_TGZ,
-		Properties: map[string]string{
-			"notes": input.Notes,
-		},
-		// inherit the ownership of disk
-		ProjectId: c.ProjectId,
+		Spec: c.Spec,
 	}
-	// check class metadata
-	cm, err := c.GetAllClassMetadata()
-	if err != nil {
-		return "", errors.Wrap(err, "unable to GetAllClassMetadata")
-	}
-	imageInput.ClassMetadata = cm
-	return DiskManager.CreateGlanceImage(ctx, userCred, imageInput)
-}
-
-func (c *SContainer) PerformSaveVolumeMountImage(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input *api.ContainerSaveVolumeMountToImageInput) (*hostapi.ContainerSaveVolumeMountToImageInput, error) {
-	if c.GetStatus() != api.CONTAINER_STATUS_EXITED {
-		return nil, httperrors.NewInvalidStatusError("Can't save volume disk of container in status %s", c.Status)
-	}
-	if c.GetPod().GetStatus() != api.VM_READY {
-		return nil, httperrors.NewInvalidStatusError("Can't save volume disk of pod in status %s", c.GetPod().GetStatus())
-	}
-	vols := c.GetVolumeMounts()
-	if input.Index < 0 || input.Index >= len(vols) {
-		return nil, httperrors.NewInputParameterError("Only %d volume_mounts", len(vols))
-	}
-
-	imageId, err := c.PrepareSaveImage(ctx, userCred, input)
-	if err != nil {
-		return nil, errors.Wrap(err, "prepare to save image")
-	}
-	vrs, err := c.GetVolumeMountRelations()
-	if err != nil {
-		return nil, errors.Wrap(err, "GetVolumeMountRelations")
-	}
-	hvm, err := vrs[input.Index].ToHostMount(ctx, userCred)
-	if err != nil {
-		return nil, errors.Wrap(err, "ToHostMount")
-	}
-	hostInput := &hostapi.ContainerSaveVolumeMountToImageInput{
-		ImageId:          imageId,
-		VolumeMountIndex: input.Index,
-		VolumeMount:      hvm,
-	}
-
-	return hostInput, c.StartSaveVolumeMountImage(ctx, userCred, hostInput, "")
-}
-
-func (c *SContainer) StartSaveVolumeMountImage(ctx context.Context, userCred mcclient.TokenCredential, input *hostapi.ContainerSaveVolumeMountToImageInput, parentTaskId string) error {
-	c.SetStatus(ctx, userCred, api.CONTAINER_STATUS_SAVING_IMAGE, "")
-	task, err := taskman.TaskManager.NewTask(ctx, "ContainerSaveVolumeMountImageTask", c, userCred, jsonutils.Marshal(input).(*jsonutils.JSONDict), parentTaskId, "", nil)
-	if err != nil {
-		return errors.Wrap(err, "NewTask")
-	}
-	return task.ScheduleRun(nil)
-}
-
-func (c *SContainer) GetPodDriver() IPodDriver {
-	driver, err := c.GetPod().GetDriver()
-	if err != nil {
-		return nil
-	}
-	return driver.(IPodDriver)
-}
-
-func (c *SContainer) GetDetailsExecInfo(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject) (*api.ContainerExecInfoOutput, error) {
-	gst := c.GetPod()
-	host, err := gst.GetHost()
-	if err != nil {
-		return nil, errors.Wrap(err, "GetHost")
-	}
-	out := &api.ContainerExecInfoOutput{
-		HostUri:     host.ManagerUri,
-		PodId:       c.GuestId,
-		ContainerId: c.Id,
-	}
-	return out, nil
-}
-
-func (c *SContainer) PerformExecSync(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input *api.ContainerExecSyncInput) (jsonutils.JSONObject, error) {
-	if c.Status != api.CONTAINER_STATUS_RUNNING {
-		return nil, httperrors.NewInvalidStatusError("Can't exec container in status %s", c.Status)
-	}
-	return c.GetPodDriver().RequestExecSyncContainer(ctx, userCred, c, input)
-}
-
-type ContainerReleasedDevice struct {
-	*api.ContainerDevice
-	DeviceType  string
-	DeviceModel string
-}
-
-func NewContainerReleasedDevice(device *api.ContainerDevice, devType, devModel string) *ContainerReleasedDevice {
-	return &ContainerReleasedDevice{
-		ContainerDevice: device,
-		DeviceType:      devType,
-		DeviceModel:     devModel,
-	}
-}
-
-func (s *SContainer) SaveReleasedDevices(ctx context.Context, userCred mcclient.TokenCredential, devs map[string]ContainerReleasedDevice) error {
-	return s.SetMetadata(ctx, api.CONTAINER_METADATA_RELEASED_DEVICES, devs, userCred)
-}
-
-func (s *SContainer) GetReleasedDevices(ctx context.Context, userCred mcclient.TokenCredential) (map[string]ContainerReleasedDevice, error) {
-	out := make(map[string]ContainerReleasedDevice, 0)
-	if ret := s.GetMetadata(ctx, api.CONTAINER_METADATA_RELEASED_DEVICES, userCred); ret == "" {
-		return out, nil
-	}
-	obj := s.GetMetadataJson(ctx, api.CONTAINER_METADATA_RELEASED_DEVICES, userCred)
-	if obj == nil {
-		return nil, errors.Error("get metadata released devices")
-	}
-	if err := obj.Unmarshal(&out); err != nil {
-		return nil, errors.Wrap(err, "Unmarshal metadata released devices")
-	}
-	return out, nil
 }

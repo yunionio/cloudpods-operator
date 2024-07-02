@@ -27,9 +27,6 @@ var (
 
 	defaultDBChecksumHashAlgorithm string
 
-	taskWorkerCount      int
-	localTaskWorkerCount int
-
 	enableChangeOwnerAutoRename = false
 )
 
@@ -58,26 +55,10 @@ func DefaultDBChecksumHashAlgorithm() string {
 	return "sha256"
 }
 
-func SetTaskWorkerCount(cnt int) {
-	taskWorkerCount = cnt
-}
-
-func SetLocalTaskWorkerCount(cnt int) {
-	localTaskWorkerCount = cnt
-}
-
 func SetChangeOwnerAutoRename(enable bool) {
 	enableChangeOwnerAutoRename = enable
 }
 
 func GetChangeOwnerAutoRename() bool {
 	return enableChangeOwnerAutoRename
-}
-
-func TaskWorkerCount() int {
-	return taskWorkerCount
-}
-
-func LocalTaskWorkerCount() int {
-	return localTaskWorkerCount
 }

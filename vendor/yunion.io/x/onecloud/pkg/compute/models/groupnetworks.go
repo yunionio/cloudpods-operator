@@ -29,7 +29,6 @@ import (
 	"yunion.io/x/onecloud/pkg/util/stringutils2"
 )
 
-// +onecloud:swagger-gen-ignore
 type SGroupnetworkManager struct {
 	SGroupJointsManager
 	SNetworkResourceBaseManager
@@ -52,7 +51,6 @@ func init() {
 	})
 }
 
-// +onecloud:model-api-gen
 type SGroupnetwork struct {
 	SGroupJointsBase
 

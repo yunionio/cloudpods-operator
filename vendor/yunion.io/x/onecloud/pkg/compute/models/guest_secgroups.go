@@ -125,7 +125,6 @@ func (self *SGuest) saveDefaultSecgroupId(userCred mcclient.TokenCredential, sec
 	return nil
 }
 
-// 解绑安全组
 func (self *SGuest) PerformRevokeSecgroup(
 	ctx context.Context,
 	userCred mcclient.TokenCredential,
@@ -179,7 +178,6 @@ func (self *SGuest) PerformRevokeSecgroup(
 	return nil, self.StartSyncTask(ctx, userCred, true, "")
 }
 
-// 解绑管理员安全组
 func (self *SGuest) PerformRevokeAdminSecgroup(
 	ctx context.Context,
 	userCred mcclient.TokenCredential,
@@ -226,7 +224,6 @@ func (self *SGuest) PerformAssignSecgroup(
 	return self.performAssignSecgroup(ctx, userCred, query, input, false)
 }
 
-// +onecloud:swagger-gen-ignore
 func (self *SGuest) PerformAssignAdminSecgroup(
 	ctx context.Context,
 	userCred mcclient.TokenCredential,

@@ -45,7 +45,6 @@ const (
 
 	ImageTypeTemplate = TImageType("image")
 	ImageTypeISO      = TImageType("iso")
-	ImageTypeTarGzip  = TImageType("tgz")
 
 	LocalFilePrefix = "file://"
 	S3Prefix        = "s3://"
@@ -72,14 +71,4 @@ const (
 
 var (
 	ImageDeadStatus = []string{IMAGE_STATUS_DEACTIVATED, IMAGE_STATUS_KILLED, IMAGE_STATUS_DELETED, IMAGE_STATUS_PENDING_DELETE}
-)
-
-const (
-	IMAGE_DISK_FORMAT_RAW    = "raw"
-	IMAGE_DISK_FORMAT_QCOW2  = "qcow2"
-	IMAGE_DISK_FORMAT_ISO    = "iso"
-	IMAGE_DISK_FORMAT_VMDK   = "vmdk"
-	IMAGE_DISK_FORMAT_DOCKER = "docker"
-	IMAGE_DISK_FORMAT_VHD    = "vhd"
-	IMAGE_DISK_FORMAT_TGZ    = "tgz"
 )

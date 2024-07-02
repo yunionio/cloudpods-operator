@@ -25,7 +25,6 @@ import (
 	"yunion.io/x/onecloud/pkg/mcclient"
 )
 
-// +onecloud:swagger-gen-ignore
 type SDBInstanceJointsManager struct {
 	db.SVirtualJointResourceBaseManager
 	SDBInstanceResourceBaseManager
@@ -44,7 +43,6 @@ func NewDBInstanceJointsManager(dt interface{}, tableName string, keyword string
 	}
 }
 
-// +onecloud:swagger-gen-ignore
 type SDBInstanceJointsBase struct {
 	db.SVirtualJointResourceBase
 

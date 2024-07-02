@@ -217,13 +217,6 @@ type SHostOptions struct {
 	ContainerRuntimeEndpoint  string `help:"endpoint of container runtime service" default:"unix:///var/run/onecloud/containerd/containerd.sock"`
 	ContainerDeviceConfigFile string `help:"container device configuration file path"`
 	LxcfsPath                 string `help:"lxcfs directory path" default:"/var/lib/lxcfs"`
-
-	EnableCudaMPS        bool   `help:"enable cuda mps" default:"false"`
-	CudaMPSPipeDirectory string `help:"cuda mps pipe dir" default:"/tmp/nvidia-mps/pipe"`
-	CudaMPSLogDirectory  string `help:"cuda mps log dir" default:"/tmp/nvidia-mps/log"`
-	CudaMPSReplicas      int    `help:"cuda mps replias" default:"10"`
-
-	EnableContainerAscendNPU bool `help:"enable container npu" default:"false"`
 }
 
 var (

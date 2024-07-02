@@ -28,7 +28,6 @@ import (
 	"yunion.io/x/onecloud/pkg/util/stringutils2"
 )
 
-// +onecloud:swagger-gen-ignore
 type SGroupguestManager struct {
 	SGroupJointsManager
 	SGuestResourceBaseManager
@@ -51,7 +50,6 @@ func init() {
 	})
 }
 
-// +onecloud:model-api-gen
 type SGroupguest struct {
 	SGroupJointsBase
 

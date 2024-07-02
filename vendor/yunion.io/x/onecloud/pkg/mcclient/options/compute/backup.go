@@ -17,7 +17,6 @@ package compute
 import (
 	"yunion.io/x/jsonutils"
 
-	computeapi "yunion.io/x/onecloud/pkg/apis/compute"
 	"yunion.io/x/onecloud/pkg/mcclient/options"
 )
 
@@ -56,32 +55,12 @@ func (opts *DiskBackupDeleteOptions) QueryParams() (jsonutils.JSONObject, error)
 
 type DiskBackupCreateOptions struct {
 	options.BaseCreateOptions
-	AsTarContainerId string   `help:"container id of tar process"`
-	AsTarIncludeFile []string `help:"include file path of tar process"`
-	AsTarExcludeFile []string `help:"exclude file path of tar process"`
-
 	DISKID          string `help:"disk id" json:"disk_id"`
 	BACKUPSTORAGEID string `help:"back storage id" json:"backup_storage_id"`
 }
 
 func (opts *DiskBackupCreateOptions) Params() (jsonutils.JSONObject, error) {
-	input := &computeapi.DiskBackupCreateInput{
-		DiskId:          opts.DISKID,
-		BackupStorageId: opts.BACKUPSTORAGEID,
-		BackupAsTar:     new(computeapi.DiskBackupAsTarInput),
-	}
-	input.Name = opts.NAME
-	input.Description = opts.Desc
-	if opts.AsTarContainerId != "" {
-		input.BackupAsTar.ContainerId = opts.AsTarContainerId
-	}
-	if len(opts.AsTarIncludeFile) > 0 {
-		input.BackupAsTar.IncludeFiles = opts.AsTarIncludeFile
-	}
-	if len(opts.AsTarExcludeFile) > 0 {
-		input.BackupAsTar.ExcludeFiles = opts.AsTarExcludeFile
-	}
-	return jsonutils.Marshal(input), nil
+	return jsonutils.Marshal(opts), nil
 }
 
 type DiskBackupRecoveryOptions struct {

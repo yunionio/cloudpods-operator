@@ -72,9 +72,15 @@ func parsePolicyRule(rule string) (*PolicyRule, error) {
 		APIGroups: []string{},
 		Resources: []string{},
 	}
-	ret.APIGroups = append(ret.APIGroups, strings.Split(groupStr, ",")...)
-	ret.Resources = append(ret.Resources, strings.Split(resourceStr, ",")...)
-	ret.Verbs = append(ret.Verbs, strings.Split(verbStr, ",")...)
+	for _, group := range strings.Split(groupStr, ",") {
+		ret.APIGroups = append(ret.APIGroups, group)
+	}
+	for _, res := range strings.Split(resourceStr, ",") {
+		ret.Resources = append(ret.Resources, res)
+	}
+	for _, verb := range strings.Split(verbStr, ",") {
+		ret.Verbs = append(ret.Verbs, verb)
+	}
 	return ret, nil
 }
 

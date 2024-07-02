@@ -32,7 +32,6 @@ import (
 	"yunion.io/x/onecloud/pkg/util/stringutils2"
 )
 
-// +onecloud:swagger-gen-ignore
 type SDBInstanceSecgroupManager struct {
 	SDBInstanceJointsManager
 	SSecurityGroupResourceBaseManager
@@ -55,7 +54,6 @@ func init() {
 	})
 }
 
-// +onecloud:swagger-gen-ignore
 type SDBInstanceSecgroup struct {
 	SDBInstanceJointsBase
 

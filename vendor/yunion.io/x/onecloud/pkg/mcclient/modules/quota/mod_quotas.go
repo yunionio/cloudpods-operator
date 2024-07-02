@@ -163,32 +163,32 @@ func init() {
 	Quotas = QuotaManager{modules.NewComputeManager("quota", "quotas",
 		quotaColumns,
 		[]string{})}
-	modules.Register(&Quotas)
+	modules.RegisterCompute(&Quotas)
 
 	ProjectQuotas = QuotaManager{modules.NewComputeManager("project_quota", "project_quotas",
 		quotaColumns,
 		[]string{})}
-	modules.Register(&ProjectQuotas)
+	modules.RegisterCompute(&ProjectQuotas)
 
 	RegionQuotas = QuotaManager{modules.NewComputeManager("region_quota", "region_quotas",
 		quotaColumns,
 		[]string{})}
-	modules.Register(&RegionQuotas)
+	modules.RegisterCompute(&RegionQuotas)
 
 	ZoneQuotas = QuotaManager{modules.NewComputeManager("zone_quota", "zone_quotas",
 		quotaColumns,
 		[]string{})}
-	modules.Register(&ZoneQuotas)
+	modules.RegisterCompute(&ZoneQuotas)
 
 	DomainQuotas = QuotaManager{modules.NewComputeManager("domain_quota", "domain_quotas",
 		quotaColumns,
 		[]string{})}
-	modules.Register(&DomainQuotas)
+	modules.RegisterCompute(&DomainQuotas)
 
 	InfrasQuotas = QuotaManager{modules.NewComputeManager("infras_quota", "infras_quotas",
 		quotaColumns,
 		[]string{})}
-	modules.Register(&InfrasQuotas)
+	modules.RegisterCompute(&InfrasQuotas)
 
 	ImageQuotas = QuotaManager{modules.NewImageManager("image_quota", "image_quotas",
 		quotaColumns,

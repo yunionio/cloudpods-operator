@@ -23,7 +23,6 @@ import (
 
 	"yunion.io/x/onecloud/pkg/apis"
 	"yunion.io/x/onecloud/pkg/apis/billing"
-	"yunion.io/x/onecloud/pkg/apis/host"
 	imageapi "yunion.io/x/onecloud/pkg/apis/image"
 	"yunion.io/x/onecloud/pkg/httperrors"
 )
@@ -274,15 +273,6 @@ type ServerDetails struct {
 
 	// 监控上报URL
 	MonitorUrl string `json:"monitor_url"`
-
-	// 容器描述信息
-	Containers []*PodContainerDesc `json:"containers"`
-}
-
-type PodContainerDesc struct {
-	Id    string `json:"id"`
-	Name  string `json:"name"`
-	Image string `json:"image"`
 }
 
 type Floppy struct {
@@ -928,8 +918,8 @@ type GuestJsonDesc struct {
 
 	LightMode bool `json:"light_mode"`
 
-	Hypervisor string                `json:"hypervisor"`
-	Containers []*host.ContainerDesc `json:"containers"`
+	Hypervisor string           `json:"hypervisor"`
+	Containers []*ContainerDesc `json:"containers"`
 }
 
 type ServerSetBootIndexInput struct {
@@ -1334,9 +1324,4 @@ func (conf ServerChangeConfigSettings) AddedDisk() int {
 		size += create.SizeMb
 	}
 	return size
-}
-
-type ServerReleasedIsolatedDevice struct {
-	DevType string `json:"dev_type"`
-	Model   string `json:"model"`
 }

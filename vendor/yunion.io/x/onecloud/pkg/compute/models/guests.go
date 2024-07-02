@@ -188,9 +188,6 @@ type SGuest struct {
 	PowerStates string `width:"36" charset:"ascii" nullable:"false" default:"unknown" list:"user" create:"optional"`
 	// Used for guest rescue
 	RescueMode bool `nullable:"false" default:"false" list:"user" create:"optional"`
-
-	// 上次开机时间
-	LastStartAt time.Time `json:"last_start_at" list:"user"`
 }
 
 func (manager *SGuestManager) GetPropertyStatistics(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject) (*apis.StatusStatistic, error) {
@@ -2612,22 +2609,6 @@ func (self *SGuest) moreExtraInfo(
 		out.MonitorUrl = drv.FetchMonitorUrl(ctx, self)
 	}
 
-	if drv != nil && drv.GetHypervisor() == api.HYPERVISOR_POD {
-		ctrs, _ := GetContainerManager().GetContainersByPod(self.GetId())
-		desc := make([]*api.PodContainerDesc, len(ctrs))
-		for i := range ctrs {
-			ctr := ctrs[i]
-			desc[i] = &api.PodContainerDesc{
-				Id:   ctr.GetId(),
-				Name: ctr.GetName(),
-			}
-			if ctr.Spec != nil {
-				desc[i].Image = ctr.Spec.Image
-			}
-		}
-		out.Containers = desc
-	}
-
 	return out
 }
 
@@ -3511,8 +3492,7 @@ type Attach2NetworkArgs struct {
 
 	Virtual bool
 
-	IsDefault    bool
-	PortMappings api.GuestPortMappings
+	IsDefault bool
 
 	PendingUsage quotas.IQuota
 }
@@ -3544,7 +3524,6 @@ func (args *Attach2NetworkArgs) onceArgs(i int) attach2NetworkOnceArgs {
 		isDefault: args.IsDefault,
 
 		pendingUsage: args.PendingUsage,
-		portMappings: args.PortMappings,
 	}
 	if i > 0 {
 		r.ipAddr = ""
@@ -3587,7 +3566,6 @@ type attach2NetworkOnceArgs struct {
 	isDefault bool
 
 	pendingUsage quotas.IQuota
-	portMappings api.GuestPortMappings
 }
 
 func (self *SGuest) Attach2Network(
@@ -3663,8 +3641,7 @@ func (self *SGuest) attach2NetworkOnce(
 
 		virtual: args.virtual,
 
-		isDefault:    args.isDefault,
-		portMappings: args.portMappings,
+		isDefault: args.isDefault,
 	}
 	lockman.LockClass(ctx, QuotaManager, self.ProjectId)
 	defer lockman.ReleaseClass(ctx, QuotaManager, self.ProjectId)
@@ -4319,7 +4296,7 @@ func (self *SGuest) allocSriovNicDevice(
 	}
 	netConfig.SriovDevice.NetworkIndex = &gn.Index
 	netConfig.SriovDevice.WireId = net.WireId
-	err = self.createIsolatedDeviceOnHost(ctx, userCred, host, netConfig.SriovDevice, pendingUsageZone, nil)
+	err = self.createIsolatedDeviceOnHost(ctx, userCred, host, netConfig.SriovDevice, pendingUsageZone)
 	if err != nil {
 		return errors.Wrap(err, "self.createIsolatedDeviceOnHost")
 	}
@@ -4436,8 +4413,7 @@ func (self *SGuest) attach2NamedNetworkDesc(ctx context.Context, userCred mcclie
 			UseDesignatedIP:     reuseAddr,
 			NicConfs:            nicConfs,
 
-			IsDefault:    netConfig.IsDefault,
-			PortMappings: netConfig.PortMappings,
+			IsDefault: netConfig.IsDefault,
 		})
 		if err != nil {
 			return nil, errors.Wrap(err, "Attach2Network fail")
@@ -4508,7 +4484,7 @@ func (self *SGuest) attachNVMEDevice(
 ) error {
 	gd := self.GetGuestDisk(disk.Id)
 	diskConfig.NVMEDevice.DiskIndex = &gd.Index
-	err := self.createIsolatedDeviceOnHost(ctx, userCred, host, diskConfig.NVMEDevice, pendingUsage, nil)
+	err := self.createIsolatedDeviceOnHost(ctx, userCred, host, diskConfig.NVMEDevice, pendingUsage)
 	if err != nil {
 		return errors.Wrap(err, "self.createIsolatedDeviceOnHost")
 	}
@@ -4654,12 +4630,11 @@ func (self *SGuest) createDiskOnHost(
 }
 
 func (self *SGuest) CreateIsolatedDeviceOnHost(ctx context.Context, userCred mcclient.TokenCredential, host *SHost, devs []*api.IsolatedDeviceConfig, pendingUsage quotas.IQuota) error {
-	usedDeviceMap := map[string]struct{}{}
 	for _, devConfig := range devs {
 		if devConfig.DevType == api.NIC_TYPE || devConfig.DevType == api.NVME_PT_TYPE {
 			continue
 		}
-		err := self.createIsolatedDeviceOnHost(ctx, userCred, host, devConfig, pendingUsage, usedDeviceMap)
+		err := self.createIsolatedDeviceOnHost(ctx, userCred, host, devConfig, pendingUsage)
 		if err != nil {
 			return err
 		}
@@ -4667,11 +4642,11 @@ func (self *SGuest) CreateIsolatedDeviceOnHost(ctx context.Context, userCred mcc
 	return nil
 }
 
-func (self *SGuest) createIsolatedDeviceOnHost(ctx context.Context, userCred mcclient.TokenCredential, host *SHost, devConfig *api.IsolatedDeviceConfig, pendingUsage quotas.IQuota, usedDevMap map[string]struct{}) error {
+func (self *SGuest) createIsolatedDeviceOnHost(ctx context.Context, userCred mcclient.TokenCredential, host *SHost, devConfig *api.IsolatedDeviceConfig, pendingUsage quotas.IQuota) error {
 	lockman.LockClass(ctx, QuotaManager, self.ProjectId)
 	defer lockman.ReleaseClass(ctx, QuotaManager, self.ProjectId)
 
-	err := IsolatedDeviceManager.attachHostDeviceToGuestByDesc(ctx, self, host, devConfig, userCred, usedDevMap)
+	err := IsolatedDeviceManager.attachHostDeviceToGuestByDesc(ctx, self, host, devConfig, userCred)
 	if err != nil {
 		return err
 	}
@@ -7005,12 +6980,4 @@ func (guest *SGuest) getDisksCandidateHostIds() ([]string, error) {
 		}
 	}
 	return ret, nil
-}
-
-func (guest *SGuest) SaveLastStartAt() error {
-	_, err := db.Update(guest, func() error {
-		guest.LastStartAt = time.Now().UTC()
-		return nil
-	})
-	return errors.Wrap(err, "SaveLastStartAt")
 }
