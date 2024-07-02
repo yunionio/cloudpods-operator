@@ -464,7 +464,7 @@ type ServerCreateOptionalOptions struct {
 	EnableCloudInit  bool     `help:"Enable cloud-init service"`
 	NoAccountInit    *bool    `help:"Not reset account password"`
 	AllowDelete      *bool    `help:"Unlock server to allow deleting" json:"-"`
-	ShutdownBehavior string   `help:"Behavior after VM server shutdown" metavar:"<SHUTDOWN_BEHAVIOR>" choices:"stop|terminate"`
+	ShutdownBehavior string   `help:"Behavior after VM server shutdown" metavar:"<SHUTDOWN_BEHAVIOR>" choices:"stop|terminate|stop_release_gpu"`
 	AutoStart        bool     `help:"Auto start server after it is created"`
 	Deploy           []string `help:"Specify deploy files in virtual server file system" json:"-"`
 	DeployTelegraf   bool     `help:"Deploy telegraf agent if guest os is supported"`
@@ -695,7 +695,7 @@ type ServerUpdateOptions struct {
 	Desc             string `help:"Description" json:"description"`
 	Boot             string `help:"Boot device" choices:"disk|cdrom"`
 	Delete           string `help:"Lock server to prevent from deleting" choices:"enable|disable" json:"-"`
-	ShutdownBehavior string `help:"Behavior after VM server shutdown" choices:"stop|terminate"`
+	ShutdownBehavior string `help:"Behavior after VM server shutdown" choices:"stop|terminate|stop_release_gpu"`
 	Machine          string `help:"Machine type" choices:"q35|pc"`
 
 	IsDaemon *bool `help:"Daemon server" negative:"no-daemon"`
@@ -758,6 +758,7 @@ type ServerDeployOptions struct {
 	Deploy         []string `help:"Specify deploy files in virtual server file system" json:"-"`
 	ResetPassword  bool     `help:"Force reset password"`
 	Password       string   `help:"Default user password"`
+	LoginAccount   string   `help:"Guest login account"`
 	AutoStart      bool     `help:"Auto start server after deployed"`
 	DeployTelegraf bool     `help:"Deploy telegraf if guest os supported"`
 }
@@ -774,6 +775,7 @@ func (opts *ServerDeployOptions) Params() (jsonutils.JSONObject, error) {
 		params.ResetPassword = opts.ResetPassword
 		params.Password = opts.Password
 		params.DeployTelegraf = opts.DeployTelegraf
+		params.LoginAccount = opts.LoginAccount
 	}
 	{
 		deployInfos, err := ParseServerDeployInfoList(opts.Deploy)
@@ -1006,6 +1008,7 @@ type ServerRebuildRootOptions struct {
 	ImageId       string `help:"New root Image template ID" json:"image_id" token:"image"`
 	Keypair       string `help:"ssh Keypair used for login"`
 	Password      string `help:"Default user password"`
+	LoginAccount  string `help:"Guest login account"`
 	NoAccountInit *bool  `help:"Not reset account password"`
 	AutoStart     *bool  `help:"Auto start server after it is created"`
 	AllDisks      *bool  `help:"Rebuild all disks including data disks"`

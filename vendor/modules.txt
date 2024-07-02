@@ -884,7 +884,7 @@ sigs.k8s.io/structured-merge-diff/v4/value
 # sigs.k8s.io/yaml v1.2.0
 ## explicit; go 1.12
 sigs.k8s.io/yaml
-# yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20240618114906-e8a63dce9785
+# yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20240701025403-1e444b8e6937
 ## explicit; go 1.18
 yunion.io/x/cloudmux/pkg/apis
 yunion.io/x/cloudmux/pkg/apis/billing
@@ -905,7 +905,7 @@ yunion.io/x/jsonutils
 ## explicit; go 1.12
 yunion.io/x/log
 yunion.io/x/log/hooks
-# yunion.io/x/onecloud v0.0.0-20240619013233-8d93558aed87
+# yunion.io/x/onecloud v0.0.0-20240701161739-dd49b1e5a65e
 ## explicit; go 1.18
 yunion.io/x/onecloud/cmd/climc/shell
 yunion.io/x/onecloud/locales
@@ -919,6 +919,7 @@ yunion.io/x/onecloud/pkg/apis/cloudcommon/db
 yunion.io/x/onecloud/pkg/apis/cloudcommon/proxy
 yunion.io/x/onecloud/pkg/apis/cloudproxy
 yunion.io/x/onecloud/pkg/apis/compute
+yunion.io/x/onecloud/pkg/apis/compute/baremetal
 yunion.io/x/onecloud/pkg/apis/devtool
 yunion.io/x/onecloud/pkg/apis/host
 yunion.io/x/onecloud/pkg/apis/identity
@@ -960,6 +961,7 @@ yunion.io/x/onecloud/pkg/cloutpost/options
 yunion.io/x/onecloud/pkg/compute/baremetal
 yunion.io/x/onecloud/pkg/compute/guestdrivers/types
 yunion.io/x/onecloud/pkg/compute/models
+yunion.io/x/onecloud/pkg/compute/models/baremetal
 yunion.io/x/onecloud/pkg/compute/options
 yunion.io/x/onecloud/pkg/compute/sshkeys
 yunion.io/x/onecloud/pkg/devtool/utils
@@ -1060,7 +1062,7 @@ yunion.io/x/onecloud/pkg/util/yunionmeta
 yunion.io/x/onecloud/pkg/vpcagent/options
 yunion.io/x/onecloud/pkg/webconsole/options
 yunion.io/x/onecloud/pkg/yunionconf/options
-# yunion.io/x/pkg v1.10.1-0.20240601050854-9e3452bf4d47
+# yunion.io/x/pkg v1.10.1-0.20240627035901-5608be5905f9
 ## explicit; go 1.18
 yunion.io/x/pkg/appctx
 yunion.io/x/pkg/errors
@@ -1107,7 +1109,7 @@ yunion.io/x/pkg/utils
 # yunion.io/x/s3cli v0.0.0-20190917004522-13ac36d8687e
 ## explicit; go 1.12
 yunion.io/x/s3cli
-# yunion.io/x/sqlchemy v1.1.3-0.20240530085133-5058648977dd
+# yunion.io/x/sqlchemy v1.1.3-0.20240624023332-82a08f917568
 ## explicit; go 1.17
 yunion.io/x/sqlchemy
 yunion.io/x/sqlchemy/backends/clickhouse
