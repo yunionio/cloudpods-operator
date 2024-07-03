@@ -253,9 +253,9 @@ type NetworkCreateInput struct {
 	Vpc string `json:"vpc"`
 
 	// description: server type
-	// enum: guest,baremetal,pxe,ipmi,hostlocal
+	// enum: guest,baremetal,pxe,ipmi
 	// default: guest
-	ServerType TNetworkType `json:"server_type"`
+	ServerType string `json:"server_type"`
 
 	// 是否加入自动分配地址池
 	IsAutoAlloc *bool `json:"is_auto_alloc"`
@@ -420,9 +420,8 @@ type NetworkTryCreateNetworkInput struct {
 
 	Ip          string `json:"ip"`
 	Mask        int    `json:"mask"`
+	ServerType  string `json:"server_type"`
 	IsOnPremise bool   `json:"is_on_premise"`
-
-	ServerType TNetworkType `json:"server_type"`
 }
 
 type NetworkSyncInput struct {
@@ -474,7 +473,7 @@ type NetworkUpdateInput struct {
 	IsAutoAlloc *bool `json:"is_auto_alloc"`
 
 	// 更新网络类型
-	ServerType TNetworkType `json:"server_type"`
+	ServerType string `json:"server_type"`
 }
 
 type GetNetworkAddressesInput struct {

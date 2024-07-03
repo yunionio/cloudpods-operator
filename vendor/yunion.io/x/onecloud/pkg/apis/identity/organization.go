@@ -221,12 +221,5 @@ type SOrganizationNodeDetails struct {
 	Type TOrgType `json:"type"`
 }
 
-type SOrganizationDetails struct {
-	EnabledIdentityBaseResourceDetails
-	apis.SharableResourceBaseInfo
-
-	SOrganization
-}
-
 type OrganizationPerformCleanInput struct {
 }

@@ -30,7 +30,6 @@ import (
 	"yunion.io/x/onecloud/pkg/mcclient"
 )
 
-// +onecloud:swagger-gen-ignore
 type SDBInstanceNetworkManager struct {
 	SDBInstanceJointsManager
 	SNetworkResourceBaseManager
@@ -54,7 +53,6 @@ func init() {
 	})
 }
 
-// +onecloud:swagger-gen-ignore
 type SDBInstanceNetwork struct {
 	SDBInstanceJointsBase
 

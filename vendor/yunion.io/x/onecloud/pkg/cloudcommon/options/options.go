@@ -70,9 +70,7 @@ type BaseOptions struct {
 
 	ApplicationID      string `help:"Application ID"`
 	RequestWorkerCount int    `default:"8" help:"Request worker thread count, default is 8"`
-
-	TaskWorkerCount      int `default:"4" help:"Task manager worker thread count, default is 4"`
-	LocalTaskWorkerCount int `default:"4" help:"Worker thread count that runs local tasks, default is 4"`
+	TaskWorkerCount    int    `default:"4" help:"Task manager worker thread count, default is 4"`
 
 	DefaultProcessTimeoutSeconds int `default:"60" help:"request process timeout, default is 60 seconds"`
 
@@ -121,6 +119,8 @@ type BaseOptions struct {
 	PlatformNames map[string]string `help:"identity name of this platform by language"`
 
 	EnableAppProfiling bool `help:"enable profiling API" default:"false"`
+
+	EnableChangeOwnerAutoRename bool `help:"Allows renaming when changing names" default:"false"`
 }
 
 const (
@@ -391,9 +391,6 @@ func parseOptions(optStruct interface{}, args []string, configFileName string, s
 	}
 
 	consts.SetDomainizedNamespace(optionsRef.DomainizedNamespace)
-
-	consts.SetTaskWorkerCount(optionsRef.TaskWorkerCount)
-	consts.SetLocalTaskWorkerCount(optionsRef.LocalTaskWorkerCount)
 }
 
 func (self *BaseOptions) HttpTransportProxyFunc() httputils.TransportProxyFunc {

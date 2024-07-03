@@ -94,11 +94,10 @@ type NetworkConfig struct {
 	BwLimit        int    `json:"bw_limit"`
 	Vip            bool   `json:"vip"`
 	Reserved       bool   `json:"reserved"`
+	NetType        string `json:"net_type"`
 	NumQueues      int    `json:"num_queues"`
 	RxTrafficLimit int64  `json:"rx_traffic_limit"`
 	TxTrafficLimit int64  `json:"tx_traffic_limit"`
-
-	NetType TNetworkType `json:"net_type"`
 
 	IsDefault bool `json:"is_default"`
 
@@ -112,8 +111,6 @@ type NetworkConfig struct {
 
 	StandbyPortCount int `json:"standby_port_count"`
 	StandbyAddrCount int `json:"standby_addr_count"`
-
-	PortMappings GuestPortMappings `json:"port_mappings"`
 
 	// swagger:ignore
 	Project string `json:"project_id"`

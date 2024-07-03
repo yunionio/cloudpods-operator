@@ -21,7 +21,6 @@ import (
 
 	"yunion.io/x/jsonutils"
 
-	"yunion.io/x/onecloud/pkg/cloudcommon/db"
 	"yunion.io/x/onecloud/pkg/cloudcommon/db/quotas"
 	"yunion.io/x/onecloud/pkg/mcclient"
 )
@@ -34,8 +33,6 @@ type ITask interface {
 	GetUserCred() mcclient.TokenCredential
 	GetTaskId() string
 	SetStage(stageName string, data *jsonutils.JSONDict) error
-	GetObject() db.IStandaloneModel
-	GetObjects() []db.IStandaloneModel
 
 	GetTaskRequestHeader() http.Header
 
@@ -44,7 +41,4 @@ type ITask interface {
 
 	GetPendingUsage(quota quotas.IQuota, index int) error
 	ClearPendingUsage(index int) error
-
-	SetProgressAndStatus(progress float32, status string) error
-	SetProgress(progress float32) error
 }

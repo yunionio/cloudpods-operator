@@ -29,6 +29,7 @@ const (
 
 type AlertJointResourceBaseDetails struct {
 	apis.JointResourceBaseDetails
+	SAlertJointsBase
 	Alert string `json:"alert"`
 }
 

@@ -36,7 +36,6 @@ import (
 
 const ErrStorageInUse = errors.Error("StorageInUse")
 
-// +onecloud:swagger-gen-ignore
 type SHoststorageManager struct {
 	SHostJointsManager
 	SStorageResourceBaseManager
@@ -61,7 +60,6 @@ func init() {
 	})
 }
 
-// +onecloud:model-api-gen
 type SHoststorage struct {
 	SHostJointsBase
 

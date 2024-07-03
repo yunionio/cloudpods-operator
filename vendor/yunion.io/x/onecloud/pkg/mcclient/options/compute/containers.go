@@ -15,10 +15,8 @@
 package compute
 
 import (
-	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/pkg/errors"
@@ -60,9 +58,6 @@ type ContainerCreateCommonOptions struct {
 	PostStartExec     string   `help:"Post started execution command"`
 	CgroupDeviceAllow []string `help:"Cgroup devices.allow, e.g.: 'c 13:* rwm'"`
 	SimulateCpu       bool     `help:"Simulating /sys/devices/system/cpu files"`
-	ShmSizeMb         int      `help:"Shm size MB"`
-	Uid               int64    `help:"UID of container" default:"0"`
-	Gid               int64    `help:"GID of container" default:"0"`
 }
 
 func (o ContainerCreateCommonOptions) getCreateSpec() (*computeapi.ContainerSpec, error) {
@@ -77,20 +72,7 @@ func (o ContainerCreateCommonOptions) getCreateSpec() (*computeapi.ContainerSpec
 			Capabilities:       &apis.ContainerCapability{},
 			CgroupDevicesAllow: o.CgroupDeviceAllow,
 			SimulateCpu:        o.SimulateCpu,
-			SecurityContext: &apis.ContainerSecurityContext{
-				RunAsUser:  nil,
-				RunAsGroup: nil,
-			},
 		},
-	}
-	if o.ShmSizeMb > 0 {
-		req.ContainerSpec.ShmSizeMB = o.ShmSizeMb
-	}
-	if o.Uid > 0 {
-		req.ContainerSpec.SecurityContext.RunAsUser = &o.Uid
-	}
-	if o.Gid > 0 {
-		req.ContainerSpec.SecurityContext.RunAsGroup = &o.Gid
 	}
 	if len(o.PostStartExec) != 0 {
 		req.Lifecyle = &apis.ContainerLifecyle{
@@ -178,20 +160,6 @@ func parseContainerVolumeMount(vmStr string) (*apis.ContainerVolumeMount, error)
 			if strings.ToLower(val) == "true" {
 				vm.ReadOnly = true
 			}
-		case "fs_user":
-			uId, err := strconv.Atoi(val)
-			if err != nil {
-				return nil, errors.Wrapf(err, "invalid fs_user %s", val)
-			}
-			uId64 := int64(uId)
-			vm.FsUser = &uId64
-		case "fs_group":
-			gId, err := strconv.Atoi(val)
-			if err != nil {
-				return nil, errors.Wrapf(err, "invalid fs_group %s", val)
-			}
-			gId64 := int64(gId)
-			vm.FsGroup = &gId64
 		case "mount_path":
 			vm.MountPath = val
 		case "host_path":
@@ -240,24 +208,6 @@ func parseContainerVolumeMount(vmStr string) (*apis.ContainerVolumeMount, error)
 			vm.Disk.Overlay = &apis.ContainerVolumeMountDiskOverlay{
 				LowerDir: strings.Split(val, ":"),
 			}
-		case "overlay_disk_image":
-			if strings.ToLower(val) == "true" {
-				if vm.Disk == nil {
-					vm.Disk = &apis.ContainerVolumeMountDisk{}
-				}
-				vm.Disk.Overlay = &apis.ContainerVolumeMountDiskOverlay{
-					UseDiskImage: true,
-				}
-			}
-		case "text_file":
-			content, err := os.ReadFile(val)
-			if err != nil {
-				return nil, errors.Wrapf(err, "read file %s", val)
-			}
-			vm.Type = apis.CONTAINER_VOLUME_MOUNT_TYPE_TEXT
-			vm.Text = &apis.ContainerVolumeMountText{
-				Content: string(content),
-			}
 		}
 	}
 	return vm, nil
@@ -286,97 +236,4 @@ func (o *ContainerStopOptions) Params() (jsonutils.JSONObject, error) {
 
 type ContainerStartOptions struct {
 	ContainerIdsOptions
-}
-
-type ContainerSaveVolumeMountImage struct {
-	options.ResourceIdOptions
-	IMAGENAME    string `help:"Image name"`
-	INDEX        int    `help:"Index of volume mount"`
-	GenerateName string `help:"Generate image name automatically"`
-	Notes        string `help:"Extra notes of the image"`
-}
-
-func (o ContainerSaveVolumeMountImage) Params() (jsonutils.JSONObject, error) {
-	return jsonutils.Marshal(&computeapi.ContainerSaveVolumeMountToImageInput{
-		Name:         o.IMAGENAME,
-		GenerateName: o.GenerateName,
-		Notes:        o.Notes,
-		Index:        o.INDEX,
-	}), nil
-}
-
-type ContainerExecOptions struct {
-	ServerIdOptions
-	// Tty     bool `help:"Using tty" short-token:"t"`
-	COMMAND string
-	Args    []string
-}
-
-func (o *ContainerExecOptions) ToAPIInput() *computeapi.ContainerExecInput {
-	cmd := []string{o.COMMAND}
-	cmd = append(cmd, o.Args...)
-	return &computeapi.ContainerExecInput{
-		Command: cmd,
-		//Tty:     o.Tty,
-		Tty: true,
-	}
-}
-
-func (o *ContainerExecOptions) Params() (jsonutils.JSONObject, error) {
-	return jsonutils.Marshal(o.ToAPIInput()), nil
-}
-
-type ContainerExecSyncOptions struct {
-	ServerIdOptions
-	COMMAND string
-	Args    []string
-	Timeout int64
-}
-
-func (o *ContainerExecSyncOptions) Params() (jsonutils.JSONObject, error) {
-	cmd := []string{o.COMMAND}
-	cmd = append(cmd, o.Args...)
-	return jsonutils.Marshal(&computeapi.ContainerExecSyncInput{
-		Command: cmd,
-		Timeout: o.Timeout,
-	}), nil
-}
-
-type ContainerLogOptions struct {
-	ServerIdOptions
-	Since      string `help:"Only return logs newer than a relative duration like 5s, 2m, or 3h" json:"since"`
-	Follow     bool   `help:"Follow log output" short-token:"f" json:"follow"`
-	Tail       int64  `help:"Lines of recent log file to display" json:"tail"`
-	Timestamps bool   `help:"Show timestamps on each line in the log output" json:"timestamps"`
-	LimitBytes int64  `help:"Maximum amount of bytes that can be used." json:"limitBytes"`
-}
-
-func (o *ContainerLogOptions) Params() (jsonutils.JSONObject, error) {
-	input, err := o.ToAPIInput()
-	if err != nil {
-		return nil, err
-	}
-	return jsonutils.Marshal(input), nil
-}
-
-func (o *ContainerLogOptions) ToAPIInput() (*computeapi.PodLogOptions, error) {
-	opt := &computeapi.PodLogOptions{
-		Follow:     o.Follow,
-		Timestamps: o.Timestamps,
-	}
-	if o.LimitBytes > 0 {
-		opt.LimitBytes = &o.LimitBytes
-	}
-	if o.Tail > 0 {
-		opt.TailLines = &o.Tail
-	}
-	if len(o.Since) > 0 {
-		dur, err := time.ParseDuration(o.Since)
-		if err != nil {
-			return nil, errors.Wrapf(err, "parse duration %s", o.Since)
-		}
-		sec := int64(dur.Round(time.Second).Seconds())
-		opt.SinceSeconds = &sec
-	}
-	return opt, nil
 }

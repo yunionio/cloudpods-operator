@@ -121,27 +121,18 @@ type DiskBackupDetails struct {
 	SDiskBackup
 }
 
-type DiskBackupAsTarInput struct {
-	IncludeFiles []string `json:"include_files"`
-	ExcludeFiles []string `json:"exclude_files"`
-	ContainerId  string   `json:"container_id"`
-}
-
 type DiskBackupCreateInput struct {
 	apis.VirtualResourceCreateInput
 	apis.EncryptedResourceCreateInput
 
 	// description: disk id
 	DiskId string `json:"disk_id"`
-	// swagger: ignore
-	BackStorageId string `json:"back_storage_id" yunion-deprecated-by:"backup_storage_id"`
 	// description: backup storage id
-	BackupStorageId string `json:"backup_storage_id"`
+	BackupStorageId string `json:"back_storage_id"`
 	// swagger: ignore
 	CloudregionId string `json:"cloudregion_id"`
 	// swagger:ignore
-	ManagerId   string                `json:"manager_id"`
-	BackupAsTar *DiskBackupAsTarInput `json:"backup_as_tar"`
+	ManagerId string `json:"manager_id"`
 }
 
 type DiskBackupRecoveryInput struct {

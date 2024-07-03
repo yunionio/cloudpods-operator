@@ -32,7 +32,6 @@ import (
 	"yunion.io/x/onecloud/pkg/util/stringutils2"
 )
 
-// +onecloud:swagger-gen-ignore
 type SSchedtagJointsManager struct {
 	db.SJointResourceBaseManager
 	SSchedtagResourceBaseManager
@@ -57,7 +56,6 @@ func NewSchedtagJointsManager(
 	}
 }
 
-// +onecloud:model-api-gen
 type SSchedtagJointsBase struct {
 	db.SJointResourceBase
 

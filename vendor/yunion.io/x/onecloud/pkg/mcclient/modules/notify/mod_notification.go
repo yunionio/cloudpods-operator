@@ -76,7 +76,9 @@ func (manager *NotificationManager) Send(s *mcclient.ClientSession, msg SNotifyM
 				uidSet.Insert(id)
 			}
 		}
-		receiverIds = append(receiverIds, uidSet.UnsortedList()...)
+		for _, uid := range uidSet.UnsortedList() {
+			receiverIds = append(receiverIds, uid)
+		}
 	}
 	receiverIds = append(receiverIds, msg.Uid...)
 

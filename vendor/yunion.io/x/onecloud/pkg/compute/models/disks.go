@@ -51,7 +51,6 @@ import (
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/mcclient/auth"
 	"yunion.io/x/onecloud/pkg/mcclient/modules/image"
-	"yunion.io/x/onecloud/pkg/util/logclient"
 	"yunion.io/x/onecloud/pkg/util/stringutils2"
 )
 
@@ -829,8 +828,6 @@ func (self *SDisk) getDiskAllocateFromBackupInput(ctx context.Context, backupId 
 		BackupId:                backupId,
 		BackupStorageId:         bs.GetId(),
 		BackupStorageAccessInfo: jsonutils.Marshal(accessInfo).(*jsonutils.JSONDict),
-		DiskConfig:              &backup.DiskConfig.DiskConfig,
-		BackupAsTar:             backup.DiskConfig.BackupAsTar,
 	}, nil
 }
 
@@ -859,12 +856,6 @@ func (self *SDisk) StartAllocate(ctx context.Context, host *SHost, storage *SSto
 		}
 	} else if len(templateId) > 0 {
 		input.ImageId = templateId
-		s := auth.GetAdminSession(ctx, options.Options.Region)
-		img, err := image.Images.Get(s, templateId, nil)
-		if err != nil {
-			return errors.Wrapf(err, "get image details from glance")
-		}
-		input.ImageFormat, _ = img.GetString("disk_format")
 	}
 	if len(fsFormat) > 0 {
 		input.FsFormat = fsFormat
@@ -1194,67 +1185,34 @@ func (self *SDisk) GetZone() (*SZone, error) {
 	return storage.getZone()
 }
 
-func (m *SDiskManager) CheckGlanceImage(ctx context.Context, userCred mcclient.TokenCredential, name string, generateName string) error {
-	if len(generateName) == 0 {
-		s := auth.GetAdminSession(ctx, options.Options.Region)
-		imageList, err := image.Images.List(s, jsonutils.Marshal(map[string]string{"name": name, "admin": "true"}))
-		if err != nil {
-			return err
-		}
-		if imageList.Total > 0 {
-			return httperrors.NewConflictError("Duplicate image name %s", name)
-		}
-	}
-	return nil
-}
-
-type CreateGlanceImageInput struct {
-	Name          string
-	GenerateName  string
-	VirtualSize   int
-	DiskFormat    string
-	OsArch        string
-	Properties    map[string]string
-	ProjectId     string
-	EncryptKeyId  string
-	ClassMetadata map[string]string
-}
-
-func (m *SDiskManager) CreateGlanceImage(ctx context.Context, userCred mcclient.TokenCredential, input *CreateGlanceImageInput) (string, error) {
-	if err := DiskManager.CheckGlanceImage(ctx, userCred, input.Name, input.GenerateName); err != nil {
-		return "", err
-	}
-	/*
-		no need to check quota anymore
-		session := auth.GetSession(userCred, options.Options.Region, "v2")
-		quota := image_models.SQuota{Image: 1}
-		if _, err := image.ImageQuotas.DoQuotaCheck(session, jsonutils.Marshal(&quota)); err != nil {
-			return "", err
-		}*/
-	us := auth.GetSession(ctx, userCred, options.Options.Region)
-	result, err := image.Images.Create(us, jsonutils.Marshal(input))
-	if err != nil {
-		return "", err
-	}
-	imageId, err := result.GetString("id")
-	if err != nil {
-		return "", err
-	}
-	if len(input.ClassMetadata) > 0 {
-		_, err = image.Images.PerformAction(us, imageId, "set-class-metadata", jsonutils.Marshal(input.ClassMetadata))
-		if err != nil {
-			return "", errors.Wrapf(err, "unable to SetClassMetadata for image %s", imageId)
-		}
-	}
-	return imageId, nil
-}
-
 func (self *SDisk) PrepareSaveImage(ctx context.Context, userCred mcclient.TokenCredential, input api.ServerSaveImageInput) (string, error) {
 	zone, _ := self.GetZone()
 	if zone == nil {
 		return "", httperrors.NewResourceNotFoundError("No zone for this disk")
 	}
-	imageInput := &CreateGlanceImageInput{
+	if len(input.GenerateName) == 0 {
+		s := auth.GetAdminSession(ctx, options.Options.Region)
+		imageList, err := image.Images.List(s, jsonutils.Marshal(map[string]string{"name": input.Name, "admin": "true"}))
+		if err != nil {
+			return "", err
+		}
+		if imageList.Total > 0 {
+			return "", httperrors.NewConflictError("Duplicate image name %s", input.Name)
+		}
+	}
+
+	opts := struct {
+		Name         string
+		GenerateName string
+		VirtualSize  int
+		DiskFormat   string
+		OsArch       string
+		Properties   map[string]string
+
+		ProjectId string
+
+		EncryptKeyId string
+	}{
 		Name:         input.Name,
 		GenerateName: input.GenerateName,
 		VirtualSize:  self.DiskSize,
@@ -1269,21 +1227,43 @@ func (self *SDisk) PrepareSaveImage(ctx context.Context, userCred mcclient.Token
 		// inherit the ownership of disk
 		ProjectId: self.ProjectId,
 	}
+
 	if self.IsEncrypted() {
 		encKey, err := self.GetEncryptInfo(ctx, userCred)
 		if err != nil {
 			return "", errors.Wrap(err, "GetEncryptInfo")
 		}
-		imageInput.EncryptKeyId = encKey.Id
+		opts.EncryptKeyId = encKey.Id
+	}
+
+	/*
+		no need to check quota anymore
+		session := auth.GetSession(userCred, options.Options.Region, "v2")
+		quota := image_models.SQuota{Image: 1}
+		if _, err := image.ImageQuotas.DoQuotaCheck(session, jsonutils.Marshal(&quota)); err != nil {
+			return "", err
+		}*/
+	us := auth.GetSession(ctx, userCred, options.Options.Region)
+	result, err := image.Images.Create(us, jsonutils.Marshal(opts))
+	if err != nil {
+		return "", err
+	}
+	imageId, err := result.GetString("id")
+	if err != nil {
+		return "", err
 	}
 	// check class metadata
 	cm, err := self.GetAllClassMetadata()
 	if err != nil {
 		return "", errors.Wrap(err, "unable to GetAllClassMetadata")
 	}
-	imageInput.ClassMetadata = cm
-
-	return DiskManager.CreateGlanceImage(ctx, userCred, imageInput)
+	if len(cm) > 0 {
+		_, err = image.Images.PerformAction(us, imageId, "set-class-metadata", jsonutils.Marshal(cm))
+		if err != nil {
+			return "", errors.Wrapf(err, "unable to SetClassMetadata for image %s", imageId)
+		}
+	}
+	return imageId, nil
 }
 
 func (self *SDisk) PerformSave(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input api.DiskSaveInput) (jsonutils.JSONObject, error) {
@@ -1305,7 +1285,6 @@ func (self *SDisk) PerformSave(ctx context.Context, userCred mcclient.TokenCrede
 	opts := api.ServerSaveImageInput{
 		Name: input.Name,
 	}
-
 	input.ImageId, err = self.PrepareSaveImage(ctx, userCred, opts)
 	if err != nil {
 		return nil, errors.Wrapf(err, "PrepareSaveImage")
@@ -1338,7 +1317,7 @@ func (self *SDisk) validateDeleteCondition(ctx context.Context, isPurge bool) er
 	if !isPurge {
 		storage, _ := self.GetStorage()
 		if storage == nil {
-			// storage is empty, a dirty data, allow to delete
+			// storage is empty, a dirty data, allow delete
 			return nil
 		}
 		host, _ := storage.GetMasterHost()
@@ -1517,24 +1496,11 @@ func (self *SDisk) GetFsFormat() string {
 	return self.FsFormat
 }
 
-func (self *SDisk) GetCacheImageFormat(ctx context.Context) (string, error) {
-	if self.TemplateId != "" {
-		s := auth.GetAdminSession(ctx, options.Options.Region)
-		img, err := image.Images.Get(s, self.TemplateId, nil)
-		if err == nil {
-			diskFmt, err := img.GetString("disk_format")
-			if err != nil {
-				return "", errors.Wrapf(err, "not found disk_format of image %s", self.TemplateId)
-			}
-			if diskFmt == imageapi.IMAGE_DISK_FORMAT_TGZ {
-				return imageapi.IMAGE_DISK_FORMAT_TGZ, nil
-			}
-		}
-	}
+func (self *SDisk) GetCacheImageFormat() string {
 	if self.DiskFormat == "raw" {
-		return "qcow2", nil
+		return "qcow2"
 	}
-	return self.DiskFormat, nil
+	return self.DiskFormat
 }
 
 func (manager *SDiskManager) getDisksByStorage(storage *SStorage) ([]SDisk, error) {
@@ -3164,7 +3130,7 @@ func (disk *SDisk) PerformRebuild(
 	ctx context.Context,
 	userCred mcclient.TokenCredential,
 	query jsonutils.JSONObject,
-	input api.DiskRebuildInput,
+	input *api.DiskRebuildInput,
 ) (jsonutils.JSONObject, error) {
 	guests := disk.GetGuests()
 	for _, guest := range guests {
@@ -3173,67 +3139,6 @@ func (disk *SDisk) PerformRebuild(
 		}
 		guest.SetStatus(ctx, userCred, api.VM_DISK_RESET, "disk rebuild")
 	}
-	err := disk.resetDiskinfo(ctx, userCred, input)
-	if err != nil {
-		return nil, errors.Wrap(err, "disk.resetDiskinfo")
-	}
 	disk.SetStatus(ctx, userCred, api.DISK_REBUILD, "disk rebuild")
 	return nil, disk.StartDiskCreateTask(ctx, userCred, true, disk.SnapshotId, "")
-}
-
-func (disk *SDisk) resetDiskinfo(
-	ctx context.Context,
-	userCred mcclient.TokenCredential,
-	input api.DiskRebuildInput,
-) error {
-	if disk.DiskFormat != "raw" {
-		return errors.Wrapf(errors.ErrInvalidStatus, "disk_format must be raw, not %s", disk.DiskFormat)
-	}
-	if len(disk.FsFormat) == 0 {
-		return errors.Wrap(errors.ErrInvalidStatus, "fs_format must be set")
-	}
-	if input.TemplateId != nil {
-		if len(*input.TemplateId) > 0 {
-			imageObj, err := CachedimageManager.FetchByIdOrName(ctx, userCred, *input.TemplateId)
-			if err != nil {
-				if errors.Cause(err) == sql.ErrNoRows {
-					return httperrors.NewResourceNotFoundError2(CachedimageManager.Keyword(), *input.TemplateId)
-				} else {
-					return errors.Wrap(err, "CachedimageManager.FetchById")
-				}
-			}
-			image := imageObj.(*SCachedimage)
-			input.TemplateId = &image.Id
-		}
-	}
-	if input.BackupId != nil {
-		if len(*input.BackupId) > 0 {
-			bkObj, err := DiskBackupManager.FetchByIdOrName(ctx, userCred, *input.BackupId)
-			if err != nil {
-				if errors.Cause(err) == sql.ErrNoRows {
-					return httperrors.NewResourceNotFoundError2(DiskBackupManager.Keyword(), *input.BackupId)
-				} else {
-					return errors.Wrap(err, "DiskBackupManager.FetchByIdOrName")
-				}
-			}
-			backup := bkObj.(*SDiskBackup)
-			input.BackupId = &backup.Id
-		}
-	}
-	notes, err := db.Update(disk, func() error {
-		if input.TemplateId != nil {
-			disk.TemplateId = *input.TemplateId
-		}
-		if input.BackupId != nil {
-			disk.BackupId = *input.BackupId
-		}
-		return nil
-	})
-	if err != nil {
-		logclient.AddActionLogWithContext(ctx, disk, logclient.ACT_UPDATE, err, userCred, false)
-		return errors.Wrap(err, "Update")
-	}
-	logclient.AddActionLogWithContext(ctx, disk, logclient.ACT_UPDATE, err, userCred, true)
-	db.OpsLog.LogEvent(disk, db.ACT_UPDATE, notes, userCred)
-	return nil
 }

@@ -23,7 +23,6 @@ import (
 
 	"yunion.io/x/onecloud/pkg/apis"
 	"yunion.io/x/onecloud/pkg/apis/billing"
-	"yunion.io/x/onecloud/pkg/apis/host"
 	imageapi "yunion.io/x/onecloud/pkg/apis/image"
 	"yunion.io/x/onecloud/pkg/httperrors"
 )
@@ -274,15 +273,6 @@ type ServerDetails struct {
 
 	// 监控上报URL
 	MonitorUrl string `json:"monitor_url"`
-
-	// 容器描述信息
-	Containers []*PodContainerDesc `json:"containers"`
-}
-
-type PodContainerDesc struct {
-	Id    string `json:"id"`
-	Name  string `json:"name"`
-	Image string `json:"image"`
 }
 
 type Floppy struct {
@@ -479,6 +469,13 @@ type ConvertToKvmInput struct {
 
 	// dest guest network configs
 	Networks []*NetworkConfig `json:"networks"`
+
+	// deploy telegraf after convert
+	DeployTelegraf bool `json:"deploy_telegraf"`
+}
+
+type BatchConvertToKvmCheckInput struct {
+	GuestIds []string `json:"guest_ids"`
 }
 
 type GuestSaveToTemplateInput struct {
@@ -760,6 +757,8 @@ type ServerDeployInputBase struct {
 	// 支持特殊user data平台: Aliyun, Qcloud, Azure, Apsara, Ucloud
 	// required: false
 	UserData string `json:"user_data"`
+	// swagger: ignore
+	LoginAccount string `json:"login_account"`
 
 	// swagger: ignore
 	Restart bool `json:"restart"`
@@ -919,8 +918,8 @@ type GuestJsonDesc struct {
 
 	LightMode bool `json:"light_mode"`
 
-	Hypervisor string                `json:"hypervisor"`
-	Containers []*host.ContainerDesc `json:"containers"`
+	Hypervisor string           `json:"hypervisor"`
+	Containers []*ContainerDesc `json:"containers"`
 }
 
 type ServerSetBootIndexInput struct {
