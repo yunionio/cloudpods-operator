@@ -270,7 +270,6 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 			"onecloud",
 			"onestack",
 			"baremetal",
-			"lb",
 		}
 		setupKeysFull := []string{}
 		setupKeysFull = append(setupKeysFull, setupKeysCmp...)
