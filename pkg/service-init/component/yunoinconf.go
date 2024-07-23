@@ -268,7 +268,6 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 		}
 		setupKeysBaremetal := []string{
 			"onecloud",
-			"onestack",
 			"baremetal",
 		}
 		setupKeysFull := []string{}
