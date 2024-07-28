@@ -998,8 +998,8 @@ yunion.io/x/log v0.0.0-20190514041436-04ce53b17c6b/go.mod h1:+gauLs73omeJAPlsXce
 yunion.io/x/log v0.0.0-20190629062853-9f6483a7103d/go.mod h1:LC6f/4FozL0iaAbnFt2eDX9jlsyo3WiOUPm03d7+U4U=
 yunion.io/x/log v1.0.1-0.20230411060016-feb3f46ab361 h1:c5LyNdhbvBe/92pXs9jgXOU/S+RgYh/DHe538LpT/Mo=
 yunion.io/x/log v1.0.1-0.20230411060016-feb3f46ab361/go.mod h1:LC6f/4FozL0iaAbnFt2eDX9jlsyo3WiOUPm03d7+U4U=
-yunion.io/x/onecloud v0.3.9-9.0.20240619073533-6a94426092f4 h1:+ATMFQP/j8J1gq5aoR5HKVLL6eZmFpmWbO5zgKjXLuI=
-yunion.io/x/onecloud v0.3.9-9.0.20240619073533-6a94426092f4/go.mod h1:mGkJKBE3EFRXyg/YVxkl0Obi4SomajnzYhqKmFt0hK0=
+yunion.io/x/onecloud v0.3.9-9.0.20240728180245-7e40a5470d1a h1:mW7ZCIxt4dWE7Ng4Nzyv/1KzlwDoimUfJaCArTnYSNM=
+yunion.io/x/onecloud v0.3.9-9.0.20240728180245-7e40a5470d1a/go.mod h1:mGkJKBE3EFRXyg/YVxkl0Obi4SomajnzYhqKmFt0hK0=
 yunion.io/x/pkg v0.0.0-20190620104149-945c25821dbf/go.mod h1:t6rEGG2sQ4J7DhFxSZVOTjNd0YO/KlfWQyK1W4tog+E=
 yunion.io/x/pkg v0.0.0-20190628082551-f4033ba2ea30/go.mod h1:t6rEGG2sQ4J7DhFxSZVOTjNd0YO/KlfWQyK1W4tog+E=
 yunion.io/x/pkg v1.10.0 h1:A0L/ebGyF3+z+kXGRifnpMaLX1GSOHwNx6ocLR6cKRw=
