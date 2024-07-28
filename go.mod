@@ -28,7 +28,7 @@ require (
 )
 
 require (
-	yunion.io/x/onecloud v0.3.9-9.0.20240619073533-6a94426092f4
+	yunion.io/x/onecloud v0.3.9-9.0.20240728180245-7e40a5470d1a
 	yunion.io/x/pkg v1.10.0
 )
 
