@@ -191,7 +191,7 @@ func (conn *Connection) createUserPassword(username string, password string) err
 }
 
 func (conn *Connection) ensureUserRoles(username string) error {
-	sql := fmt.Sprintf(`GRANT resource,public TO %s`, username)
+	sql := fmt.Sprintf(`GRANT resource,public,soi TO %s`, username)
 	_, err := conn.db.Exec(sql)
 	return errors.Wrapf(err, "exec %s", sql)
 }
