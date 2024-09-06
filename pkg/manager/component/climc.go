@@ -18,7 +18,9 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
+	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
+	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
 	"yunion.io/x/onecloud-operator/pkg/service-init/component"
 )
@@ -49,18 +51,53 @@ func (m *climcManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, oc.Spec.Climc.Disable, "")
 }
 
+func (m *climcManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
+	content := component.GetRCAdminContent(oc, false)
+	return m.newConfigMap(m.getComponentType(), "", oc, content), false, nil
+}
+
 func (m *climcManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
+	rcadminName := "rcadmin"
+	configMap := controller.ComponentConfigMapName(oc, m.getComponentType())
 	containersF := func(volMounts []corev1.VolumeMount) []corev1.Container {
+		// find configmap and map it to /etc/yunion/rcadmin
+		volMounts = append(volMounts, corev1.VolumeMount{
+			Name:      rcadminName,
+			ReadOnly:  true,
+			MountPath: component.YUNION_ETC_CONFIG_DIR,
+		})
+
 		return []corev1.Container{
 			{
 				Name:            "climc",
 				Image:           oc.Spec.Climc.Image,
 				ImagePullPolicy: oc.Spec.Climc.ImagePullPolicy,
-				Command:         []string{"tail", "-f", "/dev/null"},
-				Env:             component.GetRCAdminEnv(oc),
+				Command:         []string{"bash", "/opt/climc-entrypoint.sh"},
+				Env:             component.GetRCAdminEnv(oc, true),
 				VolumeMounts:    volMounts,
 			},
 		}
 	}
-	return m.newDefaultDeploymentNoInit(v1alpha1.ClimcComponentType, "", oc, NewVolumeHelper(oc, "", v1alpha1.ClimcComponentType), &oc.Spec.Climc, containersF)
+	deploy, err := m.newDefaultDeploymentNoInit(v1alpha1.ClimcComponentType, "", oc, NewVolumeHelper(oc, "", v1alpha1.ClimcComponentType), &oc.Spec.Climc, containersF)
+	if err != nil {
+		return nil, err
+	}
+	rcadminVol := corev1.Volume{
+		Name: rcadminName,
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: configMap,
+				},
+				Items: []corev1.KeyToPath{
+					{
+						Key:  constants.VolumeConfigName,
+						Path: rcadminName,
+					},
+				},
+			},
+		},
+	}
+	deploy.Spec.Template.Spec.Volumes = append(deploy.Spec.Template.Spec.Volumes, rcadminVol)
+	return deploy, nil
 }
