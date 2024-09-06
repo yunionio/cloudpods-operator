@@ -88,11 +88,7 @@ func (k keystone) BeforeStart(oc *v1alpha1.OnecloudCluster, targetCfgDir string)
 	if fileutils2.Exists(rcFile) {
 		return nil
 	}
-	envs := GetRCAdminEnv(oc)
-	envContent := ""
-	for _, env := range envs {
-		envContent += fmt.Sprintf("export %s=%s\n", env.Name, env.Value)
-	}
+	envContent := GetRCAdminContent(oc, true)
 	if err := os.WriteFile(rcFile, []byte(envContent), 0644); err != nil {
 		return errors.Wrapf(err, "write %q", rcFile)
 	}
@@ -100,19 +96,20 @@ func (k keystone) BeforeStart(oc *v1alpha1.OnecloudCluster, targetCfgDir string)
 	return nil
 }
 
-func GetRCAdminEnv(oc *v1alpha1.OnecloudCluster) []corev1.EnvVar {
-	return []corev1.EnvVar{
+func GetRCAdminContent(oc *v1alpha1.OnecloudCluster, withPasswd bool) string {
+	envs := GetRCAdminEnv(oc, withPasswd)
+	envContent := ""
+	for _, env := range envs {
+		envContent += fmt.Sprintf("export %s=%s\n", env.Name, env.Value)
+	}
+	return envContent
+}
+
+func GetRCAdminEnv(oc *v1alpha1.OnecloudCluster, withPasswd bool) []corev1.EnvVar {
+	envs := []corev1.EnvVar{
 		{
 			Name:  "OS_USERNAME",
 			Value: constants.SysAdminUsername,
-		},
-		{
-			Name:  "OS_USERNAME",
-			Value: constants.SysAdminUsername,
-		},
-		{
-			Name:  "OS_PASSWORD",
-			Value: oc.Spec.Keystone.BootstrapPassword,
 		},
 		{
 			Name:  "OS_REGION_NAME",
@@ -135,6 +132,13 @@ func GetRCAdminEnv(oc *v1alpha1.OnecloudCluster) []corev1.EnvVar {
 			Value: "vim",
 		},
 	}
+	if withPasswd {
+		envs = append(envs, corev1.EnvVar{
+			Name:  "OS_PASSWORD",
+			Value: oc.Spec.Keystone.BootstrapPassword,
+		})
+	}
+	return envs
 }
 func (k keystone) GetPhaseControl(man controller.ComponentManager) controller.PhaseControl {
 	return man.Keystone()
