@@ -46,7 +46,7 @@ func (m *apiGatewayManager) getComponentType() v1alpha1.ComponentType {
 }
 
 func (m *apiGatewayManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	isEE := IsEnterpriseEdition(oc)
+	isEE := IsEEOrESEEdition(oc)
 	imageName := oc.Spec.APIGateway.ImageName
 	if (imageName == constants.APIGatewayCEImageName && isEE) || (imageName == constants.APIGatewayEEImageName && !isEE) {
 		oc.Spec.APIGateway.ImageName = ""
@@ -80,7 +80,7 @@ func (m *apiGatewayManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 }
 
 func (m *apiGatewayManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
-	isEE := IsEnterpriseEdition(oc)
+	isEE := IsEEOrESEEdition(oc)
 	cf := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		cmd := "/opt/yunion/bin/apigateway"
 		if isEE {

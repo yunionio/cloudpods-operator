@@ -93,7 +93,7 @@ func SetDefaults_OnecloudCluster(obj *OnecloudCluster) {
 		obj.SetLabels(map[string]string{constants.InstanceLabelKey: fmt.Sprintf("onecloud-cluster-%s", rand.String(4))})
 	}
 
-	SetDefaults_OnecloudClusterSpec(&obj.Spec, IsEnterpriseEdition(obj))
+	SetDefaults_OnecloudClusterSpec(&obj.Spec, IsEnterpriseEdition(obj), IsEEOrESEEdition(obj))
 }
 
 func GetEdition(oc *OnecloudCluster) string {
@@ -102,14 +102,24 @@ func GetEdition(oc *OnecloudCluster) string {
 		return edition
 	}
 	curEdition := oc.Annotations[constants.OnecloudEditionAnnotationKey]
-	if curEdition == constants.OnecloudEnterpriseEdition {
-		return curEdition
+	if curEdition == "" {
+		return constants.OnecloudCommunityEdition
 	}
-	return edition
+	return curEdition
 }
 
 func IsEnterpriseEdition(oc *OnecloudCluster) bool {
 	return GetEdition(oc) == constants.OnecloudEnterpriseEdition
+}
+
+func IsEEOrESEEdition(oc *OnecloudCluster) bool {
+	if IsEnterpriseEdition(oc) {
+		return true
+	}
+	if GetEdition(oc) == constants.OnecloudEnterpriseSupportEdition {
+		return true
+	}
+	return false
 }
 
 type hyperImagePair struct {
@@ -132,7 +142,7 @@ func clearContainerSpec(spec *ContainerSpec) {
 	}
 }
 
-func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
+func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool, isEEOrESE bool) {
 	setDefaults_Mysql(&obj.Mysql)
 	setDefaults_Clickhouse(&obj.Clickhouse)
 	setDefaults_Dameng(&obj.Dameng)
@@ -198,11 +208,8 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 
 	// CE or EE parts
 	for cType, spec := range map[ComponentType]*hyperImagePair{
-		APIGatewayComponentType: nHP(&obj.APIGateway.DeploymentSpec, useHyperImage),
-		ClimcComponentType:      nHP(&obj.Climc, false),
-		CloudmuxComponentType:   nHP(obj.Cloudmux.ToDeploymentSpec(), false),
-		WebComponentType:        nHP(&obj.Web.DeploymentSpec, false),
-		CloudmonComponentType:   nHP(&obj.Cloudmon.DeploymentSpec, useHyperImage),
+		CloudmuxComponentType: nHP(obj.Cloudmux.ToDeploymentSpec(), false),
+		CloudmonComponentType: nHP(&obj.Cloudmon.DeploymentSpec, useHyperImage),
 	} {
 		SetDefaults_DeploymentSpec(spec.DeploymentSpec,
 			getEditionImage(
@@ -210,6 +217,21 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 				cType, spec.ImageName,
 				obj.Version, spec.Tag,
 				spec.Supported, isEE,
+			))
+	}
+
+	// CE/SUPPORT parts
+	for cType, spec := range map[ComponentType]*hyperImagePair{
+		APIGatewayComponentType: nHP(&obj.APIGateway.DeploymentSpec, useHyperImage),
+		ClimcComponentType:      nHP(&obj.Climc, false),
+		WebComponentType:        nHP(&obj.Web.DeploymentSpec, false),
+	} {
+		SetDefaults_DeploymentSpec(spec.DeploymentSpec,
+			getEditionImage(
+				obj.ImageRepository, spec.Repository,
+				cType, spec.ImageName,
+				obj.Version, spec.Tag,
+				spec.Supported, isEEOrESE,
 			))
 	}
 
