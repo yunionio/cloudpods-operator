@@ -63,7 +63,7 @@ func (m *yunionagentManager) GetServiceName() string {
 }
 
 func (m *yunionagentManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if !IsEnterpriseEdition(oc) {
+	if !IsEEOrESEEdition(oc) {
 		return nil
 	}
 	return syncComponent(m, oc, "")
@@ -127,16 +127,21 @@ func (m *yunionagentManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 func (m *yunionagentManager) getDaemonSet(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.DaemonSet, error) {
 	cType := v1alpha1.YunionagentComponentType
 	dsSpec := oc.Spec.Yunionagent
+	edition := v1alpha1.GetEdition(oc)
+	command := []string{
+		fmt.Sprintf("/opt/yunion/bin/%s", cType.String()),
+		"--config",
+		fmt.Sprintf("/etc/yunion/%s.conf", cType.String()),
+	}
+	if edition == constants.OnecloudEnterpriseSupportEdition {
+		command = append(command, "--edition", edition)
+	}
 	cf := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		return []corev1.Container{
 			{
-				Name:  cType.String(),
-				Image: dsSpec.Image,
-				Command: []string{
-					fmt.Sprintf("/opt/yunion/bin/%s", cType.String()),
-					"--config",
-					fmt.Sprintf("/etc/yunion/%s.conf", cType.String()),
-				},
+				Name:            cType.String(),
+				Image:           dsSpec.Image,
+				Command:         command,
 				ImagePullPolicy: dsSpec.ImagePullPolicy,
 				VolumeMounts:    volMounts,
 			},
