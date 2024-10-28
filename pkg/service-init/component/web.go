@@ -90,6 +90,7 @@ server {
     gzip_types text/plain application/javascript application/css text/css application/xml application/json text/javascript application/x-httpd-php image/jpeg image/gif image/png;
     gzip_vary on;
     chunked_transfer_encoding off;
+    underscores_in_headers on;
 
     client_body_buffer_size 16k;
     client_header_buffer_size 16k;
@@ -145,6 +146,19 @@ server {
         proxy_busy_buffers_size 16k;
         proxy_temp_file_write_size 16k;
         proxy_read_timeout 600;
+    }
+
+    location /api/s/image/v1/images {
+        client_max_body_size 0;
+        client_body_timeout 300;
+        proxy_http_version 1.1;
+        proxy_request_buffering off;
+        proxy_buffering off;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        rewrite ^/api/s/image/(.*)$ /$1 break;
+        proxy_pass {{.GlanceURL}};
     }
 
     location /api/v1/imageutils/upload {
@@ -267,6 +281,7 @@ type WebNginxConfig struct {
 	WebconsoleURL   string
 	APIGatewayWsURL string
 	APIGatewayURL   string
+	GlanceURL       string
 	UseHTTP         bool
 }
 
@@ -292,6 +307,7 @@ func (w web) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClust
 		WebconsoleURL:   urlF(v1alpha1.WebconsoleComponentType, constants.WebconsolePort),
 		APIGatewayWsURL: urlF(v1alpha1.APIGatewayComponentType, constants.APIWebsocketPort),
 		APIGatewayURL:   urlF(v1alpha1.APIGatewayComponentType, constants.APIGatewayPort),
+		GlanceURL:       urlF(v1alpha1.GlanceComponentType, constants.GlanceAPIPort),
 		UseHTTP:         oc.Spec.Web.UseHTTP,
 	}
 	return config.GetContent()
