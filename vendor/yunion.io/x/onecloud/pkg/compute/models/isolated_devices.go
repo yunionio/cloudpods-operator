@@ -19,6 +19,7 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 	"time"
 
@@ -483,7 +484,7 @@ func (manager *SIsolatedDeviceManager) parseDeviceInfo(userCred mcclient.TokenCr
 
 	if len(devId) == 0 {
 		if matchDev == nil {
-			return nil, fmt.Errorf("Isolated device info not contains either deviceID or model name")
+			return nil, httperrors.NewNotFoundError("Not found matched device by model: %q, dev_type: %q", devConfig.Model, devConfig.DevType)
 		}
 		devConfig.Model = matchDev.Model
 		if len(devVendor) > 0 {
@@ -561,13 +562,13 @@ func (manager *SIsolatedDeviceManager) _isValidDeviceInfo(config *api.IsolatedDe
 	return nil
 }
 
-func (manager *SIsolatedDeviceManager) attachHostDeviceToGuestByDesc(ctx context.Context, guest *SGuest, host *SHost, devConfig *api.IsolatedDeviceConfig, userCred mcclient.TokenCredential, usedDevMap map[string]struct{}) error {
+func (manager *SIsolatedDeviceManager) attachHostDeviceToGuestByDesc(ctx context.Context, guest *SGuest, host *SHost, devConfig *api.IsolatedDeviceConfig, userCred mcclient.TokenCredential, usedDevMap map[string]*SIsolatedDevice) error {
 	if len(devConfig.Id) > 0 {
 		return manager.attachSpecificDeviceToGuest(ctx, guest, devConfig, userCred)
 	} else if len(devConfig.DevicePath) > 0 {
 		return manager.attachHostDeviceToGuestByDevicePath(ctx, guest, host, devConfig, userCred, usedDevMap)
 	} else {
-		return manager.attachHostDeviceToGuestByModel(ctx, guest, host, devConfig, userCred)
+		return manager.attachHostDeviceToGuestByModel(ctx, guest, host, devConfig, userCred, usedDevMap)
 	}
 }
 
@@ -583,7 +584,7 @@ func (manager *SIsolatedDeviceManager) attachSpecificDeviceToGuest(ctx context.C
 	return guest.attachIsolatedDevice(ctx, userCred, dev, devConfig.NetworkIndex, devConfig.DiskIndex)
 }
 
-func (manager *SIsolatedDeviceManager) attachHostDeviceToGuestByDevicePath(ctx context.Context, guest *SGuest, host *SHost, devConfig *api.IsolatedDeviceConfig, userCred mcclient.TokenCredential, usedDevMap map[string]struct{}) error {
+func (manager *SIsolatedDeviceManager) attachHostDeviceToGuestByDevicePath(ctx context.Context, guest *SGuest, host *SHost, devConfig *api.IsolatedDeviceConfig, userCred mcclient.TokenCredential, usedDevMap map[string]*SIsolatedDevice) error {
 	if len(devConfig.Model) == 0 || len(devConfig.DevicePath) == 0 {
 		return fmt.Errorf("Model or DevicePath is empty: %#v", devConfig)
 	}
@@ -596,7 +597,7 @@ func (manager *SIsolatedDeviceManager) attachHostDeviceToGuestByDevicePath(ctx c
 	for i := range devs {
 		if _, ok := usedDevMap[devs[i].DevicePath]; !ok {
 			selectedDev = devs[i]
-			usedDevMap[devs[i].DevicePath] = struct{}{}
+			usedDevMap[devs[i].DevicePath] = &selectedDev
 		}
 	}
 	if selectedDev.Id == "" {
@@ -605,7 +606,37 @@ func (manager *SIsolatedDeviceManager) attachHostDeviceToGuestByDevicePath(ctx c
 	return guest.attachIsolatedDevice(ctx, userCred, &selectedDev, devConfig.NetworkIndex, devConfig.DiskIndex)
 }
 
-func (manager *SIsolatedDeviceManager) attachHostDeviceToGuestByModel(ctx context.Context, guest *SGuest, host *SHost, devConfig *api.IsolatedDeviceConfig, userCred mcclient.TokenCredential) error {
+type GroupDevs struct {
+	DevPath string
+	Devs    []SIsolatedDevice
+}
+
+type SorttedGroupDevs []*GroupDevs
+
+func (pq SorttedGroupDevs) Len() int { return len(pq) }
+
+func (pq SorttedGroupDevs) Less(i, j int) bool {
+	return len(pq[i].Devs) > len(pq[j].Devs)
+}
+
+func (pq SorttedGroupDevs) Swap(i, j int) {
+	pq[i], pq[j] = pq[j], pq[i]
+}
+
+func (pq *SorttedGroupDevs) Push(item interface{}) {
+	*pq = append(*pq, item.(*GroupDevs))
+}
+
+func (pq *SorttedGroupDevs) Pop() interface{} {
+	old := *pq
+	n := len(old)
+	item := old[n-1]
+	old[n-1] = nil // avoid memory leak
+	*pq = old[0 : n-1]
+	return item
+}
+
+func (manager *SIsolatedDeviceManager) attachHostDeviceToGuestByModel(ctx context.Context, guest *SGuest, host *SHost, devConfig *api.IsolatedDeviceConfig, userCred mcclient.TokenCredential, usedDevMap map[string]*SIsolatedDevice) error {
 	if len(devConfig.Model) == 0 {
 		return fmt.Errorf("Not found model from info: %#v", devConfig)
 	}
@@ -614,8 +645,58 @@ func (manager *SIsolatedDeviceManager) attachHostDeviceToGuestByModel(ctx contex
 	if err != nil || len(devs) == 0 {
 		return fmt.Errorf("Can't found model %s on host %s", devConfig.Model, host.Id)
 	}
-	selectedDev := devs[0]
-	return guest.attachIsolatedDevice(ctx, userCred, &selectedDev, devConfig.NetworkIndex, devConfig.DiskIndex)
+	// 1. group devices by device_path
+	groupDevs := make(SorttedGroupDevs, 0)
+	mapDevs := map[string][]SIsolatedDevice{}
+	for i := range devs {
+		dev := devs[i]
+		devPath := dev.DevicePath
+		var gdevs []SIsolatedDevice
+
+		gdevs, ok := mapDevs[devPath]
+		if !ok {
+			gdevs = []SIsolatedDevice{dev}
+		} else {
+			gdevs = append(gdevs, dev)
+		}
+		mapDevs[devPath] = gdevs
+	}
+	for devPath, mappedDevs := range mapDevs {
+		groupDevs = append(groupDevs, &GroupDevs{
+			DevPath: devPath,
+			Devs:    mappedDevs,
+		})
+	}
+	sort.Sort(groupDevs)
+
+	var preferNumaNode int8 = -1
+	for _, dev := range usedDevMap {
+		if dev.NumaNode >= 0 {
+			preferNumaNode = dev.NumaNode
+			break
+		}
+	}
+
+	var selectedDev *SIsolatedDevice
+	if preferNumaNode >= 0 {
+		for i := range groupDevs {
+			if groupDevs[i].DevPath == "" {
+				for j := range groupDevs[i].Devs {
+					if groupDevs[i].Devs[j].NumaNode == preferNumaNode {
+						selectedDev = &groupDevs[i].Devs[j]
+						break
+					}
+				}
+			} else if groupDevs[i].Devs[0].NumaNode == preferNumaNode {
+				selectedDev = &groupDevs[i].Devs[0]
+				break
+			}
+		}
+	}
+	if selectedDev == nil {
+		selectedDev = &groupDevs[0].Devs[0]
+	}
+	return guest.attachIsolatedDevice(ctx, userCred, selectedDev, devConfig.NetworkIndex, devConfig.DiskIndex)
 }
 
 func (manager *SIsolatedDeviceManager) findUnusedQuery() *sqlchemy.SQuery {
@@ -871,7 +952,19 @@ func (self *SIsolatedDevice) GetSpec(statusCheck bool) *jsonutils.JSONDict {
 			return nil
 		}
 	}
+	var vdev bool
+	var hypervisor string
+	if utils.IsInStringArray(self.DevType, api.VITRUAL_DEVICE_TYPES) {
+		vdev = true
+	}
+	if utils.IsInStringArray(self.DevType, api.VALID_CONTAINER_DEVICE_TYPES) {
+		hypervisor = api.HYPERVISOR_POD
+	} else {
+		hypervisor = api.HYPERVISOR_KVM
+	}
 	ret := jsonutils.NewDict()
+	ret.Set("virtual_dev", jsonutils.NewBool(vdev))
+	ret.Set("hypervisor", jsonutils.NewString(hypervisor))
 	ret.Set("dev_type", jsonutils.NewString(self.DevType))
 	ret.Set("model", jsonutils.NewString(self.Model))
 	ret.Set("pci_id", jsonutils.NewString(self.VendorDeviceId))

@@ -16,21 +16,33 @@ package models
 
 import (
 	"context"
+	"encoding/base64"
+	"fmt"
+	"path/filepath"
+	"strings"
+	"time"
 
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
 	"yunion.io/x/pkg/errors"
+	"yunion.io/x/pkg/gotypes"
 	"yunion.io/x/pkg/util/sets"
 	"yunion.io/x/sqlchemy"
 
 	"yunion.io/x/onecloud/pkg/apis"
 	api "yunion.io/x/onecloud/pkg/apis/compute"
 	hostapi "yunion.io/x/onecloud/pkg/apis/host"
+	identityapi "yunion.io/x/onecloud/pkg/apis/identity"
 	imageapi "yunion.io/x/onecloud/pkg/apis/image"
+	"yunion.io/x/onecloud/pkg/cloudcommon/consts"
 	"yunion.io/x/onecloud/pkg/cloudcommon/db"
 	"yunion.io/x/onecloud/pkg/cloudcommon/db/taskman"
+	"yunion.io/x/onecloud/pkg/compute/options"
 	"yunion.io/x/onecloud/pkg/httperrors"
 	"yunion.io/x/onecloud/pkg/mcclient"
+	"yunion.io/x/onecloud/pkg/mcclient/auth"
+	identitymod "yunion.io/x/onecloud/pkg/mcclient/modules/identity"
+	kubemod "yunion.io/x/onecloud/pkg/mcclient/modules/k8s"
 )
 
 var containerManager *SContainerManager
@@ -64,6 +76,14 @@ type SContainer struct {
 	GuestId string `width:"36" charset:"ascii" create:"required" list:"user" index:"true"`
 	// Spec stores all container running options
 	Spec *api.ContainerSpec `length:"long" create:"required" list:"user" update:"user"`
+
+	// 启动时间
+	StartedAt time.Time `nullable:"true" created_at:"false" index:"true" get:"user" list:"user" json:"started_at"`
+	// 上次退出时间
+	LastFinishedAt time.Time `nullable:"true" created_at:"false" index:"true" get:"user" list:"user" json:"last_finished_at"`
+
+	// 重启次数
+	RestartCount int `nullable:"true" list:"user"`
 }
 
 func (m *SContainerManager) CreateOnPod(
@@ -142,6 +162,11 @@ func (m *SContainerManager) ValidateSpec(ctx context.Context, userCred mcclient.
 	if !sets.NewString(apis.ImagePullPolicyAlways, apis.ImagePullPolicyIfNotPresent).Has(string(spec.ImagePullPolicy)) {
 		return httperrors.NewInputParameterError("invalid image_pull_policy %s", spec.ImagePullPolicy)
 	}
+	if spec.ImageCredentialId != "" {
+		if _, err := m.GetImageCredential(ctx, userCred, spec.ImageCredentialId); err != nil {
+			return errors.Wrapf(err, "get image credential by id: %s", spec.ImageCredentialId)
+		}
+	}
 
 	if pod != nil {
 		if err := m.ValidateSpecVolumeMounts(ctx, userCred, pod, spec); err != nil {
@@ -162,6 +187,10 @@ func (m *SContainerManager) ValidateSpec(ctx context.Context, userCred mcclient.
 
 	if spec.ShmSizeMB != 0 && spec.ShmSizeMB < 64 {
 		return httperrors.NewInputParameterError("/dev/shm size is small than 64MB")
+	}
+
+	if err := m.ValidateSpecProbe(ctx, userCred, spec); err != nil {
+		return errors.Wrap(err, "validate probe configuration")
 	}
 
 	return nil
@@ -248,6 +277,81 @@ func (c *SContainer) CustomizeCreate(ctx context.Context, userCred mcclient.Toke
 	return nil
 }*/
 
+func (m *SContainerManager) ValidateSpecProbe(ctx context.Context, userCred mcclient.TokenCredential, spec *api.ContainerSpec) error {
+	//if err := m.validateSpecProbe(ctx, userCred, spec.LivenessProbe); err != nil {
+	//	return errors.Wrap(err, "validate liveness probe")
+	//}
+	if err := m.validateSpecProbe(ctx, userCred, spec.StartupProbe); err != nil {
+		return errors.Wrap(err, "validate startup probe")
+	}
+	return nil
+}
+
+func (m *SContainerManager) validateSpecProbe(ctx context.Context, userCred mcclient.TokenCredential, probe *apis.ContainerProbe) error {
+	if probe == nil {
+		return nil
+	}
+	if err := m.validateSpecProbeHandler(probe.ContainerProbeHandler); err != nil {
+		return errors.Wrap(err, "validate container probe handler")
+	}
+	for key, val := range map[string]int32{
+		//"initial_delay_seconds": probe.InitialDelaySeconds,
+		"timeout_seconds":   probe.TimeoutSeconds,
+		"period_seconds":    probe.PeriodSeconds,
+		"success_threshold": probe.SuccessThreshold,
+		"failure_threshold": probe.FailureThreshold,
+	} {
+		if val < 0 {
+			return httperrors.NewInputParameterError(key + " is negative")
+		}
+	}
+
+	//if probe.InitialDelaySeconds == 0 {
+	//	probe.InitialDelaySeconds = 5
+	//}
+	if probe.TimeoutSeconds == 0 {
+		probe.TimeoutSeconds = 3
+	}
+	if probe.PeriodSeconds == 0 {
+		probe.PeriodSeconds = 10
+	}
+	if probe.SuccessThreshold == 0 {
+		probe.SuccessThreshold = 1
+	}
+	if probe.FailureThreshold == 0 {
+		probe.FailureThreshold = 3
+	}
+	return nil
+}
+
+func (m *SContainerManager) validateSpecProbeHandler(probe apis.ContainerProbeHandler) error {
+	isAllNil := true
+	if probe.Exec != nil {
+		isAllNil = false
+		if len(probe.Exec.Command) == 0 {
+			return httperrors.NewInputParameterError("exec command is required")
+		}
+	}
+	if probe.TCPSocket != nil {
+		isAllNil = false
+		port := probe.TCPSocket.Port
+		if port < 1 || port > 65535 {
+			return httperrors.NewInputParameterError("invalid tcp socket port: %d, must between [1,65535]", port)
+		}
+	}
+	if probe.HTTPGet != nil {
+		isAllNil = false
+		port := probe.HTTPGet.Port
+		if port < 1 || port > 65535 {
+			return httperrors.NewInputParameterError("invalid http port: %d, must between [1,65535]", port)
+		}
+	}
+	if isAllNil {
+		return httperrors.NewInputParameterError("one of [exec, http_get, tcp_socket] is required")
+	}
+	return nil
+}
+
 func (c *SContainer) PostCreate(ctx context.Context, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, query jsonutils.JSONObject, data jsonutils.JSONObject) {
 	c.SVirtualResourceBase.PostCreate(ctx, userCred, ownerId, query, data)
 	if !jsonutils.QueryBoolean(data, "skip_task", false) {
@@ -266,8 +370,8 @@ func (c *SContainer) StartCreateTask(ctx context.Context, userCred mcclient.Toke
 }
 
 func (c *SContainer) ValidateUpdateData(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input *api.ContainerUpdateInput) (*api.ContainerUpdateInput, error) {
-	if c.GetStatus() != api.CONTAINER_STATUS_EXITED {
-		return nil, httperrors.NewInvalidStatusError("current status %s is not %s", c.GetStatus(), api.CONTAINER_STATUS_EXITED)
+	if !api.ContainerExitedStatus.Has(c.GetStatus()) {
+		return nil, httperrors.NewInvalidStatusError("current status %s is not in %v", c.GetStatus(), api.ContainerExitedStatus.List())
 	}
 
 	baseInput, err := c.SVirtualResourceBase.ValidateUpdateData(ctx, userCred, query, input.VirtualResourceBaseUpdateInput)
@@ -313,10 +417,39 @@ func (vm *ContainerVolumeMountRelation) toHostDiskMount(disk *apis.ContainerVolu
 	return ret, nil
 }
 
+func (vm *ContainerVolumeMountRelation) toCephFSMount(fs *apis.ContainerVolumeMountCephFS) (*hostapi.ContainerVolumeMountCephFS, error) {
+	fsObj, err := FileSystemManager.FetchById(fs.Id)
+	if err != nil {
+		return nil, errors.Errorf("fetch cephfs by id %s", fs.Id)
+	}
+
+	filesystem := fsObj.(*SFileSystem)
+	ret := &hostapi.ContainerVolumeMountCephFS{
+		Id:   filesystem.Id,
+		Path: filesystem.ExternalId,
+	}
+
+	account := filesystem.GetCloudaccount()
+	if gotypes.IsNil(account) {
+		return nil, fmt.Errorf("invalid cephfs %s", filesystem.Name)
+	}
+	ret.Secret, err = account.GetOptionPassword()
+	if err != nil {
+		return nil, err
+	}
+	ret.Name, _ = account.Options.GetString("name")
+	if len(ret.Name) == 0 {
+		ret.Name = "admin"
+	}
+	ret.MonHost, _ = account.Options.GetString("mon_host")
+	return ret, nil
+}
+
 func (vm *ContainerVolumeMountRelation) ToHostMount(ctx context.Context, userCred mcclient.TokenCredential) (*hostapi.ContainerVolumeMount, error) {
 	ret := &hostapi.ContainerVolumeMount{
 		Type:           vm.VolumeMount.Type,
 		Disk:           nil,
+		CephFS:         nil,
 		Text:           vm.VolumeMount.Text,
 		HostPath:       vm.VolumeMount.HostPath,
 		ReadOnly:       vm.VolumeMount.ReadOnly,
@@ -332,6 +465,13 @@ func (vm *ContainerVolumeMountRelation) ToHostMount(ctx context.Context, userCre
 			return nil, errors.Wrap(err, "toHostDiskMount")
 		}
 		ret.Disk = disk
+	}
+	if vm.VolumeMount.CephFS != nil {
+		fs, err := vm.toCephFSMount(vm.VolumeMount.CephFS)
+		if err != nil {
+			return nil, errors.Wrapf(err, "getCephFSSecret")
+		}
+		ret.CephFS = fs
 	}
 	return ret, nil
 }
@@ -410,6 +550,67 @@ func (c *SContainer) StartDeleteTask(ctx context.Context, userCred mcclient.Toke
 	return task.ScheduleRun(nil)
 }
 
+func (m *SContainerManager) GetImageCredential(ctx context.Context, userCred mcclient.TokenCredential, id string) (*apis.ContainerPullImageAuthConfig, error) {
+	s := auth.GetSession(ctx, userCred, options.Options.Region)
+	ret, err := identitymod.Credentials.GetById(s, id, nil)
+	if err != nil {
+		if errors.Cause(err) == errors.ErrNotFound || strings.Contains(err.Error(), "NotFound") {
+			ret, err = identitymod.Credentials.GetByName(s, id, nil)
+			if err != nil {
+				return nil, errors.Wrapf(err, "get credential by id or name of %s", id)
+			}
+		}
+		return nil, errors.Wrap(err, "get credentials by id")
+	}
+	credType, _ := ret.GetString("type")
+	if credType != identityapi.CONTAINER_IMAGE_TYPE {
+		return nil, httperrors.NewNotSupportedError("unsupported credential type %s", credType)
+	}
+	blobStr, err := ret.GetString("blob")
+	if err != nil {
+		return nil, errors.Wrap(err, "get blob")
+	}
+	obj, err := jsonutils.ParseString(blobStr)
+	if err != nil {
+		return nil, errors.Wrapf(err, "json parse string: %s", blobStr)
+	}
+	blob := new(identityapi.CredentialContainerImageBlob)
+	if err := obj.Unmarshal(blob); err != nil {
+		return nil, errors.Wrap(err, "unmarshal blob")
+	}
+	out := &apis.ContainerPullImageAuthConfig{
+		Username:      blob.Username,
+		Password:      blob.Password,
+		Auth:          blob.Auth,
+		ServerAddress: blob.ServerAddress,
+		IdentityToken: blob.IdentityToken,
+		RegistryToken: blob.RegistryToken,
+	}
+	return out, nil
+}
+
+func (c *SContainer) GetImageCredential(ctx context.Context, userCred mcclient.TokenCredential) (*apis.ContainerPullImageAuthConfig, error) {
+	if c.Spec.ImageCredentialId == "" {
+		return nil, errors.Wrap(errors.ErrEmpty, "image_credential_id is empty")
+	}
+	return GetContainerManager().GetImageCredential(ctx, userCred, c.Spec.ImageCredentialId)
+}
+
+func (c *SContainer) GetHostPullImageInput(ctx context.Context, userCred mcclient.TokenCredential) (*hostapi.ContainerPullImageInput, error) {
+	input := &hostapi.ContainerPullImageInput{
+		Image:      c.Spec.Image,
+		PullPolicy: c.Spec.ImagePullPolicy,
+	}
+	if c.Spec.ImageCredentialId != "" {
+		cred, err := c.GetImageCredential(ctx, userCred)
+		if err != nil {
+			return nil, errors.Wrapf(err, "GetImageCredential %s", c.Spec.ImageCredentialId)
+		}
+		input.Auth = cred
+	}
+	return input, nil
+}
+
 func (c *SContainer) StartPullImageTask(ctx context.Context, userCred mcclient.TokenCredential, input *hostapi.ContainerPullImageInput, parentTaskId string) error {
 	c.SetStatus(ctx, userCred, api.CONTAINER_STATUS_PULLING_IMAGE, "")
 	task, err := taskman.TaskManager.NewTask(ctx, "ContainerPullImageTask", c, userCred, jsonutils.Marshal(input).(*jsonutils.JSONDict), parentTaskId, "", nil)
@@ -461,6 +662,11 @@ func (c *SContainer) ToHostContainerSpec(ctx context.Context, userCred mcclient.
 		VolumeMounts:  mounts,
 		Devices:       ctrDevs,
 	}
+	pullInput, err := c.GetHostPullImageInput(ctx, userCred)
+	if err != nil {
+		return nil, errors.Wrap(err, "GetHostPullImageInput")
+	}
+	hSpec.ImageCredentialToken = base64.StdEncoding.EncodeToString([]byte(jsonutils.Marshal(pullInput.Auth).String()))
 	return hSpec, nil
 }
 
@@ -470,9 +676,12 @@ func (c *SContainer) GetJsonDescAtHost(ctx context.Context, userCred mcclient.To
 		return nil, errors.Wrap(err, "ToHostContainerSpec")
 	}
 	return &hostapi.ContainerDesc{
-		Id:   c.GetId(),
-		Name: c.GetName(),
-		Spec: spec,
+		Id:             c.GetId(),
+		Name:           c.GetName(),
+		Spec:           spec,
+		StartedAt:      c.StartedAt,
+		LastFinishedAt: c.LastFinishedAt,
+		RestartCount:   c.RestartCount,
 	}, nil
 }
 
@@ -567,6 +776,38 @@ func (c *SContainer) PerformExecSync(ctx context.Context, userCred mcclient.Toke
 	return c.GetPodDriver().RequestExecSyncContainer(ctx, userCred, c, input)
 }
 
+func (c *SContainer) PerformSetResourcesLimit(ctx context.Context, userCred mcclient.TokenCredential, _ jsonutils.JSONObject, limit *apis.ContainerResources) (jsonutils.JSONObject, error) {
+	if err := c.ValidateResourcesLimit(limit); err != nil {
+		return nil, errors.Wrap(err, "ValidateResourcesLimit")
+	}
+	if _, err := db.Update(c, func() error {
+		c.Spec.ResourcesLimit = limit
+		return nil
+	}); err != nil {
+		return nil, errors.Wrap(err, "Update spec.resources_limit")
+	}
+	if !api.ContainerRunningStatus.Has(c.GetStatus()) {
+		return nil, nil
+	}
+	return c.GetPodDriver().RequestSetContainerResourcesLimit(ctx, userCred, c, limit)
+}
+
+func (c *SContainer) ValidateResourcesLimit(limit *apis.ContainerResources) error {
+	if limit == nil {
+		return httperrors.NewInputParameterError("limit cannot be nil")
+	}
+	pod := c.GetPod()
+	if limit.CpuCfsQuota != nil {
+		if *limit.CpuCfsQuota <= 0 {
+			return httperrors.NewInputParameterError("invalid cpu_cfs_quota %f", *limit.CpuCfsQuota)
+		}
+		if *limit.CpuCfsQuota > float64(pod.VcpuCount) {
+			return httperrors.NewInputParameterError("cpu_cfs_quota %f can't large than %d", *limit.CpuCfsQuota, pod.VcpuCount)
+		}
+	}
+	return nil
+}
+
 type ContainerReleasedDevice struct {
 	*api.ContainerDevice
 	DeviceType  string
@@ -581,16 +822,16 @@ func NewContainerReleasedDevice(device *api.ContainerDevice, devType, devModel s
 	}
 }
 
-func (s *SContainer) SaveReleasedDevices(ctx context.Context, userCred mcclient.TokenCredential, devs map[string]ContainerReleasedDevice) error {
-	return s.SetMetadata(ctx, api.CONTAINER_METADATA_RELEASED_DEVICES, devs, userCred)
+func (c *SContainer) SaveReleasedDevices(ctx context.Context, userCred mcclient.TokenCredential, devs map[string]ContainerReleasedDevice) error {
+	return c.SetMetadata(ctx, api.CONTAINER_METADATA_RELEASED_DEVICES, devs, userCred)
 }
 
-func (s *SContainer) GetReleasedDevices(ctx context.Context, userCred mcclient.TokenCredential) (map[string]ContainerReleasedDevice, error) {
+func (c *SContainer) GetReleasedDevices(ctx context.Context, userCred mcclient.TokenCredential) (map[string]ContainerReleasedDevice, error) {
 	out := make(map[string]ContainerReleasedDevice, 0)
-	if ret := s.GetMetadata(ctx, api.CONTAINER_METADATA_RELEASED_DEVICES, userCred); ret == "" {
+	if ret := c.GetMetadata(ctx, api.CONTAINER_METADATA_RELEASED_DEVICES, userCred); ret == "" {
 		return out, nil
 	}
-	obj := s.GetMetadataJson(ctx, api.CONTAINER_METADATA_RELEASED_DEVICES, userCred)
+	obj := c.GetMetadataJson(ctx, api.CONTAINER_METADATA_RELEASED_DEVICES, userCred)
 	if obj == nil {
 		return nil, errors.Error("get metadata released devices")
 	}
@@ -598,4 +839,113 @@ func (s *SContainer) GetReleasedDevices(ctx context.Context, userCred mcclient.T
 		return nil, errors.Wrap(err, "Unmarshal metadata released devices")
 	}
 	return out, nil
+}
+
+func (c *SContainer) PerformStatus(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input api.ContainerPerformStatusInput) (jsonutils.JSONObject, error) {
+	if api.ContainerExitedStatus.Has(c.GetStatus()) {
+		if input.Status == api.CONTAINER_STATUS_PROBE_FAILED {
+			return nil, httperrors.NewInputParameterError("can't set container status to %s when %s", input.Status, c.Status)
+		}
+	}
+	if _, err := db.Update(c, func() error {
+		if input.RestartCount > 0 {
+			c.RestartCount = input.RestartCount
+		}
+		if api.ContainerRunningStatus.Has(input.Status) {
+			// 当容器状态是运行时 restart_count 重新计数
+			c.RestartCount = 0
+		}
+		if input.StartedAt != nil {
+			c.StartedAt = *input.StartedAt
+		}
+		if input.LastFinishedAt != nil {
+			c.LastFinishedAt = *input.LastFinishedAt
+		}
+		return nil
+	}); err != nil {
+		return nil, errors.Wrap(err, "Update container status")
+	}
+	return c.SVirtualResourceBase.PerformStatus(ctx, userCred, query, input.PerformStatusInput)
+}
+
+func (c *SContainer) getContainerHostCommitInput(ctx context.Context, userCred mcclient.TokenCredential, input *api.ContainerCommitInput) (*hostapi.ContainerCommitInput, error) {
+	var hostInput = &hostapi.ContainerCommitInput{
+		Auth: new(apis.ContainerPullImageAuthConfig),
+	}
+	var repoUrl string
+	imageName := input.ImageName
+	tag := input.Tag
+	if imageName == "" {
+		imageName = c.GetName()
+	}
+	if tag == "" {
+		tag = time.Now().Format("20060102150405")
+	}
+	if input.RegistryId != "" {
+		s := auth.GetSession(ctx, userCred, consts.GetRegion())
+		obj, err := kubemod.ContainerRegistries.Get(s, input.RegistryId, nil)
+		if err != nil {
+			return nil, httperrors.NewGeneralError(err)
+		}
+		reg := new(api.KubeServerContainerRegistryDetails)
+		if err := obj.Unmarshal(reg); err != nil {
+			return nil, errors.Wrap(err, "Unmarshal kube server registry details")
+		}
+		if reg.Config == nil {
+			confObj, err := kubemod.ContainerRegistries.GetSpecific(s, input.RegistryId, "config", nil)
+			if err != nil {
+				return nil, errors.Wrap(err, "Get kube server registry config")
+			}
+			reg.Config = new(api.KubeServerContainerRegistryConfig)
+			if err := confObj.Unmarshal(reg.Config); err != nil {
+				return nil, errors.Wrap(err, "Unmarshal kube server registry config")
+			}
+		}
+		repoUrl = reg.Url
+		if reg.Config != nil {
+			switch reg.Type {
+			case "common":
+				cfg := reg.Config.Common
+				hostInput.Auth.Username = cfg.Username
+				hostInput.Auth.Password = cfg.Password
+			case "harbor":
+				cfg := reg.Config.Harbor
+				hostInput.Auth.Username = cfg.Username
+				hostInput.Auth.Password = cfg.Password
+			default:
+				return nil, httperrors.NewInputParameterError("invalid registry type %s", reg.Type)
+			}
+		}
+	} else if input.ExternalRegistry != nil {
+		repoUrl = input.ExternalRegistry.Url
+		if repoUrl == "" {
+			return nil, httperrors.NewNotEmptyError("empty external registry url")
+		}
+		hostInput.Auth = input.ExternalRegistry.Auth
+	} else {
+		return nil, httperrors.NewInputParameterError("one of registry_id or external_registry must provided")
+	}
+	repoPrefix := strings.TrimPrefix(strings.TrimPrefix(repoUrl, "http://"), "https://")
+	hostInput.Repository = fmt.Sprintf("%s:%s", filepath.Join(repoPrefix, imageName), tag)
+	return hostInput, nil
+}
+
+func (c *SContainer) PerformCommit(ctx context.Context, userCred mcclient.TokenCredential, _ jsonutils.JSONObject, input *api.ContainerCommitInput) (*api.ContainerCommitOutput, error) {
+	hostInput, err := c.getContainerHostCommitInput(ctx, userCred, input)
+	if err != nil {
+		return nil, err
+	}
+	out := &api.ContainerCommitOutput{
+		Repository: hostInput.Repository,
+	}
+	return out, c.StartCommit(ctx, userCred, hostInput, "")
+}
+
+func (c *SContainer) StartCommit(ctx context.Context, userCred mcclient.TokenCredential, input *hostapi.ContainerCommitInput, parentTaskId string) error {
+	c.SetStatus(ctx, userCred, api.CONTAINER_STATUS_COMMITTING, "")
+	task, err := taskman.TaskManager.NewTask(ctx, "ContainerCommitTask", c, userCred, jsonutils.Marshal(input).(*jsonutils.JSONDict), parentTaskId, "", nil)
+	if err != nil {
+		return errors.Wrap(err, "NewTask")
+	}
+	return task.ScheduleRun(nil)
 }

@@ -438,6 +438,13 @@ const (
 	ExtdbPort         = 30991
 	ExtdbDB           = "extdb"
 	ExtdbDBUser       = "extdb"
+
+	ServiceNameFsGateway  = "fsgateway"
+	ServiceTypeFsGateway  = "fsgateway"
+	FsGatewayPort         = 30998
+	FsGatewayAdminUser    = "fsgateway"
+	FsGatewayAdminProject = SysAdminProject
+	FsGatwayMountPath     = "/opt/cephfs"
 )
 
 var (

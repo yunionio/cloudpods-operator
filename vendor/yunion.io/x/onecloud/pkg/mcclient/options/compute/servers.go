@@ -53,7 +53,6 @@ type ServerListOptions struct {
 	UsableServerForEip string   `help:"Eip id or name"`
 	WithoutUserMeta    *bool    `help:"Show Servers without user metadata"`
 	EipAssociable      *bool    `help:"Show Servers can associate with eip"`
-	Group              string   `help:"Instance Group ID or Name"`
 	HostSn             string   `help:"Host SN"`
 	IpAddr             string   `help:"Fileter by ip"`
 	IpAddrs            []string `help:"Fileter by ips"`
@@ -1516,6 +1515,16 @@ type ServerAddSubIpsOptions struct {
 }
 
 func (o *ServerAddSubIpsOptions) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.Marshal(o), nil
+}
+
+type ServerUpdateSubIpsOptions struct {
+	ServerIdOptions
+
+	computeapi.GuestUpdateSubIpsInput
+}
+
+func (o *ServerUpdateSubIpsOptions) Params() (jsonutils.JSONObject, error) {
 	return jsonutils.Marshal(o), nil
 }
 

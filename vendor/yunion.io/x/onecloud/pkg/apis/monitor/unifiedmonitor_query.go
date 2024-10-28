@@ -23,9 +23,8 @@ var (
 	UNIFIED_MONITOR_FIELD_OPT_TYPE   = []string{"Aggregations", "Selectors"}
 	UNIFIED_MONITOR_GROUPBY_OPT_TYPE = []string{"time", "tag", "fill"}
 	UNIFIED_MONITOR_FIELD_OPT_VALUE  = map[string][]string{
-		"Aggregations": {"COUNT", "DISTINCT", "INTEGRAL",
-			"MEAN", "MEDIAN", "MODE", "STDDEV", "SUM"},
-		"Selectors": {"BOTTOM", "FIRST", "LAST", "MAX", "MIN", "TOP"},
+		"Aggregations": {"MEAN", "SUM"}, // {"COUNT", "DISTINCT", "INTEGRAL", "MEAN", "MEDIAN", "MODE", "STDDEV", "SUM"},
+		"Selectors":    {"BOTTOM", "FIRST", "LAST", "MAX", "MIN", "TOP"},
 	}
 	UNIFIED_MONITOR_GROUPBY_OPT_VALUE = map[string][]string{
 		"fill": {"linear", "none", "previous", "0"},
@@ -96,9 +95,10 @@ type SimpleQueryOutput struct {
 }
 
 type MetricsQueryResult struct {
-	SeriesTotal int64
-	Series      TimeSeriesSlice
-	Metas       []QueryResultMeta
+	SeriesTotal   int64
+	Series        TimeSeriesSlice
+	Metas         []QueryResultMeta
+	ReducedResult *ReducedResult
 }
 
 type TimeSeriesPoints []TimePoint
@@ -190,7 +190,8 @@ func NewTimeSeriesPointsFromArgs(values ...float64) TimeSeriesPoints {
 }
 
 type QueryResultMeta struct {
-	RawQuery string `json:"raw_query"`
+	RawQuery           string  `json:"raw_query"`
+	ResultReducerValue float64 `json:"result_reducer_value"`
 }
 
 const ConditionTypeMetricQuery = "metricquery"

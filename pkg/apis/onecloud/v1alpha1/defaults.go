@@ -187,6 +187,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool) {
 		BastionHostComponentType:     nHP(&obj.BastionHost.DeploymentSpec, useHyperImage),
 		ExtdbComponentType:           nHP(&obj.Extdb.DeploymentSpec, useHyperImage),
 		BillingComponentType:         nHP(&obj.Billing.DeploymentSpec, useHyperImage),
+		FsgatewayComponentType:       nHP(&obj.FsGateway.DeploymentSpec, useHyperImage),
 	} {
 		SetDefaults_DeploymentSpec(spec.DeploymentSpec, getImage(
 			obj.ImageRepository, spec.Repository,
@@ -445,6 +446,7 @@ func setDefaults_Components_ServicePort(obj *OnecloudClusterSpec) {
 		newSP(&obj.VpcAgent.Service, constants.VpcAgentPort),
 		newSP(&obj.BastionHost.Service, constants.BastionHostPort),
 		newSP(&obj.Extdb.Service, constants.ExtdbPort),
+		newSP(&obj.FsGateway.Service, constants.FsGatewayPort),
 	} {
 		SetDefaults_ServiceSpec(spec.spec, spec.defaultPort)
 	}
@@ -780,6 +782,7 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		SetDefaults_ServiceDBCommonOptions(opt, tmp.db, tmp.dbUser, tmp.user, tmp.port)
 	}
 	SetDefaults_ServiceCommonOptions(&obj.Cloudmon, constants.CloudmonAdminUser, constants.CloudmonPort)
+	SetDefaults_ServiceCommonOptions(&obj.FsGateway, constants.FsGatewayAdminUser, constants.FsGatewayPort)
 	setDefaults_ItsmConfig(&obj.Itsm)
 
 	setDefaults_DBConfig(&obj.Grafana.DB, constants.MonitorStackGrafanaDB, constants.MonitorStackGrafanaDBUer)

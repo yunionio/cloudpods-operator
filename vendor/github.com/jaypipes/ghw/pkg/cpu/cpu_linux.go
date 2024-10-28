@@ -20,6 +20,10 @@ import (
 	"github.com/jaypipes/ghw/pkg/util"
 )
 
+var (
+	regexForCpulCore = regexp.MustCompile("^cpu([0-9]+)$")
+)
+
 func (i *Info) load() error {
 	i.Processors = processorsGet(i.ctx)
 	var totCores uint32
@@ -85,24 +89,23 @@ func processorsGet(ctx *context.Context) []*Processor {
 	}
 
 	// Iterate on /sys/devices/system/cpu/cpuN, not on /proc/cpuinfo
-	Entries, _ := ioutil.ReadDir(paths.SysDevicesSystemCPU)
+	Entries, err := ioutil.ReadDir(paths.SysDevicesSystemCPU)
+	if err != nil {
+		return nil
+	}
 	for _, lcore := range Entries {
-		reg := regexp.MustCompile("^cpu([0-9]+)$")
-		if !reg.MatchString(lcore.Name()) {
+		matches := regexForCpulCore.FindStringSubmatch(lcore.Name())
+		if len(matches) < 2 {
 			continue
 		}
 
-		lcoreID, error := strconv.Atoi(lcore.Name()[3:]) // get "N" out of "cpuN"
+		lcoreID, error := strconv.Atoi(matches[1])
 		if error != nil {
 			continue
 		}
 
 		// Fetch CPU ID
-		physIdPath := fmt.Sprintf(
-			"%s/cpu%d/topology/physical_package_id",
-			paths.SysDevicesSystemCPU,
-			lcoreID,
-		)
+		physIdPath := filepath.Join(paths.SysDevicesSystemCPU, fmt.Sprintf("cpu%d", lcoreID), "topology", "physical_package_id")
 		cpuID := util.SafeIntFromFile(ctx, physIdPath)
 
 		proc := ProcByID(procs, cpuID)
@@ -131,11 +134,7 @@ func processorsGet(ctx *context.Context) []*Processor {
 		}
 
 		// Fetch Core ID
-		coreIdPath := fmt.Sprintf(
-			"%s/cpu%d/topology/core_id",
-			paths.SysDevicesSystemCPU,
-			lcoreID,
-		)
+		coreIdPath := filepath.Join(paths.SysDevicesSystemCPU, fmt.Sprintf("cpu%d", lcoreID), "topology", "core_id")
 		coreID := util.SafeIntFromFile(ctx, coreIdPath)
 		core := CoreByID(proc.Cores, coreID)
 		if core == nil {
