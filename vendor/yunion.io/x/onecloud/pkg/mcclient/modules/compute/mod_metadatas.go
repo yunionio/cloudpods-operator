@@ -16,7 +16,6 @@ package compute
 
 import (
 	"fmt"
-	"strings"
 
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/pkg/util/printutils"
@@ -43,14 +42,19 @@ func init() {
 		[]string{"id", "key", "value"},
 		[]string{})}
 	// !!! Register computer metadata ONLY !!! QIUJIAN
-	modules.RegisterCompute(&ComputeMetadatas)
+	// allpw register multiple metadatas! 20240815
+	modules.Register(&ComputeMetadatas)
 
 	IdentityMetadatas = MetadataManager{modules.NewIdentityV3Manager("metadata", "metadatas",
 		[]string{"id", "key", "value"},
 		[]string{})}
+	modules.Register(&IdentityMetadatas)
+
 	ImageMetadatas = MetadataManager{modules.NewImageManager("metadata", "metadatas",
 		[]string{"id", "key", "value"},
 		[]string{})}
+
+	modules.Register(&ImageMetadatas)
 }
 
 func (this *MetadataManager) getModule(session *mcclient.ClientSession, params jsonutils.JSONObject) (modulebase.Manager, error) {
@@ -73,22 +77,21 @@ func (this *MetadataManager) getModule(session *mcclient.ClientSession, params j
 		}
 		if len(resources) >= 1 {
 			resource := resources[0]
-			keyString := resource + "s"
-			if strings.HasSuffix(resource, "y") && resource != NatGateways.GetKeyword() {
-				keyString = resource[:len(resource)-1] + "ies"
-			}
 			find := false
+			keyStrings := []string{resource, resource + "s", resource + "ies"}
 			mods, _ := modulebase.GetRegisterdModules()
-			if utils.IsInStringArray(keyString, mods) {
-				mod, err := modulebase.GetModule(session, keyString)
-				if err != nil {
-					return nil, err
+			for _, keyString := range keyStrings {
+				if utils.IsInStringArray(keyString, mods) {
+					mod, err := modulebase.GetModule(session, keyString)
+					if err == nil {
+						service = mod.ServiceType()
+						find = true
+						break
+					}
 				}
-				service = mod.ServiceType()
-				find = true
 			}
 			if !find {
-				return nil, fmt.Errorf("No such module %s", keyString)
+				return nil, fmt.Errorf("No such module %s", resource)
 			}
 		}
 	}

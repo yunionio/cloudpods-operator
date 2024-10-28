@@ -152,7 +152,8 @@ const (
 	BastionHostComponentType ComponentType = "bastionhost"
 	CloudmuxComponentType    ComponentType = "cloudmux"
 
-	ExtdbComponentType ComponentType = "extdb"
+	ExtdbComponentType     ComponentType = "extdb"
+	FsgatewayComponentType ComponentType = "fsgateway"
 )
 
 // ComponentPhase is the current state of component
@@ -339,8 +340,9 @@ type OnecloudClusterSpec struct {
 	BastionHost DeploymentServicePortSpec `json:"bastionHost"`
 
 	// Cloudmux holds configuration for cloudmux
-	Cloudmux CloudmuxSpec              `json:"cloudmux"`
-	Extdb    DeploymentServicePortSpec `json:"extdb"`
+	Cloudmux  CloudmuxSpec              `json:"cloudmux"`
+	Extdb     DeploymentServicePortSpec `json:"extdb"`
+	FsGateway FsGatewaySpec             `json:"fsgateway"`
 }
 
 func (s OnecloudClusterSpec) GetDbEngine(srvSpec TDBEngineType) TDBEngineType {
@@ -396,6 +398,7 @@ type OnecloudClusterStatus struct {
 	ECharts         DeploymentStatus     `json:"echarts,omitempty"`
 	BastionHost     DeploymentStatus     `json:"bastionHost,omitempty"`
 	Extdb           DeploymentStatus     `json:"extdb,omitempty"`
+	FsGateway       DeploymentStatus     `json:"fsgateway,omitempty"`
 }
 
 type EtcdClusterSpec struct {
@@ -1186,6 +1189,11 @@ type ItsmConfig struct {
 	EncryptionKey  string `json:"encryptionKey"`
 }
 
+type FsGatewaySpec struct {
+	StatefulDeploymentSpec
+	Service ServiceSpec `json:"service"`
+}
+
 type GrafanaConfig struct {
 	DB DBConfig `json:"db"`
 }
@@ -1228,4 +1236,5 @@ type OnecloudClusterConfig struct {
 	Grafana         GrafanaConfig          `json:"grafana"`
 	BastionHost     ServiceDBCommonOptions `json:"bastionHost"`
 	Extdb           ServiceDBCommonOptions `json:"extdb"`
+	FsGateway       ServiceCommonOptions   `json:"fsgateway"`
 }

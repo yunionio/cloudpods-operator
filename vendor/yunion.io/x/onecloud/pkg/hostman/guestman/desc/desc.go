@@ -57,10 +57,15 @@ type SMemSlot struct {
 
 type SCpuNumaPin struct {
 	SizeMB    int64
-	Regular   bool
-	HostNodes *uint16 `json:",omitempty"`
-	Vcpus     *string `json:",omitempty"`
-	Pcpus     *string `json:",omitempty"`
+	Unregular bool
+	NodeId    *uint16 `json:",omitempty"`
+
+	VcpuPin []SVCpuPin `json:",omitempty"`
+}
+
+type SVCpuPin struct {
+	Vcpu int
+	Pcpu int
 }
 
 type SMemDesc struct {
@@ -342,10 +347,12 @@ type SGuestProjectDesc struct {
 }
 
 type SGuestRegionDesc struct {
-	Zone     string
-	Domain   string
-	HostId   string
-	Hostname string
+	Zone         string `json:"zone"`
+	Domain       string `json:"domain"`
+	HostId       string `json:"host_id"`
+	Hostname     string `json:"hostname"`
+	HostAccessIp string `json:"host_access_ip"`
+	HostEIP      string `json:"host_eip"`
 }
 
 type SGuestControlDesc struct {

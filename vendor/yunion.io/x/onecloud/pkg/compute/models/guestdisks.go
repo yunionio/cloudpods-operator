@@ -20,6 +20,7 @@ import (
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
 	"yunion.io/x/pkg/errors"
+	"yunion.io/x/pkg/utils"
 	"yunion.io/x/sqlchemy"
 
 	api "yunion.io/x/onecloud/pkg/apis/compute"
@@ -94,6 +95,21 @@ func (self *SGuestdisk) ValidateUpdateData(ctx context.Context, userCred mcclien
 			return input, httperrors.NewInputParameterError("DISK Index %d has been occupied", index)
 		}
 	}
+	if self.CacheMode != input.CacheMode {
+		if input.CacheMode != "none" {
+			input.AioMode = "threads"
+		}
+	}
+	if self.AioMode != input.AioMode {
+		cacheMode := self.CacheMode
+		if input.CacheMode != "" {
+			cacheMode = input.CacheMode
+		}
+		if input.AioMode == "native" && cacheMode != "none" {
+			return input, httperrors.NewBadRequestError("Aio mode %s with cache mode %s not supported", input.AioMode, cacheMode)
+		}
+	}
+
 	var err error
 	input.GuestJointBaseUpdateInput, err = self.SGuestJointsBase.ValidateUpdateData(ctx, userCred, query, input.GuestJointBaseUpdateInput)
 	if err != nil {
@@ -200,7 +216,7 @@ func (self *SGuestdisk) GetDiskJsonDescAtHost(ctx context.Context, host *SHost, 
 			desc.ImagePath = storagecacheimg.Path
 		}
 	}
-	if host.HostType == api.HOST_TYPE_HYPERVISOR {
+	if utils.IsInStringArray(host.HostType, []string{api.HOST_TYPE_HYPERVISOR, api.HOST_TYPE_CONTAINER}) {
 		desc.StorageId = disk.StorageId
 		localpath := disk.GetPathAtHost(host)
 		if len(localpath) == 0 {

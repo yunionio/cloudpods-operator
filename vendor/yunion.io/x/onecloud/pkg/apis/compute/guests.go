@@ -58,12 +58,12 @@ type ServerListInput struct {
 	// 只列出还有备份机的主机
 	Backup *bool `json:"bakcup"`
 	// 列出指定类型的主机
-	// enum: normal,gpu,usb,backup
+	// enum: ["normal","gpu","usb","backup"]
 	ServerType []string `json:"server_type"`
 	// 列出管理安全组为指定安全组的主机
 	AdminSecgroup string `json:"admin_security"`
 	// 列出Hypervisor为指定值的主机
-	// enum: kvm,esxi,baremetal,aliyun,azure,aws,huawei,ucloud,zstack,openstack,google,ctyun,cloudpods,ecloud,jdcloud,remotefile`
+	// enum: ["kvm","esxi","baremetal","aliyun","azure","aws","huawei","ucloud","zstack","openstack","google","ctyun","cloudpods","ecloud","jdcloud","remotefile"]
 	Hypervisor []string `json:"hypervisor"`
 	// 列出绑定了弹性IP（EIP）的主机
 	WithEip *bool `json:"with_eip"`
@@ -72,13 +72,13 @@ type ServerListInput struct {
 	// 列出可绑定弹性IP的主机
 	EipAssociable *bool `json:"eip_associable"`
 	// 列出操作系统为指定值的主机
-	// enum: linux,windows,vmware
+	// enum: ["linux","windows","vmware"]
 	OsType []string `json:"os_type"`
 	// 操作系统发行版
 	OsDist []string `json:"os_dist"`
 
 	// 对列表结果按照磁盘大小进行排序
-	// enum: asc,desc
+	// enum: ["asc","desc"]
 	OrderByDisk string `json:"order_by_disk"`
 
 	OrderByIp string `json:"order_by_ip"`
@@ -97,7 +97,7 @@ type ServerListInput struct {
 	Disk string `json:"disk" yunion-deprecated-by:"attachable_servers_for_disk"`
 
 	// 按主机资源类型进行排序
-	// enum: shared,prepaid,dedicated
+	// enum: ["shared","prepaid","dedicated"]
 	ResourceType string `json:"resource_type"`
 	// 返回该宿主机上的所有虚拟机，包括备份机
 	GetAllGuestsOnHost string `json:"get_all_guests_on_host"`
@@ -191,18 +191,11 @@ type ServerDetails struct {
 	// 系统管理员可见的安全组规则
 	AdminSecurityRules string `json:"admin_security_rules"`
 
-	// list
-	AttachTime time.Time `json:"attach_time"`
-
 	// common
 	IsPrepaidRecycle bool `json:"is_prepaid_recycle"`
 
-	// 备份主机所在宿主机名称
-	BackupHostName string `json:"backup_host_name"`
-	// 备份主机所在宿主机状态
-	BackupHostStatus string `json:"backup_host_status"`
-	// 主备机同步状态
-	BackupGuestSyncStatus string `json:"backup_guest_sync_status"`
+	// 主备机信息
+	BackupInfo
 
 	// 是否可以回收
 	CanRecycle bool `json:"can_recycle"`
@@ -279,10 +272,20 @@ type ServerDetails struct {
 	Containers []*PodContainerDesc `json:"containers"`
 }
 
+type BackupInfo struct {
+	// 备份主机所在宿主机名称
+	BackupHostName string `json:"backup_host_name"`
+	// 备份主机所在宿主机状态
+	BackupHostStatus string `json:"backup_host_status"`
+	// 主备机同步状态
+	BackupGuestSyncStatus string `json:"backup_guest_sync_status"`
+}
+
 type PodContainerDesc struct {
-	Id    string `json:"id"`
-	Name  string `json:"name"`
-	Image string `json:"image"`
+	Id     string `json:"id"`
+	Name   string `json:"name"`
+	Image  string `json:"image"`
+	Status string `json:"status"`
 }
 
 type Floppy struct {
@@ -293,6 +296,7 @@ type Floppy struct {
 type Cdrom struct {
 	Ordinal   int    `json:"ordinal"`
 	Detail    string `json:"detail"`
+	Name      string `json:"name"`
 	BootIndex int8   `json:"boot_index"`
 }
 
@@ -718,6 +722,7 @@ type ServerMigrateForecastInput struct {
 	SkipKernelCheck bool   `json:"skip_kernel_check"`
 	ConvertToKvm    bool   `json:"convert_to_kvm"`
 	IsRescueMode    bool   `json:"is_rescue_mode"`
+	ResetCpuNumaPin bool   `json:"reset_cpu_numa_pin"`
 }
 
 type ServerResizeDiskInput struct {
@@ -870,8 +875,14 @@ type GuestJsonDesc struct {
 	IsSlave        *bool  `json:"is_slave"`
 	IsVolatileHost bool   `json:"is_volatile_host"`
 	HostId         string `json:"host_id"`
+	// 宿主机管理IP
+	HostAccessIp string `json:"host_access_ip"`
+	// 宿主机公网IP（如果有）
+	HostEIP string `json:"host_eip"`
 
 	IsolatedDevices []*IsolatedDeviceJsonDesc `json:"isolated_devices"`
+
+	CpuNumaPin []SCpuNumaPin `json:"cpu_numa_pin"`
 
 	Domain string `json:"domain"`
 
@@ -930,6 +941,18 @@ type GuestJsonDesc struct {
 
 	Hypervisor string                `json:"hypervisor"`
 	Containers []*host.ContainerDesc `json:"containers"`
+}
+
+type SVCpuPin struct {
+	Vcpu int
+	Pcpu int
+}
+
+type SCpuNumaPin struct {
+	SizeMB *int `json:"size_mb"`
+	NodeId int  `json:"node_id"`
+
+	VcpuPin []SVCpuPin `json:"vcpu_pin"`
 }
 
 type ServerSetBootIndexInput struct {
@@ -1021,6 +1044,10 @@ type ServerSnapshotAndCloneInput struct {
 
 	// ignore
 	InstanceSnapshotId string `json:"instance_snapshot_id"`
+
+	// Perfer clone destination host
+	// 指定期望的迁移目标宿主机
+	PreferHostId string `json:"prefer_host_id"`
 }
 
 type ServerInstanceSnapshot struct {
@@ -1197,15 +1224,25 @@ type ServerNicTrafficLimit struct {
 	TxTrafficLimit *int64 `json:"tx_traffic_limit"`
 }
 
-type GuestAddSubIpsInput struct {
-	ServerNetworkInfo
-
+type GuestAddSubIpsInfo struct {
 	Count  int      `json:"count"`
 	SubIps []string `json:"sub_ips"`
 
 	Reserved bool `json:"reserved"`
 
 	AllocDir IPAllocationDirection `json:"alloc_dir"`
+}
+
+type GuestAddSubIpsInput struct {
+	ServerNetworkInfo
+
+	GuestAddSubIpsInfo
+}
+
+type GuestUpdateSubIpsInput struct {
+	GuestAddSubIpsInput
+
+	RemoveSubIps []string `json:"remove_sub_ips"`
 }
 
 type NetworkAddrConf struct {
@@ -1266,6 +1303,8 @@ type ServerChangeBandwidthInput struct {
 	ServerNetworkInfo
 
 	Bandwidth int `json:"bandwidth"`
+
+	NoSync *bool `json:"no_sync"`
 }
 
 type ServerChangeConfigSpecs struct {

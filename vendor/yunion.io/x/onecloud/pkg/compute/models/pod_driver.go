@@ -19,6 +19,7 @@ import (
 
 	"yunion.io/x/jsonutils"
 
+	"yunion.io/x/onecloud/pkg/apis"
 	"yunion.io/x/onecloud/pkg/apis/compute"
 	"yunion.io/x/onecloud/pkg/cloudcommon/db/taskman"
 	"yunion.io/x/onecloud/pkg/mcclient"
@@ -40,6 +41,8 @@ type IPodDriver interface {
 	RequestDeleteContainer(ctx context.Context, userCred mcclient.TokenCredential, task IContainerTask) error
 	RequestSyncContainerStatus(ctx context.Context, userCred mcclient.TokenCredential, task IContainerTask) error
 	RequestPullContainerImage(ctx context.Context, userCred mcclient.TokenCredential, task IContainerTask) error
+	RequestCommitContainer(ctx context.Context, userCred mcclient.TokenCredential, task IContainerTask) error
 	RequestSaveVolumeMountImage(ctx context.Context, userCred mcclient.TokenCredential, task IContainerTask) error
 	RequestExecSyncContainer(ctx context.Context, userCred mcclient.TokenCredential, ctr *SContainer, input *compute.ContainerExecSyncInput) (jsonutils.JSONObject, error)
+	RequestSetContainerResourcesLimit(ctx context.Context, cred mcclient.TokenCredential, c *SContainer, limit *apis.ContainerResources) (jsonutils.JSONObject, error)
 }

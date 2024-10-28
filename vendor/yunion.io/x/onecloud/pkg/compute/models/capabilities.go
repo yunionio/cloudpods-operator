@@ -227,7 +227,13 @@ func GetCapabilities(ctx context.Context, userCred mcclient.TokenCredential, que
 			}
 		}
 	}
-	getBrands(region, zone, domainId, &capa)
+	if zone != nil {
+		region, err = zone.GetRegion()
+		if err != nil {
+			return capa, errors.Wrapf(err, "GetRegion")
+		}
+	}
+	getBrands(region, domainId, &capa)
 	capa.ResourceTypes = getResourceTypes(ctx, userCred, region, zone, domainId)
 	capa.StorageInfos, err = getStorageTypes(ctx, userCred, region, zone, domainId)
 	if err != nil {
@@ -379,8 +385,8 @@ func getDBInstanceInfo(region *SCloudregion, zone *SZone) map[string]map[string]
 }
 
 // set all brands, compute engine brands, network manage brands, object storage brands
-func getBrands(region *SCloudregion, zone *SZone, domainId string, capa *SCapabilities) {
-	brands, err := CloudaccountManager.getBrandsOfCapability(region, zone, domainId)
+func getBrands(region *SCloudregion, domainId string, capa *SCapabilities) {
+	brands, err := CloudaccountManager.getBrandsOfCapability(region, domainId)
 	if err != nil {
 		log.Errorf("getBrandsOfCapability: %v", err)
 	}
@@ -399,21 +405,23 @@ func getBrands(region *SCloudregion, zone *SZone, domainId string, capa *SCapabi
 		}
 	}
 
-	if utils.IsInStringArray(api.HYPERVISOR_KVM, capa.Hypervisors) || utils.IsInStringArray(api.HYPERVISOR_BAREMETAL, capa.Hypervisors) {
-		capa.Brands = append(capa.Brands, api.ONECLOUD_BRAND_ONECLOUD)
-		capa.SecurityGroupBrands = append(capa.SecurityGroupBrands, api.ONECLOUD_BRAND_ONECLOUD)
-		capa.ComputeEngineBrands = append(capa.ComputeEngineBrands, api.ONECLOUD_BRAND_ONECLOUD)
-		capa.SnapshotPolicyBrands = append(capa.SnapshotPolicyBrands, api.ONECLOUD_BRAND_ONECLOUD)
-	} else if utils.IsInStringArray(api.HYPERVISOR_POD, capa.Hypervisors) {
-		capa.Brands = append(capa.Brands, api.ONECLOUD_BRAND_ONECLOUD)
-		capa.ComputeEngineBrands = append(capa.ComputeEngineBrands, api.ONECLOUD_BRAND_ONECLOUD)
-	}
+	if region == nil || region.Provider == api.ONECLOUD_BRAND_ONECLOUD {
+		if utils.IsInStringArray(api.HYPERVISOR_KVM, capa.Hypervisors) || utils.IsInStringArray(api.HYPERVISOR_BAREMETAL, capa.Hypervisors) {
+			capa.Brands = append(capa.Brands, api.ONECLOUD_BRAND_ONECLOUD)
+			capa.SecurityGroupBrands = append(capa.SecurityGroupBrands, api.ONECLOUD_BRAND_ONECLOUD)
+			capa.ComputeEngineBrands = append(capa.ComputeEngineBrands, api.ONECLOUD_BRAND_ONECLOUD)
+			capa.SnapshotPolicyBrands = append(capa.SnapshotPolicyBrands, api.ONECLOUD_BRAND_ONECLOUD)
+		} else if utils.IsInStringArray(api.HYPERVISOR_POD, capa.Hypervisors) {
+			capa.Brands = append(capa.Brands, api.ONECLOUD_BRAND_ONECLOUD)
+			capa.ComputeEngineBrands = append(capa.ComputeEngineBrands, api.ONECLOUD_BRAND_ONECLOUD)
+		}
 
-	if count, _ := LoadbalancerClusterManager.Query().Limit(1).CountWithError(); count > 0 {
-		capa.LoadbalancerEngineBrands = append(capa.LoadbalancerEngineBrands, api.ONECLOUD_BRAND_ONECLOUD)
-	}
+		if count, _ := LoadbalancerClusterManager.Query().Limit(1).CountWithError(); count > 0 {
+			capa.LoadbalancerEngineBrands = append(capa.LoadbalancerEngineBrands, api.ONECLOUD_BRAND_ONECLOUD)
+		}
 
-	capa.NetworkManageBrands = append(capa.NetworkManageBrands, api.ONECLOUD_BRAND_ONECLOUD)
+		capa.NetworkManageBrands = append(capa.NetworkManageBrands, api.ONECLOUD_BRAND_ONECLOUD)
+	}
 
 	capa.EnabledBrands = []string{}
 	capa.DisabledBrands = []string{}
@@ -832,6 +840,9 @@ type PCIDevModelTypes struct {
 	Model   string
 	DevType string
 	SizeMB  int
+
+	VirtualDev bool
+	Hypervisor string
 }
 
 func getIsolatedDeviceInfo(ctx context.Context, userCred mcclient.TokenCredential, region *SCloudregion, zone *SZone, domainId string) ([]string, []PCIDevModelTypes) {
@@ -845,14 +856,13 @@ func getIsolatedDeviceInfo(ctx context.Context, userCred mcclient.TokenCredentia
 
 	q := devices.Query(devices.Field("model"), devices.Field("dev_type"), devices.Field("nvme_size_mb"))
 	q = q.Filter(sqlchemy.NotIn(devices.Field("dev_type"), []string{api.USB_TYPE, api.NIC_TYPE, api.NVME_PT_TYPE}))
-	if region != nil {
-		subq := getRegionZoneSubq(region)
-		q = q.Join(hosts, sqlchemy.Equals(devices.Field("host_id"), hosts.Field("id")))
-		q = q.Filter(sqlchemy.In(hosts.Field("zone_id"), subq))
-	}
 	if zone != nil {
 		q = q.Join(hosts, sqlchemy.Equals(devices.Field("host_id"), hosts.Field("id")))
 		q = q.Filter(sqlchemy.Equals(hosts.Field("zone_id"), zone.Id))
+	} else if region != nil {
+		subq := getRegionZoneSubq(region)
+		q = q.Join(hosts, sqlchemy.Equals(devices.Field("host_id"), hosts.Field("id")))
+		q = q.Filter(sqlchemy.In(hosts.Field("zone_id"), subq))
 	}
 	/*if len(domainId) > 0 {
 		subq := getDomainManagerSubq(domainId)
@@ -874,12 +884,23 @@ func getIsolatedDeviceInfo(ctx context.Context, userCred mcclient.TokenCredentia
 	for rows.Next() {
 		var m, t string
 		var sizeMB int
+		var vdev bool
+		var hypervisor string
 		rows.Scan(&m, &t, &sizeMB)
 
 		if m == "" {
 			continue
 		}
-		gpus = append(gpus, PCIDevModelTypes{m, t, sizeMB})
+		if utils.IsInStringArray(t, api.VITRUAL_DEVICE_TYPES) {
+			vdev = true
+		}
+		if utils.IsInStringArray(t, api.VALID_CONTAINER_DEVICE_TYPES) {
+			hypervisor = api.HYPERVISOR_POD
+		} else {
+			hypervisor = api.HYPERVISOR_KVM
+		}
+
+		gpus = append(gpus, PCIDevModelTypes{m, t, sizeMB, vdev, hypervisor})
 
 		if !utils.IsInStringArray(m, gpuModels) {
 			gpuModels = append(gpuModels, m)

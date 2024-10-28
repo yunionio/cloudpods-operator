@@ -325,6 +325,36 @@ func (manager *SCachedimageManager) cacheGlanceImageInfo(ctx context.Context, us
 	}
 }
 
+func (manager *SCachedimageManager) RecoverCachedImage(ctx context.Context, userCred mcclient.TokenCredential, imgId string) (*SCachedimage, error) {
+	lockman.LockRawObject(ctx, manager.Keyword(), "name")
+	defer lockman.ReleaseRawObject(ctx, manager.Keyword(), "name")
+
+	imageCache := SCachedimage{}
+	imageCache.SetModelManager(manager, &imageCache)
+
+	err := manager.RawQuery().Equals("id", imgId).First(&imageCache)
+	if err != nil {
+		return nil, err
+	}
+	diff, err := db.Update(&imageCache, func() error {
+		imageCache.Status = api.CACHED_IMAGE_STATUS_ACTIVE
+		imageCache.LastSync = timeutils.UtcNow()
+		if imageCache.Deleted == true {
+			imageCache.Deleted = false
+			imageCache.DeletedAt = time.Time{}
+			imageCache.RefCount = 0
+			imageCache.UpdateVersion = 0
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	db.OpsLog.LogEvent(&imageCache, db.ACT_UPDATE, diff, userCred)
+	return &imageCache, nil
+}
+
 func (image *SCachedimage) GetStorages() ([]SStorage, error) {
 	sq := StorageManager.Query()
 	storagecacheimageSubq := StoragecachedimageManager.Query("storagecache_id").Equals("cachedimage_id", image.GetId()).SubQuery()
@@ -945,6 +975,10 @@ func (manager *SCachedimageManager) AutoCleanImageCaches(ctx context.Context, us
 		if err != nil {
 			log.Errorf("cleanExternalImages error: %v", err)
 		}
+		err = manager.cleanStoragecachedimages()
+		if err != nil {
+			log.Errorf("cleanStoragecachedimages error: %v", err)
+		}
 	}()
 	lastSync := time.Now().Add(time.Duration(-1*api.CACHED_IMAGE_REFERENCE_SESSION_EXPIRE_SECONDS) * time.Second)
 	q := manager.Query()
@@ -1020,52 +1054,29 @@ func (manager *SCachedimageManager) cleanExternalImages() error {
 		return errors.Wrapf(err, "getExpireExternalImageIds")
 	}
 
-	if len(ids) == 0 {
-		return nil
-	}
-
-	var splitByLen = func(data []string, splitLen int) [][]string {
-		var result [][]string
-		for i := 0; i < len(data); i += splitLen {
-			end := i + splitLen
-			if end > len(data) {
-				end = len(data)
-			}
-			result = append(result, data[i:end])
-		}
-		return result
-	}
-
-	var purge = func(ids []string) error {
-		vars := []interface{}{}
-		placeholders := make([]string, len(ids))
-		for i := range placeholders {
-			placeholders[i] = "?"
-			vars = append(vars, ids[i])
-		}
-		placeholder := strings.Join(placeholders, ",")
-		sql := fmt.Sprintf(
-			"delete from %s where id in (%s)",
-			manager.TableSpec().Name(), placeholder,
-		)
-		_, err = sqlchemy.GetDB().Exec(
-			sql, vars...,
-		)
-		if err != nil {
-			return errors.Wrapf(err, strings.ReplaceAll(sql, "?", "%s"), vars...)
-		}
-		return nil
-	}
-
-	idsArr := splitByLen(ids, 100)
-	for i := range idsArr {
-		err = purge(idsArr[i])
-		if err != nil {
-			return errors.Wrapf(err, "purge")
-		}
+	err = db.Purge(manager, "id", ids, true)
+	if err != nil {
+		return errors.Wrapf(err, "purge")
 	}
 
 	log.Debugf("clean %d expired external images", len(ids))
+	return nil
+}
+
+func (manager *SCachedimageManager) cleanStoragecachedimages() error {
+	ids, err := db.FetchField(StoragecachedimageManager, "row_id", func(q *sqlchemy.SQuery) *sqlchemy.SQuery {
+		sq := manager.Query("id").Distinct().SubQuery()
+		return q.NotIn("cachedimage_id", sq)
+	})
+	if err != nil {
+		return errors.Wrapf(err, "getExpireExternalImageIds")
+	}
+	err = db.Purge(StoragecachedimageManager, "row_id", ids, true)
+	if err != nil {
+		return errors.Wrapf(err, "purge")
+	}
+
+	log.Debugf("clean %d invalid storagecachedimages", len(ids))
 	return nil
 }
 

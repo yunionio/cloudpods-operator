@@ -44,6 +44,18 @@ const (
         try_files $uri $uri/ /index.html;
     }
 
+    location /api/v1/ftp/upload {
+        proxy_pass {{.APIGatewayURL}};
+        client_max_body_size 0;
+        client_body_timeout 300;
+        proxy_http_version 1.1;
+        proxy_request_buffering off;
+        proxy_buffering off;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+    }
+
     location /overview {
         proxy_pass http://localhost:8080;
         proxy_redirect   off;

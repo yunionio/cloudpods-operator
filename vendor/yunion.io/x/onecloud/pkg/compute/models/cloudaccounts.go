@@ -683,6 +683,18 @@ func (acnt *SCloudaccount) getPassword() (string, error) {
 	return utils.DescryptAESBase64(acnt.Id, acnt.Secret)
 }
 
+func (acnt *SCloudaccount) GetOptionPassword() (string, error) {
+	passwd, err := acnt.getPassword()
+	if err != nil {
+		return "", err
+	}
+	passwdStr, _ := acnt.Options.GetString("password")
+	if len(passwdStr) == 0 {
+		return "", fmt.Errorf("missing password")
+	}
+	return utils.DescryptAESBase64(passwd, passwdStr)
+}
+
 func (acnt *SCloudaccount) regionId() string {
 	if len(acnt.RegionId) > 0 {
 		return acnt.RegionId
@@ -2869,7 +2881,7 @@ type sBrandCapability struct {
 	Capability string
 }
 
-func (manager *SCloudaccountManager) getBrandsOfCapability(region *SCloudregion, zone *SZone, domainId string) ([]sBrandCapability, error) {
+func (manager *SCloudaccountManager) getBrandsOfCapability(region *SCloudregion, domainId string) ([]sBrandCapability, error) {
 	accounts := manager.Query("id", "enabled", "brand")
 	if len(domainId) > 0 {
 		accounts = manager.filterByDomainId(accounts, domainId)
@@ -2885,13 +2897,6 @@ func (manager *SCloudaccountManager) getBrandsOfCapability(region *SCloudregion,
 	q = q.Join(providers, sqlchemy.Equals(q.Field("cloudprovider_id"), providers.Field("id")))
 	q = q.Join(accountSQ, sqlchemy.Equals(providers.Field("cloudaccount_id"), accountSQ.Field("id")))
 
-	if zone != nil {
-		var err error
-		region, err = zone.GetRegion()
-		if err != nil {
-			return nil, errors.Wrapf(err, "GetRegion")
-		}
-	}
 	if region != nil {
 		providerregions := CloudproviderRegionManager.Query().SubQuery()
 		q = q.Join(providerregions, sqlchemy.Equals(q.Field("cloudprovider_id"), providerregions.Field("cloudprovider_id"))).Filter(

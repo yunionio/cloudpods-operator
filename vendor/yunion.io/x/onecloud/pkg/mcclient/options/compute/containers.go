@@ -47,6 +47,7 @@ type ContainerDeleteOptions struct {
 
 type ContainerCreateCommonOptions struct {
 	IMAGE             string   `help:"Image of container" json:"image"`
+	ImageCredentialId string   `help:"Image credential id" json:"image_credential_id"`
 	Command           []string `help:"Command to execute (i.e., entrypoint for docker)" json:"command"`
 	Args              []string `help:"Args for the Command (i.e. command for docker)" json:"args"`
 	WorkingDir        string   `help:"Current working directory of the command" json:"working_dir"`
@@ -63,12 +64,14 @@ type ContainerCreateCommonOptions struct {
 	ShmSizeMb         int      `help:"Shm size MB"`
 	Uid               int64    `help:"UID of container" default:"0"`
 	Gid               int64    `help:"GID of container" default:"0"`
+	DisableNoNewPrivs bool     `help:"Disable no_new_privs flag of the container"`
 }
 
 func (o ContainerCreateCommonOptions) getCreateSpec() (*computeapi.ContainerSpec, error) {
 	req := &computeapi.ContainerSpec{
 		ContainerSpec: apis.ContainerSpec{
 			Image:              o.IMAGE,
+			ImageCredentialId:  o.ImageCredentialId,
 			Command:            o.Command,
 			Args:               o.Args,
 			WorkingDir:         o.WorkingDir,
@@ -77,6 +80,7 @@ func (o ContainerCreateCommonOptions) getCreateSpec() (*computeapi.ContainerSpec
 			Capabilities:       &apis.ContainerCapability{},
 			CgroupDevicesAllow: o.CgroupDeviceAllow,
 			SimulateCpu:        o.SimulateCpu,
+			DisableNoNewPrivs:  o.DisableNoNewPrivs,
 			SecurityContext: &apis.ContainerSecurityContext{
 				RunAsUser:  nil,
 				RunAsGroup: nil,
@@ -258,6 +262,11 @@ func parseContainerVolumeMount(vmStr string) (*apis.ContainerVolumeMount, error)
 			vm.Text = &apis.ContainerVolumeMountText{
 				Content: string(content),
 			}
+		case "cephfs":
+			vm.Type = apis.CONTAINER_VOLUME_MOUNT_TYPE_CEPHF_FS
+			vm.CephFS = &apis.ContainerVolumeMountCephFS{
+				Id: val,
+			}
 		}
 	}
 	return vm, nil
@@ -326,6 +335,32 @@ func (o *ContainerExecOptions) Params() (jsonutils.JSONObject, error) {
 	return jsonutils.Marshal(o.ToAPIInput()), nil
 }
 
+type ContainerSetResourcesLimitOptions struct {
+	ContainerIdsOptions
+	CpuCfsQuota float64 `help:"cpu cfs quota. e.g.:0.5 equals 0.5*100000"`
+	//MemoryLimitMb int64    `help:"memory limit MB"`
+	PidsMax     int      `help:"pids max"`
+	DeviceAllow []string `help:"devices allow"`
+}
+
+func (o *ContainerSetResourcesLimitOptions) Params() (jsonutils.JSONObject, error) {
+	limit := &apis.ContainerResources{}
+	if o.CpuCfsQuota > 0 {
+		limit.CpuCfsQuota = &o.CpuCfsQuota
+	}
+	//if o.MemoryLimitMb > 0 {
+	//	limit.MemoryLimitMB = &o.MemoryLimitMb
+	//}
+	if o.PidsMax > 0 {
+		limit.PidsMax = &o.PidsMax
+	}
+	if len(o.DeviceAllow) > 0 {
+		limit.DevicesAllow = o.DeviceAllow
+	}
+
+	return jsonutils.Marshal(limit), nil
+}
+
 type ContainerExecSyncOptions struct {
 	ServerIdOptions
 	COMMAND string
@@ -379,4 +414,35 @@ func (o *ContainerLogOptions) ToAPIInput() (*computeapi.PodLogOptions, error) {
 		opt.SinceSeconds = &sec
 	}
 	return opt, nil
+}
+
+type ContainerCommitOptions struct {
+	ServerIdOptions
+	RegistryId               string `help:"Registry ID from kubeserver"`
+	ImageName                string `help:"Image name"`
+	Tag                      string `help:"Tag"`
+	ExternalRegistryUrl      string `help:"External registry URL, e.g.: registry.cn-beijing.aliyuncs.com/yunionio"`
+	ExternalRegistryUsername string `help:"External registry username"`
+	ExternalRegistryPassword string `help:"External registry password"`
+}
+
+func (o *ContainerCommitOptions) Params() (jsonutils.JSONObject, error) {
+	input := &computeapi.ContainerCommitInput{
+		RegistryId: o.RegistryId,
+		ImageName:  o.ImageName,
+		Tag:        o.Tag,
+		ExternalRegistry: &computeapi.ContainerCommitExternalRegistry{
+			Auth: &apis.ContainerPullImageAuthConfig{},
+		},
+	}
+	if o.ExternalRegistryUrl != "" {
+		input.ExternalRegistry.Url = o.ExternalRegistryUrl
+	}
+	if o.ExternalRegistryUsername != "" {
+		input.ExternalRegistry.Auth.Username = o.ExternalRegistryUsername
+	}
+	if o.ExternalRegistryPassword != "" {
+		input.ExternalRegistry.Auth.Password = o.ExternalRegistryPassword
+	}
+	return jsonutils.Marshal(input), nil
 }

@@ -51,6 +51,9 @@ const (
 	YUNIONROOT_USER       = "cloudroot"
 	TELEGRAF_BINARY_PATH  = "/opt/yunion/bin/telegraf"
 	SUPERVISE_BINARY_PATH = "/opt/yunion/bin/supervise"
+
+	QGA_BINARY_PATH            = "/opt/yunion/bin/qemu-ga"
+	QGA_WIN_MSI_INSTALLER_PATH = "/opt/yunion/bin/qemu-ga-x86_64.msi"
 )
 
 var (
@@ -105,6 +108,44 @@ func getHostname(hostname, domain string) string {
 	} else {
 		return hostname
 	}
+}
+
+func (l *sLinuxRootFs) DeployQgaService(rootFs IDiskPartition) error {
+	qemuGuestAgentPath := "/usr/bin/qemu-ga"
+	if rootFs.Exists(qemuGuestAgentPath, false) {
+		// qemu-ga has been installed
+		return nil
+	}
+	output, err := procutils.NewCommand("cp", "-f",
+		QGA_BINARY_PATH, path.Join(rootFs.GetMountPath(), qemuGuestAgentPath)).Output()
+	if err != nil {
+		return errors.Wrapf(err, "cp qga binary failed %s", output)
+	}
+	if l.isSupportSystemd() {
+		udevPath := "/etc/udev/rules.d/"
+		if rootFs.Exists(udevPath, false) {
+			rules := rootFs.ListDir(udevPath, false)
+			for _, rule := range rules {
+				if strings.Index(rule, "qemu-guest-agent.rules") > 0 {
+					rootFs.Remove(path.Join(udevPath, rule), false)
+				}
+			}
+			qgaRules := `SUBSYSTEM=="virtio-ports", ATTR{name}=="org.qemu.guest_agent.0", \
+  TAG+="systemd" ENV{SYSTEMD_WANTS}="qemu-guest-agent.service"` + "\n"
+			if err := rootFs.FilePutContents(path.Join(udevPath, "99-qemu-guest-agent.rules"), qgaRules, false, false); err != nil {
+				return err
+			}
+		}
+		if err := l.InstallQemuGuestAgentSystemd(); err != nil {
+			return errors.Wrap(err, "qga InstallQemuGuestAgentSystemd")
+		}
+	} else {
+		initCmd := qemuGuestAgentPath
+		if err := l.installCrond(initCmd); err != nil {
+			return errors.Wrap(err, "qga installCrond")
+		}
+	}
+	return nil
 }
 
 func (l *sLinuxRootFs) DeployQgaBlackList(rootFs IDiskPartition) error {
@@ -223,43 +264,6 @@ func (l *sLinuxRootFs) DeployPublicKey(rootFs IDiskPartition, selUsr string, pub
 		usrDir = path.Join("/home", selUsr)
 	}
 	return DeployAuthorizedKeys(rootFs, usrDir, pubkeys, false, false)
-}
-
-func (d *SCoreOsRootFs) DeployQgaBlackList(rootFs IDiskPartition) error {
-	var modeRwxOwner = syscall.S_IRUSR | syscall.S_IWUSR | syscall.S_IXUSR
-	var qgaConfDir = "/etc/sysconfig"
-	var etcSysconfigQemuga = path.Join(qgaConfDir, "qemu-ga")
-
-	if err := rootFs.Mkdir(qgaConfDir, modeRwxOwner, false); err != nil {
-		return errors.Wrap(err, "mkdir qga conf dir")
-	}
-	blackListContent := `# This is a systemd environment file, not a shell script.
-# It provides settings for \"/lib/systemd/system/qemu-guest-agent.service\".
-
-# Comma-separated blacklist of RPCs to disable, or empty list to enable all.
-#
-# You can get the list of RPC commands using \"qemu-ga --blacklist='?'\".
-# There should be no spaces between commas and commands in the blacklist.
-# BLACKLIST_RPC=guest-file-open,guest-file-close,guest-file-read,guest-file-write,guest-file-seek,guest-file-flush,guest-exec,guest-exec-status
-
-# Fsfreeze hook script specification.
-#
-# FSFREEZE_HOOK_PATHNAME=/dev/null           : disables the feature.
-#
-# FSFREEZE_HOOK_PATHNAME=/path/to/executable : enables the feature with the
-# specified binary or shell script.
-#
-# FSFREEZE_HOOK_PATHNAME=                    : enables the feature with the
-# default value (invoke \"qemu-ga --help\" to interrogate).
-FSFREEZE_HOOK_PATHNAME=/etc/qemu-ga/fsfreeze-hook"
-`
-
-	if rootFs.Exists(etcSysconfigQemuga, false) {
-		if err := rootFs.FilePutContents(etcSysconfigQemuga, blackListContent, false, false); err != nil {
-			return errors.Wrap(err, "etcSysconfigQemuga error")
-		}
-	}
-	return nil
 }
 
 func (l *sLinuxRootFs) DeployYunionroot(rootFs IDiskPartition, pubkeys *deployapi.SSHKeys, isInit, enableCloudInit bool) error {
@@ -483,6 +487,19 @@ func (l *sLinuxRootFs) DeployStandbyNetworkingScripts(rootFs IDiskPartition, nic
 	return nil
 }
 
+func (l *sLinuxRootFs) DeployUdevSubsystemScripts(rootFs IDiskPartition) error {
+	udevPath := "/etc/udev/rules.d/"
+	if rootFs.Exists(udevPath, false) {
+		cpuMemHotplugRules := `SUBSYSTEM=="cpu", ACTION=="add", TEST=="online", ATTR{online}=="0", ATTR{online}="1"
+SUBSYSTEM=="memory", ACTION=="add", TEST=="state", ATTR{state}=="offline", ATTR{state}="online"` + "\n"
+		if err := rootFs.FilePutContents(path.Join(udevPath, "80-hotplug-cpu-mem.rules"), cpuMemHotplugRules, false, false); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (l *sLinuxRootFs) GetOs() string {
 	return "Linux"
 }
@@ -589,10 +606,10 @@ func (l *sLinuxRootFs) PrepareFsForTemplate(rootFs IDiskPartition) error {
 		}
 	}
 	for _, dir := range []string{
-		"/var/spool",
+		// "/var/spool",
 		"/var/run",
 		"/run",
-		"/usr/local/var/spool",
+		// "/usr/local/var/spool",
 		"/usr/local/var/run",
 		"/etc/openvswitch",
 	} {
@@ -906,6 +923,7 @@ func (d *sDebianLikeRootFs) DeployNetworkingScripts(rootFs IDiskPartition, nics 
 
 	// ToServerNics(nics)
 	allNics, bondNics := convertNicConfigs(nics)
+	nicCnt := len(allNics) - len(bondNics)
 
 	mainNic := getMainNic(allNics)
 	var mainIp string
@@ -953,7 +971,7 @@ func (d *sDebianLikeRootFs) DeployNetworkingScripts(rootFs IDiskPartition, nics 
 				cmds.WriteString(fmt.Sprintf("    mtu %d\n", nicDesc.Mtu))
 			}
 			var routes = make([][]string, 0)
-			routes = netutils2.AddNicRoutes(routes, nicDesc, mainIp, len(nics))
+			routes = netutils2.AddNicRoutes(routes, nicDesc, mainIp, nicCnt)
 			for _, r := range routes {
 				cmds.WriteString(fmt.Sprintf("    up route add -net %s gw %s || true\n", r[0], r[1]))
 				cmds.WriteString(fmt.Sprintf("    down route del -net %s gw %s || true\n", r[0], r[1]))
@@ -1299,6 +1317,11 @@ func getMainNic(nics []*types.SServerNic) *types.SServerNic {
 			return nics[i]
 		}
 	}
+	for i := range nics {
+		if len(nics[i].Gateway) > 0 {
+			return nics[i]
+		}
+	}
 	return nil
 }
 
@@ -1348,6 +1371,7 @@ func (r *sRedhatLikeRootFs) deployNetworkingScripts(rootFs IDiskPartition, nics 
 			return errors.Wrap(err, "enableBondingModule")
 		}
 	}
+	nicCnt := len(allNics) - len(bondNics)
 
 	mainNic := getMainNic(allNics)
 	var mainIp string
@@ -1416,7 +1440,7 @@ func (r *sRedhatLikeRootFs) deployNetworkingScripts(rootFs IDiskPartition, nics 
 				cmds.WriteString("\n")
 			}
 			var routes = make([][]string, 0)
-			routes = netutils2.AddNicRoutes(routes, nicDesc, mainIp, len(nics))
+			routes = netutils2.AddNicRoutes(routes, nicDesc, mainIp, nicCnt)
 			var rtbl strings.Builder
 			for _, r := range routes {
 				rtbl.WriteString(r[0])

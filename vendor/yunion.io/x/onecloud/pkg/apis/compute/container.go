@@ -16,9 +16,11 @@ package compute
 
 import (
 	"reflect"
+	"time"
 
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/pkg/gotypes"
+	"yunion.io/x/pkg/util/sets"
 
 	"yunion.io/x/onecloud/pkg/apis"
 )
@@ -37,6 +39,7 @@ const (
 	CONTAINER_DEV_NVIDIA_GPU       = "NVIDIA_GPU"
 	CONTAINER_DEV_NVIDIA_MPS       = "NVIDIA_MPS"
 	CONTAINER_DEV_ASCEND_NPU       = "ASCEND_NPU"
+	CONTAINER_DEV_VASTAITECH_GPU   = "VASTAITECH_GPU"
 )
 
 var (
@@ -44,6 +47,7 @@ var (
 		CONTAINER_DEV_CPH_AMD_GPU,
 		CONTAINER_DEV_NVIDIA_GPU,
 		CONTAINER_DEV_NVIDIA_MPS,
+		CONTAINER_DEV_VASTAITECH_GPU,
 	}
 )
 
@@ -52,25 +56,36 @@ const (
 )
 
 const (
-	CONTAINER_STATUS_PULLING_IMAGE      = "pulling_image"
-	CONTAINER_STATUS_PULL_IMAGE_FAILED  = "pull_image_failed"
-	CONTAINER_STATUS_PULLED_IMAGE       = "pulled_image"
-	CONTAINER_STATUS_CREATING           = "creating"
-	CONTAINER_STATUS_CREATE_FAILED      = "create_failed"
-	CONTAINER_STATUS_SAVING_IMAGE       = "saving_image"
-	CONTAINER_STATUS_SAVE_IMAGE_FAILED  = "save_image_failed"
-	CONTAINER_STATUS_STARTING           = "starting"
-	CONTAINER_STATUS_START_FAILED       = "start_failed"
-	CONTAINER_STATUS_STOPPING           = "stopping"
-	CONTAINER_STATUS_STOP_FAILED        = "stop_failed"
-	CONTAINER_STATUS_SYNC_STATUS        = "sync_status"
-	CONTAINER_STATUS_SYNC_STATUS_FAILED = "sync_status_failed"
-	CONTAINER_STATUS_UNKNOWN            = "unknown"
-	CONTAINER_STATUS_CREATED            = "created"
-	CONTAINER_STATUS_EXITED             = "exited"
-	CONTAINER_STATUS_RUNNING            = "running"
-	CONTAINER_STATUS_DELETING           = "deleting"
-	CONTAINER_STATUS_DELETE_FAILED      = "delete_failed"
+	CONTAINER_STATUS_PULLING_IMAGE       = "pulling_image"
+	CONTAINER_STATUS_PULL_IMAGE_FAILED   = "pull_image_failed"
+	CONTAINER_STATUS_PULLED_IMAGE        = "pulled_image"
+	CONTAINER_STATUS_CREATING            = "creating"
+	CONTAINER_STATUS_CREATE_FAILED       = "create_failed"
+	CONTAINER_STATUS_SAVING_IMAGE        = "saving_image"
+	CONTAINER_STATUS_SAVE_IMAGE_FAILED   = "save_image_failed"
+	CONTAINER_STATUS_STARTING            = "starting"
+	CONTAINER_STATUS_START_FAILED        = "start_failed"
+	CONTAINER_STATUS_STOPPING            = "stopping"
+	CONTAINER_STATUS_STOP_FAILED         = "stop_failed"
+	CONTAINER_STATUS_SYNC_STATUS         = "sync_status"
+	CONTAINER_STATUS_SYNC_STATUS_FAILED  = "sync_status_failed"
+	CONTAINER_STATUS_UNKNOWN             = "unknown"
+	CONTAINER_STATUS_CREATED             = "created"
+	CONTAINER_STATUS_EXITED              = "exited"
+	CONTAINER_STATUS_CRASH_LOOP_BACK_OFF = "crash_loop_back_off"
+	CONTAINER_STATUS_RUNNING             = "running"
+	CONTAINER_STATUS_DELETING            = "deleting"
+	CONTAINER_STATUS_DELETE_FAILED       = "delete_failed"
+	CONTAINER_STATUS_COMMITTING          = "committing"
+	CONTAINER_STATUS_COMMIT_FAILED       = "commit_failed"
+	// for health check
+	CONTAINER_STATUS_PROBING      = "probing"
+	CONTAINER_STATUS_PROBE_FAILED = "probe_failed"
+)
+
+var (
+	ContainerRunningStatus = sets.NewString(CONTAINER_STATUS_RUNNING, CONTAINER_STATUS_PROBING)
+	ContainerExitedStatus  = sets.NewString(CONTAINER_STATUS_EXITED, CONTAINER_STATUS_CRASH_LOOP_BACK_OFF)
 )
 
 const (
@@ -120,7 +135,9 @@ type ContainerStopInput struct {
 }
 
 type ContainerSyncStatusResponse struct {
-	Status string `json:"status"`
+	Status       string    `json:"status"`
+	StartedAt    time.Time `json:"started_at"`
+	RestartCount int       `json:"restart_count"`
 }
 
 type ContainerHostDevice struct {
@@ -166,7 +183,8 @@ type ContainerExecInput struct {
 
 type ContainerExecSyncInput struct {
 	Command []string `json:"command"`
-	// Timeout in seconds to stop the command. Default: 0 (run forever).
+	// Timeout in seconds to stop the command, 0 mean run forever.
+	// default: 0
 	Timeout int64 `json:"timeout"`
 }
 
@@ -174,4 +192,55 @@ type ContainerExecSyncResponse struct {
 	Stdout   string `json:"stdout"`
 	Stderr   string `json:"stderr"`
 	ExitCode int32  `json:"exit_code"`
+}
+
+type ContainerCommitExternalRegistry struct {
+	// e.g.: registry.cn-beijing.aliyuncs.com/yunionio
+	Url string `json:"url"`
+	// authentication configuration
+	Auth *apis.ContainerPullImageAuthConfig `json:"auth"`
+}
+
+type ContainerCommitInput struct {
+	// Container registry id from kubeserver
+	RegistryId       string                           `json:"registry_id"`
+	ExternalRegistry *ContainerCommitExternalRegistry `json:"external_registry"`
+	// image name
+	ImageName string `json:"image_name"`
+	// image tag
+	Tag string `json:"tag"`
+}
+
+type ContainerCommitOutput struct {
+	Repository string `json:"repository"`
+}
+
+type KubeServerContainerRegistryConfigCommon struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type KubeServerContainerRegistryConfigHarbor struct {
+	KubeServerContainerRegistryConfigCommon
+}
+
+type KubeServerContainerRegistryConfig struct {
+	Type   string                                   `json:"type"`
+	Common *KubeServerContainerRegistryConfigCommon `json:"common"`
+	Harbor *KubeServerContainerRegistryConfigHarbor `json:"harbor"`
+}
+
+type KubeServerContainerRegistryDetails struct {
+	Id     string                             `json:"id"`
+	Name   string                             `json:"name"`
+	Url    string                             `json:"url"`
+	Type   string                             `json:"type"`
+	Config *KubeServerContainerRegistryConfig `json:"config"`
+}
+
+type ContainerPerformStatusInput struct {
+	apis.PerformStatusInput
+	RestartCount   int        `json:"restart_count"`
+	StartedAt      *time.Time `json:"started_at"`
+	LastFinishedAt *time.Time `json:"last_finished_at"`
 }
