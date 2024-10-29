@@ -44,14 +44,15 @@ const (
 )
 
 const (
-	OnecloudEditionAnnotationKey    string = "onecloud.yunion.io/edition"
-	OnecloudEnableHostLabelKey      string = "onecloud.yunion.io/host"
-	OnecloudEanbleBaremetalLabelKey string = "onecloud.yunion.io/baremetal"
-	OnecloudControllerLabelKey      string = "onecloud.yunion.io/controller"
-	OnecloudHostDeployerLabelKey    string = "onecloud.yunion.io/host-deployer"
-	OnecloudEnableLbagentLabelKey   string = "onecloud.yunion.io/lbagent"
-	OnecloudCommunityEdition        string = "ce"
-	OnecloudEnterpriseEdition       string = "ee"
+	OnecloudEditionAnnotationKey     string = "onecloud.yunion.io/edition"
+	OnecloudEnableHostLabelKey       string = "onecloud.yunion.io/host"
+	OnecloudEanbleBaremetalLabelKey  string = "onecloud.yunion.io/baremetal"
+	OnecloudControllerLabelKey       string = "onecloud.yunion.io/controller"
+	OnecloudHostDeployerLabelKey     string = "onecloud.yunion.io/host-deployer"
+	OnecloudEnableLbagentLabelKey    string = "onecloud.yunion.io/lbagent"
+	OnecloudCommunityEdition         string = "ce"
+	OnecloudEnterpriseSupportEdition string = "ce/support"
+	OnecloudEnterpriseEdition        string = "ee"
 
 	WebCEImageName        = "web"
 	APIGatewayCEImageName = "apigateway"

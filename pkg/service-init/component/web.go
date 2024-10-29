@@ -283,7 +283,7 @@ func (w web) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClust
 		return fmt.Sprintf("https://%s:%d", controller.NewClusterComponentName(oc.GetName(), ct), port)
 	}
 	conf := CEConfig
-	isEE := v1alpha1.IsEnterpriseEdition(oc)
+	isEE := v1alpha1.IsEEOrESEEdition(oc)
 	if isEE {
 		conf = EEConfig
 	}

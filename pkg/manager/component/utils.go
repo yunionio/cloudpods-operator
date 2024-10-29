@@ -535,8 +535,8 @@ func NewServiceNodePort(name string, nodePort int32, targetPort int32) corev1.Se
 }
 
 var (
-	GetEdition          = v1alpha1.GetEdition
 	IsEnterpriseEdition = v1alpha1.IsEnterpriseEdition
+	IsEEOrESEEdition    = v1alpha1.IsEEOrESEEdition
 )
 
 type PVCVolumePair struct {
