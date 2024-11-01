@@ -37,7 +37,9 @@ const (
 
     yunion . {
         sql_connection mysql+pymysql://{{.DBUser}}:{{.DBPassword}}@{{.DBHost}}:{{.DBPort}}/{{.DBName}}?charset=utf8
+        {{- if .DNSDomain }}
         dns_domain {{.DNSDomain}}
+        {{- end }}
         auth_url {{.AuthURL}}
         admin_user {{.AdminUser}}
         admin_domain {{.AdminDomain}}
@@ -58,8 +60,7 @@ const (
     log {
         class error
     }
-}
-`
+}`
 )
 
 type RegionDNSConfig struct {
