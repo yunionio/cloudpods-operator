@@ -33,9 +33,10 @@ var (
 )
 
 const (
-	DefaultVersion                    = "latest"
-	DefaultOnecloudRegion             = "region0"
-	DefaultOnecloudRegionDNSDomain    = "cloud.onecloud.io"
+	DefaultVersion        = "latest"
+	DefaultOnecloudRegion = "region0"
+	// DefaultOnecloudRegionDNSDomain    = "cloud.onecloud.io"
+	DefaultOnecloudRegionDNSDomain    = ""
 	DefaultOnecloudZone               = "zone0"
 	DefaultOnecloudWire               = "bcast0"
 	DefaultImageRepository            = "registry.hub.docker.com/yunion"

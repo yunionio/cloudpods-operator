@@ -33,7 +33,9 @@ const (
 
     yunion . {
         sql_connection mysql+pymysql://{{.DBUser}}:{{.DBPassword}}@{{.DBHost}}:{{.DBPort}}/{{.DBName}}?charset=utf8
+        {{- if .DNSDomain }}
         dns_domain {{.DNSDomain}}
+        {{- end }}
         region {{.Region}}
         k8s_skip
         fallthrough .
@@ -48,8 +50,7 @@ const (
     log {
         class error
     }
-}
-`
+}`
 )
 
 type RegionDNSConfig struct {
