@@ -18,12 +18,14 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
+	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/s3gateway/options"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
@@ -47,6 +49,11 @@ func (m *s3gatewayManager) getComponentType() v1alpha1.ComponentType {
 }
 
 func (m *s3gatewayManager) Sync(oc *v1alpha1.OnecloudCluster) error {
+	if oc.Spec.S3gateway.Disable || !oc.Spec.EnableS3Gateway {
+		controller.RunWithSession(oc, func(s *mcclient.ClientSession) error {
+			return onecloud.EnsureDisableService(s, constants.ServiceNameS3gateway)
+		})
+	}
 	if !oc.Spec.EnableS3Gateway && !controller.StopServices {
 		return nil
 	}

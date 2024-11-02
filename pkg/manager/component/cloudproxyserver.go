@@ -21,11 +21,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"yunion.io/x/onecloud/pkg/cloudproxy/options"
+	"yunion.io/x/onecloud/pkg/mcclient"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
@@ -50,6 +52,11 @@ func (m *cloudproxyManager) getComponentType() v1alpha1.ComponentType {
 }
 
 func (m *cloudproxyManager) Sync(oc *v1alpha1.OnecloudCluster) error {
+	if oc.Spec.Cloudproxy.Disable {
+		controller.RunWithSession(oc, func(s *mcclient.ClientSession) error {
+			return onecloud.EnsureDisableService(s, constants.ServiceNameCloudproxy)
+		})
+	}
 	return syncComponent(m, oc, oc.Spec.Cloudproxy.Disable, "")
 }
 

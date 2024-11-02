@@ -18,10 +18,14 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
+	"yunion.io/x/onecloud/pkg/mcclient"
+
+	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
 	"yunion.io/x/onecloud-operator/pkg/service-init/component"
+	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 )
 
 type monitorManager struct {
@@ -45,6 +49,11 @@ func (m *monitorManager) getComponentType() v1alpha1.ComponentType {
 }
 
 func (m *monitorManager) Sync(oc *v1alpha1.OnecloudCluster) error {
+	if oc.Spec.Monitor.Disable {
+		controller.RunWithSession(oc, func(s *mcclient.ClientSession) error {
+			return onecloud.EnsureDisableService(s, constants.ServiceNameMonitor)
+		})
+	}
 	return syncComponent(m, oc, oc.Spec.Monitor.Disable, "")
 }
 
