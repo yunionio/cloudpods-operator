@@ -4,11 +4,14 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
+	"yunion.io/x/onecloud/pkg/mcclient"
+
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
 	"yunion.io/x/onecloud-operator/pkg/service-init/component"
+	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 )
 
 type scheduledtaskManager struct {
@@ -32,6 +35,11 @@ func (m *scheduledtaskManager) getComponentType() v1alpha1.ComponentType {
 }
 
 func (m *scheduledtaskManager) Sync(oc *v1alpha1.OnecloudCluster) error {
+	if oc.Spec.Scheduledtask.Disable {
+		controller.RunWithSession(oc, func(s *mcclient.ClientSession) error {
+			return onecloud.EnsureDisableService(s, constants.ServiceNameScheduledtask)
+		})
+	}
 	return syncComponent(m, oc, oc.Spec.Scheduledtask.Disable, "")
 }
 

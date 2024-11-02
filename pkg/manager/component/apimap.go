@@ -20,11 +20,14 @@ import (
 
 	"yunion.io/x/pkg/errors"
 
+	"yunion.io/x/onecloud/pkg/mcclient"
+
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
 	"yunion.io/x/onecloud-operator/pkg/service-init/component"
+	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 )
 
 type apiMapManager struct {
@@ -47,6 +50,11 @@ func (m *apiMapManager) getComponentType() v1alpha1.ComponentType {
 }
 
 func (m *apiMapManager) Sync(oc *v1alpha1.OnecloudCluster) error {
+	if oc.Spec.APIMap.Disable {
+		controller.RunWithSession(oc, func(s *mcclient.ClientSession) error {
+			return onecloud.EnsureDisableService(s, constants.ServiceNameAPIMap)
+		})
+	}
 	return syncComponent(m, oc, oc.Spec.APIMap.Disable, "")
 }
 
