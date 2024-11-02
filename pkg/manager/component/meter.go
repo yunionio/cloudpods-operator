@@ -22,11 +22,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	common_options "yunion.io/x/onecloud/pkg/cloudcommon/options"
+	"yunion.io/x/onecloud/pkg/mcclient"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
@@ -51,6 +53,11 @@ func (m *meterManager) getComponentType() v1alpha1.ComponentType {
 }
 
 func (m *meterManager) Sync(oc *v1alpha1.OnecloudCluster) error {
+	if oc.Spec.Meter.Disable || !IsEnterpriseEdition(oc) {
+		controller.RunWithSession(oc, func(s *mcclient.ClientSession) error {
+			return onecloud.EnsureDisableService(s, constants.ServiceNameMeter)
+		})
+	}
 	if !IsEnterpriseEdition(oc) {
 		return nil
 	}

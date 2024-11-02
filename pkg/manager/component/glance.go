@@ -29,6 +29,7 @@ import (
 	yerr "yunion.io/x/pkg/errors"
 
 	"yunion.io/x/onecloud/pkg/image/options"
+	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/mcclient/auth"
 	identity_modules "yunion.io/x/onecloud/pkg/mcclient/modules/identity"
 
@@ -37,6 +38,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
 	"yunion.io/x/onecloud-operator/pkg/service-init/component"
+	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 )
 
 var s3ConfigSynced bool
@@ -62,6 +64,11 @@ func (m *glanceManager) getComponentType() v1alpha1.ComponentType {
 }
 
 func (m *glanceManager) Sync(oc *v1alpha1.OnecloudCluster) error {
+	if oc.Spec.Glance.Disable {
+		controller.RunWithSession(oc, func(s *mcclient.ClientSession) error {
+			return onecloud.EnsureDisableService(s, constants.ServiceNameGlance)
+		})
+	}
 	return syncComponent(m, oc, oc.Spec.Glance.Disable, "")
 }
 

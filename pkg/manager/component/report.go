@@ -21,11 +21,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"yunion.io/x/onecloud/pkg/ansibleserver/options"
+	"yunion.io/x/onecloud/pkg/mcclient"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
@@ -52,6 +54,11 @@ func (m *reportManager) getComponentType() v1alpha1.ComponentType {
 func (m *reportManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if !IsEnterpriseEdition(oc) {
 		return nil
+	}
+	if oc.Spec.Report.Disable || !IsEnterpriseEdition(oc) {
+		controller.RunWithSession(oc, func(s *mcclient.ClientSession) error {
+			return onecloud.EnsureDisableService(s, constants.ServiceNameReport)
+		})
 	}
 	return syncComponent(m, oc, oc.Spec.Report.Disable, "")
 }
