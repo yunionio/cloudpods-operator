@@ -31,7 +31,7 @@ type s3gatewayManager struct {
 	*ComponentManager
 }
 
-func newS3gatewayManager(man *ComponentManager) manager.Manager {
+func newS3gatewayManager(man *ComponentManager) manager.ServiceManager {
 	return &s3gatewayManager{man}
 }
 
@@ -42,15 +42,23 @@ func (m *s3gatewayManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *s3gatewayManager) getComponentType() v1alpha1.ComponentType {
+func (m *s3gatewayManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.S3gatewayComponentType
+}
+
+func (m *s3gatewayManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.S3gateway.Disable || !oc.Spec.EnableS3Gateway
+}
+
+func (m *s3gatewayManager) GetServiceName() string {
+	return constants.ServiceNameS3gateway
 }
 
 func (m *s3gatewayManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if !oc.Spec.EnableS3Gateway && !controller.StopServices {
 		return nil
 	}
-	return syncComponent(m, oc, oc.Spec.S3gateway.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *s3gatewayManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {

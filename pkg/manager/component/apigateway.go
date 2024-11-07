@@ -29,7 +29,7 @@ type apiGatewayManager struct {
 	*ComponentManager
 }
 
-func newAPIGatewayManager(man *ComponentManager) manager.Manager {
+func newAPIGatewayManager(man *ComponentManager) manager.ServiceManager {
 	return &apiGatewayManager{man}
 }
 
@@ -41,8 +41,16 @@ func (m *apiGatewayManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *apiGatewayManager) getComponentType() v1alpha1.ComponentType {
+func (m *apiGatewayManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.APIGatewayComponentType
+}
+
+func (m *apiGatewayManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.APIGateway.Disable
+}
+
+func (m *apiGatewayManager) GetServiceName() string {
+	return constants.ServiceNameAPIGateway
 }
 
 func (m *apiGatewayManager) Sync(oc *v1alpha1.OnecloudCluster) error {
@@ -51,7 +59,7 @@ func (m *apiGatewayManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if (imageName == constants.APIGatewayCEImageName && isEE) || (imageName == constants.APIGatewayEEImageName && !isEE) {
 		oc.Spec.APIGateway.ImageName = ""
 	}
-	return syncComponent(m, oc, oc.Spec.APIGateway.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *apiGatewayManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {

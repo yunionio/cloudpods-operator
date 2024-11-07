@@ -33,7 +33,7 @@ type cloudeventManager struct {
 	*ComponentManager
 }
 
-func newCloudeventManager(man *ComponentManager) manager.Manager {
+func newCloudeventManager(man *ComponentManager) manager.ServiceManager {
 	return &cloudeventManager{man}
 }
 
@@ -44,12 +44,20 @@ func (m *cloudeventManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *cloudeventManager) getComponentType() v1alpha1.ComponentType {
+func (m *cloudeventManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.CloudeventComponentType
 }
 
+func (m *cloudeventManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.Cloudevent.Disable
+}
+
+func (m *cloudeventManager) GetServiceName() string {
+	return constants.ServiceNameCloudevent
+}
+
 func (m *cloudeventManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.Cloudevent.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *cloudeventManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

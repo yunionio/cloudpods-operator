@@ -15,7 +15,7 @@ type scheduledtaskManager struct {
 	*ComponentManager
 }
 
-func newScheduledtaskManager(man *ComponentManager) manager.Manager {
+func newScheduledtaskManager(man *ComponentManager) manager.ServiceManager {
 	return &scheduledtaskManager{man}
 }
 
@@ -27,12 +27,20 @@ func (m *scheduledtaskManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *scheduledtaskManager) getComponentType() v1alpha1.ComponentType {
+func (m *scheduledtaskManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.ScheduledtaskComponentType
 }
 
+func (m *scheduledtaskManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.Scheduledtask.Disable
+}
+
+func (m *scheduledtaskManager) GetServiceName() string {
+	return constants.ServiceNameScheduledtask
+}
+
 func (m *scheduledtaskManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.Scheduledtask.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *scheduledtaskManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {

@@ -29,12 +29,16 @@ func (m *hostImageManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *hostImageManager) getComponentType() v1alpha1.ComponentType {
+func (m *hostImageManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.HostImage.Disable
+}
+
+func (m *hostImageManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.HostImageComponentType
 }
 
 func (m *hostImageManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.HostImage.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *hostImageManager) getDaemonSet(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.DaemonSet, error) {

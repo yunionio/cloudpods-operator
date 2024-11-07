@@ -20,19 +20,18 @@ import (
 
 	"yunion.io/x/onecloud/pkg/yunionconf/options"
 
-	"yunion.io/x/onecloud-operator/pkg/util/option"
-
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
 type devtoolManager struct {
 	*ComponentManager
 }
 
-func newDevtoolManager(man *ComponentManager) manager.Manager {
+func newDevtoolManager(man *ComponentManager) manager.ServiceManager {
 	return &devtoolManager{man}
 }
 
@@ -44,12 +43,20 @@ func (m *devtoolManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *devtoolManager) getComponentType() v1alpha1.ComponentType {
+func (m *devtoolManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.DevtoolComponentType
 }
 
+func (m *devtoolManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.Devtool.Disable
+}
+
+func (m *devtoolManager) GetServiceName() string {
+	return constants.ServiceNameDevtool
+}
+
 func (m *devtoolManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.Devtool.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *devtoolManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

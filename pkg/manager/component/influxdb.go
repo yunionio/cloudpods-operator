@@ -31,7 +31,7 @@ type influxdbManager struct {
 	*ComponentManager
 }
 
-func newInfluxdbManager(man *ComponentManager) manager.Manager {
+func newInfluxdbManager(man *ComponentManager) manager.ServiceManager {
 	return &influxdbManager{man}
 }
 
@@ -43,12 +43,20 @@ func (m *influxdbManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *influxdbManager) getComponentType() v1alpha1.ComponentType {
+func (m *influxdbManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.InfluxdbComponentType
 }
 
+func (m *influxdbManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.Influxdb.Disable
+}
+
+func (m *influxdbManager) GetServiceName() string {
+	return constants.ServiceNameInfluxdb
+}
+
 func (m *influxdbManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.Influxdb.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *influxdbManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {

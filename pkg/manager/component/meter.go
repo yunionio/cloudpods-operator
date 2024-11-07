@@ -34,7 +34,7 @@ type meterManager struct {
 	*ComponentManager
 }
 
-func newMeterManager(man *ComponentManager) manager.Manager {
+func newMeterManager(man *ComponentManager) manager.ServiceManager {
 	return &meterManager{man}
 }
 
@@ -46,15 +46,23 @@ func (m *meterManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *meterManager) getComponentType() v1alpha1.ComponentType {
+func (m *meterManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.MeterComponentType
+}
+
+func (m *meterManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.Meter.Disable || !IsEnterpriseEdition(oc)
+}
+
+func (m *meterManager) GetServiceName() string {
+	return constants.ServiceNameMeter
 }
 
 func (m *meterManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if !IsEnterpriseEdition(oc) {
 		return nil
 	}
-	return syncComponent(m, oc, oc.Spec.Meter.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *meterManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

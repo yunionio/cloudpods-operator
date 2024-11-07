@@ -20,6 +20,7 @@ import (
 
 	"yunion.io/x/pkg/errors"
 
+	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
@@ -30,7 +31,7 @@ type notifyManager struct {
 	*ComponentManager
 }
 
-func newNotifyManager(man *ComponentManager) manager.Manager {
+func newNotifyManager(man *ComponentManager) manager.ServiceManager {
 	return &notifyManager{man}
 }
 
@@ -42,12 +43,20 @@ func (m *notifyManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *notifyManager) getComponentType() v1alpha1.ComponentType {
+func (m *notifyManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.NotifyComponentType
 }
 
+func (m *notifyManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.Notify.Disable
+}
+
+func (m *notifyManager) GetServiceName() string {
+	return constants.ServiceNameNotify
+}
+
 func (m *notifyManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.Notify.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *notifyManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
