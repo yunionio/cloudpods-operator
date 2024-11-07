@@ -18,21 +18,18 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
-	"yunion.io/x/onecloud/pkg/mcclient"
-
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
 	"yunion.io/x/onecloud-operator/pkg/service-init/component"
-	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 )
 
 type loggerManager struct {
 	*ComponentManager
 }
 
-func newLoggerManager(man *ComponentManager) manager.Manager {
+func newLoggerManager(man *ComponentManager) manager.ServiceManager {
 	return &loggerManager{man}
 }
 
@@ -44,17 +41,20 @@ func (m *loggerManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *loggerManager) getComponentType() v1alpha1.ComponentType {
+func (m *loggerManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.LoggerComponentType
 }
 
+func (m *loggerManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.Logger.Disable
+}
+
+func (m *loggerManager) GetServiceName() string {
+	return constants.ServiceNameLogger
+}
+
 func (m *loggerManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if oc.Spec.Logger.Disable {
-		controller.RunWithSession(oc, func(s *mcclient.ClientSession) error {
-			return onecloud.EnsureDisableService(s, constants.ServiceNameLogger)
-		})
-	}
-	return syncComponent(m, oc, oc.Spec.Logger.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *loggerManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

@@ -6,14 +6,11 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
-	"yunion.io/x/onecloud/pkg/mcclient"
-
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
 	"yunion.io/x/onecloud-operator/pkg/service-init/component"
-	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 )
 
 const (
@@ -146,7 +143,7 @@ type itsmManager struct {
 	*ComponentManager
 }
 
-func newItsmManager(man *ComponentManager) manager.Manager {
+func newItsmManager(man *ComponentManager) manager.ServiceManager {
 	return &itsmManager{man}
 }
 
@@ -158,21 +155,24 @@ func (m *itsmManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *itsmManager) getComponentType() v1alpha1.ComponentType {
+func (m *itsmManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.ItsmComponentType
 }
 
+func (m *itsmManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.Itsm.Disable || !IsEnterpriseEdition(oc)
+}
+
+func (m *itsmManager) GetServiceName() string {
+	return constants.ServiceNameItsm
+}
+
 func (m *itsmManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if oc.Spec.Itsm.Disable || !IsEnterpriseEdition(oc) {
-		controller.RunWithSession(oc, func(s *mcclient.ClientSession) error {
-			return onecloud.EnsureDisableService(s, constants.ServiceNameItsm)
-		})
-	}
 	//isEE create itsm DeploymentSpec
 	if !IsEnterpriseEdition(oc) {
 		return nil
 	}
-	return syncComponent(m, oc, oc.Spec.Itsm.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *itsmManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

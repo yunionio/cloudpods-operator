@@ -21,13 +21,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"yunion.io/x/onecloud/pkg/cloudproxy/options"
-	"yunion.io/x/onecloud/pkg/mcclient"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
-	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
@@ -35,7 +33,7 @@ type cloudproxyManager struct {
 	*ComponentManager
 }
 
-func newCloudproxyManager(man *ComponentManager) manager.Manager {
+func newCloudproxyManager(man *ComponentManager) manager.ServiceManager {
 	return &cloudproxyManager{man}
 }
 
@@ -47,17 +45,20 @@ func (m *cloudproxyManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *cloudproxyManager) getComponentType() v1alpha1.ComponentType {
+func (m *cloudproxyManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.CloudproxyComponentType
 }
 
+func (m *cloudproxyManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.Cloudproxy.Disable
+}
+
+func (m *cloudproxyManager) GetServiceName() string {
+	return constants.ServiceNameCloudproxy
+}
+
 func (m *cloudproxyManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if oc.Spec.Cloudproxy.Disable {
-		controller.RunWithSession(oc, func(s *mcclient.ClientSession) error {
-			return onecloud.EnsureDisableService(s, constants.ServiceNameCloudproxy)
-		})
-	}
-	return syncComponent(m, oc, oc.Spec.Cloudproxy.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *cloudproxyManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

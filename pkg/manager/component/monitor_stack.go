@@ -52,15 +52,15 @@ func (m *monitorStackManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *monitorStackManager) getComponentType() v1alpha1.ComponentType {
+func (m *monitorStackManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.MonitorStackComponentType
 }
 
-func (m *monitorStackManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if oc.Spec.MonitorStack.Disable {
-		return nil
-	}
+func (m *monitorStackManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.MonitorStack.Disable
+}
 
+func (m *monitorStackManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	clustercfg, err := m.configer.GetClusterConfig(oc)
 	if err != nil {
 		return errors.Wrap(err, "get cluster config for grafana")

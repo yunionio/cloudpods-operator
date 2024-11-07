@@ -28,8 +28,6 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
 	"yunion.io/x/onecloud-operator/pkg/service-init/component"
-	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
-	"yunion.io/x/onecloud/pkg/mcclient"
 )
 
 type vmManager struct {
@@ -37,7 +35,7 @@ type vmManager struct {
 }
 
 // TODO: use an abstract layer to remove following duplicated code from influxdb
-func newVictoriaMetricsManager(man *ComponentManager) manager.Manager {
+func newVictoriaMetricsManager(man *ComponentManager) manager.ServiceManager {
 	return &vmManager{man}
 }
 
@@ -53,18 +51,21 @@ func (m *vmManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *vmManager) getComponentType() v1alpha1.ComponentType {
+func (m *vmManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.VictoriaMetricsComponentType
+}
+
+func (m *vmManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.VictoriaMetrics.Disable
+}
+
+func (m *vmManager) GetServiceName() string {
+	return constants.ServiceNameVictoriaMetrics
 }
 
 // Sync implements manager.Manager.
 func (m *vmManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if oc.Spec.VictoriaMetrics.Disable {
-		controller.RunWithSession(oc, func(s *mcclient.ClientSession) error {
-			return onecloud.EnsureDisableService(s, constants.ServiceNameVictoriaMetrics)
-		})
-	}
-	return syncComponent(m, oc, oc.Spec.VictoriaMetrics.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *vmManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {

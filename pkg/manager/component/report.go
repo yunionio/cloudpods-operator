@@ -21,13 +21,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"yunion.io/x/onecloud/pkg/ansibleserver/options"
-	"yunion.io/x/onecloud/pkg/mcclient"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
-	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
@@ -35,7 +33,7 @@ type reportManager struct {
 	*ComponentManager
 }
 
-func newReportManager(man *ComponentManager) manager.Manager {
+func newReportManager(man *ComponentManager) manager.ServiceManager {
 	return &reportManager{man}
 }
 
@@ -47,20 +45,20 @@ func (m *reportManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *reportManager) getComponentType() v1alpha1.ComponentType {
+func (m *reportManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.ReportComponentType
 }
 
+func (m *reportManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.Report.Disable || !IsEnterpriseEdition(oc)
+}
+
+func (m *reportManager) GetServiceName() string {
+	return constants.ServiceNameReport
+}
+
 func (m *reportManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if !IsEnterpriseEdition(oc) {
-		return nil
-	}
-	if oc.Spec.Report.Disable || !IsEnterpriseEdition(oc) {
-		controller.RunWithSession(oc, func(s *mcclient.ClientSession) error {
-			return onecloud.EnsureDisableService(s, constants.ServiceNameReport)
-		})
-	}
-	return syncComponent(m, oc, oc.Spec.Report.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *reportManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

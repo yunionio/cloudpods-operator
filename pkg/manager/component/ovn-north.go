@@ -39,15 +39,16 @@ func (m *ovnNorthManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *ovnNorthManager) getComponentType() v1alpha1.ComponentType {
+func (m *ovnNorthManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.OvnNorthComponentType
 }
 
+func (m *ovnNorthManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.DisableLocalVpc
+}
+
 func (m *ovnNorthManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if oc.Spec.DisableLocalVpc {
-		return nil
-	}
-	return syncComponent(m, oc, oc.Spec.OvnNorth.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *ovnNorthManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {

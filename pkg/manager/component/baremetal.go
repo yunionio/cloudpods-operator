@@ -22,7 +22,7 @@ type baremetalManager struct {
 	*ComponentManager
 }
 
-func newBaremetalManager(m *ComponentManager) manager.Manager {
+func newBaremetalManager(m *ComponentManager) manager.ServiceManager {
 	return &baremetalManager{m}
 }
 
@@ -33,12 +33,20 @@ func (m *baremetalManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *baremetalManager) getComponentType() v1alpha1.ComponentType {
+func (m *baremetalManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.BaremetalAgentComponentType
 }
 
+func (m *baremetalManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.BaremetalAgent.Disable
+}
+
+func (b *baremetalManager) GetServiceName() string {
+	return constants.ServiceNameBaremetal
+}
+
 func (m *baremetalManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return m.multiZoneSync(oc, oc.Spec.BaremetalAgent.Zones, m, oc.Spec.BaremetalAgent.Disable)
+	return m.multiZoneSync(oc, oc.Spec.BaremetalAgent.Zones, m)
 }
 
 func (m *baremetalManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {

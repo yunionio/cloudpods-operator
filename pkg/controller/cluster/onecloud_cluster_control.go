@@ -26,6 +26,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/manager/component"
 	"yunion.io/x/onecloud-operator/pkg/manager/config"
 	"yunion.io/x/onecloud-operator/pkg/util/mysql"
+	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 )
 
 // ControlInterface implements the control logic for updating OnecloudClusters and their children Deployments or StatefulSets.
@@ -79,6 +80,24 @@ func (occ *defaultClusterControl) UpdateOnecloudCluster(oc *v1alpha1.OnecloudClu
 	}
 
 	return errorutils.NewAggregate(errs)
+}
+
+func (occ *defaultClusterControl) reconcileComponent(oc *v1alpha1.OnecloudCluster, c manager.Manager) error {
+	if c.IsDisabled(oc) {
+		if svc, ok := c.(manager.ServiceManager); ok {
+			if err := controller.RunWithSession(oc, func(s *mcclient.ClientSession) error {
+				return onecloud.EnsureDisableService(s, svc.GetServiceName())
+			}); err != nil {
+				log.Errorf("disable service of %s error: %v", svc.GetServiceName(), err)
+			}
+		}
+		log.Infof("component %q is disabled, skip sync it", c.GetComponentType())
+		return nil
+	}
+	if err := c.Sync(oc); err != nil {
+		return errors.Wrapf(err, "sync %s", c.GetComponentType())
+	}
+	return nil
 }
 
 func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudCluster) error {
@@ -136,7 +155,7 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 		components.Cloudmon(),
 		components.Web(),
 	} {
-		if err := component.Sync(oc); err != nil {
+		if err := occ.reconcileComponent(oc, component); err != nil {
 			if !controller.StopServices {
 				return errors.Wrap(err, "sync component")
 			} else {
@@ -170,10 +189,10 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 		components.Extdb(),
 	}
 	var grp errgroup.Group
-	for _, component := range dependComponents {
-		c := component
+	for i := range dependComponents {
+		c := dependComponents[i]
 		grp.Go(func() error {
-			return c.Sync(oc)
+			return occ.reconcileComponent(oc, c)
 		})
 	}
 	if err := grp.Wait(); err != nil {
@@ -183,10 +202,10 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 	var addonComponents = []manager.Manager{
 		components.MonitorStack(),
 	}
-	// addon components' error will be ignore, only use log.Warningf
+	// addon components' error will be ignored, only use log.Warningf
 	for _, c := range addonComponents {
-		if err := c.Sync(oc); err != nil {
-			log.Warningf("Sync addons %v error: %v", c, err)
+		if err := occ.reconcileComponent(oc, c); err != nil {
+			log.Warningf("Sync addons %s error: %v", c.GetComponentType(), err)
 		}
 	}
 

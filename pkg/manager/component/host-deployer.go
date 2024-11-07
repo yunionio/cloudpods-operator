@@ -30,12 +30,16 @@ func (m *hostDeployerManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *hostDeployerManager) getComponentType() v1alpha1.ComponentType {
+func (m *hostDeployerManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.HostDeployerComponentType
 }
 
+func (m *hostDeployerManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.HostDeployer.Disable
+}
+
 func (m *hostDeployerManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.HostDeployer.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *hostDeployerManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
