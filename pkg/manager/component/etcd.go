@@ -143,12 +143,16 @@ func (m *etcdManager) fixEtcdSize(oc *v1alpha1.OnecloudCluster) (bool, error) {
 	return oc.Spec.Etcd.Size != oldSize, nil
 }
 
-func (m *etcdManager) getComponentType() v1alpha1.ComponentType {
+func (m *etcdManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.EtcdComponentType
 }
 
+func (m *etcdManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.Etcd.Disable
+}
+
 func (m *etcdManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	err := syncComponent(m, oc, oc.Spec.Etcd.Disable, "")
+	err := syncComponent(m, oc, "")
 	if err != nil {
 		return err
 	}

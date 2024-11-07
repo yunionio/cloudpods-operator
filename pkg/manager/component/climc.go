@@ -43,22 +43,26 @@ func (m *climcManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *climcManager) getComponentType() v1alpha1.ComponentType {
+func (m *climcManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.ClimcComponentType
 }
 
+func (m *climcManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.Climc.Disable
+}
+
 func (m *climcManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.Climc.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *climcManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
 	content := component.GetRCAdminContent(oc, false)
-	return m.newConfigMap(m.getComponentType(), "", oc, content), false, nil
+	return m.newConfigMap(m.GetComponentType(), "", oc, content), false, nil
 }
 
 func (m *climcManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
 	rcadminName := "rcadmin"
-	configMap := controller.ComponentConfigMapName(oc, m.getComponentType())
+	configMap := controller.ComponentConfigMapName(oc, m.GetComponentType())
 	containersF := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		// find configmap and map it to /etc/yunion/rcadmin
 		volMounts = append(volMounts, corev1.VolumeMount{

@@ -29,7 +29,7 @@ type loggerManager struct {
 	*ComponentManager
 }
 
-func newLoggerManager(man *ComponentManager) manager.Manager {
+func newLoggerManager(man *ComponentManager) manager.ServiceManager {
 	return &loggerManager{man}
 }
 
@@ -41,12 +41,20 @@ func (m *loggerManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *loggerManager) getComponentType() v1alpha1.ComponentType {
+func (m *loggerManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.LoggerComponentType
 }
 
+func (m *loggerManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.Logger.Disable
+}
+
+func (m *loggerManager) GetServiceName() string {
+	return constants.ServiceNameLogger
+}
+
 func (m *loggerManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.Logger.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *loggerManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

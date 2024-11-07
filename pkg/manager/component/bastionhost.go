@@ -33,7 +33,7 @@ type bastionHostManager struct {
 	*ComponentManager
 }
 
-func newBastionHostManager(man *ComponentManager) manager.Manager {
+func newBastionHostManager(man *ComponentManager) manager.ServiceManager {
 	return &bastionHostManager{man}
 }
 
@@ -45,15 +45,23 @@ func (m *bastionHostManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *bastionHostManager) getComponentType() v1alpha1.ComponentType {
+func (m *bastionHostManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.BastionHostComponentType
+}
+
+func (m *bastionHostManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.BastionHost.Disable || !IsEnterpriseEdition(oc)
+}
+
+func (m *bastionHostManager) GetServiceName() string {
+	return constants.ServiceNameBastionHost
 }
 
 func (m *bastionHostManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if !IsEnterpriseEdition(oc) {
 		return nil
 	}
-	return syncComponent(m, oc, oc.Spec.BastionHost.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *bastionHostManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

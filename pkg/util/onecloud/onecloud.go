@@ -125,9 +125,53 @@ func IsServiceExists(s *mcclient.ClientSession, svcName string) (jsonutils.JSONO
 }
 
 func EnsureService(s *mcclient.ClientSession, svcName, svcType string) (jsonutils.JSONObject, error) {
-	return EnsureResource(s, &identity.ServicesV3, svcName, func() (jsonutils.JSONObject, error) {
+	srvObj, err := EnsureResource(s, &identity.ServicesV3, svcName, func() (jsonutils.JSONObject, error) {
 		return CreateService(s, svcName, svcType)
 	})
+	if err != nil {
+		return nil, errors.Wrap(err, "EnsureResource")
+	}
+	enabled, err := srvObj.Bool("enabled")
+	if err != nil {
+		return nil, errors.Wrap(err, "Get service enabled")
+	}
+	if enabled {
+		return srvObj, nil
+	}
+	idStr, _ := srvObj.GetString("id")
+	params := jsonutils.NewDict()
+	params.Set("enabled", jsonutils.JSONTrue)
+	srvObj, err = identity.ServicesV3.Patch(s, idStr, params)
+	if err != nil {
+		return nil, errors.Wrap(err, "patch enable service")
+	}
+	return srvObj, nil
+}
+
+func EnsureDisableService(s *mcclient.ClientSession, srvName string) error {
+	srv, exist, err := IsServiceExists(s, srvName)
+	if err != nil {
+		return errors.Wrap(err, "IsServiceExists")
+	}
+	if !exist {
+		return nil
+	}
+	// service exists, try to disable service
+	enabled, err := srv.Bool("enabled")
+	if err != nil {
+		return errors.Wrap(err, "Get service enabled")
+	}
+	if !enabled {
+		return nil
+	}
+	idStr, _ := srv.GetString("id")
+	params := jsonutils.NewDict()
+	params.Set("enabled", jsonutils.JSONFalse)
+	_, err = identity.ServicesV3.Patch(s, idStr, params)
+	if err != nil {
+		return errors.Wrap(err, "patch disable service")
+	}
+	return nil
 }
 
 func EnsureServiceCertificate(s *mcclient.ClientSession, certName string, certDetails *jsonutils.JSONDict) (jsonutils.JSONObject, error) {

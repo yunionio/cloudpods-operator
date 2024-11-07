@@ -18,6 +18,7 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
+	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
@@ -28,7 +29,7 @@ type yunoinconfManager struct {
 	*ComponentManager
 }
 
-func newYunionconfManager(man *ComponentManager) manager.Manager {
+func newYunionconfManager(man *ComponentManager) manager.ServiceManager {
 	return &yunoinconfManager{man}
 }
 
@@ -40,12 +41,20 @@ func (m *yunoinconfManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *yunoinconfManager) getComponentType() v1alpha1.ComponentType {
+func (m *yunoinconfManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.YunionconfComponentType
 }
 
+func (m *yunoinconfManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.Yunionconf.Disable
+}
+
+func (m *yunoinconfManager) GetServiceName() string {
+	return constants.ServiceNameYunionConf
+}
+
 func (m *yunoinconfManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.Yunionconf.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *yunoinconfManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

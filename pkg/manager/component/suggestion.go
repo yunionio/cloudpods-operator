@@ -19,7 +19,7 @@ type suggestionManager struct {
 	*ComponentManager
 }
 
-func newSuggestionManager(man *ComponentManager) manager.Manager {
+func newSuggestionManager(man *ComponentManager) manager.ServiceManager {
 	return &suggestionManager{man}
 }
 
@@ -31,15 +31,23 @@ func (m *suggestionManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *suggestionManager) getComponentType() v1alpha1.ComponentType {
+func (m *suggestionManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.SuggestionComponentType
+}
+
+func (m *suggestionManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.Suggestion.Disable || !IsEnterpriseEdition(oc)
+}
+
+func (m *suggestionManager) GetServiceName() string {
+	return constants.ServiceNameSuggestion
 }
 
 func (m *suggestionManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if !IsEnterpriseEdition(oc) {
 		return nil
 	}
-	return syncComponent(m, oc, oc.Spec.Suggestion.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *suggestionManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {

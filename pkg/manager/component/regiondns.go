@@ -105,12 +105,16 @@ func (m *regionDNSManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *regionDNSManager) getComponentType() v1alpha1.ComponentType {
+func (m *regionDNSManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.RegionDNSComponentType
 }
 
+func (m *regionDNSManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.RegionDNS.Disable
+}
+
 func (m *regionDNSManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.RegionDNS.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *regionDNSManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {

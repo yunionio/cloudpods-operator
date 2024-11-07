@@ -29,7 +29,7 @@ type echartsSSRManager struct {
 	*ComponentManager
 }
 
-func newEChartsSSR(man *ComponentManager) manager.Manager {
+func newEChartsSSR(man *ComponentManager) manager.ServiceManager {
 	return &echartsSSRManager{man}
 }
 
@@ -41,15 +41,20 @@ func (m *echartsSSRManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *echartsSSRManager) getComponentType() v1alpha1.ComponentType {
+func (m *echartsSSRManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.EChartsSSRComponentType
 }
 
+func (m *echartsSSRManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return (oc.Spec.EChartsSSR.Disable != nil && *oc.Spec.EChartsSSR.Disable) || !IsEnterpriseEdition(oc)
+}
+
+func (m *echartsSSRManager) GetServiceName() string {
+	return constants.ServiceNameEChartsSSR
+}
+
 func (m *echartsSSRManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if !IsEnterpriseEdition(oc) {
-		return nil
-	}
-	return syncComponent(m, oc, *oc.Spec.EChartsSSR.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *echartsSSRManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {

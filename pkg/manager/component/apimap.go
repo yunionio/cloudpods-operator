@@ -31,7 +31,7 @@ type apiMapManager struct {
 	*ComponentManager
 }
 
-func newAPIMapManager(man *ComponentManager) manager.Manager {
+func newAPIMapManager(man *ComponentManager) manager.ServiceManager {
 	return &apiMapManager{man}
 }
 
@@ -42,12 +42,20 @@ func (m *apiMapManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *apiMapManager) getComponentType() v1alpha1.ComponentType {
+func (m *apiMapManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.APIMapComponentType
 }
 
+func (m *apiMapManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.APIMap.Disable
+}
+
+func (m *apiMapManager) GetServiceName() string {
+	return constants.ServiceNameAPIMap
+}
+
 func (m *apiMapManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.APIMap.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *apiMapManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
