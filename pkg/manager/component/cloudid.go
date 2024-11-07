@@ -18,21 +18,18 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
-	"yunion.io/x/onecloud/pkg/mcclient"
-
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
 	"yunion.io/x/onecloud-operator/pkg/service-init/component"
-	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 )
 
 type cloudidManager struct {
 	*ComponentManager
 }
 
-func newCloudIdManager(man *ComponentManager) manager.Manager {
+func newCloudIdManager(man *ComponentManager) manager.ServiceManager {
 	return &cloudidManager{man}
 }
 
@@ -43,17 +40,20 @@ func (m *cloudidManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *cloudidManager) getComponentType() v1alpha1.ComponentType {
+func (m *cloudidManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.CloudIdComponentType
 }
 
+func (m *cloudidManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.CloudId.Disable
+}
+
+func (m *cloudidManager) GetServiceName() string {
+	return constants.ServiceNameCloudId
+}
+
 func (m *cloudidManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if oc.Spec.CloudId.Disable {
-		controller.RunWithSession(oc, func(s *mcclient.ClientSession) error {
-			return onecloud.EnsureDisableService(s, constants.ServiceNameCloudId)
-		})
-	}
-	return syncComponent(m, oc, oc.Spec.CloudId.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *cloudidManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

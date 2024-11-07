@@ -30,8 +30,12 @@ func (m *cloudmonManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *cloudmonManager) getComponentType() v1alpha1.ComponentType {
+func (m *cloudmonManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.CloudmonComponentType
+}
+
+func (m *cloudmonManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.Cloudmon.Disable
 }
 
 func (m *cloudmonManager) ensureOldCronjobsDeleted(oc *v1alpha1.OnecloudCluster) error {
@@ -56,7 +60,7 @@ func (m *cloudmonManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if err := m.ensureOldCronjobsDeleted(oc); err != nil {
 		return err
 	}
-	return syncComponent(m, oc, oc.Spec.Cloudmon.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *cloudmonManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {

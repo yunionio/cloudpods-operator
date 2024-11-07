@@ -43,15 +43,19 @@ func (m *cloudnetManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *cloudnetManager) getComponentType() v1alpha1.ComponentType {
+func (m *cloudnetManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.CloudnetComponentType
+}
+
+func (m *cloudnetManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.Cloudnet.Disable
 }
 
 func (m *cloudnetManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if !oc.Spec.EnableCloudNet && !controller.StopServices {
 		return nil
 	}
-	return syncComponent(m, oc, oc.Spec.Cloudnet.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *cloudnetManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

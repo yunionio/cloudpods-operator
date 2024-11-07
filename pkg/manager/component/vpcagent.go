@@ -47,15 +47,19 @@ func (m *vpcAgentManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *vpcAgentManager) getComponentType() v1alpha1.ComponentType {
+func (m *vpcAgentManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.VpcAgentComponentType
+}
+
+func (m *vpcAgentManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.VpcAgent.Disable
 }
 
 func (m *vpcAgentManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if oc.Spec.DisableLocalVpc {
 		return nil
 	}
-	return syncComponent(m, oc, oc.Spec.VpcAgent.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *vpcAgentManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {

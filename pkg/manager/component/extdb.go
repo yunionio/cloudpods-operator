@@ -21,13 +21,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"yunion.io/x/onecloud/pkg/ansibleserver/options"
-	"yunion.io/x/onecloud/pkg/mcclient"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
-	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
@@ -35,7 +33,7 @@ type extdbManager struct {
 	*ComponentManager
 }
 
-func newExtdbManager(man *ComponentManager) manager.Manager {
+func newExtdbManager(man *ComponentManager) manager.ServiceManager {
 	return &extdbManager{man}
 }
 
@@ -47,20 +45,23 @@ func (m *extdbManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *extdbManager) getComponentType() v1alpha1.ComponentType {
+func (m *extdbManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.ExtdbComponentType
 }
 
+func (m *extdbManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.Extdb.Disable || !IsEnterpriseEdition(oc)
+}
+
+func (m *extdbManager) GetServiceName() string {
+	return constants.ServiceNameExtdb
+}
+
 func (m *extdbManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if oc.Spec.Extdb.Disable || !IsEnterpriseEdition(oc) {
-		controller.RunWithSession(oc, func(s *mcclient.ClientSession) error {
-			return onecloud.EnsureDisableService(s, constants.ServiceNameExtdb)
-		})
-	}
 	if !IsEnterpriseEdition(oc) {
 		return nil
 	}
-	return syncComponent(m, oc, oc.Spec.Extdb.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *extdbManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

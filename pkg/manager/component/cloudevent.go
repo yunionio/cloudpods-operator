@@ -21,13 +21,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"yunion.io/x/onecloud/pkg/ansibleserver/options"
-	"yunion.io/x/onecloud/pkg/mcclient"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
-	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
@@ -35,7 +33,7 @@ type cloudeventManager struct {
 	*ComponentManager
 }
 
-func newCloudeventManager(man *ComponentManager) manager.Manager {
+func newCloudeventManager(man *ComponentManager) manager.ServiceManager {
 	return &cloudeventManager{man}
 }
 
@@ -46,17 +44,20 @@ func (m *cloudeventManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *cloudeventManager) getComponentType() v1alpha1.ComponentType {
+func (m *cloudeventManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.CloudeventComponentType
 }
 
+func (m *cloudeventManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.Cloudevent.Disable
+}
+
+func (m *cloudeventManager) GetServiceName() string {
+	return constants.ServiceNameCloudevent
+}
+
 func (m *cloudeventManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if oc.Spec.Cloudevent.Disable {
-		controller.RunWithSession(oc, func(s *mcclient.ClientSession) error {
-			return onecloud.EnsureDisableService(s, constants.ServiceNameCloudevent)
-		})
-	}
-	return syncComponent(m, oc, oc.Spec.Cloudevent.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *cloudeventManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

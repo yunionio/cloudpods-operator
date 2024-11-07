@@ -41,12 +41,16 @@ func (m *kubeManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *kubeManager) getComponentType() v1alpha1.ComponentType {
+func (m *kubeManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.KubeServerComponentType
 }
 
+func (m *kubeManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.KubeServer.Disable
+}
+
 func (m *kubeManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.KubeServer.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *kubeManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
