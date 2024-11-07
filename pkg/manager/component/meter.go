@@ -22,13 +22,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	common_options "yunion.io/x/onecloud/pkg/cloudcommon/options"
-	"yunion.io/x/onecloud/pkg/mcclient"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
-	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
@@ -36,7 +34,7 @@ type meterManager struct {
 	*ComponentManager
 }
 
-func newMeterManager(man *ComponentManager) manager.Manager {
+func newMeterManager(man *ComponentManager) manager.ServiceManager {
 	return &meterManager{man}
 }
 
@@ -48,20 +46,23 @@ func (m *meterManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *meterManager) getComponentType() v1alpha1.ComponentType {
+func (m *meterManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.MeterComponentType
 }
 
+func (m *meterManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.Meter.Disable || !IsEnterpriseEdition(oc)
+}
+
+func (m *meterManager) GetServiceName() string {
+	return constants.ServiceNameMeter
+}
+
 func (m *meterManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if oc.Spec.Meter.Disable || !IsEnterpriseEdition(oc) {
-		controller.RunWithSession(oc, func(s *mcclient.ClientSession) error {
-			return onecloud.EnsureDisableService(s, constants.ServiceNameMeter)
-		})
-	}
 	if !IsEnterpriseEdition(oc) {
 		return nil
 	}
-	return syncComponent(m, oc, oc.Spec.Meter.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *meterManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

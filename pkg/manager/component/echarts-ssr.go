@@ -19,20 +19,17 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	"yunion.io/x/onecloud/pkg/mcclient"
-
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
-	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 )
 
 type echartsSSRManager struct {
 	*ComponentManager
 }
 
-func newEChartsSSR(man *ComponentManager) manager.Manager {
+func newEChartsSSR(man *ComponentManager) manager.ServiceManager {
 	return &echartsSSRManager{man}
 }
 
@@ -44,20 +41,20 @@ func (m *echartsSSRManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *echartsSSRManager) getComponentType() v1alpha1.ComponentType {
+func (m *echartsSSRManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.EChartsSSRComponentType
 }
 
+func (m *echartsSSRManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return (oc.Spec.EChartsSSR.Disable != nil && *oc.Spec.EChartsSSR.Disable) || !IsEnterpriseEdition(oc)
+}
+
+func (m *echartsSSRManager) GetServiceName() string {
+	return constants.ServiceNameEChartsSSR
+}
+
 func (m *echartsSSRManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if oc.Spec.EChartsSSR.Disable != nil && *oc.Spec.EChartsSSR.Disable {
-		controller.RunWithSession(oc, func(s *mcclient.ClientSession) error {
-			return onecloud.EnsureDisableService(s, constants.ServiceNameEChartsSSR)
-		})
-	}
-	if !IsEnterpriseEdition(oc) {
-		return nil
-	}
-	return syncComponent(m, oc, *oc.Spec.EChartsSSR.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *echartsSSRManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {

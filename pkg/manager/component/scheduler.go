@@ -43,12 +43,16 @@ func (m *schedulerManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *schedulerManager) getComponentType() v1alpha1.ComponentType {
+func (m *schedulerManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.SchedulerComponentType
 }
 
+func (m *schedulerManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.Scheduler.Disable
+}
+
 func (m *schedulerManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.Scheduler.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *schedulerManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {

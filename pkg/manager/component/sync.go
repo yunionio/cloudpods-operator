@@ -24,6 +24,7 @@ import (
 
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
+	"yunion.io/x/onecloud-operator/pkg/manager"
 	"yunion.io/x/onecloud-operator/pkg/util/image"
 )
 
@@ -68,6 +69,7 @@ type cronJobFactory interface {
 }
 
 type cloudComponentFactory interface {
+	manager.Manager
 	syncManager
 	serviceFactory
 	ingressFactory
@@ -76,8 +78,6 @@ type cloudComponentFactory interface {
 	pvcFactory
 	daemonSetFactory
 	cronJobFactory
-
-	getComponentType() v1alpha1.ComponentType
 }
 
 func isInProductVersion(factory cloudComponentFactory, oc *v1alpha1.OnecloudCluster) bool {
@@ -105,9 +105,9 @@ func isValidProductVersion(oc *v1alpha1.OnecloudCluster) error {
 	return errors.Errorf("Invalid productVersion %q", v)
 }
 
-func syncComponent(factory cloudComponentFactory, oc *v1alpha1.OnecloudCluster, isDisable bool, zone string) error {
-	cType := factory.getComponentType()
-	if isDisable {
+func syncComponent(factory cloudComponentFactory, oc *v1alpha1.OnecloudCluster, zone string) error {
+	cType := factory.GetComponentType()
+	if factory.IsDisabled(oc) {
 		klog.Infof("component %q is disable, skip sync and disable service", cType)
 		return nil
 	}

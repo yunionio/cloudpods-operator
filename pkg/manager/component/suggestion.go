@@ -6,14 +6,12 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
-	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/monitor/options"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
-	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
@@ -21,7 +19,7 @@ type suggestionManager struct {
 	*ComponentManager
 }
 
-func newSuggestionManager(man *ComponentManager) manager.Manager {
+func newSuggestionManager(man *ComponentManager) manager.ServiceManager {
 	return &suggestionManager{man}
 }
 
@@ -33,20 +31,23 @@ func (m *suggestionManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *suggestionManager) getComponentType() v1alpha1.ComponentType {
+func (m *suggestionManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.SuggestionComponentType
 }
 
+func (m *suggestionManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.Suggestion.Disable || !IsEnterpriseEdition(oc)
+}
+
+func (m *suggestionManager) GetServiceName() string {
+	return constants.ServiceNameSuggestion
+}
+
 func (m *suggestionManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if oc.Spec.Suggestion.Disable || !IsEnterpriseEdition(oc) {
-		controller.RunWithSession(oc, func(s *mcclient.ClientSession) error {
-			return onecloud.EnsureDisableService(s, constants.ServiceNameSuggestion)
-		})
-	}
 	if !IsEnterpriseEdition(oc) {
 		return nil
 	}
-	return syncComponent(m, oc, oc.Spec.Suggestion.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *suggestionManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {

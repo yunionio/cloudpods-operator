@@ -21,13 +21,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"yunion.io/x/onecloud/pkg/cloudcommon/options"
-	"yunion.io/x/onecloud/pkg/mcclient"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
-	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
@@ -35,7 +33,7 @@ type yunionagentManager struct {
 	*ComponentManager
 }
 
-func newYunionagentManager(man *ComponentManager) manager.Manager {
+func newYunionagentManager(man *ComponentManager) manager.ServiceManager {
 	return &yunionagentManager{man}
 }
 
@@ -52,20 +50,23 @@ func (m *yunionagentManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *yunionagentManager) getComponentType() v1alpha1.ComponentType {
+func (m *yunionagentManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.YunionagentComponentType
 }
 
+func (m *yunionagentManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.Yunionagent.Disable || !IsEnterpriseEdition(oc)
+}
+
+func (m *yunionagentManager) GetServiceName() string {
+	return constants.ServiceNameYunionAgent
+}
+
 func (m *yunionagentManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if oc.Spec.Yunionagent.Disable || !IsEnterpriseEdition(oc) {
-		controller.RunWithSession(oc, func(s *mcclient.ClientSession) error {
-			return onecloud.EnsureDisableService(s, constants.ServiceNameYunionAgent)
-		})
-	}
 	if !IsEnterpriseEdition(oc) {
 		return nil
 	}
-	return syncComponent(m, oc, oc.Spec.Yunionagent.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *yunionagentManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

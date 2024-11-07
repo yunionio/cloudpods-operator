@@ -40,12 +40,16 @@ func (m *cloudmuxManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *cloudmuxManager) getComponentType() v1alpha1.ComponentType {
+func (m *cloudmuxManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.CloudmuxComponentType
 }
 
+func (m *cloudmuxManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return *oc.Spec.Cloudmux.Disable
+}
+
 func (m *cloudmuxManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, *oc.Spec.Cloudmux.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *cloudmuxManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {

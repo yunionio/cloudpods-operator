@@ -19,13 +19,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	common_options "yunion.io/x/onecloud/pkg/cloudcommon/options"
-	"yunion.io/x/onecloud/pkg/mcclient"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
-	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
@@ -33,7 +31,7 @@ type billingManager struct {
 	*ComponentManager
 }
 
-func newBillingManager(man *ComponentManager) manager.Manager {
+func newBillingManager(man *ComponentManager) manager.ServiceManager {
 	return &billingManager{man}
 }
 
@@ -45,20 +43,23 @@ func (b *billingManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (b *billingManager) getComponentType() v1alpha1.ComponentType {
+func (b *billingManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.BillingComponentType
 }
 
+func (m *billingManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.Billing.Disable || !IsEnterpriseEdition(oc)
+}
+
+func (m *billingManager) GetServiceName() string {
+	return constants.ServiceNameBilling
+}
+
 func (b *billingManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if oc.Spec.Billing.Disable || !IsEnterpriseEdition(oc) {
-		controller.RunWithSession(oc, func(s *mcclient.ClientSession) error {
-			return onecloud.EnsureDisableService(s, constants.ServiceNameBilling)
-		})
-	}
 	if !IsEnterpriseEdition(oc) {
 		return nil
 	}
-	return syncComponent(b, oc, oc.Spec.Billing.Disable, "")
+	return syncComponent(b, oc, "")
 }
 
 func (b *billingManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
