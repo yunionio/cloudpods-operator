@@ -33,12 +33,16 @@ func (m *hostManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *hostManager) getComponentType() v1alpha1.ComponentType {
+func (m *hostManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.HostComponentType
 }
 
+func (m *hostManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.HostAgent.Disable
+}
+
 func (m *hostManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.HostAgent.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *hostManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
@@ -244,12 +248,16 @@ func (m *hostHealthManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *hostHealthManager) getComponentType() v1alpha1.ComponentType {
+func (m *hostHealthManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.HostHealthComponentType
 }
 
+func (m *hostHealthManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.HostAgent.Disable
+}
+
 func (m *hostHealthManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.HostAgent.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *hostHealthManager) getDaemonSet(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.DaemonSet, error) {

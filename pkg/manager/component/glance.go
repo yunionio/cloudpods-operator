@@ -45,7 +45,7 @@ type glanceManager struct {
 	*ComponentManager
 }
 
-func newGlanceManager(man *ComponentManager) manager.Manager {
+func newGlanceManager(man *ComponentManager) manager.ServiceManager {
 	return &glanceManager{man}
 }
 
@@ -57,12 +57,20 @@ func (m *glanceManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *glanceManager) getComponentType() v1alpha1.ComponentType {
+func (m *glanceManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.GlanceComponentType
 }
 
+func (m *glanceManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.Glance.Disable
+}
+
+func (m *glanceManager) GetServiceName() string {
+	return constants.ServiceNameGlance
+}
+
 func (m *glanceManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.Glance.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *glanceManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

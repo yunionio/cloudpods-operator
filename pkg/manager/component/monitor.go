@@ -18,6 +18,7 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
+	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
@@ -28,7 +29,7 @@ type monitorManager struct {
 	*ComponentManager
 }
 
-func newMonitorManager(man *ComponentManager) manager.Manager {
+func newMonitorManager(man *ComponentManager) manager.ServiceManager {
 	return &monitorManager{man}
 }
 
@@ -40,12 +41,20 @@ func (m *monitorManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *monitorManager) getComponentType() v1alpha1.ComponentType {
+func (m *monitorManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.MonitorComponentType
 }
 
+func (m *monitorManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.Monitor.Disable
+}
+
+func (m *monitorManager) GetServiceName() string {
+	return constants.ServiceNameMonitor
+}
+
 func (m *monitorManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.Monitor.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *monitorManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

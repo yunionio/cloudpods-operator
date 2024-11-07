@@ -44,12 +44,16 @@ func (m *keystoneManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *keystoneManager) getComponentType() v1alpha1.ComponentType {
+func (m *keystoneManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.KeystoneComponentType
 }
 
+func (m *keystoneManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.Keystone.Disable
+}
+
 func (m *keystoneManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.Keystone.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *keystoneManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

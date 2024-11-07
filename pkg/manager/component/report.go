@@ -33,7 +33,7 @@ type reportManager struct {
 	*ComponentManager
 }
 
-func newReportManager(man *ComponentManager) manager.Manager {
+func newReportManager(man *ComponentManager) manager.ServiceManager {
 	return &reportManager{man}
 }
 
@@ -45,15 +45,20 @@ func (m *reportManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *reportManager) getComponentType() v1alpha1.ComponentType {
+func (m *reportManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.ReportComponentType
 }
 
+func (m *reportManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.Report.Disable || !IsEnterpriseEdition(oc)
+}
+
+func (m *reportManager) GetServiceName() string {
+	return constants.ServiceNameReport
+}
+
 func (m *reportManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if !IsEnterpriseEdition(oc) {
-		return nil
-	}
-	return syncComponent(m, oc, oc.Spec.Report.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *reportManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

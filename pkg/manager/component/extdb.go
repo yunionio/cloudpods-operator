@@ -33,7 +33,7 @@ type extdbManager struct {
 	*ComponentManager
 }
 
-func newExtdbManager(man *ComponentManager) manager.Manager {
+func newExtdbManager(man *ComponentManager) manager.ServiceManager {
 	return &extdbManager{man}
 }
 
@@ -45,15 +45,23 @@ func (m *extdbManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *extdbManager) getComponentType() v1alpha1.ComponentType {
+func (m *extdbManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.ExtdbComponentType
+}
+
+func (m *extdbManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.Extdb.Disable || !IsEnterpriseEdition(oc)
+}
+
+func (m *extdbManager) GetServiceName() string {
+	return constants.ServiceNameExtdb
 }
 
 func (m *extdbManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if !IsEnterpriseEdition(oc) {
 		return nil
 	}
-	return syncComponent(m, oc, oc.Spec.Extdb.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *extdbManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

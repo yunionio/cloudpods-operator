@@ -36,7 +36,7 @@ func newWebManager(man *ComponentManager) manager.Manager {
 	return m
 }
 
-func (m *webManager) getComponentType() v1alpha1.ComponentType {
+func (m *webManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.WebComponentType
 }
 
@@ -48,6 +48,10 @@ func (m *webManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
+func (m *webManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.Web.Disable
+}
+
 func (m *webManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if len(oc.Spec.Web.ImageName) == 0 {
 		if IsEnterpriseEdition(oc) {
@@ -56,7 +60,7 @@ func (m *webManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 			oc.Spec.Web.ImageName = constants.WebCEImageName
 		}
 	}
-	return syncComponent(m, oc, oc.Spec.Web.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *webManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {

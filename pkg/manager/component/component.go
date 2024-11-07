@@ -337,7 +337,7 @@ func (m *ComponentManager) syncDaemonSet(
 	}
 
 	inPV := isInProductVersion(f, oc)
-	shouldStop := controller.StopServices && !utils.IsInStringArray(f.getComponentType().String(), []string{
+	shouldStop := controller.StopServices && !utils.IsInStringArray(f.GetComponentType().String(), []string{
 		v1alpha1.HostComponentType.String(),
 	})
 
@@ -448,18 +448,18 @@ func (m *ComponentManager) syncDeployment(
 	ns := oc.GetNamespace()
 	cfg, err := m.configer.GetClusterConfig(oc)
 	if err != nil {
-		return errorswrap.Wrapf(err, "GetClusterConfig for component: %s", f.getComponentType())
+		return errorswrap.Wrapf(err, "GetClusterConfig for component: %s", f.GetComponentType())
 	}
 	deploymentFactory := f.getDeployment
 	newDeploy, err := deploymentFactory(oc, cfg, zone)
 	if err != nil {
-		return errorswrap.Wrapf(err, "deploymentFactory for component: %s", f.getComponentType())
+		return errorswrap.Wrapf(err, "deploymentFactory for component: %s", f.GetComponentType())
 	}
 	if newDeploy == nil {
 		return nil
 	}
 
-	shouldStop := controller.StopServices && !utils.IsInStringArray(f.getComponentType().String(), []string{
+	shouldStop := controller.StopServices && !utils.IsInStringArray(f.GetComponentType().String(), []string{
 		v1alpha1.OvnNorthComponentType.String(),
 		v1alpha1.InfluxdbComponentType.String(),
 	})
@@ -479,7 +479,7 @@ func (m *ComponentManager) syncDeployment(
 
 	oldDeployTmp, err := m.deployLister.Deployments(ns).Get(newDeploy.GetName())
 	if err != nil {
-		log.Errorf("get old deployment error for component %s: %s", f.getComponentType(), err)
+		log.Errorf("get old deployment error for component %s: %s", f.GetComponentType(), err)
 		if errors.IsNotFound(err) {
 			if !inPV || shouldStop {
 				return nil
@@ -1345,7 +1345,7 @@ func (m *ComponentManager) syncPhase(
 	return nil
 }
 
-func (m *ComponentManager) multiZoneSync(oc *v1alpha1.OnecloudCluster, wantedZones []string, factory cloudComponentFactory, disabled bool) error {
+func (m *ComponentManager) multiZoneSync(oc *v1alpha1.OnecloudCluster, wantedZones []string, factory cloudComponentFactory) error {
 	var zones = oc.GetZones()
 	if len(wantedZones) > 0 {
 		zones = []string{}
@@ -1360,7 +1360,7 @@ func (m *ComponentManager) multiZoneSync(oc *v1alpha1.OnecloudCluster, wantedZon
 			// use empty string replace default zone
 			zone = ""
 		}
-		if err := syncComponent(factory, oc, disabled, zone); err != nil {
+		if err := syncComponent(factory, oc, zone); err != nil {
 			return err
 		}
 	}

@@ -30,7 +30,7 @@ type regionManager struct {
 }
 
 // newRegionManager return *regionManager
-func newRegionManager(man *ComponentManager) manager.Manager {
+func newRegionManager(man *ComponentManager) manager.ServiceManager {
 	return &regionManager{man}
 }
 
@@ -42,12 +42,20 @@ func (m *regionManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *regionManager) getComponentType() v1alpha1.ComponentType {
+func (m *regionManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.RegionComponentType
 }
 
+func (m *regionManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.RegionServer.Disable
+}
+
+func (m *regionManager) GetServiceName() string {
+	return constants.ServiceNameRegionV2
+}
+
 func (m *regionManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.RegionServer.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *regionManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

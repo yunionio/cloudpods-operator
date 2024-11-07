@@ -33,7 +33,7 @@ type autoUpdateManager struct {
 	*ComponentManager
 }
 
-func newAutoUpdateManager(man *ComponentManager) manager.Manager {
+func newAutoUpdateManager(man *ComponentManager) manager.ServiceManager {
 	return &autoUpdateManager{man}
 }
 
@@ -45,15 +45,23 @@ func (m *autoUpdateManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *autoUpdateManager) getComponentType() v1alpha1.ComponentType {
+func (m *autoUpdateManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.AutoUpdateComponentType
+}
+
+func (m *autoUpdateManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.AutoUpdate.Disable
+}
+
+func (m *autoUpdateManager) GetServiceName() string {
+	return constants.ServiceNameAutoUpdate
 }
 
 func (m *autoUpdateManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if !IsEnterpriseEdition(oc) {
 		return nil
 	}
-	return syncComponent(m, oc, oc.Spec.AutoUpdate.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *autoUpdateManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

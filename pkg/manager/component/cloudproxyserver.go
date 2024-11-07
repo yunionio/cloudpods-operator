@@ -33,7 +33,7 @@ type cloudproxyManager struct {
 	*ComponentManager
 }
 
-func newCloudproxyManager(man *ComponentManager) manager.Manager {
+func newCloudproxyManager(man *ComponentManager) manager.ServiceManager {
 	return &cloudproxyManager{man}
 }
 
@@ -45,12 +45,20 @@ func (m *cloudproxyManager) getProductVersions() []v1alpha1.ProductVersion {
 	}
 }
 
-func (m *cloudproxyManager) getComponentType() v1alpha1.ComponentType {
+func (m *cloudproxyManager) GetComponentType() v1alpha1.ComponentType {
 	return v1alpha1.CloudproxyComponentType
 }
 
+func (m *cloudproxyManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.Cloudproxy.Disable
+}
+
+func (m *cloudproxyManager) GetServiceName() string {
+	return constants.ServiceNameCloudproxy
+}
+
 func (m *cloudproxyManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.Cloudproxy.Disable, "")
+	return syncComponent(m, oc, "")
 }
 
 func (m *cloudproxyManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {

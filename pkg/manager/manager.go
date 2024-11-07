@@ -20,4 +20,12 @@ import "yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 type Manager interface {
 	// Sync implements the logic for syncing onecloud cluster.
 	Sync(cluster *v1alpha1.OnecloudCluster) error
+	GetComponentType() v1alpha1.ComponentType
+	IsDisabled(cluster *v1alpha1.OnecloudCluster) bool
+}
+
+type ServiceManager interface {
+	Manager
+
+	GetServiceName() string
 }
