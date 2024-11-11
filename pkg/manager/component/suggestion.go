@@ -6,7 +6,7 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
-	"yunion.io/x/onecloud/pkg/monitor/options"
+	"yunion.io/x/onecloud/pkg/cloudcommon/options"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -50,6 +50,18 @@ func (m *suggestionManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, "")
 }
 
+func (m *suggestionManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
+	return &cfg.Suggestion.DB
+}
+
+func (m *suggestionManager) getDBEngine(oc *v1alpha1.OnecloudCluster) v1alpha1.TDBEngineType {
+	return oc.Spec.GetDbEngine(oc.Spec.Suggestion.DbEngine)
+}
+
+func (m *suggestionManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
+	return &cfg.Suggestion.CloudUser
+}
+
 func (m *suggestionManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return controller.NewRegisterEndpointComponent(
 		man, v1alpha1.SuggestionComponentType,
@@ -61,12 +73,17 @@ func (m *suggestionManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.SuggestionComponentType, oc, int32(oc.Spec.Suggestion.Service.NodePort), int32(constants.SuggestionPort))}
 }
 
+type suggestionOptions struct {
+	options.CommonOptions
+	options.DBOptions
+}
+
 func (m *suggestionManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
-	opt := &options.Options
+	opt := &suggestionOptions{}
 	if err := option.SetOptionsDefault(opt, constants.ServiceTypeSuggestion); err != nil {
 		return nil, false, err
 	}
-	config := cfg.Monitor
+	config := cfg.Suggestion
 
 	switch oc.Spec.GetDbEngine(oc.Spec.Suggestion.DbEngine) {
 	case v1alpha1.DBEngineDameng:
