@@ -395,7 +395,10 @@ const (
 
 	ServiceNameSuggestion = "suggestion"
 	ServiceTypeSuggestion = "suggestion"
+	SuggestionAdminUser   = "suggestion"
 	SuggestionPort        = 30987
+	SuggestionDB          = "suggestion"
+	SuggestionDBUser      = "suggestion"
 
 	ServiceNameScheduledtask = "scheduledtask"
 	ServiceTypeScheduledtask = "scheduledtask"
