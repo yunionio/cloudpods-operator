@@ -5,6 +5,9 @@ import (
 
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+
+	"yunion.io/x/pkg/errors"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -153,11 +156,17 @@ func (m *telegrafManager) newTelegrafDaemonSet(
 		cType, oc, cfg, NewTelegrafVolume(cType, oc), dsSpec.DaemonSetSpec,
 		"", initContainers, containersF,
 	)
+	if err != nil {
+		return nil, errors.Wrap(err, "new daemonset")
+	}
 	ds.Spec.Template.Spec.HostPID = false
 	ds.Spec.Template.Spec.ServiceAccountName = constants.ServiceAccountOnecloudOperator
-	if err != nil {
-		return nil, err
+	/* set host pod max maxUnavailable count, default 1 */
+	if ds.Spec.UpdateStrategy.RollingUpdate == nil {
+		ds.Spec.UpdateStrategy.RollingUpdate = new(apps.RollingUpdateDaemonSet)
 	}
+	var maxUnavailableCount = intstr.FromInt(20)
+	ds.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable = &maxUnavailableCount
 	return ds, nil
 }
 
