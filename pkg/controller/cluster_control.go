@@ -28,6 +28,7 @@ import (
 	"k8s.io/klog"
 
 	"yunion.io/x/log"
+
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/client/clientset/versioned"
 	listers "yunion.io/x/onecloud-operator/pkg/client/listers/onecloud/v1alpha1"
@@ -36,7 +37,7 @@ import (
 
 // ClusterControlInterface manages Onecloud clusters
 type ClusterControlInterface interface {
-	UpdateCluster(cluster *v1alpha1.OnecloudCluster, newStatus *v1alpha1.OnecloudClusterStatus, oldStatus *v1alpha1.OnecloudClusterStatus) (*v1alpha1.OnecloudCluster, error)
+	UpdateCluster(cluster *v1alpha1.OnecloudCluster, newStatus *v1alpha1.OnecloudClusterStatus, oldStatus *v1alpha1.OnecloudClusterStatus, caller string) (*v1alpha1.OnecloudCluster, error)
 	GetCluster(namespace, name string) (*v1alpha1.OnecloudCluster, error)
 }
 
@@ -58,7 +59,7 @@ func NewClusterControl(
 	}
 }
 
-func (c *clusterControl) UpdateCluster(oc *v1alpha1.OnecloudCluster, newStatus, oldStatus *v1alpha1.OnecloudClusterStatus) (*v1alpha1.OnecloudCluster, error) {
+func (c *clusterControl) UpdateCluster(oc *v1alpha1.OnecloudCluster, newStatus, oldStatus *v1alpha1.OnecloudClusterStatus, caller string) (*v1alpha1.OnecloudCluster, error) {
 	ns := oc.GetNamespace()
 	ocName := oc.GetName()
 
@@ -70,7 +71,7 @@ func (c *clusterControl) UpdateCluster(oc *v1alpha1.OnecloudCluster, newStatus, 
 		var updateErr error
 		updateOC, updateErr = c.cli.OnecloudV1alpha1().OnecloudClusters(ns).Update(context.Background(), oc, v1.UpdateOptions{})
 		if updateErr == nil {
-			klog.Infof("OnecloudCluster: [%s/%s] updated successfully, spec: %#v", ns, ocName, oc.Spec.MonitorStack)
+			klog.Infof("OnecloudCluster: [%s/%s] updated successfully by %q", ns, ocName, caller)
 			return nil
 		}
 		klog.Errorf("failed to update OnecloudCluster: [%s/%s], error: %v", ns, ocName, updateErr)
