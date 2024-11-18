@@ -75,7 +75,7 @@ func (occ *defaultClusterControl) UpdateOnecloudCluster(oc *v1alpha1.OnecloudClu
 		return errorutils.NewAggregate(errs)
 	}
 
-	if _, err := occ.ocControl.UpdateCluster(oc.DeepCopy(), &oc.Status, oldStatus); err != nil {
+	if _, err := occ.ocControl.UpdateCluster(oc.DeepCopy(), &oc.Status, oldStatus, "cluster_controller"); err != nil {
 		errs = append(errs, err)
 	}
 

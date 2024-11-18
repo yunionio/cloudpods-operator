@@ -173,7 +173,7 @@ func (m *etcdManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 		oc.Spec.Etcd.ClientNodePort = constants.EtcdClientNodePort
 	}
 	if changed {
-		oc, err = m.onecloudClusterControl.UpdateCluster(oc, nil, nil)
+		oc, err = m.onecloudClusterControl.UpdateCluster(oc, nil, nil, "etcd-sync")
 		if err != nil {
 			log.Errorf("update oc failed %s", err)
 			return nil
@@ -564,7 +564,7 @@ func (m *etcdManager) updateEtcdStatus() error {
 		return err
 	}
 	oc.Status.Etcd = m.status
-	newoc, err := m.onecloudClusterControl.UpdateCluster(oc, nil, nil)
+	newoc, err := m.onecloudClusterControl.UpdateCluster(oc, nil, nil, "etcd-update-status")
 	if err != nil {
 		return err
 	}
