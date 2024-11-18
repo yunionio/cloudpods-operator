@@ -106,18 +106,25 @@ func (pc *yunionconfPC) Setup() error {
 		return errors.Wrap(err, "endpoint for yunionconfSvc setup")
 	}
 	// not run yunionagent phase control if yunionagent service is exit
-	return pc.man.RunWithSession(pc.man.GetCluster(), func(s *mcclient.ClientSession) error {
-		_, exists, _ := onecloud.IsServiceExists(s, constants.ServiceNameYunionAgent)
-		if exists {
-			log.Infof("[yunionconf] yunionagent service is exists, skipping setup it")
+	isAgentExists := false
+	if err := pc.man.RunWithSession(pc.man.GetCluster(), func(s *mcclient.ClientSession) error {
+		_, isAgentExists, _ = onecloud.IsServiceExists(s, constants.ServiceNameYunionAgent)
+		if isAgentExists {
 			return nil
 		}
+		return nil
+	}); err != nil {
+		return errors.Wrapf(err, "check if %s service exists", constants.ServiceNameYunionAgent)
+	}
+	if isAgentExists {
+		log.Infof("[yunionconf] yunionagent service is exists, skipping setup it")
+	} else {
 		// hack: init fake yunionagent service and endpoints
 		if err := pc.man.YunionAgent().Setup(); err != nil {
 			return errors.Wrap(err, "setup yunionagent for yunionconfSvc")
 		}
-		return nil
-	})
+	}
+	return nil
 }
 
 type GlobalSettingsValue struct {
