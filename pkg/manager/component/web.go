@@ -54,7 +54,7 @@ func (m *webManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
 
 func (m *webManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	if len(oc.Spec.Web.ImageName) == 0 {
-		if IsEnterpriseEdition(oc) {
+		if IsEEOrESEEdition(oc) {
 			oc.Spec.Web.ImageName = constants.WebEEImageName
 		} else {
 			oc.Spec.Web.ImageName = constants.WebCEImageName
