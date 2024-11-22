@@ -1205,7 +1205,6 @@ type OnecloudClusterConfig struct {
 	KubeServer      ServiceDBCommonOptions `json:"kubeserver"`
 	AnsibleServer   ServiceDBCommonOptions `json:"ansibleserver"`
 	Monitor         ServiceDBCommonOptions `json:"monitor"`
-	Suggestion      ServiceDBCommonOptions `json:"suggestion"`
 	Cloudnet        ServiceDBCommonOptions `json:"cloudnet"`
 	Cloudproxy      ServiceDBCommonOptions `json:"cloudproxy"`
 	Cloudevent      ServiceDBCommonOptions `json:"cloudevent"`
