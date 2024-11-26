@@ -875,10 +875,12 @@ func newCommonalertQuery(tem CommonAlertTem) monitorapi.CommonAlertQuery {
 		commonAlert.ConditionType = tem.ConditionType
 	}
 	if len(tem.GroupBy) != 0 {
-		commonAlert.Model.GroupBy = append(commonAlert.Model.GroupBy, monitorapi.MetricQueryPart{
-			Type:   "field",
-			Params: []string{tem.GroupBy},
-		})
+		for _, grpBy := range strings.Split(tem.GroupBy, ",") {
+			commonAlert.Model.GroupBy = append(commonAlert.Model.GroupBy, monitorapi.MetricQueryPart{
+				Type:   "field",
+				Params: []string{grpBy},
+			})
+		}
 	}
 	return commonAlert
 }
