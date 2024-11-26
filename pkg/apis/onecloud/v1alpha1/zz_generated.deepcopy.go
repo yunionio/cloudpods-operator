@@ -1379,7 +1379,6 @@ func (in *OnecloudClusterConfig) DeepCopyInto(out *OnecloudClusterConfig) {
 	out.KubeServer = in.KubeServer
 	out.AnsibleServer = in.AnsibleServer
 	out.Monitor = in.Monitor
-	out.Suggestion = in.Suggestion
 	out.Cloudnet = in.Cloudnet
 	out.Cloudproxy = in.Cloudproxy
 	out.Cloudevent = in.Cloudevent
