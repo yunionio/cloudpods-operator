@@ -1411,6 +1411,19 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		Description: "检查宿主机raid控制器状态",
 		NoDataState: "ok",
 	}
+	bondSlaveTem := onecloud.CommonAlertTem{
+		Database:    "telegraf",
+		Measurement: "bond_slave",
+		Field:       []string{"status"},
+		FieldFunc:   "last",
+		Comparator:  "==",
+		Threshold:   0,
+		Name:        "bond_slave.status",
+		Reduce:      "last",
+		Description: "检查宿主机bond slave网卡状态",
+		GroupBy:     "host_id,interface,bond",
+	}
+
 	cloudaccountTem := onecloud.CommonAlertTem{
 		Database:    "meter_db",
 		Measurement: "cloudaccount_balance",
@@ -1477,6 +1490,7 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		cloudaccountTem.Name:   cloudaccountTem,
 		smartDevTem.Name:       smartDevTem,
 		hostRaidTem.Name:       hostRaidTem,
+		bondSlaveTem.Name:      bondSlaveTem,
 		noDataTem.Name:         noDataTem,
 		defunctProcessTem.Name: defunctProcessTem,
 		totalProcessTem.Name:   totalProcessTem,
