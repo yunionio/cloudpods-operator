@@ -48,11 +48,24 @@ type ContainerSecurityContext struct {
 	RunAsGroup *int64 `json:"run_as_group,omitempty"`
 }
 
+type ContainerResources struct {
+	// CpuCfsQuota can be set to 0.5 that mapping to 0.5*100000 for cpu.cpu_cfs_quota_us
+	CpuCfsQuota *float64 `json:"cpu_cfs_quota,omitempty"`
+	// MemoryLimitMB will be transferred to memory.limit_in_bytes
+	// MemoryLimitMB *int64 `json:"memory_limit_mb,omitempty"`
+	// PidsMax will be set to pids.max
+	PidsMax *int `json:"pids_max"`
+	// DevicesAllow will be set to devices.allow
+	DevicesAllow []string `json:"devices_allow"`
+}
+
 type ContainerSpec struct {
 	// Image to use.
 	Image string `json:"image"`
 	// Image pull policy
 	ImagePullPolicy ImagePullPolicy `json:"image_pull_policy"`
+	// Image credential id
+	ImageCredentialId string `json:"image_credential_id"`
 	// Command to execute (i.e., entrypoint for docker)
 	Command []string `json:"command"`
 	// Args for the Command (i.e. command for docker)
@@ -65,11 +78,31 @@ type ContainerSpec struct {
 	EnableLxcfs        bool                      `json:"enable_lxcfs"`
 	Capabilities       *ContainerCapability      `json:"capabilities"`
 	Privileged         bool                      `json:"privileged"`
+	DisableNoNewPrivs  bool                      `json:"disable_no_new_privs"`
 	Lifecyle           *ContainerLifecyle        `json:"lifecyle"`
 	CgroupDevicesAllow []string                  `json:"cgroup_devices_allow"`
+	CgroupPidsMax      int                       `json:"cgroup_pids_max"`
+	ResourcesLimit     *ContainerResources       `json:"resources_limit"`
 	SimulateCpu        bool                      `json:"simulate_cpu"`
 	ShmSizeMB          int                       `json:"shm_size_mb"`
 	SecurityContext    *ContainerSecurityContext `json:"security_context,omitempty"`
+	// Periodic probe of container liveness.
+	// Container will be restarted if the probe fails.
+	// Cannot be updated.
+	//LivenessProbe *ContainerProbe `json:"liveness_probe,omitempty"`
+	// StartupProbe indicates that the Pod has successfully initialized.
+	// If specified, no other probes are executed until this completes successfully.
+	StartupProbe *ContainerProbe `json:"startup_probe,omitempty"`
+}
+
+func (c *ContainerSpec) NeedProbe() bool {
+	//if c.LivenessProbe != nil {
+	//	return true
+	//}
+	if c.StartupProbe != nil {
+		return true
+	}
+	return false
 }
 
 type ContainerCapability struct {
@@ -90,6 +123,7 @@ const (
 	CONTAINER_VOLUME_MOUNT_TYPE_DISK      ContainerVolumeMountType = "disk"
 	CONTAINER_VOLUME_MOUNT_TYPE_HOST_PATH ContainerVolumeMountType = "host_path"
 	CONTAINER_VOLUME_MOUNT_TYPE_TEXT      ContainerVolumeMountType = "text"
+	CONTAINER_VOLUME_MOUNT_TYPE_CEPHF_FS  ContainerVolumeMountType = "ceph_fs"
 )
 
 type ContainerDeviceType string
@@ -121,6 +155,7 @@ type ContainerVolumeMount struct {
 	Disk     *ContainerVolumeMountDisk     `json:"disk"`
 	HostPath *ContainerVolumeMountHostPath `json:"host_path"`
 	Text     *ContainerVolumeMountText     `json:"text"`
+	CephFS   *ContainerVolumeMountCephFS   `json:"ceph_fs"`
 	// Mounted read-only if true, read-write otherwise (false or unspecified).
 	ReadOnly bool `json:"read_only"`
 	// Path within the container at which the volume should be mounted.  Must
@@ -192,4 +227,20 @@ type ContainerVolumeMountHostPath struct {
 
 type ContainerVolumeMountText struct {
 	Content string `json:"content"`
+}
+
+type ContainerVolumeMountCephFS struct {
+	Id string `json:"id"`
+}
+
+type ContainerPullImageAuthConfig struct {
+	Username      string `json:"username,omitempty"`
+	Password      string `json:"password,omitempty"`
+	Auth          string `json:"auth,omitempty"`
+	ServerAddress string `json:"server_address,omitempty"`
+	// IdentityToken is used to authenticate the user and get
+	// an access token for the registry.
+	IdentityToken string `json:"identity_token,omitempty"`
+	// RegistryToken is a bearer token to be sent to a registry
+	RegistryToken string `json:"registry_token,omitempty"`
 }

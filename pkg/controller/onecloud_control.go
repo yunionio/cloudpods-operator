@@ -275,6 +275,7 @@ type ComponentManager interface {
 	Monitor() PhaseControl
 	Cloudproxy() PhaseControl
 	EChartsSSR() PhaseControl
+	FsGateway() PhaseControl
 }
 
 func (w *OnecloudControl) Components(oc *v1alpha1.OnecloudCluster) ComponentManager {
@@ -377,7 +378,19 @@ func NewCloudproxyPhaseControl(c ComponentManager) PhaseControl {
 }
 
 func (c *realComponent) EChartsSSR() PhaseControl {
+	return NewEChartsSSRPhaseControl(c)
+}
+
+func NewEChartsSSRPhaseControl(c ComponentManager) PhaseControl {
 	return &echartsSSRComponent{newBaseComponent(c)}
+}
+
+func (c *realComponent) FsGateway() PhaseControl {
+	return NewFsGatewayPhaseControl(c)
+}
+
+func NewFsGatewayPhaseControl(c ComponentManager) PhaseControl {
+	return &fsGatewayComponent{newBaseComponent(c)}
 }
 
 type baseComponent struct {
@@ -1605,4 +1618,15 @@ func (c *echartsSSRComponent) Setup() error {
 		url := fmt.Sprintf("http://%s-%s.%s.svc:%d", oc.GetName(), v1alpha1.EChartsSSRComponentType, oc.GetNamespace(), constants.EChartsSSRPort)
 		return onecloud.RegisterServiceEndpointByInterfaces(s, oc.Spec.Region, constants.ServiceNameEChartsSSR, constants.ServiceTypeEChartsSSR, url, "", []string{constants.EndpointTypeInternal})
 	})
+}
+
+type fsGatewayComponent struct {
+	*baseComponent
+}
+
+func (c *fsGatewayComponent) Setup() error {
+	return c.RegisterCloudServiceEndpoint(
+		v1alpha1.FsgatewayComponentType,
+		constants.ServiceNameFsGateway, constants.ServiceTypeFsGateway,
+		c.GetCluster().Spec.FsGateway.Service.NodePort, "", true)
 }

@@ -237,10 +237,8 @@ const (
 )
 
 const (
-	QGA_STATUS_UNKNOWN        = "unknown"
-	QGA_STATUS_EXCUTING       = "executing"
-	QGA_STATUS_EXECUTE_FAILED = "execute_failed"
-	QGA_STATUS_AVAILABLE      = "available"
+	QGA_STATUS_UNKNOWN   = "unknown"
+	QGA_STATUS_AVAILABLE = "available"
 )
 
 const (
@@ -328,6 +326,8 @@ const (
 	VM_METADATA_START_VCPU_COUNT    = "start_vcpu_count"
 
 	VM_METADATA_RELEASED_DEVICES = "released_devices"
+
+	VM_METADATA_CPU_NUMA_PIN = "__cpu_numa_pin"
 )
 
 // windows allow a maximal length of 15

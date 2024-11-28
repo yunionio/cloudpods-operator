@@ -127,6 +127,8 @@ type SGuest struct {
 	VcpuCount int `nullable:"false" default:"1" list:"user" create:"optional"`
 	// 内存大小, 单位MB
 	VmemSize int `nullable:"false" list:"user" create:"required"`
+	// CPU 内存绑定信息
+	CpuNumaPin jsonutils.JSONObject `nullable:"true" get:"user" update:"user" create:"optional"`
 
 	// 启动顺序
 	BootOrder string `width:"8" charset:"ascii" nullable:"true" default:"cdn" list:"user" update:"user" create:"optional"`
@@ -1271,6 +1273,97 @@ func (guest *SGuest) SetHostIdWithBackup(userCred mcclient.TokenCredential, mast
 	return err
 }
 
+func (guest *SGuest) UpdateCpuNumaPin(
+	ctx context.Context, userCred mcclient.TokenCredential,
+	schedCpuNumaPin []schedapi.SCpuNumaPin, cpuNumaPinTarget []api.SCpuNumaPin,
+) error {
+	srcSchedCpuNumaPin := make([]schedapi.SCpuNumaPin, 0)
+	err := guest.CpuNumaPin.Unmarshal(&srcSchedCpuNumaPin)
+	if err != nil {
+		return err
+	}
+	srcSchedCpuNumaPin = append(srcSchedCpuNumaPin, schedCpuNumaPin...)
+
+	srcCpuNumaPin := make([]api.SCpuNumaPin, 0)
+	cpuNumaPinStr := guest.GetMetadata(ctx, api.VM_METADATA_CPU_NUMA_PIN, nil)
+	cpuNumaPinJson, err := jsonutils.ParseString(cpuNumaPinStr)
+	if err != nil {
+		return err
+	}
+	err = cpuNumaPinJson.Unmarshal(&srcCpuNumaPin)
+	if err != nil {
+		return err
+	}
+	srcCpuNumaPin = append(srcCpuNumaPin, cpuNumaPinTarget...)
+
+	diff, err := db.Update(guest, func() error {
+		guest.CpuNumaPin = jsonutils.Marshal(srcSchedCpuNumaPin)
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	var jcpuNumaPin = jsonutils.Marshal(srcCpuNumaPin)
+	err = guest.SetMetadata(ctx, api.VM_METADATA_CPU_NUMA_PIN, jcpuNumaPin, userCred)
+	if err != nil {
+		return err
+	}
+
+	db.OpsLog.LogEvent(guest, db.ACT_UPDATE, diff, userCred)
+	return nil
+}
+
+func (guest *SGuest) SetCpuNumaPin(
+	ctx context.Context, userCred mcclient.TokenCredential,
+	schedCpuNumaPin []schedapi.SCpuNumaPin, cpuNumaPin []api.SCpuNumaPin,
+) error {
+	if cpuNumaPin == nil && schedCpuNumaPin != nil {
+		cpuNumaPin = make([]api.SCpuNumaPin, len(schedCpuNumaPin))
+
+		vcpuId := 0
+		for i := range schedCpuNumaPin {
+			cpuNumaPin[i] = api.SCpuNumaPin{
+				SizeMB: schedCpuNumaPin[i].MemSizeMB,
+				NodeId: schedCpuNumaPin[i].NodeId,
+			}
+
+			if len(schedCpuNumaPin[i].CpuPin) > 0 {
+				cpuNumaPin[i].VcpuPin = make([]api.SVCpuPin, len(schedCpuNumaPin[i].CpuPin))
+				for j := range schedCpuNumaPin[i].CpuPin {
+					cpuNumaPin[i].VcpuPin[j].Pcpu = schedCpuNumaPin[i].CpuPin[j]
+					cpuNumaPin[i].VcpuPin[j].Vcpu = vcpuId
+					vcpuId += 1
+				}
+			}
+		}
+	}
+
+	var schedCpuNumaPinJ jsonutils.JSONObject
+	if schedCpuNumaPin != nil {
+		schedCpuNumaPinJ = jsonutils.Marshal(schedCpuNumaPin)
+	}
+	diff, err := db.Update(guest, func() error {
+		guest.CpuNumaPin = schedCpuNumaPinJ
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	var jcpuNumaPin interface{} = ""
+	if cpuNumaPin != nil {
+		jcpuNumaPin = jsonutils.Marshal(cpuNumaPin)
+	}
+	err = guest.SetMetadata(ctx, api.VM_METADATA_CPU_NUMA_PIN, jcpuNumaPin, userCred)
+	if err != nil {
+		return err
+	}
+
+	db.OpsLog.LogEvent(guest, db.ACT_UPDATE, diff, userCred)
+	return err
+}
+
 func (guest *SGuest) ValidateResizeDisk(disk *SDisk, storage *SStorage) error {
 	drv, err := guest.GetDriver()
 	if err != nil {
@@ -1660,8 +1753,8 @@ func (manager *SGuestManager) validateCreateData(
 				return nil, httperrors.NewInputParameterError("UEFI image requires UEFI boot mode")
 			}
 		default:
-			// not UEFI or not detectable
-			if input.Bios == "UEFI" {
+			// not UEFI image
+			if input.Bios == "UEFI" && len(imgProperties) != 0 {
 				return nil, httperrors.NewInputParameterError("UEFI boot mode requires UEFI image")
 			}
 		}
@@ -2535,100 +2628,6 @@ func (self *SGuest) getBandwidth(isExit bool) int {
 
 func (self *SGuest) getExtBandwidth() int {
 	return self.getBandwidth(true)
-}
-
-func (self *SGuest) moreExtraInfo(
-	ctx context.Context,
-	out api.ServerDetails,
-	userCred mcclient.TokenCredential,
-	query jsonutils.JSONObject,
-	fields stringutils2.SSortedStrings,
-	isList bool,
-) api.ServerDetails {
-	// extra.Add(jsonutils.NewInt(int64(self.getExtBandwidth())), "ext_bw")
-
-	if isList {
-		if query.Contains("group") {
-			groupId, _ := query.GetString("group")
-			q := GroupguestManager.Query().Equals("group_id", groupId).Equals("guest_id", self.Id)
-			var groupGuest SGroupguest
-			err := q.First(&groupGuest)
-			if err == nil {
-				out.AttachTime = groupGuest.CreatedAt
-			}
-		}
-	} else {
-		out.Networks = self.getNetworksDetails()
-		out.VirtualIps = strings.Join(self.getVirtualIPs(), ",")
-		out.SecurityRules = self.getSecurityGroupsRules()
-
-		osName := self.GetOS()
-		if len(osName) > 0 {
-			out.OsName = osName
-			if len(self.OsType) == 0 {
-				out.OsType = osName
-			}
-		}
-
-		if userCred.HasSystemAdminPrivilege() {
-			out.AdminSecurityRules = self.getAdminSecurityRules()
-		}
-
-	}
-
-	out.IsPrepaidRecycle = self.IsPrepaidRecycle()
-
-	if len(self.BackupHostId) > 0 && (len(fields) == 0 || fields.Contains("backup_host_name") || fields.Contains("backup_host_status")) {
-		backupHost := HostManager.FetchHostById(self.BackupHostId)
-		if backupHost != nil {
-			if len(fields) == 0 || fields.Contains("backup_host_name") {
-				out.BackupHostName = backupHost.Name
-			}
-			if len(fields) == 0 || fields.Contains("backup_host_status") {
-				out.BackupHostStatus = backupHost.HostStatus
-			}
-			out.BackupGuestSyncStatus = self.GetGuestBackupMirrorJobStatus(ctx, userCred)
-		}
-	}
-
-	if len(fields) == 0 || fields.Contains("can_recycle") {
-		err := self.CanPerformPrepaidRecycle()
-		if err == nil {
-			out.CanRecycle = true
-		}
-	}
-
-	if len(fields) == 0 || fields.Contains("auto_delete_at") {
-		if self.PendingDeleted {
-			pendingDeletedAt := self.PendingDeletedAt.Add(time.Second * time.Duration(options.Options.PendingDeleteExpireSeconds))
-			out.AutoDeleteAt = pendingDeletedAt
-		}
-	}
-
-	drv, _ := self.GetDriver()
-	if drv != nil {
-		out.CdromSupport, _ = drv.IsSupportCdrom(self)
-		out.FloppySupport, _ = drv.IsSupportFloppy(self)
-		out.MonitorUrl = drv.FetchMonitorUrl(ctx, self)
-	}
-
-	if drv != nil && drv.GetHypervisor() == api.HYPERVISOR_POD {
-		ctrs, _ := GetContainerManager().GetContainersByPod(self.GetId())
-		desc := make([]*api.PodContainerDesc, len(ctrs))
-		for i := range ctrs {
-			ctr := ctrs[i]
-			desc[i] = &api.PodContainerDesc{
-				Id:   ctr.GetId(),
-				Name: ctr.GetName(),
-			}
-			if ctr.Spec != nil {
-				desc[i].Image = ctr.Spec.Image
-			}
-		}
-		out.Containers = desc
-	}
-
-	return out
 }
 
 func (self *SGuestManager) GetMetadataHiddenKeys() []string {
@@ -4555,6 +4554,13 @@ func (self *SGuest) CreateDiskOnStorage(ctx context.Context, userCred mcclient.T
 		return nil, err
 	}
 
+	if isWithServerCreate {
+		meta, _ := self.GetAllUserMetadata()
+		if len(meta) > 0 {
+			disk.SetUserMetadataAll(ctx, meta, userCred)
+		}
+	}
+
 	if pendingUsage != nil {
 		cancelUsage := SQuota{}
 		cancelUsage.Storage = disk.DiskSize
@@ -4654,7 +4660,7 @@ func (self *SGuest) createDiskOnHost(
 }
 
 func (self *SGuest) CreateIsolatedDeviceOnHost(ctx context.Context, userCred mcclient.TokenCredential, host *SHost, devs []*api.IsolatedDeviceConfig, pendingUsage quotas.IQuota) error {
-	usedDeviceMap := map[string]struct{}{}
+	usedDeviceMap := map[string]*SIsolatedDevice{}
 	for _, devConfig := range devs {
 		if devConfig.DevType == api.NIC_TYPE || devConfig.DevType == api.NVME_PT_TYPE {
 			continue
@@ -4667,7 +4673,7 @@ func (self *SGuest) CreateIsolatedDeviceOnHost(ctx context.Context, userCred mcc
 	return nil
 }
 
-func (self *SGuest) createIsolatedDeviceOnHost(ctx context.Context, userCred mcclient.TokenCredential, host *SHost, devConfig *api.IsolatedDeviceConfig, pendingUsage quotas.IQuota, usedDevMap map[string]struct{}) error {
+func (self *SGuest) createIsolatedDeviceOnHost(ctx context.Context, userCred mcclient.TokenCredential, host *SHost, devConfig *api.IsolatedDeviceConfig, pendingUsage quotas.IQuota, usedDevMap map[string]*SIsolatedDevice) error {
 	lockman.LockClass(ctx, QuotaManager, self.ProjectId)
 	defer lockman.ReleaseClass(ctx, QuotaManager, self.ProjectId)
 
@@ -5155,21 +5161,23 @@ func (self *SGuest) GetIsolatedDeviceByDiskIndex(index int8) (*SIsolatedDevice, 
 
 func (self *SGuest) GetJsonDescAtHypervisor(ctx context.Context, host *SHost) *api.GuestJsonDesc {
 	desc := &api.GuestJsonDesc{
-		Name:        self.Name,
-		Hostname:    self.Hostname,
-		Description: self.Description,
-		UUID:        self.Id,
-		Mem:         self.VmemSize,
-		Cpu:         self.VcpuCount,
-		CpuSockets:  self.CpuSockets,
-		Vga:         self.getVga(),
-		Vdi:         self.GetVdi(),
-		Machine:     self.getMachine(),
-		Bios:        self.getBios(),
-		BootOrder:   self.BootOrder,
-		SrcIpCheck:  self.SrcIpCheck.Bool(),
-		SrcMacCheck: self.SrcMacCheck.Bool(),
-		HostId:      host.Id,
+		Name:         self.Name,
+		Hostname:     self.Hostname,
+		Description:  self.Description,
+		UUID:         self.Id,
+		Mem:          self.VmemSize,
+		Cpu:          self.VcpuCount,
+		CpuSockets:   self.CpuSockets,
+		Vga:          self.getVga(),
+		Vdi:          self.GetVdi(),
+		Machine:      self.getMachine(),
+		Bios:         self.getBios(),
+		BootOrder:    self.BootOrder,
+		SrcIpCheck:   self.SrcIpCheck.Bool(),
+		SrcMacCheck:  self.SrcMacCheck.Bool(),
+		HostId:       host.Id,
+		HostAccessIp: host.AccessIp,
+		HostEIP:      host.PublicIp,
 
 		EncryptKeyId: self.EncryptKeyId,
 
@@ -5199,9 +5207,25 @@ func (self *SGuest) GetJsonDescAtHypervisor(ctx context.Context, host *SHost) *a
 		desc.IsolatedDevices = append(desc.IsolatedDevices, dev.getDesc())
 	}
 
+	if self.CpuNumaPin != nil {
+		cpuNumaPin := make([]api.SCpuNumaPin, 0)
+		cpuNumaPinStr := self.GetMetadata(ctx, api.VM_METADATA_CPU_NUMA_PIN, nil)
+		cpuNumaPinJson, err := jsonutils.ParseString(cpuNumaPinStr)
+		if err != nil {
+			log.Errorf("failed parse cpu numa pin %s: %s", cpuNumaPinStr, err)
+		} else {
+			cpuNumaPinJson.Unmarshal(&cpuNumaPin)
+			desc.CpuNumaPin = cpuNumaPin
+		}
+	}
+
 	// nics, domain
 	desc.Domain = options.Options.DNSDomain
 	nics, _ := self.GetNetworks("")
+	changed, _ := self.fixDefaultGatewayByNics(ctx, auth.AdminCredential(), nics)
+	if changed {
+		nics, _ = self.GetNetworks("")
+	}
 	for _, nic := range nics {
 		nicDesc := nic.getJsonDescAtHost(ctx, host)
 		desc.Nics = append(desc.Nics, nicDesc)
@@ -5311,6 +5335,7 @@ func (self *SGuest) GetJsonDescAtBaremetal(ctx context.Context, host *SHost) *ap
 
 	desc.DiskConfig = host.getDiskConfig()
 
+	self.fixDefaultGateway(ctx, auth.AdminCredential())
 	netifs := host.GetAllNetInterfaces()
 	desc.Domain = options.Options.DNSDomain
 
@@ -6967,9 +6992,15 @@ func (manager *SGuestManager) CustomizedTotalCount(ctx context.Context, userCred
 		return -1, nil, errors.Wrap(err, "SGuestManager query total_disk")
 	}
 
-	// log.Debugf("CustomizedTotalCount %s", jsonutils.Marshal(results))
+	_, statusInfo, err := manager.SVirtualResourceBaseManager.CustomizedTotalCount(ctx, userCred, query, totalQ)
+	if err != nil {
+		return -1, nil, errors.Wrapf(err, "virt.CustomizedTotalCount")
+	}
 
-	return results.Count, jsonutils.Marshal(results), nil
+	ret := jsonutils.Marshal(results).(*jsonutils.JSONDict)
+	ret.Update(statusInfo)
+
+	return results.Count, ret, nil
 }
 
 func (guest *SGuest) IsSriov() bool {

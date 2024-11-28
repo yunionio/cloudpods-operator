@@ -426,7 +426,7 @@ func (self *SDisk) ValidateUpdateData(ctx context.Context, userCred mcclient.Tok
 	var err error
 
 	if input.DiskType != "" {
-		if !utils.IsInStringArray(input.DiskType, []string{api.DISK_TYPE_DATA, api.DISK_TYPE_VOLUME}) {
+		if !utils.IsInStringArray(input.DiskType, []string{api.DISK_TYPE_DATA, api.DISK_TYPE_VOLUME, api.DISK_TYPE_SYS}) {
 			return input, httperrors.NewInputParameterError("not support update disk_type %s", input.DiskType)
 		}
 	}
@@ -1472,6 +1472,12 @@ func (disk *SDisk) getCandidateHostIds() ([]string, error) {
 }
 
 func (self *SDisk) GetMasterHost(storage *SStorage) (*SHost, error) {
+	if storage.StorageType == api.STORAGE_SLVM {
+		if guest := self.GetGuest(); guest != nil {
+			return guest.GetHost()
+		}
+	}
+
 	if storage.MasterHost != "" {
 		return storage.GetMasterHost()
 	}

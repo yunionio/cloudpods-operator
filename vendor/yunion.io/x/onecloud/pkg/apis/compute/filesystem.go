@@ -44,7 +44,7 @@ const (
 )
 
 type FileSystemListInput struct {
-	apis.VirtualResourceListInput
+	apis.SharableVirtualResourceListInput
 	apis.ExternalizedResourceBaseListInput
 	ManagedResourceListInput
 
@@ -52,9 +52,9 @@ type FileSystemListInput struct {
 }
 
 type FileSystemCreateInput struct {
-	apis.VirtualResourceCreateInput
+	apis.SharableVirtualResourceCreateInput
 	// 协议类型
-	// enum: NFS, SMB, CPFS
+	// enum: ["NFS", "SMB", "CPFS"]
 	Protocol string `json:"protocol"`
 
 	// 文件系统类型
@@ -91,7 +91,7 @@ type FileSystemCreateInput struct {
 	ExpiredAt time.Time `json:"expired_at"`
 
 	// 计费方式
-	// enum: postpaid, prepaid
+	// enum: ["postpaid", "prepaid"]
 	BillingType string `json:"billing_type"`
 	// swagger:ignore
 	BillingCycle string `json:"billing_cycle"`
@@ -101,7 +101,7 @@ type FileSystemSyncstatusInput struct {
 }
 
 type FileSystemDetails struct {
-	apis.VirtualResourceDetails
+	apis.SharableVirtualResourceDetails
 	ManagedResourceInfo
 	CloudregionResourceInfo
 
