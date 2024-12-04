@@ -60,33 +60,11 @@ func (m *hostImageManager) newHostPrivilegedDaemonSet(
 					Name:  cType.String(),
 					Image: oc.Spec.HostImage.Image,
 					Command: []string{
-						"sh", "-ce", fmt.Sprintf(`
-mkdir -p /etc/resolvconf/run && cp /etc/resolv.conf /etc/resolvconf/run
-mkdir -p /run/systemd/resolve && cp /etc/resolv.conf /run/systemd/resolve && cp /etc/resolv.conf /run/systemd/resolve/stub-resolv.conf
-mount --bind -o ro /etc/hosts %s/etc/hosts
-test -d %s/run/systemd/resolve && mount --rbind /run/systemd/resolve %s/run/systemd/resolve
-mount --bind -o ro /etc/resolv.conf %s/etc/resolv.conf
-test -d %s/etc/resolvconf && mount --rbind /etc/resolvconf %s/etc/resolvconf
-mkdir -p %s/etc/yunion/common
-mount --bind /etc/yunion/common %s/etc/yunion/common
-mkdir -p %s/etc/yunion/pki
-mount --bind /etc/yunion/pki %s/etc/yunion/pki
-mkdir -p %s/opt/yunion/bin
-mount --bind /opt/yunion/bin %s/opt/yunion/bin
-mount --bind /dev %s/dev
-chroot %s /opt/yunion/bin/%s --config /etc/yunion/%s.conf --common-config-file /etc/yunion/common/common.conf`,
-							YUNION_HOST_ROOT,
-							YUNION_HOST_ROOT, YUNION_HOST_ROOT,
-							YUNION_HOST_ROOT,
-							YUNION_HOST_ROOT, YUNION_HOST_ROOT,
-							YUNION_HOST_ROOT,
-							YUNION_HOST_ROOT,
-							YUNION_HOST_ROOT,
-							YUNION_HOST_ROOT,
-							YUNION_HOST_ROOT,
-							YUNION_HOST_ROOT,
-							YUNION_HOST_ROOT,
-							YUNION_HOST_ROOT, cType.String(), v1alpha1.HostComponentType.String()),
+						fmt.Sprintf("/opt/yunion/bin/%s", cType.String()),
+						"--common-config-file",
+						"/etc/yunion/common/common.conf",
+						"--config",
+						"/etc/yunion/host.conf",
 					},
 					ImagePullPolicy: dsSpec.ImagePullPolicy,
 					VolumeMounts:    volMounts,
