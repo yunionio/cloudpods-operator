@@ -61,7 +61,7 @@ func (m *autoUpdateManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1
 }
 
 func (m *autoUpdateManager) getClickhouseConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
-	return &cfg.RegionServer.ClickhouseConf
+	return &cfg.AutoUpdate.ClickhouseConf
 }
 
 func (m *autoUpdateManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
