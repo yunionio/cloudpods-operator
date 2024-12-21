@@ -282,9 +282,11 @@ type AlertQuery struct {
 	policy       string
 	resultFormat string
 
-	selects *AlertQuerySelects
-	where   *AlertQueryWhere
-	groupBy *AlertQueryGroupBy
+	selects            *AlertQuerySelects
+	where              *AlertQueryWhere
+	groupBy            *AlertQueryGroupBy
+	resultReducer      *monitor.Condition
+	resultReducerOrder monitor.ResultReducerOrder
 }
 
 func NewAlertQuery(database string, measurement string) *AlertQuery {
@@ -393,6 +395,19 @@ func (q *AlertQuery) GroupBy() *AlertQueryGroupBy {
 	g := &AlertQueryGroupBy{parts: make([]monitor.MetricQueryPart, 0)}
 	q.groupBy = g
 	return g
+}
+
+func (q *AlertQuery) Reducer(rType string, params []float64) *AlertQuery {
+	q.resultReducer = &monitor.Condition{
+		Type:   rType,
+		Params: params,
+	}
+	return q
+}
+
+func (q *AlertQuery) ReducerOrder(rType monitor.ResultReducerOrder) *AlertQuery {
+	q.resultReducerOrder = rType
+	return q
 }
 
 type AlertQuerySelects struct {
@@ -646,6 +661,10 @@ func (input *MetricQueryInput) GroupBy() *AlertQueryGroupBy {
 	return input.query.GroupBy()
 }
 
+func (input *MetricQueryInput) Reducer(rType string, params []float64) *AlertQuery {
+	return input.query.Reducer(rType, params)
+}
+
 func (input *MetricQueryInput) ToQueryData() *monitor.MetricQueryInput {
 	data := &monitor.MetricQueryInput{
 		From:            input.from,
@@ -661,7 +680,11 @@ func (input *MetricQueryInput) ToQueryData() *monitor.MetricQueryInput {
 		SkipCheckSeries: input.skipCheckSeries,
 	}
 	data.MetricQuery = []*monitor.AlertQuery{
-		{Model: input.query.ToMetricQuery()},
+		{
+			Model:              input.query.ToMetricQuery(),
+			ResultReducer:      input.query.resultReducer,
+			ResultReducerOrder: input.query.resultReducerOrder,
+		},
 	}
 
 	jsonData := jsonutils.Marshal(data).(*jsonutils.JSONDict)

@@ -190,18 +190,11 @@ type ServerDetails struct {
 	// 系统管理员可见的安全组规则
 	AdminSecurityRules string `json:"admin_security_rules"`
 
-	// list
-	AttachTime time.Time `json:"attach_time"`
-
 	// common
 	IsPrepaidRecycle bool `json:"is_prepaid_recycle"`
 
-	// 备份主机所在宿主机名称
-	BackupHostName string `json:"backup_host_name"`
-	// 备份主机所在宿主机状态
-	BackupHostStatus string `json:"backup_host_status"`
-	// 主备机同步状态
-	BackupGuestSyncStatus string `json:"backup_guest_sync_status"`
+	// 主备机信息
+	BackupInfo
 
 	// 是否可以回收
 	CanRecycle bool `json:"can_recycle"`
@@ -275,6 +268,15 @@ type ServerDetails struct {
 	MonitorUrl string `json:"monitor_url"`
 }
 
+type BackupInfo struct {
+	// 备份主机所在宿主机名称
+	BackupHostName string `json:"backup_host_name"`
+	// 备份主机所在宿主机状态
+	BackupHostStatus string `json:"backup_host_status"`
+	// 主备机同步状态
+	BackupGuestSyncStatus string `json:"backup_guest_sync_status"`
+}
+
 type Floppy struct {
 	Ordinal int    `json:"ordinal"`
 	Detail  string `json:"detail"`
@@ -283,6 +285,7 @@ type Floppy struct {
 type Cdrom struct {
 	Ordinal   int    `json:"ordinal"`
 	Detail    string `json:"detail"`
+	Name      string `json:"name"`
 	BootIndex int8   `json:"boot_index"`
 }
 
@@ -708,6 +711,7 @@ type ServerMigrateForecastInput struct {
 	SkipKernelCheck bool   `json:"skip_kernel_check"`
 	ConvertToKvm    bool   `json:"convert_to_kvm"`
 	IsRescueMode    bool   `json:"is_rescue_mode"`
+	ResetCpuNumaPin bool   `json:"reset_cpu_numa_pin"`
 }
 
 type ServerResizeDiskInput struct {
@@ -858,6 +862,8 @@ type GuestJsonDesc struct {
 
 	IsolatedDevices []*IsolatedDeviceJsonDesc `json:"isolated_devices"`
 
+	CpuNumaPin []SCpuNumaPin `json:"cpu_numa_pin"`
+
 	Domain string `json:"domain"`
 
 	Nics  []*GuestnetworkJsonDesc `json:"nics"`
@@ -906,12 +912,25 @@ type GuestJsonDesc struct {
 		InstanceSnapshotId string `json:"instance_snapshot_id"`
 		InstanceId         string `json:"instance_id"`
 	} `json:"instance_snapshot_info"`
+	EnableEsxiSwap bool `json:"enable_esxi_swap"`
 
 	EncryptKeyId string `json:"encrypt_key_id,omitempty"`
 
 	IsDaemon bool `json:"is_daemon"`
 
 	LightMode bool `json:"light_mode"`
+}
+
+type SVCpuPin struct {
+	Vcpu int
+	Pcpu int
+}
+
+type SCpuNumaPin struct {
+	SizeMB *int `json:"size_mb"`
+	NodeId int  `json:"node_id"`
+
+	VcpuPin []SVCpuPin `json:"vcpu_pin"`
 }
 
 type ServerSetBootIndexInput struct {
@@ -1003,6 +1022,10 @@ type ServerSnapshotAndCloneInput struct {
 
 	// ignore
 	InstanceSnapshotId string `json:"instance_snapshot_id"`
+
+	// Perfer clone destination host
+	// 指定期望的迁移目标宿主机
+	PreferHostId string `json:"prefer_host_id"`
 }
 
 type ServerInstanceSnapshot struct {
@@ -1179,15 +1202,25 @@ type ServerNicTrafficLimit struct {
 	TxTrafficLimit *int64 `json:"tx_traffic_limit"`
 }
 
-type GuestAddSubIpsInput struct {
-	ServerNetworkInfo
-
+type GuestAddSubIpsInfo struct {
 	Count  int      `json:"count"`
 	SubIps []string `json:"sub_ips"`
 
 	Reserved bool `json:"reserved"`
 
 	AllocDir IPAllocationDirection `json:"alloc_dir"`
+}
+
+type GuestAddSubIpsInput struct {
+	ServerNetworkInfo
+
+	GuestAddSubIpsInfo
+}
+
+type GuestUpdateSubIpsInput struct {
+	GuestAddSubIpsInput
+
+	RemoveSubIps []string `json:"remove_sub_ips"`
 }
 
 type NetworkAddrConf struct {
