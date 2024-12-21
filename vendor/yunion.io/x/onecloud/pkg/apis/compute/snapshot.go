@@ -74,6 +74,9 @@ type SnapshotListInput struct {
 	// list server snapshots
 	ServerId string `json:"server_id"`
 
+	// 未关联任何磁盘
+	Unused bool `json:"unused"`
+
 	// 按虚拟机名称排序
 	// pattern:asc|desc
 	OrderByGuest string `json:"order_by_guest"`
@@ -92,6 +95,8 @@ type SnapshotDetails struct {
 
 	// 存储类型
 	StorageType string `json:"storage_type"`
+	// 存储名称
+	Storage string `json:"storage"`
 	// 磁盘状态
 	DiskStatus string `json:"disk_status"`
 	// 云主机名称

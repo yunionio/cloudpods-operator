@@ -53,6 +53,11 @@ type SHostBaseOptions struct {
 	ImageCacheCleanupPercentage int  `help:"The cleanup threshold ratio of image cache size v.s. total storage size" default:"12"`
 	ImageCacheCleanupOnStartup  bool `help:"Cleanup image cache on host startup" default:"false"`
 	ImageCacheCleanupDryRun     bool `help:"Dry run cleanup image cache" default:"false"`
+
+	TelegrafKafkaOutputTopic         string `json:"telegraf_kafka_output_topic" help:"telegraf kafka output topic"`
+	TelegrafKafkaOutputSaslUsername  string `json:"telegraf_kafka_output_sasl_username" help:"telegraf kafka output sasl_username"`
+	TelegrafKafkaOutputSaslPassword  string `json:"telegraf_kafka_output_sasl_password" help:"telegraf kafka output sasl_password"`
+	TelegrafKafkaOutputSaslMechanism string `json:"telegraf_kafka_output_sasl_mechanism" help:"telegraf kafka output sasl_mechanism"`
 }
 
 type SHostOptions struct {
@@ -103,10 +108,11 @@ type SHostOptions struct {
 	LinuxDefaultRootUser    bool `help:"Default account for linux system is root"`
 	WindowsDefaultAdminUser bool `default:"true" help:"Default account for Windows system is Administrator"`
 
-	BlockIoScheduler string `help:"Block IO scheduler, deadline or cfq" default:"deadline"`
-	EnableKsm        bool   `help:"Enable Kernel Same Page Merging"`
-	HugepagesOption  string `help:"Hugepages option: disable|native|transparent" default:"transparent"`
-	HugepageSizeMb   int    `help:"hugepage size mb default 1G" default:"1024"`
+	BlockIoScheduler    string `help:"HDD Block IO scheduler, deadline or cfq" default:"deadline"`
+	SsdBlockIoScheduler string `help:"SSD Block IO scheduler, none deadline or cfq" default:"none"`
+	EnableKsm           bool   `help:"Enable Kernel Same Page Merging"`
+	HugepagesOption     string `help:"Hugepages option: disable|native|transparent" default:"transparent"`
+	HugepageSizeMb      int    `help:"hugepage size mb default 1G" default:"1024"`
 
 	// PrivatePrefixes []string `help:"IPv4 private prefixes"`
 	LocalImagePath  []string `help:"Local image storage paths"`
@@ -132,8 +138,10 @@ type SHostOptions struct {
 	SetVncPassword         bool `default:"true" help:"Auto set vnc password after monitor connected"`
 	UseBootVga             bool `default:"false" help:"Use boot VGA GPU for guest"`
 
-	EnableCpuBinding         bool `default:"true" help:"Enable cpu binding and rebalance"`
-	EnableOpenflowController bool `default:"false"`
+	EnableHostAgentNumaAllocate bool   `default:"false" help:"Enable host agent numa allocate"`
+	EnableCpuBinding            bool   `default:"true" help:"Enable cpu binding and rebalance"`
+	EnableOpenflowController    bool   `default:"false"`
+	BootVgaPciAddr              string `help:"Specific boot vga pci addr incase detect wrong device"`
 
 	PingRegionInterval int      `default:"60" help:"interval to ping region, deefault is 1 minute"`
 	LogSystemdUnits    []string `help:"Systemd units log collected by fluent-bit"`
@@ -190,7 +198,7 @@ type SHostOptions struct {
 	AMDVgpuPFs          []string `help:"amd vgpu pf pci addresses"`
 	NVIDIAVgpuPFs       []string `help:"nvidia vgpu pf pci addresses"`
 
-	EthtoolEnableGso bool `help:"use ethtool to turn on or off GSO(generic segment offloading)" default:"false" json:"ethtool_enable_gso"`
+	EthtoolEnableGso bool `help:"use ethtool to turn on or off GSO(generic segment offloading)" default:"true" json:"ethtool_enable_gso"`
 
 	EthtoolEnableGsoInterfaces  []string `help:"use ethtool to turn on GSO for the specific interfaces" json:"ethtool_enable_gso_interfaces"`
 	EthtoolDisableGsoInterfaces []string `help:"use ethtool to turn off GSO for the specific interfaces" json:"ethtool_disable_gso_interfaces"`

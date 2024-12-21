@@ -17,6 +17,7 @@ package compute
 import (
 	"yunion.io/x/jsonutils"
 
+	"yunion.io/x/onecloud/pkg/apis/baremetal"
 	"yunion.io/x/onecloud/pkg/mcclient/options"
 )
 
@@ -86,6 +87,19 @@ func (opts *HostListOptions) Params() (jsonutils.JSONObject, error) {
 	return params, nil
 }
 
+type HostShowOptions struct {
+	options.BaseShowOptions
+	ShowMetadata bool `help:"Show host metadata in details"`
+	ShowNicInfo  bool `help:"Show host nic_info in details"`
+	ShowSysInfo  bool `help:"Show host sys_info in details"`
+	ShowAll      bool `help:"Show all of host details" short-token:"a"`
+}
+
+func (o *HostShowOptions) Params() (jsonutils.JSONObject, error) {
+	// NOTE: host show only request with base options
+	return jsonutils.Marshal(o.BaseShowOptions), nil
+}
+
 type HostReserveCpusOptions struct {
 	options.BaseIdsOptions
 	Cpus                    string
@@ -110,4 +124,18 @@ func (o *HostAutoMigrateOnHostDownOptions) Params() (jsonutils.JSONObject, error
 type HostStatusStatisticsOptions struct {
 	HostListOptions
 	options.StatusStatisticsOptions
+}
+
+type HostValidateIPMI struct {
+	IP       string `json:"ip" help:"IPMI ip address"`
+	USERNAME string `json:"username" help:"IPMI username"`
+	PASSWORD string `json:"password" help:"IPMI password"`
+}
+
+func (h HostValidateIPMI) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.Marshal(baremetal.ValidateIPMIRequest{
+		Ip:       h.IP,
+		Username: h.USERNAME,
+		Password: h.PASSWORD,
+	}), nil
 }

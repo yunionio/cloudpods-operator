@@ -88,13 +88,13 @@ func NewQueryResult() *QueryResult {
 
 func FormatRawName(idx int, name string, groupByTags []string, tags map[string]string, diffTagKeys sets.String) string {
 	// when group by tag specified
-	if len(groupByTags) != 0 {
+	/*if len(groupByTags) != 0 {
 		for key, val := range tags {
 			if strings.Contains(strings.Join(groupByTags, ","), key) {
 				return val
 			}
 		}
-	}
+	}*/
 
 	genHint := func(k, v string) string {
 		return fmt.Sprintf("%s=%s", k, v)
@@ -110,7 +110,7 @@ func FormatRawName(idx int, name string, groupByTags []string, tags map[string]s
 	for _, tagKey := range tagKeys.List() {
 		if tagV, ok := tags[tagKey]; ok {
 			gHint := genHint(tagKey, tagV)
-			if strings.Contains(tagKey, "name") {
+			if strings.Contains(tagKey, "name") && !sets.NewString(groupByTags...).Has(tagKey) {
 				hintNames.Insert(gHint)
 			} else {
 				hints.Insert(gHint)
