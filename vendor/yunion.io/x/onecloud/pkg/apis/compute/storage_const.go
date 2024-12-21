@@ -126,6 +126,16 @@ const (
 	STORAGE_ECLOUD_SSD    = compute.STORAGE_ECLOUD_SSD    // 高性能盘
 	STORAGE_ECLOUD_SSDEBS = compute.STORAGE_ECLOUD_SSDEBS // 性能优化盘
 	STORAGE_ECLOUD_SYSTEM = compute.STORAGE_ECLOUD_SYSTEM // 系统盘
+
+	STORAGE_BAIDU_SSD              = compute.STORAGE_BAIDU_SSD
+	STORAGE_BAIDU_PREMIUM_SSD      = compute.STORAGE_BAIDU_PREMIUM_SSD
+	STORAGE_BAIDU_HDD              = compute.STORAGE_BAIDU_HDD
+	STORAGE_BAIDU_ENHANCED_SSD_PL1 = compute.STORAGE_BAIDU_ENHANCED_SSD_PL1
+	STORAGE_BAIDU_ENHANCED_SSD_PL2 = compute.STORAGE_BAIDU_ENHANCED_SSD_PL2
+	STORAGE_BAIDU_ENHANCED_SSD_PL3 = compute.STORAGE_BAIDU_ENHANCED_SSD_PL3
+
+	// zettakit
+	STORAGE_ZETTAKIT_NORMAL = compute.STORAGE_ZETTAKIT_NORMAL
 )
 
 const (
@@ -222,6 +232,9 @@ type StorageResourceInput struct {
 
 type StorageFilterListInputBase struct {
 	StorageResourceInput
+
+	// 以host过滤
+	StorageHostId string `json:"storage_host_id"`
 
 	// 以存储名称排序
 	// pattern:asc|desc

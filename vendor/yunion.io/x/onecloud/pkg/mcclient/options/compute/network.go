@@ -42,7 +42,7 @@ type NetworkListOptions struct {
 	IsAutoAlloc *bool `help:"search network with is_auto_alloc"`
 	IsClassic   *bool `help:"search classic on-premise network"`
 
-	Status string `help:"filter by network status"`
+	// Status string `help:"filter by network status"`
 
 	GuestIpStart []string `help:"search by guest_ip_start"`
 	GuestIpEnd   []string `help:"search by guest_ip_end"`
@@ -80,7 +80,7 @@ type NetworkCreateOptions struct {
 	VlanId      int64  `help:"Vlan ID" default:"1"`
 	IfnameHint  string `help:"Hint for ifname generation"`
 	AllocPolicy string `help:"Address allocation policy" choices:"none|stepdown|stepup|random"`
-	ServerType  string `help:"Server type" choices:"baremetal|container|eip|guest|ipmi|pxe"`
+	ServerType  string `help:"Server type" choices:"baremetal|container|eip|guest|ipmi|pxe|hostlocal"`
 	IsAutoAlloc *bool  `help:"Auto allocation IP pool"`
 	BgpType     string `help:"Internet service provider name" positional:"false"`
 	Desc        string `help:"Description" metavar:"DESCRIPTION"`

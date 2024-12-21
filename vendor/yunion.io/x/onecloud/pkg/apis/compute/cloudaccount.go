@@ -66,18 +66,12 @@ type CloudenvResourceListInput struct {
 	// | Ceph      | 2.11       | Ceph对象存储                         |
 	// | Xsky      | 2.11       | XSKY启明星辰Ceph对象存储              |
 	//
-	// enum: OneCloud,VMware,Aliyun,Qcloud,Azure,Aws,Huawei,OpenStack,Ucloud,ZStack,Google,Ctyun,S3,Ceph,Xsky"
+	// enum: ["OneCloud","VMware","Aliyun","Qcloud","Azure","Aws","Huawei","OpenStack","Ucloud","ZStack","Google","Ctyun","S3","Ceph","Xsky"]
 	Providers []string `json:"providers"`
 	// swagger:ignore
 	// Deprecated
 	Provider []string `json:"provider" yunion-deprecated-by:"providers"`
 
-	// 列出指定云平台品牌的资源，一般来说brand和provider相同，除了以上支持的provider之外，还支持以下band
-	//
-	// |   Brand  | Provider | 说明        |
-	// |----------|----------|------------|
-	// | DStack   | ZStack   | 滴滴云私有云 |
-	//
 	Brands []string `json:"brands"`
 	// swagger:ignore
 	// Deprecated
@@ -91,31 +85,31 @@ type CloudenvResourceListInput struct {
 	// | private   | 私有云  |
 	// | onpremise | 本地IDC |
 	//
-	// enum: public,private,onpremise
+	// enum: ["public","private","onpremise"]
 	CloudEnv string `json:"cloud_env"`
 
 	// swagger:ignore
 	// Deprecated
 	// description: this param will be deprecate at 3.0
-	PublicCloud bool `json:"public_cloud"`
+	PublicCloud *bool `json:"public_cloud"`
 	// swagger:ignore
 	// Deprecated
 	// description: this param will be deprecate at 3.0
-	IsPublic bool `json:"is_public"`
+	IsPublic *bool `json:"is_public"`
 
 	// swagger:ignore
 	// Deprecated
 	// description: this param will be deprecate at 3.0
-	PrivateCloud bool `json:"private_cloud"`
+	PrivateCloud *bool `json:"private_cloud"`
 	// swagger:ignore
 	// Deprecated
 	// description: this param will be deprecate at 3.0
-	IsPrivate bool `json:"is_private"`
+	IsPrivate *bool `json:"is_private"`
 
 	// swagger:ignore
 	// Deprecated
 	// description: this param will be deprecate at 3.0
-	IsOnPremise bool `json:"is_on_premise"`
+	IsOnPremise *bool `json:"is_on_premise"`
 
 	// 以平台名称排序
 	// pattern:asc|desc
@@ -146,7 +140,7 @@ type CloudaccountCreateInput struct {
 	// 指定云平台
 	// Qcloud: 腾讯云
 	// Ctyun: 天翼云
-	// enum: VMware, Aliyun, Qcloud, Azure, Aws, Huawei, OpenStack, Ucloud, ZStack, Google, Ctyun, JDcloud
+	// enum: ["VMware", "Aliyun", "Qcloud", "Azure", "Aws", "Huawei", "OpenStack", "Ucloud", "ZStack", "Google", "Ctyun", "JDcloud"]
 	Provider string `json:"provider"`
 	// swagger:ignore
 	AccountId string
@@ -169,7 +163,7 @@ type CloudaccountCreateInput struct {
 	// | Huawei | Huawei |
 	// | OpenStack | OpenStack |
 	// | Ucloud | Ucloud |
-	// | ZStack | ZStack, DStack |
+	// | ZStack | ZStack |
 	// | Google | Google |
 	// | Ctyun | Ctyun |
 	Brand string `json:"brand"`

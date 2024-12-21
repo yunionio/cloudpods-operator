@@ -15,16 +15,24 @@
 package compute
 
 import (
+	"reflect"
 	"time"
 
 	"yunion.io/x/cloudmux/pkg/multicloud/esxi/vcenter"
 	"yunion.io/x/jsonutils"
+	"yunion.io/x/pkg/gotypes"
 	"yunion.io/x/pkg/util/fileutils"
 
 	"yunion.io/x/onecloud/pkg/apis"
 	"yunion.io/x/onecloud/pkg/apis/billing"
 	"yunion.io/x/onecloud/pkg/httperrors"
 )
+
+func init() {
+	gotypes.RegisterSerializable(reflect.TypeOf(new(DiskFsFeatures)), func() gotypes.ISerializable {
+		return new(DiskFsFeatures)
+	})
+}
 
 type DiskCreateInput struct {
 	apis.VirtualResourceCreateInput
@@ -52,7 +60,7 @@ type DiskCreateInput struct {
 
 	// 此参数仅适用于未指定storage时进行调度到指定平台创建磁盘
 	// default: kvm
-	// enum: kvm, openstack, esxi, aliyun, aws, qcloud, azure, huawei, openstack, ucloud, zstack google, ctyun
+	// enum: ["kvm", "openstack", "esxi", "aliyun", "aws", "qcloud", "azure", "huawei", "ucloud", "zstack", "google", "ctyun"]
 	Hypervisor string `json:"hypervisor"`
 }
 
@@ -201,6 +209,10 @@ type SimpleGuest struct {
 	Driver string `json:"driver"`
 	// 缓存模式
 	CacheMode string `json:"cache_mode"`
+	// 磁盘并发数
+	Iops int `json:"iops"`
+	// 磁盘吞吐
+	Bps int `json:"bps"`
 }
 
 type SimpleSnapshotPolicy struct {
@@ -286,6 +298,7 @@ type DiskAllocateInput struct {
 	ImageId       string
 	ImageFormat   string
 	FsFormat      string
+	FsFeatures    *DiskFsFeatures
 	Rebuild       bool
 	BackingDiskId string
 	SnapshotId    string
@@ -339,4 +352,23 @@ type DiskSnapshotpolicyInput struct {
 type DiskRebuildInput struct {
 	BackupId   *string `json:"backup_id,allowempty"`
 	TemplateId *string `json:"template_id,allowempty"`
+}
+
+type DiskFsExt4Features struct {
+	CaseInsensitive bool `json:"case_insensitive"`
+}
+
+type DiskFsFeatures struct {
+	Ext4 *DiskFsExt4Features `json:"ext4"`
+}
+
+func (d *DiskFsFeatures) String() string {
+	return jsonutils.Marshal(d).String()
+}
+
+func (d *DiskFsFeatures) IsZero() bool {
+	if reflect.DeepEqual(*d, DiskFsFeatures{}) {
+		return true
+	}
+	return false
 }

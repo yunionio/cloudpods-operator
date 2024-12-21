@@ -160,7 +160,7 @@ type DiskConfig struct {
 	BackupId string `json:"backup_id"`
 
 	// 磁盘类型
-	// enum: sys, data, swap
+	// enum: ["sys", "data", "swap"]
 	DiskType string `json:"disk_type"`
 
 	Schedtags []*SchedtagConfig `json:"schedtags"`
@@ -171,22 +171,25 @@ type DiskConfig struct {
 	SizeMb int `json:"size"`
 
 	// 文件系统,仅kvm支持自动格式化磁盘,私有云和公有云此参数不会生效
-	// enum: swap, ext2, ext3, ext4, xfs, ntfs, fat, hfsplus
+	// enum: ["swap", "ext2", "ext3", "ext4", "xfs", "ntfs", "fat", "hfsplus"]
 	// requried: false
 	Fs string `json:"fs"`
 
+	// 文件系统特性
+	FsFeatures *DiskFsFeatures `json:"fs_features"`
+
 	// 磁盘存储格式
-	// enum: qcow2, raw, docker, iso, vmdk, vmdkflatver1, vmdkflatver2, vmdkflat, vmdksparse, vmdksparsever1, vmdksparsever2, vmdksepsparse vhd
+	// enum: ["qcow2", "raw", "docker", "iso", "vmdk", "vmdkflatver1", "vmdkflatver2", "vmdkflat", "vmdksparse", "vmdksparsever1", "vmdksparsever2", "vmdksepsparse", "vhd"]
 	// requried: false
 	Format string `json:"format"`
 
 	// 磁盘驱动方式
-	// enum: virtio, ide, scsi, sata, pvscsi
+	// enum: ["virtio", "ide", "scsi", "sata", "pvscsi"]
 	// requried: false
 	Driver string `json:"driver"`
 
 	// 磁盘缓存模式
-	// enum: writeback, none, writethrough
+	// enum: ["writeback", "none", "writethrough"]
 	// requried: false
 	Cache string `json:"cache"`
 
@@ -393,7 +396,7 @@ type ServerConfigs struct {
 	Backup bool `json:"backup"`
 
 	// 设置为 daemon 虚机
-	// default: nil
+	// default: false
 	// required: false
 	IsDaemon *bool `json:"is_daemon"`
 
@@ -471,6 +474,10 @@ type ServerCreateInput struct {
 	// default: 1
 	CpuSockets int `json:"cpu_sockets"`
 
+	// 额外分配 cpu 数量
+	// required: false
+	ExtraCpuCount int `json:"extra_cpu_count"`
+
 	// 用户自定义启动脚本
 	// 支持 #cloud-config yaml 格式及shell脚本
 	// 支持特殊user data平台: Aliyun, Qcloud, Azure, Apsara, Ucloud
@@ -503,12 +510,12 @@ type ServerCreateInput struct {
 	Cdrom          string `json:"cdrom"`
 	CdromBootIndex *int8  `json:"cdrom_boot_index"`
 
-	// enum: cirros, vmware, qxl, std
+	// enum: ["cirros", "vmware", "qxl", "std"]
 	// default: std
 	Vga string `json:"vga"`
 
 	// 远程连接协议
-	// enum: vnc, spice
+	// enum: ["vnc", "spice"]
 	// default: vnc
 	Vdi string `json:"vdi"`
 
@@ -538,7 +545,7 @@ type ServerCreateInput struct {
 
 	// 关机后执行的操作
 	// terminate: 关机后自动删除
-	// enum: stop, terminate, stop_release_gpu
+	// enum: ["stop", "terminate", "stop_release_gpu"]
 	// default: stop
 	ShutdownBehavior string `json:"shutdown_behavior"`
 

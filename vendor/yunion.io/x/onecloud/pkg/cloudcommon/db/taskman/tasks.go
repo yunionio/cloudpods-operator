@@ -82,12 +82,18 @@ type STaskManager struct {
 }
 
 var TaskManager *STaskManager
+var userCredWidthLimit = 0
 
 func init() {
 	TaskManager = &STaskManager{
 		SModelBaseManager: db.NewModelBaseManager(STask{}, "tasks_tbl", "task", "tasks"),
 	}
 	TaskManager.SetVirtualObject(TaskManager)
+	if field, ok := reflect.TypeOf(&STask{}).Elem().FieldByName("UserCred"); ok {
+		if widthStr := field.Tag.Get(sqlchemy.TAG_WIDTH); len(widthStr) > 0 {
+			userCredWidthLimit, _ = strconv.Atoi(widthStr)
+		}
+	}
 }
 
 type STask struct {
@@ -204,26 +210,26 @@ func (manager *STaskManager) FetchTaskById(taskId string) *STask {
 	return manager.fetchTask(taskId)
 }
 
-func (self *STask) ValidateDeleteCondition(ctx context.Context, info jsonutils.JSONObject) error {
+func (task *STask) ValidateDeleteCondition(ctx context.Context, info jsonutils.JSONObject) error {
 	return httperrors.NewForbiddenError("forbidden")
 }
 
-func (self *STask) ValidateUpdateCondition(ctx context.Context) error {
+func (task *STask) ValidateUpdateCondition(ctx context.Context) error {
 	return httperrors.NewForbiddenError("forbidden")
 }
 
-func (self *STask) BeforeInsert() {
-	if len(self.Id) == 0 {
-		self.Id = stringutils.UUID4()
+func (task *STask) BeforeInsert() {
+	if len(task.Id) == 0 {
+		task.Id = stringutils.UUID4()
 	}
 }
 
-func (self *STask) GetId() string {
-	return self.Id
+func (task *STask) GetId() string {
+	return task.Id
 }
 
-func (self *STask) GetName() string {
-	return self.TaskName
+func (task *STask) GetName() string {
+	return task.TaskName
 }
 
 func (task *STask) saveStartAt() {
@@ -319,6 +325,10 @@ func (manager *STaskManager) NewTask(
 		Params:       data,
 		Stage:        TASK_INIT_STAGE,
 		ParentTaskId: parentTaskId,
+	}
+
+	if userCredWidthLimit > 0 && len(userCred.String()) > userCredWidthLimit {
+		return nil, fmt.Errorf("Too many permissions for user %s", userCred.GetUserName())
 	}
 
 	ownerId := obj.GetOwnerId()
@@ -421,8 +431,9 @@ func (manager *STaskManager) NewParallelTask(
 
 	parentTask := task.GetParentTask()
 	if parentTask != nil {
-		st := SSubTask{TaskId: parentTask.Id, Stage: parentTask.Stage, SubtaskId: task.Id}
-		err := SubTaskManager.TableSpec().Insert(ctx, &st)
+		st := &SSubTask{TaskId: parentTask.Id, Stage: parentTask.Stage, SubtaskId: task.Id}
+		st.SetModelManager(SubTaskManager, st)
+		err := SubTaskManager.TableSpec().Insert(ctx, st)
 		if err != nil {
 			log.Errorf("Subtask insert error %s", err)
 			return nil, err
@@ -651,7 +662,7 @@ func execITask(taskValue reflect.Value, task *STask, odata jsonutils.JSONObject,
 		}
 	}()
 
-	log.Debugf("Call %s %s %#v", task.TaskName, stageName, params)
+	log.Debugf("Call %s(%s) %s %#v", task.TaskName, task.Id, stageName, params)
 	funcValue.Call(params)
 
 	// call save request context
@@ -663,41 +674,41 @@ func (task *STask) ScheduleRun(data jsonutils.JSONObject) error {
 	return runTask(task.Id, data)
 }
 
-func (self *STask) IsSubtask() bool {
-	return self.HasParentTask()
+func (task *STask) IsSubtask() bool {
+	return task.HasParentTask()
 }
 
-func (self *STask) GetParentTaskId() string {
-	if len(self.ParentTaskId) > 0 {
-		return self.ParentTaskId
+func (task *STask) GetParentTaskId() string {
+	if len(task.ParentTaskId) > 0 {
+		return task.ParentTaskId
 	}
-	parentTaskId, _ := self.Params.GetString(PARENT_TASK_ID_KEY)
+	parentTaskId, _ := task.Params.GetString(PARENT_TASK_ID_KEY)
 	if len(parentTaskId) > 0 {
 		return parentTaskId
 	}
 	return ""
 }
 
-func (self *STask) HasParentTask() bool {
-	parentTaskId := self.GetParentTaskId()
+func (task *STask) HasParentTask() bool {
+	parentTaskId := task.GetParentTaskId()
 	if len(parentTaskId) > 0 {
 		return true
 	}
 	return false
 }
 
-func (self *STask) GetParentTask() *STask {
-	parentTaskId := self.GetParentTaskId()
+func (task *STask) GetParentTask() *STask {
+	parentTaskId := task.GetParentTaskId()
 	if len(parentTaskId) > 0 {
 		return TaskManager.fetchTask(parentTaskId)
 	}
 	return nil
 }
 
-func (self *STask) GetRequestContext() appctx.AppContextData {
+func (task *STask) GetRequestContext() appctx.AppContextData {
 	ctxData := appctx.AppContextData{}
-	if self.Params != nil {
-		ctxJson, _ := self.Params.Get(REQUEST_CONTEXT_KEY)
+	if task.Params != nil {
+		ctxJson, _ := task.Params.Get(REQUEST_CONTEXT_KEY)
 		if ctxJson != nil {
 			ctxJson.Unmarshal(&ctxData)
 		}
@@ -705,30 +716,30 @@ func (self *STask) GetRequestContext() appctx.AppContextData {
 	return ctxData
 }
 
-func (self *STask) SaveRequestContext(data *appctx.AppContextData) {
+func (task *STask) SaveRequestContext(data *appctx.AppContextData) {
 	jsonData := jsonutils.Marshal(data)
-	log.Debugf("SaveRequestContext %s param %s", jsonData, self.Params)
-	_, err := db.Update(self, func() error {
-		params := self.Params.CopyExcludes(REQUEST_CONTEXT_KEY)
+	log.Debugf("SaveRequestContext %s(%s) %s param %s", task.TaskName, task.Id, jsonData, task.Params)
+	_, err := db.Update(task, func() error {
+		params := task.Params.CopyExcludes(REQUEST_CONTEXT_KEY)
 		params.Add(jsonData, REQUEST_CONTEXT_KEY)
-		self.Params = params
-		self.EndAt = timeutils.UtcNow()
+		task.Params = params
+		task.EndAt = timeutils.UtcNow()
 		return nil
 	})
-	log.Debugf("Params: %s", self.Params)
+	log.Debugf("Params: %s(%s) %s", task.TaskName, task.Id, task.Params)
 	if err != nil {
 		log.Errorf("save_request_context fail %s", err)
 	}
 }
 
-func (self *STask) SaveParams(data *jsonutils.JSONDict) error {
-	return self.SetStage("", data)
+func (task *STask) SaveParams(data *jsonutils.JSONDict) error {
+	return task.SetStage("", data)
 }
 
-func (self *STask) SetStage(stageName string, data *jsonutils.JSONDict) error {
-	_, err := db.Update(self, func() error {
+func (task *STask) SetStage(stageName string, data *jsonutils.JSONDict) error {
+	_, err := db.Update(task, func() error {
 		params := jsonutils.NewDict()
-		params.Update(self.Params)
+		params.Update(task.Params)
 		if data != nil {
 			params.Update(data)
 		}
@@ -740,16 +751,16 @@ func (self *STask) SetStage(stageName string, data *jsonutils.JSONDict) error {
 			}
 			stageList := stages.(*jsonutils.JSONArray)
 			stageData := jsonutils.NewDict()
-			stageData.Add(jsonutils.NewString(self.Stage), "name")
+			stageData.Add(jsonutils.NewString(task.Stage), "name")
 			stageData.Add(jsonutils.NewTimeString(time.Now()), "complete_at")
 			stageList.Add(stageData)
-			self.Stage = stageName
+			task.Stage = stageName
 		}
-		self.Params = params
+		task.Params = params
 		return nil
 	})
 	if err != nil {
-		log.Errorf("set_stage fail %s", err)
+		log.Errorf("Task %s(%s) set_stage %s fail %s", task.TaskName, task.Id, stageName, err)
 	}
 	return err
 }
@@ -771,7 +782,7 @@ func (task *STask) GetObjectStr() string {
 }
 
 func (task *STask) SetStageComplete(ctx context.Context, data *jsonutils.JSONDict) {
-	log.Infof("XXX TASK %s complete", task.TaskName)
+	log.Infof("XXX TASK %s(%s) complete", task.TaskName, task.Id)
 	task.SetStage(TASK_STAGE_COMPLETE, data)
 	task.SetProgressAndStatus(100, taskStatusDone)
 	if data == nil {
@@ -785,19 +796,19 @@ func (task *STask) SetStageComplete(ctx context.Context, data *jsonutils.JSONDic
 	task.NotifyParentTaskComplete(ctx, data, false)
 }
 
-func (self *STask) SetStageFailed(ctx context.Context, reason jsonutils.JSONObject) {
-	if self.Stage == TASK_STAGE_FAILED {
-		log.Warningf("Task %s has been failed", self.TaskName)
+func (task *STask) SetStageFailed(ctx context.Context, reason jsonutils.JSONObject) {
+	if task.Stage == TASK_STAGE_FAILED {
+		log.Warningf("Task %s(%s) has been failed", task.TaskName, task.Id)
 		return
 	}
-	log.Infof("XXX TASK %s failed: %s on stage %s", self.TaskName, reason, self.Stage)
+	log.Infof("XXX TASK %s(%s) failed: %s on stage %s", task.TaskName, task.Id, reason, task.Stage)
 	reasonDict := jsonutils.NewDict()
-	reasonDict.Add(jsonutils.NewString(self.Stage), "stage")
+	reasonDict.Add(jsonutils.NewString(task.Stage), "stage")
 	if reason != nil {
 		reasonDict.Add(reason, "reason")
 	}
 	reason = reasonDict
-	prevFailed, _ := self.Params.Get("__failed_reason")
+	prevFailed, _ := task.Params.Get("__failed_reason")
 	if prevFailed != nil {
 		switch prevFailed.(type) {
 		case *jsonutils.JSONArray:
@@ -809,17 +820,17 @@ func (self *STask) SetStageFailed(ctx context.Context, reason jsonutils.JSONObje
 	}
 	data := jsonutils.NewDict()
 	data.Add(reason, "__failed_reason")
-	self.SetStage(TASK_STAGE_FAILED, data)
-	self.SetProgressAndStatus(100, taskStatusDone)
-	self.NotifyParentTaskFailure(ctx, reason)
+	task.SetStage(TASK_STAGE_FAILED, data)
+	task.SetProgressAndStatus(100, taskStatusDone)
+	task.NotifyParentTaskFailure(ctx, reason)
 }
 
-func (self *STask) NotifyParentTaskComplete(ctx context.Context, body *jsonutils.JSONDict, failed bool) {
-	log.Infof("notify_parent_task_complete: %s params %s", self.TaskName, self.Params)
-	parentTaskId := self.GetParentTaskId()
-	parentTaskNotify, _ := self.Params.GetString(PARENT_TASK_NOTIFY_KEY)
+func (task *STask) NotifyParentTaskComplete(ctx context.Context, body *jsonutils.JSONDict, failed bool) {
+	log.Infof("notify_parent_task_complete: %s(%s) params %s", task.TaskName, task.Id, task.Params)
+	parentTaskId := task.GetParentTaskId()
+	parentTaskNotify, _ := task.Params.GetString(PARENT_TASK_NOTIFY_KEY)
 	if len(parentTaskId) > 0 {
-		subTask := SubTaskManager.GetSubTask(parentTaskId, self.Id)
+		subTask := SubTaskManager.GetSubTask(parentTaskId, task.Id)
 		if subTask != nil {
 			subTask.SaveResults(failed, body)
 		}
@@ -861,19 +872,19 @@ func notifyRemoteTask(ctx context.Context, notifyUrl string, taskid string, body
 	log.Infof("Notify remote URL %s(%s) get acked: %s!", notifyUrl, taskid, body.String())
 }
 
-func (self *STask) NotifyParentTaskFailure(ctx context.Context, reason jsonutils.JSONObject) {
+func (task *STask) NotifyParentTaskFailure(ctx context.Context, reason jsonutils.JSONObject) {
 	body := jsonutils.NewDict()
 	body.Add(jsonutils.NewString("error"), "__status__")
-	body.Add(jsonutils.NewString(self.TaskName), "__task_name__")
+	body.Add(jsonutils.NewString(task.TaskName), "__task_name__")
 	body.Add(reason, "__reason__")
-	self.NotifyParentTaskComplete(ctx, body, true)
+	task.NotifyParentTaskComplete(ctx, body, true)
 }
 
-func (self *STask) IsCurrentStageComplete() bool {
-	totalSubtasksCnt, _ := SubTaskManager.GetTotalSubtasksCount(self.Id, self.Stage)
-	initSubtasksCnt, _ := SubTaskManager.GetInitSubtasksCount(self.Id, self.Stage)
-	log.Debugf("Task %s IsCurrentStageComplete totalSubtasks %d initSubtasks %d ", self.String(), totalSubtasksCnt, initSubtasksCnt)
-	self.SetProgress(float32(totalSubtasksCnt-initSubtasksCnt) / float32(totalSubtasksCnt))
+func (task *STask) IsCurrentStageComplete() bool {
+	totalSubtasksCnt, _ := SubTaskManager.GetTotalSubtasksCount(task.Id, task.Stage)
+	initSubtasksCnt, _ := SubTaskManager.GetInitSubtasksCount(task.Id, task.Stage)
+	log.Debugf("Task %s IsCurrentStageComplete totalSubtasks %d initSubtasks %d ", task.String(), totalSubtasksCnt, initSubtasksCnt)
+	task.SetProgress(float32(totalSubtasksCnt-initSubtasksCnt) / float32(totalSubtasksCnt))
 	if totalSubtasksCnt > 0 && initSubtasksCnt == 0 {
 		return true
 	} else {
@@ -881,10 +892,10 @@ func (self *STask) IsCurrentStageComplete() bool {
 	}
 }
 
-func (self *STask) GetPendingUsage(quota quotas.IQuota, index int) error {
+func (task *STask) GetPendingUsage(quota quotas.IQuota, index int) error {
 	key := pendingUsageKey(index)
-	if self.Params.Contains(key) {
-		quotaJson, err := self.Params.Get(key)
+	if task.Params.Contains(key) {
+		quotaJson, err := task.Params.Get(key)
 		if err != nil {
 			return errors.Wrapf(err, "task.Params.Get %s", key)
 		}
@@ -904,12 +915,12 @@ func pendingUsageKey(index int) string {
 	return key
 }
 
-func (self *STask) SetPendingUsage(quota quotas.IQuota, index int) error {
-	_, err := db.Update(self, func() error {
+func (task *STask) SetPendingUsage(quota quotas.IQuota, index int) error {
+	_, err := db.Update(task, func() error {
 		key := pendingUsageKey(index)
-		params := self.Params.CopyExcludes(key)
+		params := task.Params.CopyExcludes(key)
 		params.Add(jsonutils.Marshal(quota), key)
-		self.Params = params
+		task.Params = params
 		return nil
 	})
 	if err != nil {
@@ -918,11 +929,11 @@ func (self *STask) SetPendingUsage(quota quotas.IQuota, index int) error {
 	return err
 }
 
-func (self *STask) ClearPendingUsage(index int) error {
-	_, err := db.Update(self, func() error {
+func (task *STask) ClearPendingUsage(index int) error {
+	_, err := db.Update(task, func() error {
 		key := pendingUsageKey(index)
-		params := self.Params.CopyExcludes(key)
-		self.Params = params
+		params := task.Params.CopyExcludes(key)
+		task.Params = params
 		return nil
 	})
 	if err != nil {
@@ -931,24 +942,24 @@ func (self *STask) ClearPendingUsage(index int) error {
 	return err
 }
 
-func (self *STask) GetParams() *jsonutils.JSONDict {
-	return self.Params
+func (task *STask) GetParams() *jsonutils.JSONDict {
+	return task.Params
 }
 
-func (self *STask) GetUserCred() mcclient.TokenCredential {
-	return self.UserCred
+func (task *STask) GetUserCred() mcclient.TokenCredential {
+	return task.UserCred
 }
 
-func (self *STask) GetTaskId() string {
-	return self.GetId()
+func (task *STask) GetTaskId() string {
+	return task.GetId()
 }
 
-func (self *STask) GetObject() db.IStandaloneModel {
-	return self.taskObject
+func (task *STask) GetObject() db.IStandaloneModel {
+	return task.taskObject
 }
 
-func (self *STask) GetObjects() []db.IStandaloneModel {
-	return self.taskObjects
+func (task *STask) GetObjects() []db.IStandaloneModel {
+	return task.taskObjects
 }
 
 func (task *STask) GetTaskRequestHeader() http.Header {

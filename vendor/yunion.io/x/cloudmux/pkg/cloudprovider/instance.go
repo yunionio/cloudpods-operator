@@ -171,6 +171,13 @@ type SManagedVMCreateConfig struct {
 	UserDataType                    string
 	WindowsUserDataType             string
 	IsWindowsUserDataTypeNeedEncode bool
+
+	IsolateDevices []SIsolateDevice
+}
+
+type SIsolateDevice struct {
+	Id   string
+	Name string
 }
 
 type SManagedVMChangeConfig struct {
@@ -353,6 +360,9 @@ type ServerVncOutput struct {
 	ApiServer     string `json:"api_server"`
 	ConnectParams string `json:"connect_params"`
 	Session       string `json:"session"`
+
+	// sangfor
+	Cookie string `json:"cookie"`
 
 	Hypervisor string `json:"hypervisor"`
 }

@@ -516,8 +516,10 @@ func (snet *SNetwork) GetNTP() string {
 func (snet *SNetwork) GetDomain() string {
 	if len(snet.GuestDomain) > 0 {
 		return snet.GuestDomain
-	} else {
+	} else if !apis.IsIllegalSearchDomain(options.Options.DNSDomain) {
 		return options.Options.DNSDomain
+	} else {
+		return ""
 	}
 }
 
@@ -2262,7 +2264,7 @@ func (snet *SNetwork) validateUpdateData(ctx context.Context, userCred mcclient.
 	}
 
 	if input.IsAutoAlloc != nil && *input.IsAutoAlloc {
-		if snet.ServerType != api.NETWORK_TYPE_GUEST {
+		if snet.ServerType != api.NETWORK_TYPE_GUEST && snet.ServerType != api.NETWORK_TYPE_HOSTLOCAL {
 			return input, httperrors.NewInputParameterError("network server_type %s not support auto alloc", snet.ServerType)
 		}
 	}
@@ -2404,10 +2406,10 @@ func (net *SNetwork) PostCreate(ctx context.Context, userCred mcclient.TokenCred
 	if vpc != nil && vpc.IsManaged() {
 		task, err := taskman.TaskManager.NewTask(ctx, "NetworkCreateTask", net, userCred, data.(*jsonutils.JSONDict), "", "", nil)
 		if err != nil {
-			log.Errorf("networkcreateTask create fail: %s", err)
-		} else {
-			task.ScheduleRun(nil)
+			net.SetStatus(ctx, userCred, apis.STATUS_CREATE_FAILED, err.Error())
+			return
 		}
+		task.ScheduleRun(nil)
 	} else {
 		{
 			err := net.syncAdditionalWires(ctx, nil)
@@ -2419,6 +2421,10 @@ func (net *SNetwork) PostCreate(ctx context.Context, userCred mcclient.TokenCred
 		if err := net.ClearSchedDescCache(); err != nil {
 			log.Errorf("network post create clear schedcache error: %v", err)
 		}
+		notifyclient.EventNotify(ctx, userCred, notifyclient.SEventNotifyParam{
+			Obj:    net,
+			Action: notifyclient.ActionCreate,
+		})
 	}
 	// reserve gateway IP
 	{

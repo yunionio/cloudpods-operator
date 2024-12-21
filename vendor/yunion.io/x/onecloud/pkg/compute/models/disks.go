@@ -115,6 +115,8 @@ type SDisk struct {
 
 	// 文件系统
 	FsFormat string `width:"32" charset:"ascii" nullable:"true" list:"user" json:"fs_format"`
+	// 文件系统特性
+	FsFeatures *api.DiskFsFeatures `length:"medium" nullable:"true" list:"user" json:"fs_features"`
 
 	// 磁盘类型
 	// sys: 系统盘
@@ -414,7 +416,9 @@ func (self *SDisk) CustomizeCreate(ctx context.Context, userCred mcclient.TokenC
 	if err := data.Unmarshal(input); err != nil {
 		return errors.Wrap(err, "Unmarshal json")
 	}
-	self.fetchDiskInfo(input.DiskConfig)
+	if err := self.fetchDiskInfo(input.DiskConfig); err != nil {
+		return errors.Wrap(err, "fetch disk info")
+	}
 	err := self.SEncryptedResource.CustomizeCreate(ctx, userCred, ownerId, data, "disk-"+pinyinutils.Text2Pinyin(self.Name))
 	if err != nil {
 		return errors.Wrap(err, "SEncryptedResource.CustomizeCreate")
@@ -426,7 +430,7 @@ func (self *SDisk) ValidateUpdateData(ctx context.Context, userCred mcclient.Tok
 	var err error
 
 	if input.DiskType != "" {
-		if !utils.IsInStringArray(input.DiskType, []string{api.DISK_TYPE_DATA, api.DISK_TYPE_VOLUME}) {
+		if !utils.IsInStringArray(input.DiskType, []string{api.DISK_TYPE_DATA, api.DISK_TYPE_VOLUME, api.DISK_TYPE_SYS}) {
 			return input, httperrors.NewInputParameterError("not support update disk_type %s", input.DiskType)
 		}
 	}
@@ -868,6 +872,9 @@ func (self *SDisk) StartAllocate(ctx context.Context, host *SHost, storage *SSto
 	}
 	if len(fsFormat) > 0 {
 		input.FsFormat = fsFormat
+		if self.FsFeatures != nil {
+			input.FsFeatures = self.FsFeatures
+		}
 	}
 	if self.IsEncrypted() {
 		var err error
@@ -1472,6 +1479,12 @@ func (disk *SDisk) getCandidateHostIds() ([]string, error) {
 }
 
 func (self *SDisk) GetMasterHost(storage *SStorage) (*SHost, error) {
+	if storage.StorageType == api.STORAGE_SLVM {
+		if guest := self.GetGuest(); guest != nil {
+			return guest.GetHost()
+		}
+	}
+
 	if storage.MasterHost != "" {
 		return storage.GetMasterHost()
 	}
@@ -2214,7 +2227,7 @@ func parseIsoInfo(ctx context.Context, userCred mcclient.TokenCredential, imageI
 	return image, nil
 }
 
-func (self *SDisk) fetchDiskInfo(diskConfig *api.DiskConfig) {
+func (self *SDisk) fetchDiskInfo(diskConfig *api.DiskConfig) error {
 	if len(diskConfig.SnapshotId) > 0 {
 		self.SnapshotId = diskConfig.SnapshotId
 		self.DiskType = diskConfig.DiskType
@@ -2235,6 +2248,12 @@ func (self *SDisk) fetchDiskInfo(diskConfig *api.DiskConfig) {
 	if len(diskConfig.Fs) > 0 {
 		self.FsFormat = diskConfig.Fs
 	}
+	if diskConfig.FsFeatures != nil {
+		self.FsFeatures = diskConfig.FsFeatures
+		if self.FsFeatures.Ext4 != nil && self.FsFormat != "ext4" {
+			return httperrors.NewInputParameterError("only ext4 fs can set fs_features.ext4, current is %q", self.FsFormat)
+		}
+	}
 	if self.FsFormat == "swap" {
 		self.DiskType = api.DISK_TYPE_SWAP
 		self.Nonpersistent = true
@@ -2254,6 +2273,7 @@ func (self *SDisk) fetchDiskInfo(diskConfig *api.DiskConfig) {
 	self.DiskFormat = diskConfig.Format
 	self.DiskSize = diskConfig.SizeMb
 	self.OsArch = diskConfig.OsArch
+	return nil
 }
 
 type DiskInfo struct {
@@ -2448,6 +2468,8 @@ func (manager *SDiskManager) FetchCustomizeColumns(
 		gds.Field("index"),
 		gds.Field("driver"),
 		gds.Field("cache_mode"),
+		gds.Field("iops"),
+		gds.Field("bps"),
 	).
 		Join(gds, sqlchemy.Equals(gds.Field("guest_id"), guestSQ.Field("id"))).
 		Filter(sqlchemy.In(gds.Field("disk_id"), diskIds))
@@ -2461,6 +2483,8 @@ func (manager *SDiskManager) FetchCustomizeColumns(
 		Index     int
 		Driver    string
 		CacheMode string
+		Iops      int
+		Bps       int
 	}{}
 	err := q.All(&guestInfo)
 	if err != nil {
@@ -2482,6 +2506,8 @@ func (manager *SDiskManager) FetchCustomizeColumns(
 			Index:     guest.Index,
 			Driver:    guest.Driver,
 			CacheMode: guest.CacheMode,
+			Iops:      guest.Iops,
+			Bps:       guest.Bps,
 		})
 	}
 
@@ -2528,9 +2554,12 @@ func (manager *SDiskManager) FetchCustomizeColumns(
 	for i := range rows {
 		rows[i].Guests, _ = guests[diskIds[i]]
 		names, status := []string{}, []string{}
+		var iops, bps int
 		for _, guest := range rows[i].Guests {
 			names = append(names, guest.Name)
 			status = append(status, guest.Status)
+			iops = guest.Iops
+			bps = guest.Bps
 		}
 		rows[i].GuestCount = len(rows[i].Guests)
 		rows[i].Guest = strings.Join(names, ",")
@@ -2543,8 +2572,13 @@ func (manager *SDiskManager) FetchCustomizeColumns(
 			rows[i].Brand = "Unknown"
 			rows[i].Provider = "Unknown"
 		}
+		if len(rows[i].ExternalId) == 0 {
+			//rows[i].Iops = iops
+			//rows[i].Throughput = bps
+			disk.Iops = iops
+			disk.Throughput = bps
+		}
 	}
-
 	return rows
 }
 
