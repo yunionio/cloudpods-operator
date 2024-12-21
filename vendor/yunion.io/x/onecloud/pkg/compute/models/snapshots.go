@@ -206,6 +206,11 @@ func (manager *SSnapshotManager) ListItemFilter(
 		q = q.In("disk_id", gdq)
 	}
 
+	if query.Unused {
+		sq := DiskManager.Query("id").Distinct().SubQuery()
+		q = q.NotIn("disk_id", sq)
+	}
+
 	return q, nil
 }
 
@@ -392,6 +397,7 @@ func (manager *SSnapshotManager) FetchCustomizeColumns(
 	for i := range rows {
 		if storage, ok := storages[storageIds[i]]; ok {
 			rows[i].StorageType = storage.StorageType
+			rows[i].Storage = storage.Name
 		}
 		if disk, ok := disks[diskIds[i]]; ok {
 			rows[i].DiskStatus = disk.Status

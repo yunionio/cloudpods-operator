@@ -145,7 +145,6 @@ type SCloudaccount struct {
 	Sysinfo jsonutils.JSONObject `get:"domain"`
 
 	// 品牌信息, 一般和provider相同
-	// example: DStack
 	Brand string `width:"64" charset:"utf8" nullable:"true" list:"domain" create:"optional"`
 
 	// 额外信息
@@ -681,6 +680,18 @@ func (acnt *SCloudaccount) savePassword(secret string) error {
 
 func (acnt *SCloudaccount) getPassword() (string, error) {
 	return utils.DescryptAESBase64(acnt.Id, acnt.Secret)
+}
+
+func (acnt *SCloudaccount) GetOptionPassword() (string, error) {
+	passwd, err := acnt.getPassword()
+	if err != nil {
+		return "", err
+	}
+	passwdStr, _ := acnt.Options.GetString("password")
+	if len(passwdStr) == 0 {
+		return "", fmt.Errorf("missing password")
+	}
+	return utils.DescryptAESBase64(passwd, passwdStr)
 }
 
 func (acnt *SCloudaccount) regionId() string {
@@ -2288,18 +2299,18 @@ func (manager *SCloudaccountManager) AutoSyncCloudaccountStatusTask(ctx context.
 	for i := range accounts {
 		if accounts[i].GetEnabled() && accounts[i].shouldProbeStatus() && accounts[i].CanSync() {
 			id, name, account := accounts[i].Id, accounts[i].Name, &accounts[i]
-			cloudaccountProbeMutex.Lock()
-			if _, ok := cloudaccountProbe[id]; ok {
-				cloudaccountProbeMutex.Unlock()
+			cloudaccountPendingSyncsMutex.Lock()
+			if _, ok := cloudaccountPendingSyncs[id]; ok {
+				cloudaccountPendingSyncsMutex.Unlock()
 				continue
 			}
-			cloudaccountProbe[id] = struct{}{}
-			cloudaccountProbeMutex.Unlock()
+			cloudaccountPendingSyncs[id] = struct{}{}
+			cloudaccountPendingSyncsMutex.Unlock()
 			RunSyncCloudAccountTask(ctx, func() {
 				defer func() {
-					cloudaccountProbeMutex.Lock()
-					defer cloudaccountProbeMutex.Unlock()
-					delete(cloudaccountProbe, id)
+					cloudaccountPendingSyncsMutex.Lock()
+					defer cloudaccountPendingSyncsMutex.Unlock()
+					delete(cloudaccountPendingSyncs, id)
 				}()
 				log.Debugf("syncAccountStatus %s %s", id, name)
 				idctx := context.WithValue(ctx, "id", id)
@@ -2483,9 +2494,6 @@ func (account *SCloudaccount) syncAccountStatus(ctx context.Context, userCred mc
 var (
 	cloudaccountPendingSyncs      = map[string]struct{}{}
 	cloudaccountPendingSyncsMutex = &sync.Mutex{}
-
-	cloudaccountProbe      = map[string]struct{}{}
-	cloudaccountProbeMutex = &sync.Mutex{}
 )
 
 func (account *SCloudaccount) SubmitSyncAccountTask(ctx context.Context, userCred mcclient.TokenCredential, waitChan chan error) {
@@ -2869,7 +2877,7 @@ type sBrandCapability struct {
 	Capability string
 }
 
-func (manager *SCloudaccountManager) getBrandsOfCapability(region *SCloudregion, zone *SZone, domainId string) ([]sBrandCapability, error) {
+func (manager *SCloudaccountManager) getBrandsOfCapability(region *SCloudregion, domainId string) ([]sBrandCapability, error) {
 	accounts := manager.Query("id", "enabled", "brand")
 	if len(domainId) > 0 {
 		accounts = manager.filterByDomainId(accounts, domainId)
@@ -2885,13 +2893,6 @@ func (manager *SCloudaccountManager) getBrandsOfCapability(region *SCloudregion,
 	q = q.Join(providers, sqlchemy.Equals(q.Field("cloudprovider_id"), providers.Field("id")))
 	q = q.Join(accountSQ, sqlchemy.Equals(providers.Field("cloudaccount_id"), accountSQ.Field("id")))
 
-	if zone != nil {
-		var err error
-		region, err = zone.GetRegion()
-		if err != nil {
-			return nil, errors.Wrapf(err, "GetRegion")
-		}
-	}
 	if region != nil {
 		providerregions := CloudproviderRegionManager.Query().SubQuery()
 		q = q.Join(providerregions, sqlchemy.Equals(q.Field("cloudprovider_id"), providerregions.Field("cloudprovider_id"))).Filter(

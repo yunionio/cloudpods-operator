@@ -49,6 +49,8 @@ import (
 	"yunion.io/x/onecloud/pkg/util/stringutils2"
 )
 
+// +onecloud:swagger-gen-model-singular=eip
+// +onecloud:swagger-gen-model-plural=eips
 type SElasticipManager struct {
 	db.SVirtualResourceBaseManager
 	db.SExternalizedResourceBaseManager
@@ -259,6 +261,14 @@ func (manager *SElasticipManager) ListItemFilter(
 	if query.Usable != nil && *query.Usable {
 		q = q.Equals("status", api.EIP_STATUS_READY)
 		q = q.Filter(sqlchemy.OR(sqlchemy.IsNull(q.Field("associate_id")), sqlchemy.IsEmpty(q.Field("associate_id"))))
+	}
+
+	if query.IsAssociated != nil {
+		if *query.IsAssociated {
+			q = q.IsNotEmpty("associate_type")
+		} else {
+			q = q.IsNullOrEmpty("associate_type")
+		}
 	}
 
 	if len(query.Mode) > 0 {

@@ -15,23 +15,38 @@
 package host
 
 import (
+	"time"
+
 	"yunion.io/x/onecloud/pkg/apis"
 )
 
 type ContainerVolumeMountDisk struct {
-	Index           *int                                  `json:"index,omitempty"`
-	Id              string                                `json:"id"`
-	TemplateId      string                                `json:"template_id"`
-	SubDirectory    string                                `json:"sub_directory"`
-	StorageSizeFile string                                `json:"storage_size_file"`
-	Overlay         *apis.ContainerVolumeMountDiskOverlay `json:"overlay"`
+	Index                *int                                        `json:"index,omitempty"`
+	Id                   string                                      `json:"id"`
+	TemplateId           string                                      `json:"template_id"`
+	SubDirectory         string                                      `json:"sub_directory"`
+	StorageSizeFile      string                                      `json:"storage_size_file"`
+	Overlay              *apis.ContainerVolumeMountDiskOverlay       `json:"overlay"`
+	CaseInsensitivePaths []string                                    `json:"case_insensitive_paths"`
+	PostOverlay          []*apis.ContainerVolumeMountDiskPostOverlay `json:"post_overlay"`
+}
+
+type ContainerVolumeMountCephFS struct {
+	Id      string `json:"id"`
+	MonHost string `json:"mon_host"`
+	Path    string `json:"path"`
+	Secret  string `json:"secret"`
+	Name    string `json:"name"`
 }
 
 type ContainerVolumeMount struct {
-	Type     apis.ContainerVolumeMountType      `json:"type"`
-	Disk     *ContainerVolumeMountDisk          `json:"disk"`
-	HostPath *apis.ContainerVolumeMountHostPath `json:"host_path"`
-	Text     *apis.ContainerVolumeMountText     `json:"text"`
+	// 用于标识当前 pod volume mount 的唯一性
+	UniqueName string                             `json:"unique_name"`
+	Type       apis.ContainerVolumeMountType      `json:"type"`
+	Disk       *ContainerVolumeMountDisk          `json:"disk"`
+	HostPath   *apis.ContainerVolumeMountHostPath `json:"host_path"`
+	Text       *apis.ContainerVolumeMountText     `json:"text"`
+	CephFS     *ContainerVolumeMountCephFS        `json:"ceph_fs"`
 	// Mounted read-only if true, read-write otherwise (false or unspecified).
 	ReadOnly bool `json:"read_only"`
 	// Path within the container at which the volume should be mounted.  Must
@@ -47,8 +62,9 @@ type ContainerVolumeMount struct {
 
 type ContainerSpec struct {
 	apis.ContainerSpec
-	VolumeMounts []*ContainerVolumeMount `json:"volume_mounts"`
-	Devices      []*ContainerDevice      `json:"devices"`
+	ImageCredentialToken string                  `json:"image_credential_token"`
+	VolumeMounts         []*ContainerVolumeMount `json:"volume_mounts"`
+	Devices              []*ContainerDevice      `json:"devices"`
 }
 
 type ContainerDevice struct {
@@ -77,33 +93,30 @@ type ContainerDiskDevice struct {
 }
 
 type ContainerCreateInput struct {
-	Name    string         `json:"name"`
-	GuestId string         `json:"guest_id"`
-	Spec    *ContainerSpec `json:"spec"`
-}
-
-type ContainerPullImageAuthConfig struct {
-	Username      string `json:"username,omitempty"`
-	Password      string `json:"password,omitempty"`
-	Auth          string `json:"auth,omitempty"`
-	ServerAddress string `json:"server_address,omitempty"`
-	// IdentityToken is used to authenticate the user and get
-	// an access token for the registry.
-	IdentityToken string `json:"identity_token,omitempty"`
-	// RegistryToken is a bearer token to be sent to a registry
-	RegistryToken string `json:"registry_token,omitempty"`
+	Name         string         `json:"name"`
+	GuestId      string         `json:"guest_id"`
+	Spec         *ContainerSpec `json:"spec"`
+	RestartCount int            `json:"restart_count"`
 }
 
 type ContainerPullImageInput struct {
-	Image      string                        `json:"image"`
-	PullPolicy apis.ImagePullPolicy          `json:"pull_policy"`
-	Auth       *ContainerPullImageAuthConfig `json:"auth"`
+	Image      string                             `json:"image"`
+	PullPolicy apis.ImagePullPolicy               `json:"pull_policy"`
+	Auth       *apis.ContainerPullImageAuthConfig `json:"auth"`
+}
+
+type ContainerPushImageInput struct {
+	Image string                             `json:"image"`
+	Auth  *apis.ContainerPullImageAuthConfig `json:"auth"`
 }
 
 type ContainerDesc struct {
-	Id   string         `json:"id"`
-	Name string         `json:"name"`
-	Spec *ContainerSpec `json:"spec"`
+	Id             string         `json:"id"`
+	Name           string         `json:"name"`
+	Spec           *ContainerSpec `json:"spec"`
+	StartedAt      time.Time      `json:"started_at"`
+	LastFinishedAt time.Time      `json:"last_finished_at"`
+	RestartCount   int            `json:"restart_count"`
 }
 
 type ContainerSaveVolumeMountToImageInput struct {
@@ -111,4 +124,16 @@ type ContainerSaveVolumeMountToImageInput struct {
 
 	VolumeMountIndex int                   `json:"volume_mount_index"`
 	VolumeMount      *ContainerVolumeMount `json:"volume_mount"`
+}
+
+type ContainerCommitInput struct {
+	Repository string                             `json:"repository"`
+	Auth       *apis.ContainerPullImageAuthConfig `json:"auth"`
+}
+
+type ContainerStopInput struct {
+	Timeout       int64  `json:"timeout"`
+	ShmSizeMB     int    `json:"shm_size_mb"`
+	ContainerName string `json:"container_name"`
+	Force         bool   `json:"force"`
 }

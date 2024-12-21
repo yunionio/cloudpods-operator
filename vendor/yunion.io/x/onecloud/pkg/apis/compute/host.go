@@ -134,7 +134,7 @@ type HostListInput struct {
 	OsArch          []string `json:"os_arch"`
 
 	// 按虚拟机数量排序
-	// enum: asc,desc
+	// enum: ["asc","desc"]
 	OrderByServerCount string `json:"order_by_server_count"`
 	// 按存储大小排序
 	// enmu: asc,desc
@@ -151,6 +151,18 @@ type HostListInput struct {
 	// 按内存超分率排序
 	// enmu: asc,desc
 	OrderByMemCommitRate string `json:"order_by_mem_commit_rate"`
+
+	// 按本地存储分配大小排序
+	// enmu: asc,desc
+	OrderByStorageUsed string `json:"order_by_storage_used"`
+
+	// 按cpu分配大小排序
+	// enmu: asc,desc
+	OrderByCpuCommit string `json:"order_by_cpu_commit"`
+
+	// 按内存分配大小排序
+	// enmu: asc,desc
+	OrderByMemCommit string `json:"order_by_mem_commit"`
 }
 
 type HostDetails struct {
@@ -228,9 +240,10 @@ type HostDetails struct {
 	AutoMigrateOnHostShutdown bool `json:"auto_migrate_on_host_shutdown"`
 
 	// reserved resource for isolated device
-	ReservedResourceForGpu IsolatedDeviceReservedResourceInput `json:"reserved_resource_for_gpu"`
+	ReservedResourceForGpu *IsolatedDeviceReservedResourceInput `json:"reserved_resource_for_gpu"`
 	// isolated device count
-	IsolatedDeviceCount int
+	IsolatedDeviceCount     int
+	IsolatedDeviceTypeCount map[string]int
 
 	// host init warnning
 	SysWarn string `json:"sys_warn"`
@@ -290,6 +303,11 @@ type HostResourceInfo struct {
 
 	// 宿主机状态
 	HostStatus string `json:"host_status"`
+
+	HostResourceType string `json:"host_resource_type"`
+
+	// 宿主机计费类型
+	HostBillingType string `json:"host_billing_type"`
 
 	// 宿主机服务状态`
 	HostServiceStatus string `json:"host_service_status"`
@@ -539,12 +557,15 @@ type SHostPingInput struct {
 	RootPartitionUsedCapacityMb int `json:"root_partition_used_capacity_mb"`
 
 	StorageStats []SHostStorageStat `json:"storage_stats"`
+
+	QgaRunningGuestIds []string `json:"qga_running_guests"`
 }
 
 type HostReserveCpusInput struct {
 	Cpus                    string
 	Mems                    string
-	DisableSchedLoadBalance *bool `json:"disable_sched_load_balance"`
+	DisableSchedLoadBalance *bool    `json:"disable_sched_load_balance"`
+	ProcessesPrefix         []string `json:"processes_prefix"`
 }
 
 type HostAutoMigrateInput struct {

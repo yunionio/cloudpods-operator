@@ -69,6 +69,9 @@ After=local-fs.target
 After=network.target
 
 [Service]
+LimitNOFILE=65535
+CapabilityBoundingSet=CAP_NET_RAW
+AmbientCapabilities=CAP_NET_RAW
 ExecStart=%s
 RemainAfterExit=true
 Type=%s
@@ -84,6 +87,29 @@ WantedBy=multi-user.target
 	err = d.rootFs.Symlink(unitPath, enablePath, false)
 	if err != nil {
 		return errors.Wrap(err, "create user_data symlink fail")
+	}
+
+	return nil
+}
+
+func (d *sLinuxRootFs) InstallQemuGuestAgentSystemd() error {
+	var serviceName = "qemu-guest-agent.service"
+	var unitPath = fmt.Sprintf("%s/%s", unitDirPath, serviceName)
+	var unitContent = fmt.Sprintf(`[Unit]
+Description=QEMU Guest Agent
+BindsTo=dev-virtio\x2dports-org.qemu.guest_agent.0.device
+After=dev-virtio\x2dports-org.qemu.guest_agent.0.device
+
+[Service]
+ExecStart=/usr/bin/qemu-ga
+Restart=always
+RestartSec=0
+
+[Install]
+`)
+	err := d.rootFs.FilePutContents(unitPath, unitContent, false, false)
+	if err != nil {
+		return errors.Wrap(err, "save qemu-guest-agent.service unit fail")
 	}
 
 	return nil

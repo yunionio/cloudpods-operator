@@ -23,8 +23,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	"golang.org/x/sync/errgroup"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -45,6 +47,7 @@ import (
 	"yunion.io/x/sqlchemy"
 
 	"yunion.io/x/onecloud/pkg/apis"
+	baremetalapi "yunion.io/x/onecloud/pkg/apis/baremetal"
 	billing_api "yunion.io/x/onecloud/pkg/apis/billing"
 	api "yunion.io/x/onecloud/pkg/apis/compute"
 	hostapi "yunion.io/x/onecloud/pkg/apis/host"
@@ -579,6 +582,24 @@ func (manager *SHostManager) OrderByExtraFields(
 		db.OrderByFields(q, []string{query.OrderByCpuCommitRate}, []sqlchemy.IQueryField{sq.Field("cpu_commit_rate")})
 	}
 
+	if db.NeedOrderQuery([]string{query.OrderByCpuCommit}) {
+		guestsQ := GuestManager.Query()
+		if options.Options.IgnoreNonrunningGuests {
+			guestsQ = guestsQ.Equals("status", api.VM_RUNNING)
+		}
+		guests := guestsQ.SubQuery()
+		guestQ := guests.Query(
+			guests.Field("host_id"),
+			sqlchemy.SUM("guest_vcpu_count", guests.Field("vcpu_count")),
+		)
+
+		guestSQ := guestQ.GroupBy(guestQ.Field("host_id")).SubQuery()
+
+		q = q.LeftJoin(guestSQ, sqlchemy.Equals(q.Field("id"), guestSQ.Field("host_id")))
+
+		db.OrderByFields(q, []string{query.OrderByCpuCommit}, []sqlchemy.IQueryField{q.Field("guest_vcpu_count")})
+	}
+
 	if db.NeedOrderQuery([]string{query.OrderByStorage}) {
 		hoststorages := HoststorageManager.Query().SubQuery()
 		storages := StorageManager.Query().IsTrue("enabled").In("storage_type", api.HOST_STORAGE_LOCAL_TYPES).SubQuery()
@@ -664,6 +685,51 @@ func (manager *SHostManager) OrderByExtraFields(
 		q = q.LeftJoin(sq, sqlchemy.Equals(q.Field("id"), sq.Field("host_id")))
 
 		db.OrderByFields(q, []string{query.OrderByMemCommitRate}, []sqlchemy.IQueryField{sq.Field("mem_commit_rate")})
+	}
+
+	if db.NeedOrderQuery([]string{query.OrderByMemCommit}) {
+		guestsQ := GuestManager.Query()
+		if options.Options.IgnoreNonrunningGuests {
+			guestsQ = guestsQ.Equals("status", api.VM_RUNNING)
+		}
+		guests := guestsQ.SubQuery()
+		guestQ := guests.Query(
+			guests.Field("host_id"),
+			sqlchemy.SUM("guest_vmem_size", guests.Field("vmem_size")),
+		)
+
+		guestSQ := guestQ.GroupBy(guestQ.Field("host_id")).SubQuery()
+
+		q = q.LeftJoin(guestSQ, sqlchemy.Equals(q.Field("id"), guestSQ.Field("host_id")))
+
+		db.OrderByFields(q, []string{query.OrderByMemCommit}, []sqlchemy.IQueryField{q.Field("guest_vmem_size")})
+	}
+
+	if db.NeedOrderQuery([]string{query.OrderByStorageUsed}) {
+		disks := DiskManager.Query().Equals("status", api.DISK_READY).SubQuery()
+		storages := StorageManager.Query().IsTrue("enabled").In("storage_type", api.HOST_STORAGE_LOCAL_TYPES).SubQuery()
+		hs := HoststorageManager.Query()
+		hoststorages := hs.Join(storages, sqlchemy.Equals(storages.Field("id"), hs.Field("storage_id"))).SubQuery()
+
+		disksQ := disks.Query(
+			disks.Field("storage_id"),
+			sqlchemy.SUM("total_disk_size", disks.Field("disk_size")),
+		)
+		disksQ = disksQ.LeftJoin(storages, sqlchemy.Equals(disksQ.Field("storage_id"), storages.Field("id")))
+
+		disksSQ := disksQ.GroupBy(disksQ.Field("storage_id")).SubQuery()
+
+		hoststoragesQ := hoststorages.Query(
+			hoststorages.Field("host_id"),
+			sqlchemy.SUM("storage_used", disksSQ.Field("total_disk_size")),
+		)
+		hoststoragesQ = hoststoragesQ.Join(disksSQ, sqlchemy.Equals(hoststoragesQ.Field("storage_id"), disksSQ.Field("storage_id")))
+
+		storageSQ := hoststoragesQ.GroupBy(hoststoragesQ.Field("host_id")).SubQuery()
+
+		q = q.LeftJoin(storageSQ, sqlchemy.Equals(q.Field("id"), storageSQ.Field("host_id")))
+
+		db.OrderByFields(q, []string{query.OrderByStorageUsed}, []sqlchemy.IQueryField{q.Field("storage_used")})
 	}
 
 	return q, nil
@@ -2629,6 +2695,94 @@ func (self *SGuest) Purge(ctx context.Context, userCred mcclient.TokenCredential
 	return self.purge(ctx, userCred)
 }
 
+func (hh *SHost) GetIsolateDevices() ([]SIsolatedDevice, error) {
+	q := IsolatedDeviceManager.Query().Equals("host_id", hh.Id)
+	ret := []SIsolatedDevice{}
+	err := db.FetchModelObjects(IsolatedDeviceManager, q, &ret)
+	if err != nil {
+		return nil, err
+	}
+	return ret, nil
+}
+
+func (hh *SHost) SyncHostIsolateDevices(ctx context.Context, userCred mcclient.TokenCredential, iprovider cloudprovider.ICloudProvider, devs []cloudprovider.IsolateDevice, syncOwnerId mcclient.IIdentityProvider, xor bool) compare.SyncResult {
+	lockman.LockRawObject(ctx, IsolatedDeviceManager.Keyword(), hh.Id)
+	defer lockman.ReleaseRawObject(ctx, IsolatedDeviceManager.Keyword(), hh.Id)
+
+	result := compare.SyncResult{}
+
+	dbDevs, err := hh.GetIsolateDevices()
+	if err != nil {
+		result.Error(errors.Wrapf(err, "GetIsolateDevices"))
+		return result
+	}
+
+	removed := make([]SIsolatedDevice, 0)
+	commondb := make([]SIsolatedDevice, 0)
+	commonext := make([]cloudprovider.IsolateDevice, 0)
+	added := make([]cloudprovider.IsolateDevice, 0)
+	duplicated := make(map[string][]cloudprovider.IsolateDevice)
+
+	err = compare.CompareSets2(dbDevs, devs, &removed, &commondb, &commonext, &added, &duplicated)
+	if err != nil {
+		result.Error(err)
+		return result
+	}
+
+	for i := 0; i < len(removed); i += 1 {
+		err := removed[i].Delete(ctx, userCred)
+		if err != nil {
+			result.DeleteError(err)
+			continue
+		}
+		result.Delete()
+	}
+
+	if !xor {
+		for i := 0; i < len(commondb); i += 1 {
+			err := commondb[i].syncWithCloudIsolateDevice(ctx, userCred, commonext[i])
+			if err != nil {
+				result.UpdateError(err)
+				continue
+			}
+			result.Update()
+		}
+	}
+
+	for i := 0; i < len(added); i += 1 {
+		err := hh.newIsolateDevice(ctx, userCred, added[i])
+		if err != nil {
+			result.AddError(err)
+			continue
+		}
+		result.Add()
+	}
+
+	if len(duplicated) > 0 {
+		errs := make([]error, 0)
+		for k, vms := range duplicated {
+			errs = append(errs, errors.Wrapf(errors.ErrDuplicateId, "Duplicate Id %s (%d)", k, len(vms)))
+		}
+		result.AddError(errors.NewAggregate(errs))
+	}
+
+	return result
+}
+
+func (hh *SHost) newIsolateDevice(ctx context.Context, userCred mcclient.TokenCredential, dev cloudprovider.IsolateDevice) error {
+	ret := &SIsolatedDevice{}
+	ret.SetModelManager(IsolatedDeviceManager, ret)
+	ret.HostId = hh.Id
+	ret.ExternalId = dev.GetGlobalId()
+	ret.Name = dev.GetName()
+	ret.Model = dev.GetModel()
+	ret.Addr = dev.GetAddr()
+	ret.DevType = dev.GetDevType()
+	ret.NumaNode = dev.GetNumaNode()
+	ret.VendorDeviceId = dev.GetVendorDeviceId()
+	return IsolatedDeviceManager.TableSpec().Insert(ctx, ret)
+}
+
 func (hh *SHost) SyncHostVMs(ctx context.Context, userCred mcclient.TokenCredential, iprovider cloudprovider.ICloudProvider, vms []cloudprovider.ICloudVM, syncOwnerId mcclient.IIdentityProvider, xor bool) ([]SGuestSyncResult, compare.SyncResult) {
 	lockman.LockRawObject(ctx, GuestManager.Keyword(), hh.Id)
 	defer lockman.ReleaseRawObject(ctx, GuestManager.Keyword(), hh.Id)
@@ -3215,95 +3369,220 @@ func (hh *SHost) getGuestsResource(status string) *SHostGuestResourceUsage {
 	return &stat
 }
 
-func (hh *SHost) getMoreDetails(ctx context.Context, out api.HostDetails, showReason bool) api.HostDetails {
-	server := hh.GetBaremetalServer()
-	if server != nil {
-		out.ServerId = server.Id
-		out.Server = server.Name
-		out.ServerPendingDeleted = server.PendingDeleted
-		if hh.HostType == api.HOST_TYPE_BAREMETAL {
-			out.ServerIps = strings.Join(server.GetRealIPs(), ",")
+func fetchHostGuestResource(hostIds []string, status string) (map[string]SHostGuestResourceUsage, error) {
+	guests := GuestManager.Query()
+	cond := sqlchemy.OR(sqlchemy.In(guests.Field("host_id"), hostIds),
+		sqlchemy.In(guests.Field("backup_host_id"), hostIds))
+	guests = guests.Filter(cond)
+	if len(status) > 0 {
+		guests = guests.Equals("status", status)
+	}
+
+	sq := guests.SubQuery()
+	q := sq.Query(
+		sqlchemy.COUNT("id").Label("guest_count"),
+		sq.Field("host_id"),
+		sqlchemy.SUM("guest_vcpu_count", sq.Field("vcpu_count")),
+		sqlchemy.SUM("guest_vmem_size", sq.Field("vmem_size")),
+	).GroupBy(sq.Field("host_id"))
+	stat := []struct {
+		HostId string
+		SHostGuestResourceUsage
+	}{}
+	err := q.All(&stat)
+	if err != nil {
+		return nil, err
+	}
+	ret := map[string]SHostGuestResourceUsage{}
+	for i := range stat {
+		ret[stat[i].HostId] = stat[i].SHostGuestResourceUsage
+	}
+	return ret, nil
+}
+
+func fetchHostNics(hostIds []string) (map[string][]*types.SNic, error) {
+	nicQ := NetInterfaceManager.Query().In("baremetal_id", hostIds).SubQuery()
+
+	wires := WireManager.Query().SubQuery()
+	zones := ZoneManager.Query().SubQuery()
+	hn := HostnetworkManager.Query().SubQuery()
+	networks := NetworkManager.Query().SubQuery()
+	q := nicQ.Query(
+		nicQ.Field("mac"),
+		nicQ.Field("vlan_id"),
+		nicQ.Field("baremetal_id"),
+		nicQ.Field("wire_id"),
+		nicQ.Field("rate"),
+		nicQ.Field("nic_type"),
+		nicQ.Field("index"),
+		nicQ.Field("link_up"),
+		nicQ.Field("bridge"),
+		nicQ.Field("mtu"),
+		wires.Field("name").Label("wire"),
+		wires.Field("bandwidth"),
+		hn.Field("ip_addr"),
+		networks.Field("guest_gateway").Label("gateway"),
+		networks.Field("guest_dns").Label("dns"),
+		networks.Field("guest_domain").Label("domain"),
+		networks.Field("guest_ntp").Label("ntp"),
+		networks.Field("guest_ip_mask").Label("masklen"),
+		networks.Field("name").Label("net"),
+		networks.Field("id").Label("net_id"),
+		zones.Field("name").Label("zone"),
+	)
+
+	q = q.LeftJoin(wires, sqlchemy.Equals(wires.Field("id"), nicQ.Field("wire_id")))
+	q = q.LeftJoin(hn, sqlchemy.AND(
+		sqlchemy.Equals(nicQ.Field("baremetal_id"), hn.Field("baremetal_id")),
+		sqlchemy.Equals(nicQ.Field("mac"), hn.Field("mac_addr")),
+		sqlchemy.Equals(nicQ.Field("vlan_id"), hn.Field("vlan_id")),
+	))
+
+	q = q.LeftJoin(networks, sqlchemy.Equals(hn.Field("network_id"), networks.Field("id")))
+	q = q.LeftJoin(zones, sqlchemy.Equals(wires.Field("zone_id"), zones.Field("id")))
+
+	nics := []struct {
+		types.SNic
+		BaremetalId string
+		Zone        string
+	}{}
+	err := q.All(&nics)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := map[string][]*types.SNic{}
+	for i := range nics {
+		nic := nics[i]
+		_, ok := ret[nic.BaremetalId]
+		if !ok {
+			ret[nic.BaremetalId] = []*types.SNic{}
 		}
-	}
-	nics := hh.GetNics()
-	if nics != nil && len(nics) > 0 {
-		// nicInfos := []jsonutils.JSONObject{}
-		// for i := 0; i < len(nics); i += 1 {
-		// 	nicInfos = append(nicInfos, jsonutils.Marshal(nics[i]))
-		// }
-		out.NicCount = len(nics)
-		out.NicInfo = nics
-	}
-	out.Schedtags = GetSchedtagsDetailsToResourceV2(hh, ctx)
-	var usage *SHostGuestResourceUsage
-	if options.Options.IgnoreNonrunningGuests {
-		usage = hh.getGuestsResource(api.VM_RUNNING)
-	} else {
-		usage = hh.getGuestsResource("")
-	}
-	if usage != nil {
-		out.CpuCommit = usage.GuestVcpuCount
-		out.MemCommit = usage.GuestVmemSize
-	}
-	totalCpu := hh.GetCpuCount()
-	cpuCommitRate := 0.0
-	if totalCpu > 0 && usage.GuestVcpuCount > 0 {
-		cpuCommitRate = float64(usage.GuestVcpuCount) * 1.0 / float64(totalCpu)
-	}
-	out.CpuCommitRate = cpuCommitRate
-	totalMem := hh.GetMemSize()
-	memCommitRate := 0.0
-	if totalMem > 0 && usage.GuestVmemSize > 0 {
-		memCommitRate = float64(usage.GuestVmemSize) * 1.0 / float64(totalMem)
-	}
-	out.MemCommitRate = memCommitRate
-	capa := hh.GetAttachedLocalStorageCapacity()
-	out.Storage = capa.Capacity
-	out.StorageUsed = capa.Used
-	out.ActualStorageUsed = capa.ActualUsed
-	out.StorageWaste = capa.Wasted
-	out.StorageVirtual = capa.VCapacity
-	out.StorageFree = capa.GetFree()
-	out.StorageCommitRate = capa.GetCommitRate()
-	out.Spec = hh.GetHardwareSpecification()
-
-	// custom cpu mem commit bound
-	out.CpuCommitBound = hh.GetCPUOvercommitBound()
-	out.MemCommitBound = hh.GetMemoryOvercommitBound()
-
-	// extra = hh.SManagedResourceBase.getExtraDetails(ctx, extra)
-
-	out.IsPrepaidRecycle = false
-	if hh.IsPrepaidRecycle() {
-		out.IsPrepaidRecycle = true
-	}
-
-	if hh.IsBaremetal {
-		out.CanPrepare = true
-		err := hh.canPrepare()
-		if err != nil {
-			out.CanPrepare = false
-			if showReason {
-				out.PrepareFailReason = err.Error()
+		if len(nic.Gateway) > 0 && !regutils.MatchIP4Addr(nic.Gateway) {
+			nic.Gateway = ""
+		}
+		if len(nic.Dns) == 0 && len(nic.Zone) > 0 {
+			srvs, _ := auth.GetDNSServers(options.Options.Region, nic.Zone)
+			if len(srvs) > 0 {
+				nic.Dns = strings.Join(srvs, ",")
+			} else {
+				nic.Dns = options.Options.DNSServer
 			}
 		}
+		if len(nic.Domain) == 0 {
+			nic.Domain = options.Options.DNSDomain
+		}
+		if len(nic.Ntp) == 0 && len(nic.Zone) > 0 {
+			srvs, _ := auth.GetNTPServers(options.Options.Region, nic.Zone)
+			if len(srvs) > 0 {
+				nic.Ntp = strings.Join(srvs, ",")
+			}
+		}
+
+		ret[nic.BaremetalId] = append(ret[nic.BaremetalId], &nic.SNic)
 	}
 
-	if hh.EnableHealthCheck && hostHealthChecker != nil {
-		out.AllowHealthCheck = true
-	}
-	if hh.GetMetadata(ctx, api.HOSTMETA_AUTO_MIGRATE_ON_HOST_DOWN, nil) == "enable" {
-		out.AutoMigrateOnHostDown = true
-	}
-	if hh.GetMetadata(ctx, api.HOSTMETA_AUTO_MIGRATE_ON_HOST_SHUTDOWN, nil) == "enable" {
-		out.AutoMigrateOnHostShutdown = true
-	}
+	return ret, nil
+}
 
-	if count, rs := hh.GetReservedResourceForIsolatedDevice(); rs != nil {
-		out.ReservedResourceForGpu = *rs
-		out.IsolatedDeviceCount = count
+func fetchHostStorages(hostIds []string) (map[string]*SStorageCapacity, error) {
+	hoststorages := HoststorageManager.Query().In("host_id", hostIds).SubQuery()
+	storageQ := StorageManager.Query().IsTrue("enabled").NotEquals("storage_type", api.STORAGE_BAREMETAL).In("storage_type", api.HOST_STORAGE_LOCAL_TYPES).SubQuery()
+
+	diskReadySQ := DiskManager.Query().Equals("status", api.DISK_READY).SubQuery()
+	diskReadyQ := diskReadySQ.Query(sqlchemy.SUM("sum", diskReadySQ.Field("disk_size")).Label("used")).GroupBy(diskReadySQ.Field("storage_id"))
+	readySQ := diskReadyQ.SubQuery()
+
+	diskWasteSQ := DiskManager.Query().NotEquals("status", api.DISK_READY).SubQuery()
+	diskWasteQ := diskWasteSQ.Query(sqlchemy.SUM("sum", diskWasteSQ.Field("disk_size")).Label("wasted")).GroupBy(diskWasteSQ.Field("storage_id"))
+	wasteSQ := diskWasteQ.SubQuery()
+
+	q := storageQ.Query(
+		storageQ.Field("id"),
+		storageQ.Field("capacity"),
+		storageQ.Field("reserved"),
+		hoststorages.Field("host_id"),
+		storageQ.Field("cmtbound"),
+		storageQ.Field("actual_capacity_used"),
+		readySQ.Field("used"),
+		wasteSQ.Field("wasted"),
+	)
+
+	q = q.Join(hoststorages, sqlchemy.Equals(q.Field("id"), hoststorages.Field("storage_id")))
+
+	q = q.LeftJoin(readySQ, sqlchemy.Equals(readySQ.Field("storage_id"), storageQ.Field("id")))
+	q = q.LeftJoin(wasteSQ, sqlchemy.Equals(wasteSQ.Field("storage_id"), storageQ.Field("id")))
+
+	values := []struct {
+		HostId             string
+		Capacity           int64
+		Reserved           int64
+		Cmtbound           float32
+		ActualCapacityUsed int64
+		Used               int64
+		Wasted             int64
+	}{}
+	err := q.All(&values)
+	if err != nil {
+		return nil, err
 	}
-	return out
+	ret := map[string]*SStorageCapacity{}
+	for i := range values {
+		v := values[i]
+		_, ok := ret[v.HostId]
+		if !ok {
+			ret[v.HostId] = &SStorageCapacity{}
+		}
+		capa := SStorageCapacity{}
+		capa.Capacity = v.Capacity - v.Reserved
+		capa.Used = v.Used
+		capa.Wasted = v.Wasted
+		cmtbound := options.Options.DefaultStorageOvercommitBound
+		if v.Cmtbound > 0 {
+			cmtbound = v.Cmtbound
+		}
+		capa.VCapacity = int64(float32(capa.Capacity) * cmtbound)
+		capa.ActualUsed = v.ActualCapacityUsed
+		ret[v.HostId].Add(capa)
+	}
+	return ret, nil
+}
+
+func fetchHostSchedtags(hostIds []string) (map[string][]api.SchedtagShortDescDetails, error) {
+	schedtags := SchedtagManager.Query().SubQuery()
+	objschedtags := HostschedtagManager.Query().SubQuery()
+	q := schedtags.Query(
+		objschedtags.Field("host_id"),
+		schedtags.Field("id"),
+		schedtags.Field("name"),
+		schedtags.Field("default_strategy").Label("default"),
+		sqlchemy.NewStringField("schedtag").Label("res_name"),
+	)
+	q = q.Join(objschedtags, sqlchemy.AND(sqlchemy.Equals(objschedtags.Field("schedtag_id"), schedtags.Field("id")),
+		sqlchemy.IsFalse(objschedtags.Field("deleted"))))
+	q = q.Filter(sqlchemy.In(objschedtags.Field("host_id"), hostIds))
+	tags := []struct {
+		Id      string
+		HostId  string
+		Name    string
+		ResName string
+		Default string
+	}{}
+	err := q.All(&tags)
+	if err != nil {
+		return nil, err
+	}
+	ret := map[string][]api.SchedtagShortDescDetails{}
+	for i := range tags {
+		_, ok := ret[tags[i].HostId]
+		if !ok {
+			ret[tags[i].HostId] = []api.SchedtagShortDescDetails{}
+		}
+		tag := api.SchedtagShortDescDetails{}
+		jsonutils.Update(&tag, tags[i])
+		ret[tags[i].HostId] = append(ret[tags[i].HostId], tag)
+	}
+	return ret, nil
 }
 
 type sGuestCnt struct {
@@ -3408,6 +3687,7 @@ func (manager *SHostManager) FetchCustomizeColumns(
 		showReason = true
 	}
 	hostIds := make([]string, len(objs))
+	hosts := make([]*SHost, len(objs))
 	for i := range rows {
 		rows[i] = api.HostDetails{
 			EnabledStatusInfrasResourceBaseDetails: stdRows[i],
@@ -3416,8 +3696,74 @@ func (manager *SHostManager) FetchCustomizeColumns(
 		}
 		host := objs[i].(*SHost)
 		hostIds[i] = host.Id
-		rows[i] = host.getMoreDetails(ctx, rows[i], showReason)
+		hosts[i] = host
 	}
+	baremetalServers, err := fetchBaremetalServer(hostIds)
+	if err != nil {
+		log.Errorf("fetchBaremetalServer error: %v", err)
+		return rows
+	}
+
+	serverIds := []string{}
+	for _, server := range baremetalServers {
+		serverIds = append(serverIds, server.Id)
+	}
+	serverIps := fetchGuestIPs(serverIds, tristate.False)
+	status := ""
+	if options.Options.IgnoreNonrunningGuests {
+		status = api.VM_RUNNING
+	}
+
+	guestResources, err := fetchHostGuestResource(hostIds, status)
+	if err != nil {
+		log.Errorf("fetchHostGuestResource error: %v", err)
+		return rows
+	}
+
+	metas := []db.SMetadata{}
+	err = db.Metadata.Query().In("obj_id", hostIds).In("key", []string{api.HOSTMETA_AUTO_MIGRATE_ON_HOST_DOWN, api.HOSTMETA_AUTO_MIGRATE_ON_HOST_SHUTDOWN}).All(&metas)
+	if err != nil {
+		log.Errorf("query meta error: %v", err)
+		return rows
+	}
+	downMap, shutdownMap := map[string]bool{}, map[string]bool{}
+	for _, meta := range metas {
+		switch meta.Key {
+		case api.HOSTMETA_AUTO_MIGRATE_ON_HOST_DOWN:
+			downMap[meta.ObjId] = (meta.Value == "enable")
+		case api.HOSTMETA_AUTO_MIGRATE_ON_HOST_SHUTDOWN:
+			shutdownMap[meta.ObjId] = (meta.Value == "enable")
+		}
+	}
+
+	isolatedDevices := IsolatedDeviceManager.FindByHosts(hostIds)
+	isolatedDeviceMap := map[string][]SIsolatedDevice{}
+	for i := range isolatedDevices {
+		_, ok := isolatedDeviceMap[isolatedDevices[i].HostId]
+		if !ok {
+			isolatedDeviceMap[isolatedDevices[i].HostId] = []SIsolatedDevice{}
+		}
+		isolatedDeviceMap[isolatedDevices[i].HostId] = append(isolatedDeviceMap[isolatedDevices[i].HostId], isolatedDevices[i])
+	}
+
+	schedtags, err := fetchHostSchedtags(hostIds)
+	if err != nil {
+		log.Errorf("fetchHostSchedtags error: %v", err)
+		return rows
+	}
+
+	storages, err := fetchHostStorages(hostIds)
+	if err != nil {
+		log.Errorf("host storages error: %v", err)
+		return rows
+	}
+
+	nics, err := fetchHostNics(hostIds)
+	if err != nil {
+		log.Errorf("fetchHostNics error: %v", err)
+		return rows
+	}
+
 	guestCnts := manager.FetchGuestCnt(hostIds)
 	for i := range rows {
 		cnt, ok := guestCnts[hostIds[i]]
@@ -3429,8 +3775,128 @@ func (manager *SHostManager) FetchCustomizeColumns(
 			rows[i].NonsystemGuests = cnt.NonsystemGuestCnt
 			rows[i].PendingDeletedGuests = cnt.PendingDeletedGuestCnt
 		}
+
+		if server, ok := baremetalServers[hostIds[i]]; ok {
+			rows[i].ServerId = server.Id
+			rows[i].Server = server.Name
+			rows[i].ServerPendingDeleted = server.PendingDeleted
+			if hosts[i].HostType == api.HOST_TYPE_BAREMETAL && len(serverIps) > 0 {
+				if ips, _ := serverIps[server.Id]; len(ips) > 0 {
+					rows[i].ServerIps = strings.Join(ips, ",")
+				}
+			}
+		}
+
+		if hosts[i].EnableHealthCheck && hostHealthChecker != nil {
+			rows[i].AllowHealthCheck = true
+		}
+		rows[i].AutoMigrateOnHostDown = downMap[hostIds[i]]
+		rows[i].AutoMigrateOnHostShutdown = shutdownMap[hostIds[i]]
+
+		if hosts[i].IsBaremetal {
+			rows[i].CanPrepare = true
+			if server := baremetalServers[hostIds[i]]; server != nil && server.Status != api.VM_ADMIN {
+				rows[i].CanPrepare = false
+				if showReason {
+					rows[i].PrepareFailReason = fmt.Sprintf("Cannot prepare baremetal in server status %s", server.Status)
+				}
+			}
+			err := hosts[i].canPrepare()
+			if err != nil && rows[i].CanPrepare {
+				rows[i].CanPrepare = false
+				if showReason {
+					rows[i].PrepareFailReason = err.Error()
+				}
+			}
+		}
+
+		if usage, ok := guestResources[hostIds[i]]; ok {
+			rows[i].CpuCommit = usage.GuestVcpuCount
+			rows[i].MemCommit = usage.GuestVmemSize
+
+			totalCpu := hosts[i].GetCpuCount()
+			cpuCommitRate := 0.0
+			if totalCpu > 0 && usage.GuestVcpuCount > 0 {
+				cpuCommitRate = float64(usage.GuestVcpuCount) * 1.0 / float64(totalCpu)
+			}
+			rows[i].CpuCommitRate = cpuCommitRate
+			totalMem := hosts[i].GetMemSize()
+			memCommitRate := 0.0
+			if totalMem > 0 && usage.GuestVmemSize > 0 {
+				memCommitRate = float64(usage.GuestVmemSize) * 1.0 / float64(totalMem)
+			}
+			rows[i].MemCommitRate = memCommitRate
+		}
+
+		if devs, ok := isolatedDeviceMap[hostIds[i]]; ok {
+			rows[i].IsolatedDeviceCount = len(devs)
+			for j := range devs {
+				dev := devs[j]
+				if rows[i].IsolatedDeviceTypeCount == nil {
+					rows[i].IsolatedDeviceTypeCount = make(map[string]int, 0)
+				}
+				if cnt, ok := rows[i].IsolatedDeviceTypeCount[dev.DevType]; ok {
+					rows[i].IsolatedDeviceTypeCount[dev.DevType] = cnt + 1
+				} else {
+					rows[i].IsolatedDeviceTypeCount[dev.DevType] = 1
+				}
+			}
+			rows[i].ReservedResourceForGpu = hosts[i].GetDevsReservedResource(devs)
+		}
+
+		if capa, ok := storages[hostIds[i]]; ok {
+			rows[i].Storage = capa.Capacity
+			rows[i].StorageUsed = capa.Used
+			rows[i].ActualStorageUsed = capa.ActualUsed
+			rows[i].StorageWaste = capa.Wasted
+			rows[i].StorageVirtual = capa.VCapacity
+			rows[i].StorageFree = capa.GetFree()
+			rows[i].StorageCommitRate = capa.GetCommitRate()
+		}
+
+		rows[i].IsPrepaidRecycle = hosts[i].IsPrepaidRecycle()
+		rows[i].CpuCommitBound = hosts[i].GetCPUOvercommitBound()
+		rows[i].MemCommitBound = hosts[i].GetMemoryOvercommitBound()
+		rows[i].Spec = hosts[i].GetHardwareSpecification()
+		rows[i].Schedtags, _ = schedtags[hostIds[i]]
+		rows[i].NicInfo, _ = nics[hostIds[i]]
+		rows[i].NicCount = len(rows[i].NicInfo)
 	}
 	return rows
+}
+
+func (manager *SHostManager) CustomizedTotalCount(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, totalQ *sqlchemy.SQuery) (int, jsonutils.JSONObject, error) {
+	results := struct {
+		apis.TotalCountBase
+		StatusInfo []apis.StatusStatisticStatusInfo
+	}{}
+
+	err := totalQ.First(&results.TotalCountBase)
+	if err != nil && errors.Cause(err) != sql.ErrNoRows {
+		return -1, nil, errors.Wrapf(err, "First")
+	}
+
+	totalSQ := totalQ.ResetFields().SubQuery()
+	statQ := totalSQ.Query(totalSQ.Field("status"), sqlchemy.COUNT("total_count", totalSQ.Field("id")))
+	statQ = statQ.GroupBy(totalSQ.Field("status"))
+	err = statQ.All(&results.StatusInfo)
+	if err != nil {
+		return -1, nil, errors.Wrapf(err, "status query")
+	}
+	return results.Count, jsonutils.Marshal(results), nil
+}
+
+func fetchBaremetalServer(hostIds []string) (map[string]*SGuest, error) {
+	guests := []SGuest{}
+	err := GuestManager.Query().In("host_id", hostIds).Equals("hypervisor", api.HOST_TYPE_BAREMETAL).All(&guests)
+	if err != nil {
+		return nil, err
+	}
+	ret := map[string]*SGuest{}
+	for i := range guests {
+		ret[guests[i].HostId] = &guests[i]
+	}
+	return ret, nil
 }
 
 func (hh *SHost) GetDetailsVnc(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject) (jsonutils.JSONObject, error) {
@@ -3957,10 +4423,12 @@ func (hh *SHost) ValidateUpdateData(ctx context.Context, userCred mcclient.Token
 		hh.UpdateDnsRecords(false)
 	}
 	if input.EnableNumaAllocate != nil {
-		if cnt, err := hh.GetRunningGuestCount(); err != nil {
-			return input, errors.Wrap(err, "GetRunningGuestCount")
-		} else if cnt > 0 {
-			return input, errors.Errorf("Host has running guest, can't enable/disable numa allocate")
+		if hh.HostType != api.HOST_TYPE_CONTAINER {
+			if cnt, err := hh.GetRunningGuestCount(); err != nil {
+				return input, errors.Wrap(err, "GetRunningGuestCount")
+			} else if cnt > 0 {
+				return input, errors.Errorf("Host has running guest, can't enable/disable numa allocate")
+			}
 		}
 	}
 	return input, nil
@@ -3969,7 +4437,7 @@ func (hh *SHost) ValidateUpdateData(ctx context.Context, userCred mcclient.Token
 func (hh *SHost) PostUpdate(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) {
 	hh.SEnabledStatusInfrasResourceBase.PostUpdate(ctx, userCred, query, data)
 
-	if data.Contains("cpu_cmtbound") || data.Contains("mem_cmtbound") {
+	if data.Contains("cpu_cmtbound") || data.Contains("mem_cmtbound") || data.Contains("enable_numa_allocate") {
 		hh.ClearSchedDescCache()
 	}
 
@@ -4359,13 +4827,34 @@ func (hh *SHost) StartSyncAllGuestsStatusTask(ctx context.Context, userCred mccl
 	}
 }
 
+func (hh *SHost) GetStoragesByMasterHost() ([]string, error) {
+	sq := StorageManager.Query()
+	sq = sq.In("storage_type", api.SHARED_STORAGE)
+	sq = sq.Filter(sqlchemy.OR(sqlchemy.Equals(sq.Field("master_host"), hh.Id), sqlchemy.IsNullOrEmpty(sq.Field("master_host"))))
+	subq := sq.SubQuery()
+	hsq := HoststorageManager.Query().Equals("host_id", hh.Id)
+	hsq = hsq.Join(subq, sqlchemy.Equals(subq.Field("id"), hsq.Field("storage_id")))
+
+	hostStorages := make([]SHoststorage, 0)
+	if err := hsq.All(&hostStorages); err != nil && err != sql.ErrNoRows {
+		return nil, errors.Wrap(err, "get hostStorages")
+	} else if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	storages := make([]string, len(hostStorages))
+	for i := range storages {
+		storages[i] = hostStorages[i].StorageId
+	}
+	return storages, nil
+}
+
 func (hh *SHost) PerformPing(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input api.SHostPingInput) (jsonutils.JSONObject, error) {
 	if hh.HostType == api.HOST_TYPE_BAREMETAL {
 		return nil, httperrors.NewNotSupportedError("ping host type %s not support", hh.HostType)
 	}
 	if input.WithData {
 		// piggyback storage stats info
-		log.Debugf("host ping %s", jsonutils.Marshal(input))
+		log.Debugf("host ping %#v", input)
 		for _, si := range input.StorageStats {
 			storageObj, err := StorageManager.FetchById(si.StorageId)
 			if err != nil {
@@ -4384,6 +4873,19 @@ func (hh *SHost) PerformPing(ctx context.Context, userCred mcclient.TokenCredent
 		}
 		hh.SetMetadata(ctx, "root_partition_used_capacity_mb", input.RootPartitionUsedCapacityMb, userCred)
 		hh.SetMetadata(ctx, "memory_used_mb", input.MemoryUsedMb, userCred)
+
+		guests, _ := hh.GetGuests()
+		for _, guest := range guests {
+			if utils.IsInStringArray(guest.Id, input.QgaRunningGuestIds) {
+				if guest.QgaStatus != api.QGA_STATUS_AVAILABLE {
+					guest.UpdateQgaStatus(api.QGA_STATUS_AVAILABLE)
+				}
+			} else {
+				if guest.QgaStatus != api.QGA_STATUS_UNKNOWN {
+					guest.UpdateQgaStatus(api.QGA_STATUS_UNKNOWN)
+				}
+			}
+		}
 	}
 	if hh.HostStatus != api.HOST_ONLINE {
 		hh.PerformOnline(ctx, userCred, query, nil)
@@ -4398,12 +4900,17 @@ func (hh *SHost) PerformPing(ctx context.Context, userCred mcclient.TokenCredent
 	}
 	result := jsonutils.NewDict()
 	result.Set("name", jsonutils.NewString(hh.GetName()))
-	dependSvcs := []string{"ntpd", "kafka", apis.SERVICE_TYPE_INFLUXDB, apis.SERVICE_TYPE_VICTORIA_METRICS, "elasticsearch"}
+	dependSvcs := []string{"ntpd", "kafka", apis.SERVICE_TYPE_INFLUXDB, apis.SERVICE_TYPE_VICTORIA_METRICS, "elasticsearch", "opentsdb"}
 	catalog := auth.GetCatalogData(dependSvcs, options.Options.Region)
 	if catalog == nil {
 		return nil, fmt.Errorf("Get catalog error")
 	}
 	result.Set("catalog", catalog)
+	if storages, err := hh.GetStoragesByMasterHost(); err != nil {
+		return nil, err
+	} else {
+		result.Set("master_host_storages", jsonutils.NewStringArray(storages))
+	}
 
 	appParams := appsrv.AppContextGetParams(ctx)
 	if appParams != nil {
@@ -4413,6 +4920,50 @@ func (hh *SHost) PerformPing(ctx context.Context, userCred mcclient.TokenCredent
 	}
 
 	return result, nil
+}
+
+func (host *SHost) getHostNodeReservePercent(reservedCpusStr string) (map[string]float32, error) {
+	reservedCpuset, err := cpuset.Parse(reservedCpusStr)
+	if err != nil {
+		return nil, errors.Wrap(err, "cpuset parse reserved cpus")
+	}
+
+	topoObj, err := host.SysInfo.Get("topology")
+	if err != nil {
+		return nil, errors.Wrap(err, "get topology from host sys_info")
+	}
+	info := new(hostapi.HostTopology)
+	if err := topoObj.Unmarshal(info); err != nil {
+		return nil, errors.Wrap(err, "Unmarshal host topology struct")
+	}
+	nodecpus := map[int]int{}
+	nodeReservedCpus := map[int]int{}
+	for i := range info.Nodes {
+		cSet := cpuset.NewBuilder()
+		for j := 0; j < len(info.Nodes[i].Cores); j++ {
+			for k := 0; k < len(info.Nodes[i].Cores[j].LogicalProcessors); k++ {
+				if reservedCpuset.Contains(info.Nodes[i].Cores[j].LogicalProcessors[k]) {
+					if cnt, ok := nodeReservedCpus[info.Nodes[i].ID]; !ok {
+						nodeReservedCpus[info.Nodes[i].ID] = 1
+					} else {
+						nodeReservedCpus[info.Nodes[i].ID] = 1 + cnt
+					}
+				}
+
+				cSet.Add(info.Nodes[i].Cores[j].LogicalProcessors[k])
+			}
+		}
+		nodecpus[info.Nodes[i].ID] = cSet.Result().Size()
+	}
+	reserveRate := map[string]float32{}
+	for nodeId, cnt := range nodecpus {
+		reserveCnt, ok := nodeReservedCpus[nodeId]
+		if !ok {
+			reserveCnt = 0
+		}
+		reserveRate[strconv.Itoa(nodeId)] = float32(reserveCnt) / float32(cnt)
+	}
+	return reserveRate, nil
 }
 
 func (host *SHost) getHostLogicalCores() ([]int, error) {
@@ -4466,16 +5017,8 @@ func (hh *SHost) PerformReserveCpus(
 	ctx context.Context, userCred mcclient.TokenCredential,
 	query jsonutils.JSONObject, input api.HostReserveCpusInput,
 ) (jsonutils.JSONObject, error) {
-	if hh.HostType != api.HOST_TYPE_HYPERVISOR {
+	if !utils.IsInStringArray(hh.HostType, []string{api.HOST_TYPE_HYPERVISOR, api.HOST_TYPE_CONTAINER}) {
 		return nil, httperrors.NewNotSupportedError("host type %s not support reserve cpus", hh.HostType)
-	}
-
-	cnt, err := hh.GetRunningGuestCount()
-	if err != nil {
-		return nil, err
-	}
-	if cnt > 0 {
-		return nil, httperrors.NewBadRequestError("host %s has %d guests, can't update reserve cpus", hh.Id, cnt)
 	}
 
 	if input.Cpus == "" {
@@ -4512,11 +5055,27 @@ func (hh *SHost) PerformReserveCpus(
 		}
 	}
 
+	if len(input.Cpus) > 0 {
+		reservePercent, err := hh.getHostNodeReservePercent(input.Cpus)
+		if err != nil {
+			return nil, errors.Errorf("failed getHostNodeReservePercent: %s", err)
+		}
+		err = hh.SetMetadata(ctx, api.HOSTMETA_RESERVED_CPUS_RATE, reservePercent, userCred)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		err = hh.RemoveMetadata(ctx, api.HOSTMETA_RESERVED_CPUS_RATE, userCred)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	err = hh.SetMetadata(ctx, api.HOSTMETA_RESERVED_CPUS_INFO, input, userCred)
 	if err != nil {
 		return nil, err
 	}
-	if hh.CpuReserved < cs.Size() {
+	if hh.CpuReserved != cs.Size() {
 		_, err = db.Update(hh, func() error {
 			hh.CpuReserved = cs.Size()
 			return nil
@@ -4553,29 +5112,28 @@ func (hh *SHost) isRedfishCapable() bool {
 }
 
 func (hh *SHost) canPrepare() error {
-	if !hh.IsBaremetal {
-		return httperrors.NewInvalidStatusError("not a baremetal")
-	}
 	if !hh.isRedfishCapable() && len(hh.AccessMac) == 0 && len(hh.Uuid) == 0 {
 		return httperrors.NewInvalidStatusError("need valid access_mac and uuid to do prepare")
 	}
 	if !utils.IsInStringArray(hh.Status, []string{api.BAREMETAL_READY, api.BAREMETAL_RUNNING, api.BAREMETAL_PREPARE_FAIL}) {
 		return httperrors.NewInvalidStatusError("Cannot prepare baremetal in status %s", hh.Status)
 	}
-	server := hh.GetBaremetalServer()
-	if server != nil && server.Status != api.VM_ADMIN {
-		return httperrors.NewInvalidStatusError("Cannot prepare baremetal in server status %s", server.Status)
-	}
 	return nil
 }
 
 func (hh *SHost) PerformPrepare(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
+	if !hh.IsBaremetal {
+		return nil, httperrors.NewInvalidStatusError("not a baremetal")
+	}
+	server := hh.GetBaremetalServer()
+	if server != nil && server.Status != api.VM_ADMIN {
+		return nil, httperrors.NewInvalidStatusError("Cannot prepare baremetal in server status %s", server.Status)
+	}
 	err := hh.canPrepare()
 	if err != nil {
 		return nil, err
 	}
 	var onfinish string
-	server := hh.GetBaremetalServer()
 	if server != nil && hh.Status == api.BAREMETAL_READY {
 		onfinish = "shutdown"
 	}
@@ -4614,6 +5172,16 @@ func (hh *SHost) StartIpmiProbeTask(ctx context.Context, userCred mcclient.Token
 		task.ScheduleRun(nil)
 		return nil
 	}
+}
+
+func (hm *SHostManager) PerformValidateIpmi(ctx context.Context, userCred mcclient.TokenCredential, _ jsonutils.JSONObject, input *baremetalapi.ValidateIPMIRequest) (*baremetalapi.ValidateIPMIResponse, error) {
+	resp, err := hm.BaremetalSyncRequest(ctx, "POST", "/baremetals/validate-ipmi", mcclient.GetTokenHeaders(userCred), jsonutils.Marshal(input).(*jsonutils.JSONDict), "")
+	if err != nil {
+		return nil, err
+	}
+	out := new(baremetalapi.ValidateIPMIResponse)
+	resp.Unmarshal(out)
+	return out, nil
 }
 
 func (hh *SHost) PerformInitialize(
@@ -4959,6 +5527,7 @@ func (h *SHost) EnableNetif(ctx context.Context, userCred mcclient.TokenCredenti
 			log.Errorf("Cannot allocate IP %s, not reachable", ipAddr)
 			return fmt.Errorf("Cannot allocate IP %s, not reachable", ipAddr)
 		} else {
+			log.Infof("not found network with scope: %s, ip_addr: %s", NetworkManager.AllowScope(userCred), ipAddr)
 			// the ipaddr is not usable, should be reset to empty
 			ipAddr = ""
 		}
@@ -5002,7 +5571,7 @@ func (h *SHost) EnableNetif(ctx context.Context, userCred mcclient.TokenCredenti
 					return fmt.Errorf("fail to find public network %s", err)
 				}
 				if net == nil {
-					return fmt.Errorf("No network found")
+					return fmt.Errorf("No auto_alloc network found of wire: %s(%s), netTypes: %v", wire.GetName(), wire.GetId(), netTypes)
 				}
 			}
 		}
@@ -5811,7 +6380,11 @@ func (hh *SHost) IsBaremetalAgentReady() bool {
 }
 
 func (hh *SHost) BaremetalSyncRequest(ctx context.Context, method httputils.THttpMethod, url string, headers http.Header, body *jsonutils.JSONDict) (jsonutils.JSONObject, error) {
-	return hh.doAgentRequest(api.AgentTypeBaremetal, ctx, method, url, headers, body)
+	return HostManager.BaremetalSyncRequest(ctx, method, url, headers, body, hh.ZoneId)
+}
+
+func (hm *SHostManager) BaremetalSyncRequest(ctx context.Context, method httputils.THttpMethod, url string, headers http.Header, body *jsonutils.JSONDict, zoneId string) (jsonutils.JSONObject, error) {
+	return hm.doAgentRequest(api.AgentTypeBaremetal, ctx, method, url, headers, body, zoneId)
 }
 
 func (hh *SHost) IsEsxiAgentReady() bool {
@@ -5819,11 +6392,15 @@ func (hh *SHost) IsEsxiAgentReady() bool {
 }
 
 func (hh *SHost) EsxiRequest(ctx context.Context, method httputils.THttpMethod, url string, headers http.Header, body *jsonutils.JSONDict) (jsonutils.JSONObject, error) {
-	return hh.doAgentRequest(api.AgentTypeEsxi, ctx, method, url, headers, body)
+	return HostManager.doAgentRequest(api.AgentTypeEsxi, ctx, method, url, headers, body, hh.ZoneId)
 }
 
 func (hh *SHost) GetAgent(at api.TAgentType) *SBaremetalagent {
-	agent := BaremetalagentManager.GetAgent(at, hh.ZoneId)
+	return HostManager.GetAgent(at, hh.ZoneId)
+}
+
+func (hm *SHostManager) GetAgent(at api.TAgentType, zoneId string) *SBaremetalagent {
+	agent := BaremetalagentManager.GetAgent(at, zoneId)
 	if agent == nil {
 		agent = BaremetalagentManager.GetAgent(at, "")
 	}
@@ -5839,8 +6416,8 @@ func (hh *SHost) isAgentReady(agentType api.TAgentType) bool {
 	return true
 }
 
-func (hh *SHost) doAgentRequest(agentType api.TAgentType, ctx context.Context, method httputils.THttpMethod, url string, headers http.Header, body *jsonutils.JSONDict) (jsonutils.JSONObject, error) {
-	agent := hh.GetAgent(agentType)
+func (hm *SHostManager) doAgentRequest(agentType api.TAgentType, ctx context.Context, method httputils.THttpMethod, url string, headers http.Header, body *jsonutils.JSONDict, zoneId string) (jsonutils.JSONObject, error) {
+	agent := hm.GetAgent(agentType, zoneId)
 	if agent == nil {
 		return nil, fmt.Errorf("no valid %s", agentType)
 	}
@@ -5895,6 +6472,7 @@ func (hh *SHost) MarkGuestUnknown(ctx context.Context, userCred mcclient.TokenCr
 	guests, _ := hh.GetGuests()
 	for _, guest := range guests {
 		guest.SetStatus(ctx, userCred, api.VM_UNKNOWN, "host offline")
+		guest.UpdateQgaStatus(api.QGA_STATUS_UNKNOWN)
 	}
 	guests2 := hh.GetGuestsBackupOnThisHost()
 	for _, guest := range guests2 {
@@ -5906,7 +6484,7 @@ func (manager *SHostManager) PingDetectionTask(ctx context.Context, userCred mcc
 	deadline := time.Now().Add(-1 * time.Duration(options.Options.HostOfflineMaxSeconds) * time.Second)
 
 	q := manager.Query().Equals("host_status", api.HOST_ONLINE).
-		Equals("host_type", api.HOST_TYPE_HYPERVISOR).IsNullOrEmpty("manager_id")
+		In("host_type", []string{api.HOST_TYPE_HYPERVISOR, api.HOST_TYPE_CONTAINER}).IsNullOrEmpty("manager_id")
 	q = q.Filter(sqlchemy.OR(sqlchemy.IsNull(q.Field("last_ping_at")),
 		sqlchemy.LT(q.Field("last_ping_at"), deadline)))
 
@@ -6648,39 +7226,54 @@ func (hh *SHost) PerformSyncIsolatedDevices(ctx context.Context, userCred mcclie
 
 	retDevs := jsonutils.NewArray()
 	foundDevIndex := map[int]struct{}{}
-	for i := range devs {
-		dev, err := IsolatedDeviceManager.FetchById(devs[i].Id)
-		if err != nil {
-			return nil, err
-		}
+	eg := errgroup.Group{}
+	wg := sync.Mutex{}
 
+	for i := range devs {
 		foundDev := false
+		dev := &devs[i]
+
 		for j := range reqDevs {
 			venderDeviceId, _ := reqDevs[j].GetString("vendor_device_id")
 			devAddr, _ := reqDevs[j].GetString("addr")
 			mdevId, _ := reqDevs[j].GetString("mdev_id")
-			if devs[i].VendorDeviceId == venderDeviceId && devs[i].Addr == devAddr && devs[i].MdevId == mdevId {
-				// update isolated device
-				devRet, err := db.DoUpdate(IsolatedDeviceManager, dev, ctx, userCred, jsonutils.NewDict(), reqDevs[j])
-				if err != nil {
-					return nil, err
-				}
-				retDevs.Add(devRet)
+
+			if dev.VendorDeviceId == venderDeviceId && dev.Addr == devAddr && dev.MdevId == mdevId {
+				eg.Go(func() error {
+					// update isolated device
+					log.Infof("dev %s %s do update", dev.DevType, dev.Addr)
+					devRet, err := db.DoUpdate(IsolatedDeviceManager, dev, ctx, userCred, jsonutils.NewDict(), reqDevs[j])
+					if err != nil {
+						return err
+					}
+					wg.Lock()
+					retDevs.Add(devRet)
+					wg.Unlock()
+					return nil
+				})
+
 				foundDevIndex[j] = struct{}{}
 				foundDev = true
+				break
 			}
 		}
 
 		if !foundDev {
-			// detach isolated device
-			isolatedDev := dev.(*SIsolatedDevice)
-			params := jsonutils.NewDict()
-			params.Set("purge", jsonutils.JSONTrue)
-			_, err := isolatedDev.PerformPurge(ctx, userCred, nil, params)
-			if err != nil {
-				return nil, err
-			}
+			eg.Go(func() error {
+				// detach isolated device
+				params := jsonutils.NewDict()
+				params.Set("purge", jsonutils.JSONTrue)
+				_, err := dev.PerformPurge(ctx, userCred, nil, params)
+				if err != nil {
+					return err
+				}
+				return err
+			})
 		}
+	}
+
+	if err = eg.Wait(); err != nil {
+		return nil, err
 	}
 
 	for i := range reqDevs {
@@ -6698,6 +7291,7 @@ func (hh *SHost) PerformSyncIsolatedDevices(ctx context.Context, userCred mcclie
 		}
 		retDevs.Add(devRet)
 	}
+
 	res := jsonutils.NewDict()
 	res.Set("isolated_devices", retDevs)
 	return res, nil

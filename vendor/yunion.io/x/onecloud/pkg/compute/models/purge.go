@@ -63,6 +63,10 @@ func (self *SCloudregion) purgeAll(ctx context.Context, managerId string) error 
 	if err != nil {
 		return errors.Wrapf(err, "purgeResources")
 	}
+	err = self.purgeQuotas(ctx, managerId)
+	if err != nil {
+		return errors.Wrapf(err, "purgeQuotas")
+	}
 
 	// fix #20036 避免regional子网未删除, 导致zone残留
 	zones, err := self.GetZones()
@@ -266,6 +270,20 @@ func (self *SNatGateway) purge(ctx context.Context, userCred mcclient.TokenCrede
 		}
 	}
 	return self.SInfrasResourceBase.Delete(ctx, userCred)
+}
+
+func (self *SCloudregion) purgeQuotas(ctx context.Context, managerId string) error {
+	quotas := CloudproviderQuotaManager.Query("id").Equals("manager_id", managerId).Equals("cloudregion_id", self.Id)
+	pairs := []purgePair{
+		{manager: CloudproviderQuotaManager, key: "id", q: quotas},
+	}
+	for i := range pairs {
+		err := pairs[i].purgeAll(ctx)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (self *SCloudregion) purgeResources(ctx context.Context, managerId string) error {
@@ -800,6 +818,8 @@ func (self *SHost) purge(ctx context.Context, userCred mcclient.TokenCredential)
 func (self *SGuest) purge(ctx context.Context, userCred mcclient.TokenCredential) error {
 	guestdisks := GuestdiskManager.Query("row_id").Equals("guest_id", self.Id)
 	guestnetworks := GuestnetworkManager.Query("row_id").Equals("guest_id", self.Id)
+	// 辅助IP
+	networkaddress := NetworkAddressManager.Query("id").In("parent_id", guestnetworks.SubQuery())
 	guestcdroms := GuestcdromManager.Query("row_id").Equals("id", self.Id)
 	guestvfd := GuestFloppyManager.Query("row_id").Equals("id", self.Id)
 	guestgroups := GroupguestManager.Query("row_id").Equals("guest_id", self.Id)
@@ -823,6 +843,7 @@ func (self *SGuest) purge(ctx context.Context, userCred mcclient.TokenCredential
 		{manager: GroupguestManager, key: "row_id", q: guestgroups},
 		{manager: GuestcdromManager, key: "row_id", q: guestcdroms},
 		{manager: GuestFloppyManager, key: "row_id", q: guestvfd},
+		{manager: NetworkAddressManager, key: "id", q: networkaddress},
 		{manager: GuestnetworkManager, key: "row_id", q: guestnetworks},
 		{manager: GuestdiskManager, key: "row_id", q: guestdisks},
 		// {manager: InstanceSnapshotManager, key: "id", q: instancesnapshots},
@@ -900,8 +921,10 @@ func (cprvd *SCloudprovider) purge(ctx context.Context, userCred mcclient.TokenC
 	dnszones := DnsZoneManager.Query("id").Equals("manager_id", cprvd.Id)
 	records := DnsRecordManager.Query("id").In("dns_zone_id", dnszones.SubQuery())
 	dnsVpcs := DnsZoneVpcManager.Query("row_id").In("dns_zone_id", dnszones.SubQuery())
+	quotas := CloudproviderQuotaManager.Query("id").Equals("manager_id", cprvd.Id)
 
 	pairs := []purgePair{
+		{manager: CloudproviderQuotaManager, key: "id", q: quotas},
 		{manager: DnsZoneVpcManager, key: "row_id", q: dnsVpcs},
 		{manager: DnsRecordManager, key: "id", q: records},
 		{manager: DnsZoneManager, key: "id", q: dnszones},

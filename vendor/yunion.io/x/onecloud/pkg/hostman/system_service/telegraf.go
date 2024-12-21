@@ -17,6 +17,7 @@ package system_service
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"sort"
 	"strings"
 
@@ -26,6 +27,14 @@ import (
 
 	"yunion.io/x/onecloud/pkg/apis"
 	"yunion.io/x/onecloud/pkg/util/procutils"
+)
+
+const (
+	TELEGRAF_INPUT_RADEONTOP           = "radeontop"
+	TELEGRAF_INPUT_RADEONTOP_DEV_PATHS = "device_paths"
+	TELEGRAF_INPUT_CONF_BIN_PATH       = "bin_path"
+	TELEGAF_INPUT_NETDEV               = "ni_rsrc_mon"
+	TELEGAF_INPUT_VASMI                = "vasmi"
 )
 
 type STelegraf struct {
@@ -103,19 +112,116 @@ func (s *STelegraf) GetConfig(kwargs map[string]interface{}) string {
 		conf += "  timeout = \"30s\"\n"
 		conf += "\n"
 	}
+	/*
+	 *
+	 * [[outputs.kafka]]
+	 *   ## URLs of kafka brokers
+	 *   brokers = ["localhost:9092"]
+	 *   ## Kafka topic for producer messages
+	 *   topic = "telegraf"
+	 *   ## Optional SASL Config
+	 *   sasl_username = "kafka"
+	 *   sasl_password = "secret"
+	 *   ## Optional SASL:
+	 *   ## one of: OAUTHBEARER, PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, GSSAPI
+	 *   ## (defaults to PLAIN)
+	 *   sasl_mechanism = "PLAIN"
+	 */
+	if kafka, ok := kwargs["kafka"]; ok {
+		kafkaConf, _ := kafka.(map[string]interface{})
+		conf += "[[outputs.kafka]]\n"
+		for _, k := range []string{
+			"brokers",
+			"topic",
+			"sasl_username",
+			"sasl_password",
+			"sasl_mechanism",
+		} {
+			if val, ok := kafkaConf[k]; ok {
+				if k == "brokers" {
+					brokers, _ := val.([]string)
+					for i := range brokers {
+						brokers[i] = fmt.Sprintf("\"%s\"", brokers[i])
+					}
+					conf += fmt.Sprintf("  brokers = [%s]\n", strings.Join(brokers, ", "))
+				} else {
+					conf += fmt.Sprintf("  %s = \"%s\"\n", k, val)
+				}
+			}
+		}
+		conf += "  compression_codec = 0\n"
+		conf += "  required_acks = -1\n"
+		conf += "  max_retry = 3\n"
+		conf += "  data_format = \"json\"\n"
+		conf += "  json_timestamp_units = \"1ms\"\n"
+		conf += "  routing_tag = \"host\"\n"
+		conf += "\n"
+	}
+	/*
+	 * [[outputs.opentsdb]]
+	 *   host = "http://127.0.0.1"
+	 *   port = 17000
+	 *   http_batch_size = 50
+	 *   http_path = "/opentsdb/put"
+	 *   debug = false
+	 *   separator = "_"
+	 */
+	if opentsdb, ok := kwargs["opentsdb"]; ok {
+		opentsdbConf, _ := opentsdb.(map[string]interface{})
+		urlstr := opentsdbConf["url"].(string)
+		urlParts, err := url.Parse(urlstr)
+		if err != nil {
+			log.Errorf("malformed opentsdb url: %s: %s", urlstr, err)
+		} else {
+			port := urlParts.Port()
+			if len(port) == 0 {
+				if urlParts.Scheme == "http" {
+					port = "80"
+				} else if urlParts.Scheme == "https" {
+					port = "443"
+				}
+			}
+			conf += "[[outputs.opentsdb]]\n"
+			conf += fmt.Sprintf("  host = \"%s://%s\"\n", urlParts.Scheme, urlParts.Hostname())
+			conf += fmt.Sprintf("  port = %s\n", urlParts.Port())
+			conf += "  http_batch_size = 50\n"
+			conf += fmt.Sprintf("  http_path = \"%s\"\n", urlParts.Path)
+			conf += "  debug = false\n"
+			conf += "  separator = \"_\"\n"
+			conf += "\n"
+		}
+	}
 	conf += "[[inputs.cpu]]\n"
-	conf += "  percpu = false\n"
+	conf += "  percpu = true\n"
 	conf += "  totalcpu = true\n"
 	conf += "  collect_cpu_time = false\n"
 	conf += "  report_active = true\n"
 	conf += "\n"
 	conf += "[[inputs.disk]]\n"
-	conf += "  ignore_mount_points = [\"/etc/telegraf\", \"/etc/hosts\", \"/etc/hostname\", \"/etc/resolv.conf\", \"/dev/termination-log\"]"
-	conf += "  ignore_fs = [\"tmpfs\", \"devtmpfs\", \"overlay\", \"squashfs\", \"iso9660\", \"rootfs\", \"hugetlbfs\"]\n"
+	ignoreMountPoints := []string{
+		"/etc/telegraf",
+		"/etc/hosts",
+		"/etc/hostname",
+		"/etc/resolv.conf",
+		"/dev/termination-log",
+	}
+	for i := range ignoreMountPoints {
+		ignoreMountPoints[i] = fmt.Sprintf("%q", ignoreMountPoints[i])
+	}
+	ignorePathSegments := []string{
+		"/run/k3s/containerd/",
+	}
+	ignorePathSegments = append(ignorePathSegments, kwargs["server_path"].(string))
+	for i := range ignorePathSegments {
+		ignorePathSegments[i] = fmt.Sprintf("%q", ignorePathSegments[i])
+	}
+	conf += "  ignore_mount_points = [" + strings.Join(ignoreMountPoints, ", ") + "]\n"
+	conf += "  ignore_path_segments = [" + strings.Join(ignorePathSegments, ", ") + "]\n"
+	conf += "  ignore_fs = [\"tmpfs\", \"devtmpfs\", \"devfs\", \"overlay\", \"squashfs\", \"iso9660\", \"rootfs\", \"hugetlbfs\", \"autofs\", \"aufs\"]\n"
 	conf += "\n"
 	conf += "[[inputs.diskio]]\n"
 	conf += "  skip_serial_number = false\n"
-	conf += "  excludes = \"^nbd\"\n"
+	conf += "  excludes = \"^(nbd|loop)\"\n"
 	conf += "\n"
 	conf += "[[inputs.kernel]]\n"
 	conf += "\n"
@@ -131,6 +237,8 @@ func (s *STelegraf) GetConfig(kwargs map[string]interface{}) string {
 	conf += "\n"
 	conf += "[[inputs.smart]]\n"
 	conf += "  path=\"/usr/sbin/smartctl\"\n"
+	conf += "\n"
+	conf += "[[inputs.sensors]]\n"
 	conf += "\n"
 	conf += "[[inputs.net]]\n"
 	if nics, ok := kwargs["nics"]; ok {
@@ -157,6 +265,10 @@ func (s *STelegraf) GetConfig(kwargs map[string]interface{}) string {
 	}
 	conf += "[[inputs.netstat]]\n"
 	conf += "\n"
+	conf += "[[inputs.bond]]\n"
+	conf += "\n"
+	conf += "[[inputs.temp]]\n"
+	conf += "\n"
 	conf += "[[inputs.nstat]]\n"
 	conf += "\n"
 	conf += "[[inputs.ntpq]]\n"
@@ -170,6 +282,8 @@ func (s *STelegraf) GetConfig(kwargs map[string]interface{}) string {
 	}
 	conf += "[[inputs.internal]]\n"
 	conf += "  collect_memstats = false\n"
+	conf += "\n"
+	conf += "[[inputs.linux_sysctl_fs]]\n"
 	conf += "\n"
 	conf += "[[inputs.http_listener_v2]]\n"
 	conf += "  service_address = \"127.0.0.1:8087\"\n"
@@ -185,6 +299,33 @@ func (s *STelegraf) GetConfig(kwargs map[string]interface{}) string {
 		conf += fmt.Sprintf("  interval = \"%ds\"\n", haIntVal)
 		conf += fmt.Sprintf("  servers = [\"%s\"]\n", statsSocket)
 		conf += "  keep_field_names = true\n"
+		conf += "\n"
+	}
+
+	if radontop, ok := kwargs[TELEGRAF_INPUT_RADEONTOP]; ok {
+		radontopMap, _ := radontop.(map[string]interface{})
+		devPaths := radontopMap[TELEGRAF_INPUT_RADEONTOP_DEV_PATHS].([]string)
+		devPathStr := make([]string, len(devPaths))
+		for i, devPath := range devPaths {
+			devPathStr[i] = fmt.Sprintf("\"%s\"", devPath)
+		}
+		conf += fmt.Sprintf("[[inputs.%s]]\n", TELEGRAF_INPUT_RADEONTOP)
+		conf += fmt.Sprintf("  bin_path = \"%s\"\n", radontopMap[TELEGRAF_INPUT_CONF_BIN_PATH].(string))
+		conf += fmt.Sprintf("  %s = [%s]\n", TELEGRAF_INPUT_RADEONTOP_DEV_PATHS, strings.Join(devPathStr, ", "))
+		conf += "\n"
+	}
+
+	if netdev, ok := kwargs[TELEGAF_INPUT_NETDEV]; ok {
+		netdevMap, _ := netdev.(map[string]interface{})
+		conf += fmt.Sprintf("[[inputs.%s]]\n", TELEGAF_INPUT_NETDEV)
+		conf += fmt.Sprintf("  bin_path = \"%s\"\n", netdevMap[TELEGRAF_INPUT_CONF_BIN_PATH].(string))
+		conf += "\n"
+	}
+
+	if vasmi, ok := kwargs[TELEGAF_INPUT_VASMI]; ok {
+		vasmiMap, _ := vasmi.(map[string]interface{})
+		conf += fmt.Sprintf("[[inputs.%s]]\n", TELEGAF_INPUT_VASMI)
+		conf += fmt.Sprintf("  bin_path = \"%s\"\n", vasmiMap[TELEGRAF_INPUT_CONF_BIN_PATH].(string))
 		conf += "\n"
 	}
 	return conf

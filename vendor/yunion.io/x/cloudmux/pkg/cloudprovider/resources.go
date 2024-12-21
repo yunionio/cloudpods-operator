@@ -318,6 +318,18 @@ type ICloudHost interface {
 	GetSchedtags() ([]string, error)
 
 	GetOvnVersion() string // just for cloudpods host
+
+	GetIsolateDevices() ([]IsolateDevice, error)
+}
+
+type IsolateDevice interface {
+	GetName() string
+	GetGlobalId() string
+	GetModel() string
+	GetAddr() string
+	GetDevType() string
+	GetNumaNode() int8
+	GetVendorDeviceId() string
 }
 
 type ICloudVM interface {
@@ -400,6 +412,7 @@ type ICloudVM interface {
 
 	AllocatePublicIpAddress() (string, error)
 	GetPowerStates() string
+	GetIsolateDeviceIds() ([]string, error)
 }
 
 type ICloudNic interface {
@@ -1319,6 +1332,7 @@ type ICloudDnsRecord interface {
 	GetDnsValue() string
 	GetTTL() int64
 	GetMxPriority() int64
+	GetExtraAddresses() ([]string, error)
 
 	Update(*DnsRecord) error
 
@@ -1400,6 +1414,8 @@ type ICloudFileSystem interface {
 
 	GetMountTargets() ([]ICloudMountTarget, error)
 	CreateMountTarget(opts *SMountTargetCreateOptions) (ICloudMountTarget, error)
+
+	SetQuota(input *SFileSystemSetQuotaInput) error
 
 	Delete() error
 }
