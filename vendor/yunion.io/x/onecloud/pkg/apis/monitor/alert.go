@@ -15,10 +15,12 @@
 package monitor
 
 import (
+	"reflect"
 	"time"
 
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/pkg/errors"
+	"yunion.io/x/pkg/gotypes"
 
 	"yunion.io/x/onecloud/pkg/apis"
 )
@@ -84,18 +86,37 @@ type AlertSetting struct {
 	Conditions []AlertCondition `json:"conditions"`
 }
 
-type AlertCondition struct {
-	Type      string     `json:"type"`
-	Query     AlertQuery `json:"query"`
-	Reducer   Condition  `json:"reducer"`
-	Evaluator Condition  `json:"evaluator"`
-	Operator  string     `json:"operator"`
+func (s AlertSetting) String() string {
+	return jsonutils.Marshal(s).String()
 }
+
+func (s AlertSetting) IsZero() bool {
+	return len(s.Conditions) == 0
+}
+
+type AlertCondition struct {
+	Type         string             `json:"type"`
+	Query        AlertQuery         `json:"query"`
+	Reducer      Condition          `json:"reducer"`
+	ReducerOrder ResultReducerOrder `json:"reducer_order"`
+	Evaluator    Condition          `json:"evaluator"`
+	Operator     string             `json:"operator"`
+}
+
+type ResultReducerOrder string
+
+const (
+	RESULT_REDUCER_ORDER_ASC  ResultReducerOrder = "asc"
+	RESULT_REDUCER_ORDER_DESC ResultReducerOrder = "desc"
+)
 
 type AlertQuery struct {
 	Model MetricQuery `json:"model"`
 	From  string      `json:"from"`
 	To    string      `json:"to"`
+	// 查询结果 reducer，执行 p95 这些操作
+	ResultReducer      *Condition         `json:"result_reducer"`
+	ResultReducerOrder ResultReducerOrder `json:"result_reducer_order"`
 }
 
 type AlertCreateInput struct {
@@ -186,6 +207,7 @@ type EvalMatch struct {
 	Tags         map[string]string    `json:"tags"`
 	Unit         string               `json:"unit"`
 	AlertDetails jsonutils.JSONObject `json:"alert_details"`
+	IsRecovery   bool                 `json:"is_recovery"`
 }
 
 type AlertTestRunOutput struct {
@@ -209,4 +231,10 @@ type AlertPauseInput struct {
 	apis.Meta
 
 	Paused bool `json:"paused"`
+}
+
+func init() {
+	gotypes.RegisterSerializable(reflect.TypeOf(&AlertSetting{}), func() gotypes.ISerializable {
+		return &AlertSetting{}
+	})
 }

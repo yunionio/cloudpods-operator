@@ -228,7 +228,7 @@ type HostDetails struct {
 	AutoMigrateOnHostShutdown bool `json:"auto_migrate_on_host_shutdown"`
 
 	// reserved resource for isolated device
-	ReservedResourceForGpu IsolatedDeviceReservedResourceInput `json:"reserved_resource_for_gpu"`
+	ReservedResourceForGpu *IsolatedDeviceReservedResourceInput `json:"reserved_resource_for_gpu"`
 	// isolated device count
 	IsolatedDeviceCount int
 
@@ -290,6 +290,11 @@ type HostResourceInfo struct {
 
 	// 宿主机状态
 	HostStatus string `json:"host_status"`
+
+	HostResourceType string `json:"host_resource_type"`
+
+	// 宿主机计费类型
+	HostBillingType string `json:"host_billing_type"`
 
 	// 宿主机服务状态`
 	HostServiceStatus string `json:"host_service_status"`
@@ -531,6 +536,8 @@ type SHostPingInput struct {
 	RootPartitionUsedCapacityMb int `json:"root_partition_used_capacity_mb"`
 
 	StorageStats []SHostStorageStat `json:"storage_stats"`
+
+	QgaRunningGuestIds []string `json:"qga_running_guests"`
 }
 
 type HostReserveCpusInput struct {

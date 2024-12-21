@@ -217,6 +217,8 @@ const (
 	HYPERVISOR_QINGCLOUD      = compute.HYPERVISOR_QINGCLOUD
 	HYPERVISOR_ORACLE         = compute.HYPERVISOR_ORACLE
 	HYPERVISOR_SANGFOR        = compute.HYPERVISOR_SANGFOR
+	HYPERVISOR_ZETTAKIT       = compute.HYPERVISOR_ZETTAKIT
+	HYPERVISOR_UIS            = compute.HYPERVISOR_UIS
 
 	//	HYPERVISOR_DEFAULT = HYPERVISOR_KVM
 	HYPERVISOR_DEFAULT = HYPERVISOR_KVM
@@ -234,10 +236,8 @@ const (
 )
 
 const (
-	QGA_STATUS_UNKNOWN        = "unknown"
-	QGA_STATUS_EXCUTING       = "executing"
-	QGA_STATUS_EXECUTE_FAILED = "execute_failed"
-	QGA_STATUS_AVAILABLE      = "available"
+	QGA_STATUS_UNKNOWN   = "unknown"
+	QGA_STATUS_AVAILABLE = "available"
 )
 
 const (
@@ -296,6 +296,7 @@ var HYPERVISORS = []string{
 	HYPERVISOR_QINGCLOUD,
 	HYPERVISOR_ORACLE,
 	HYPERVISOR_SANGFOR,
+	HYPERVISOR_ZETTAKIT,
 }
 
 const (
@@ -323,6 +324,7 @@ const (
 	VM_METADATA_HOT_REMOVE_NIC      = "hot_remove_nic"
 	VM_METADATA_START_VMEM_MB       = "start_vmem_mb"
 	VM_METADATA_START_VCPU_COUNT    = "start_vcpu_count"
+	VM_METADATA_CPU_NUMA_PIN        = "__cpu_numa_pin"
 )
 
 // windows allow a maximal length of 15

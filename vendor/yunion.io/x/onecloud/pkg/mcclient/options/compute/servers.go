@@ -44,7 +44,7 @@ type ServerListOptions struct {
 	Gpu                *bool    `help:"Show gpu servers"`
 	Secgroup           string   `help:"Secgroup ID or Name"`
 	AdminSecgroup      string   `help:"AdminSecgroup ID or Name"`
-	Hypervisor         string   `help:"Show server of hypervisor" choices:"kvm|esxi|container|baremetal|aliyun|azure|aws|huawei|ucloud|volcengine|zstack|openstack|google|ctyun|incloudsphere|nutanix|bingocloud|cloudpods|ecloud|jdcloud|remotefile|h3c|hcs|hcso|hcsop|proxmox|ksyun|baidu|cucloud|qingcloud|sangfor"`
+	Hypervisor         string   `help:"Show server of hypervisor" choices:"kvm|esxi|pod|baremetal|aliyun|azure|aws|huawei|ucloud|volcengine|zstack|openstack|google|ctyun|incloudsphere|nutanix|bingocloud|cloudpods|ecloud|jdcloud|remotefile|h3c|hcs|hcso|hcsop|proxmox|ksyun|baidu|cucloud|qingcloud|sangfor|zettakit|uis"`
 	Region             string   `help:"Show servers in cloudregion"`
 	WithEip            *bool    `help:"Show Servers with EIP"`
 	WithoutEip         *bool    `help:"Show Servers without EIP"`
@@ -53,7 +53,6 @@ type ServerListOptions struct {
 	UsableServerForEip string   `help:"Eip id or name"`
 	WithoutUserMeta    *bool    `help:"Show Servers without user metadata"`
 	EipAssociable      *bool    `help:"Show Servers can associate with eip"`
-	Group              string   `help:"Instance Group ID or Name"`
 	HostSn             string   `help:"Host SN"`
 	IpAddr             string   `help:"Fileter by ip"`
 	IpAddrs            []string `help:"Fileter by ips"`
@@ -347,7 +346,7 @@ func (o ServerCreateCommonConfig) Data() (*computeapi.ServerConfigs, error) {
 
 type ServerConfigs struct {
 	ServerCreateCommonConfig
-	Hypervisor                   string `help:"Hypervisor type" choices:"kvm|pod|esxi|baremetal|container|aliyun|azure|qcloud|aws|huawei|openstack|ucloud|volcengine|zstack|google|ctyun|incloudsphere|bingocloud|cloudpods|ecloud|jdcloud|remotefile|h3c|hcs|hcso|hcsop|proxmox|sangfor"`
+	Hypervisor                   string `help:"Hypervisor type" choices:"kvm|pod|esxi|baremetal|container|aliyun|azure|qcloud|aws|huawei|openstack|ucloud|volcengine|zstack|google|ctyun|incloudsphere|bingocloud|cloudpods|ecloud|jdcloud|remotefile|h3c|hcs|hcso|hcsop|proxmox|sangfor|zettakit|uis"`
 	Backup                       bool   `help:"Create server with backup server"`
 	BackupHost                   string `help:"Perfered host where virtual backup server should be created"`
 	AutoSwitchToBackupOnHostDown bool   `help:"Auto switch to backup server on host down"`
@@ -1505,6 +1504,16 @@ func (o *ServerAddSubIpsOptions) Params() (jsonutils.JSONObject, error) {
 	return jsonutils.Marshal(o), nil
 }
 
+type ServerUpdateSubIpsOptions struct {
+	ServerIdOptions
+
+	computeapi.GuestUpdateSubIpsInput
+}
+
+func (o *ServerUpdateSubIpsOptions) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.Marshal(o), nil
+}
+
 type ServerSetOSInfoOptions struct {
 	ServerIdsOptions
 
@@ -1513,4 +1522,17 @@ type ServerSetOSInfoOptions struct {
 
 func (o *ServerSetOSInfoOptions) Params() (jsonutils.JSONObject, error) {
 	return jsonutils.Marshal(o), nil
+}
+
+type ServerSetRootDiskMatcher struct {
+	ROOTDISKMATCHER string `help:"Baremetal root disk matcher, e.g. 'device=/dev/sdb' 'size=900G' 'size_start=800G,size_end=900G'" json:"-"`
+	ServerIdsOptions
+}
+
+func (o *ServerSetRootDiskMatcher) Params() (jsonutils.JSONObject, error) {
+	matcher, err := cmdline.ParseBaremetalRootDiskMatcher(o.ROOTDISKMATCHER)
+	if err != nil {
+		return nil, err
+	}
+	return jsonutils.Marshal(matcher), nil
 }
