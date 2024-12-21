@@ -34,9 +34,8 @@ type ComputeOptions struct {
 	DefaultMemoryOvercommitBound  float32 `default:"1.0" help:"Default memory overcommit bound for host, default to 1"`
 	DefaultStorageOvercommitBound float32 `default:"1.0" help:"Default storage overcommit bound for storage, default to 1"`
 
-	DefaultSecurityGroupId       string `help:"Default security rules" default:"default"`
-	DefaultAdminSecurityGroupId  string `help:"Default admin security rules" default:""`
-	CleanUselessKvmSecurityGroup bool   `help:"Clean useless kvm security groups when service start"`
+	DefaultSecurityGroupId      string `help:"Default security rules" default:"default"`
+	DefaultAdminSecurityGroupId string `help:"Default admin security rules" default:""`
 
 	DefaultDiskSizeMB int `default:"10240" help:"Default disk size in MB if not specified, default to 10GiB" json:"default_disk_size"`
 
@@ -143,7 +142,7 @@ type ComputeOptions struct {
 
 	CloudSyncWorkerCount         int `help:"how many current synchronization threads" default:"5"`
 	CloudProviderSyncWorkerCount int `help:"how many current providers synchronize their regions, practically no limit" default:"10"`
-	CloudAutoSyncIntervalSeconds int `help:"frequency to check auto sync tasks" default:"30"`
+	CloudAutoSyncIntervalSeconds int `help:"frequency to check auto sync tasks" default:"300"`
 	DefaultSyncIntervalSeconds   int `help:"minimal synchronization interval, default 15 minutes" default:"900"`
 	MaxCloudAccountErrorCount    int `help:"maximal consecutive error count allow for a cloud account" default:"5"`
 

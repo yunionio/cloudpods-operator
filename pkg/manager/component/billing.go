@@ -18,8 +18,6 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
-	common_options "yunion.io/x/onecloud/pkg/cloudcommon/options"
-
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
@@ -90,13 +88,8 @@ func (b *billingManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 	return []*corev1.Service{b.newSingleNodePortService(v1alpha1.BillingComponentType, oc, int32(oc.Spec.Billing.Service.NodePort), int32(cfg.Billing.Port))}
 }
 
-type billingOptions struct {
-	common_options.CommonOptions
-	common_options.DBOptions
-}
-
 func (b *billingManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
-	opt := &billingOptions{}
+	opt := &option.CommonDBOptions{}
 	if err := option.SetOptionsDefault(opt, constants.ServiceTypeBilling); err != nil {
 		return nil, false, err
 	}
@@ -117,14 +110,14 @@ func (b *billingManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
 
 	// TODO: fix this
-	opt.AutoSyncTable = true
+	// opt.AutoSyncTable = true
 	opt.Port = config.Port
 
 	return b.newServiceConfigMap(v1alpha1.BillingComponentType, "", oc, opt), false, nil
 }
 
 func (b *billingManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
-	return b.newCloudServiceSinglePortDeployment(v1alpha1.BillingComponentType, "", oc, &oc.Spec.Billing.DeploymentSpec, int32(cfg.Billing.Port), false, false)
+	return b.newCloudServiceSinglePortDeployment(v1alpha1.BillingComponentType, "", oc, &oc.Spec.Billing.DeploymentSpec, int32(cfg.Billing.Port), true, false)
 }
 
 func (b *billingManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {

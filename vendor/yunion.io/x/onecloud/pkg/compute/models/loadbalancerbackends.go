@@ -16,6 +16,7 @@ package models
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	"yunion.io/x/cloudmux/pkg/cloudprovider"
@@ -307,8 +308,8 @@ func (man *SLoadbalancerBackendManager) ValidateCreateData(ctx context.Context, 
 				host.Name, host.ZoneId, lb.Name, lb.ZoneId)
 		}
 		if len(lb.ManagerId) == 0 {
-			if !utils.IsInStringArray(host.HostType, []string{api.HOST_TYPE_HYPERVISOR, api.HOST_TYPE_ESXI}) {
-				return nil, httperrors.NewInputParameterError("host type of host %q (%s) should be either hypervisor or esxi",
+			if !utils.IsInStringArray(host.HostType, []string{api.HOST_TYPE_HYPERVISOR, api.HOST_TYPE_ESXI, api.HOST_TYPE_BAREMETAL}) {
+				return nil, httperrors.NewInputParameterError("host type of host %q (%s) should be either hypervisor, baremetal or esxi",
 					host.Name, host.HostType)
 			}
 		} else if host.ManagerId != lb.ManagerId {
@@ -581,7 +582,6 @@ func (lbbg *SLoadbalancerBackendGroup) SyncLoadbalancerBackends(ctx context.Cont
 }
 
 func (lbb *SLoadbalancerBackend) constructFieldsFromCloudLoadbalancerBackend(ext cloudprovider.ICloudLoadbalancerBackend, managerId string) error {
-	// lbb.Name = extLoadbalancerBackend.GetName()
 	lbb.Status = ext.GetStatus()
 
 	lbb.Weight = ext.GetWeight()
@@ -590,14 +590,21 @@ func (lbb *SLoadbalancerBackend) constructFieldsFromCloudLoadbalancerBackend(ext
 	lbb.BackendType = ext.GetBackendType()
 	lbb.BackendRole = ext.GetBackendRole()
 
-	if lbb.BackendType == api.LB_BACKEND_IP {
-		lbb.Address = ext.GetIpAddress()
-	} else {
+	ipAddr := ext.GetIpAddress()
+	if len(lbb.Address) == 0 || ipAddr != lbb.Address {
+		lbb.Address = ipAddr
+	}
+
+	if lbb.BackendType == api.LB_BACKEND_GUEST {
 		instance, err := db.FetchByExternalIdAndManagerId(GuestManager, ext.GetBackendId(), func(q *sqlchemy.SQuery) *sqlchemy.SQuery {
 			sq := HostManager.Query().SubQuery()
 			return q.Join(sq, sqlchemy.Equals(sq.Field("id"), q.Field("host_id"))).Filter(sqlchemy.Equals(sq.Field("manager_id"), managerId))
 		})
 		if err != nil {
+			// 部分弹性伸缩组实例未同步, 忽略找不到实例错误
+			if errors.Cause(err) == sql.ErrNoRows {
+				return nil
+			}
 			return errors.Wrapf(err, "FetchByExternalIdAndManagerId %s", ext.GetBackendId())
 		}
 

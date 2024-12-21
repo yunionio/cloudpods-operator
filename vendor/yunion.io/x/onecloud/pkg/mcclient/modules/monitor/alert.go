@@ -15,8 +15,6 @@
 package monitor
 
 import (
-	"encoding/json"
-
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/pkg/errors"
 
@@ -54,7 +52,7 @@ type SNotificationManager struct {
 func NewNotificationManager() *SNotificationManager {
 	man := modules.NewMonitorV2Manager(
 		"alert_notification", "alert_notifications",
-		[]string{"id", "name", "type", "is_default", "disable_resolve_message", "send_reminder", "settings"},
+		[]string{"id", "name", "type", "is_default", "disable_resolve_message", "send_reminder", "frequency", "settings"},
 		[]string{})
 	return &SNotificationManager{
 		ResourceManager: &man,
@@ -67,7 +65,7 @@ type SAlertnotificationManager struct {
 
 func NewAlertnotificationManager() *SAlertnotificationManager {
 	man := modules.NewJointMonitorV2Manager("alertnotification", "alertnotifications",
-		[]string{"Alert_ID", "Alert", "Notification_ID", "Notification", "Used_by", "State"},
+		[]string{"Alert_ID", "Alert", "Notification_ID", "Notification", "Used_by", "State", "Frequency"},
 		[]string{},
 		Alerts, Notifications)
 	return &SAlertnotificationManager{&man}
@@ -125,14 +123,10 @@ func (m *SAlertManager) DoCreate(s *mcclient.ClientSession, config *AlertConfig)
 	return m.Create(s, input.JSON(input))
 }
 
-func (m *SAlertManager) DoTestRun(s *mcclient.ClientSession, id string, input *monitor.AlertTestRunInput) (*monitor.AlertTestRunOutput, error) {
+func (m *SAlertManager) DoTestRun(s *mcclient.ClientSession, id string, input *monitor.AlertTestRunInput) (jsonutils.JSONObject, error) {
 	ret, err := m.PerformAction(s, id, "test-run", input.JSON(input))
 	if err != nil {
 		return nil, errors.Wrap(err, "call test-run")
 	}
-	out := new(monitor.AlertTestRunOutput)
-	if err := json.Unmarshal([]byte(ret.String()), out); err != nil {
-		return nil, errors.Wrapf(err, "Unmarshal %s", ret.String())
-	}
-	return out, nil
+	return ret, nil
 }

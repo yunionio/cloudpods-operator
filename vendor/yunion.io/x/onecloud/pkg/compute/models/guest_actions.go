@@ -55,6 +55,7 @@ import (
 	"yunion.io/x/onecloud/pkg/cloudcommon/policy"
 	"yunion.io/x/onecloud/pkg/cloudcommon/userdata"
 	"yunion.io/x/onecloud/pkg/cloudcommon/validators"
+	"yunion.io/x/onecloud/pkg/compute/baremetal"
 	guestdriver_types "yunion.io/x/onecloud/pkg/compute/guestdrivers/types"
 	"yunion.io/x/onecloud/pkg/compute/options"
 	"yunion.io/x/onecloud/pkg/httperrors"
@@ -496,6 +497,8 @@ func (self *SGuest) GetSchedMigrateParams(
 	if input.PreferHostId != "" {
 		schedDesc.ServerConfig.PreferHost = input.PreferHostId
 	}
+
+	schedDesc.ResetCpuNumaPin = input.ResetCpuNumaPin
 	if input.LiveMigrate {
 		schedDesc.LiveMigrate = input.LiveMigrate
 		if self.GetMetadata(context.Background(), "__cpu_mode", userCred) != api.CPU_MODE_QEMU {
@@ -512,6 +515,11 @@ func (self *SGuest) GetSchedMigrateParams(
 			schedDesc.TargetHostKernel, _ = host.SysInfo.GetString("kernel_version")
 			schedDesc.SkipKernelCheck = &input.SkipKernelCheck
 			schedDesc.HostMemPageSizeKB = host.PageSizeKB
+		}
+		if self.CpuNumaPin != nil {
+			cpuNumaPin := make([]schedapi.SCpuNumaPin, 0)
+			self.CpuNumaPin.Unmarshal(&cpuNumaPin)
+			schedDesc.CpuNumaPin = cpuNumaPin
 		}
 	}
 	schedDesc.ReuseNetwork = true
@@ -530,7 +538,8 @@ func (self *SGuest) StartMigrateTask(
 	ctx context.Context, userCred mcclient.TokenCredential,
 	isRescueMode, autoStart bool, guestStatus, preferHostId, parentTaskId string,
 ) error {
-	self.SetStatus(ctx, userCred, api.VM_START_MIGRATE, "")
+	vmStatus := api.VM_START_MIGRATE
+
 	data := jsonutils.NewDict()
 	if isRescueMode {
 		data.Set("is_rescue_mode", jsonutils.JSONTrue)
@@ -541,11 +550,17 @@ func (self *SGuest) StartMigrateTask(
 	if autoStart {
 		data.Set("auto_start", jsonutils.JSONTrue)
 	}
+	if self.HostId == preferHostId {
+		vmStatus = api.VM_STARTING
+		data.Set("reset_cpu_numa_pin", jsonutils.JSONTrue)
+	}
+
 	data.Set("guest_status", jsonutils.NewString(guestStatus))
 	dedicateMigrateTask := "GuestMigrateTask"
-	if self.GetHypervisor() != api.HYPERVISOR_KVM {
+	if len(self.ExternalId) > 0 {
 		dedicateMigrateTask = "ManagedGuestMigrateTask" //托管私有云
 	}
+	self.SetStatus(ctx, userCred, vmStatus, "")
 	if task, err := taskman.TaskManager.NewTask(ctx, dedicateMigrateTask, self, userCred, data, parentTaskId, "", nil); err != nil {
 		log.Errorln(err)
 		return err
@@ -600,7 +615,7 @@ func (self *SGuest) StartGuestLiveMigrateTask(
 
 	data.Set("guest_status", jsonutils.NewString(guestStatus))
 	dedicateMigrateTask := "GuestLiveMigrateTask"
-	if self.GetHypervisor() != api.HYPERVISOR_KVM {
+	if len(self.ExternalId) > 0 {
 		dedicateMigrateTask = "ManagedGuestLiveMigrateTask" //托管私有云
 	}
 	if task, err := taskman.TaskManager.NewTask(ctx, dedicateMigrateTask, self, userCred, data, parentTaskId, "", nil); err != nil {
@@ -1452,7 +1467,23 @@ func (self *SGuest) StartGueststartTask(
 	ctx context.Context, userCred mcclient.TokenCredential,
 	data *jsonutils.JSONDict, parentTaskId string,
 ) error {
-	if self.Hypervisor == api.HYPERVISOR_KVM && self.guestDisksStorageTypeIsShared() {
+	schedStart := self.Hypervisor == api.HYPERVISOR_KVM && self.guestDisksStorageTypeIsShared()
+	if options.Options.IgnoreNonrunningGuests {
+		host := HostManager.FetchHostById(self.HostId)
+		if host != nil && host.EnableNumaAllocate {
+			schedStart = true
+		}
+	}
+
+	if self.CpuNumaPin != nil {
+		// clean cpu numa pin
+		err := self.SetCpuNumaPin(ctx, userCred, nil, nil)
+		if err != nil {
+			return errors.Wrap(err, "clean cpu numa pin")
+		}
+	}
+
+	if schedStart {
 		return self.GuestSchedStartTask(ctx, userCred, data, parentTaskId)
 	} else {
 		return self.GuestNonSchedStartTask(ctx, userCred, data, parentTaskId)
@@ -1481,6 +1512,18 @@ func (self *SGuest) GuestNonSchedStartTask(
 	taskName := "GuestStartTask"
 	if self.BackupHostId != "" {
 		taskName = "HAGuestStartTask"
+	}
+	if self.CpuNumaPin != nil {
+		srcSchedCpuNumaPin := make([]schedapi.SCpuNumaPin, 0)
+		err := self.CpuNumaPin.Unmarshal(&srcSchedCpuNumaPin)
+		if err != nil {
+			return errors.Wrap(err, "unmarshal cpu_numa_pin")
+		}
+		// set cpu numa pin
+		err = self.SetCpuNumaPin(ctx, userCred, srcSchedCpuNumaPin, nil)
+		if err != nil {
+			return nil
+		}
 	}
 	task, err := taskman.TaskManager.NewTask(ctx, taskName, self, userCred, data, parentTaskId, "", nil)
 	if err != nil {
@@ -2635,10 +2678,22 @@ func (self *SGuest) PerformDetachnetwork(
 	return nil, nil
 }
 
-func (guest *SGuest) fixDefaultGateway(ctx context.Context, userCred mcclient.TokenCredential) error {
+func (guest *SGuest) fixDefaultGatewayByNics(ctx context.Context, userCred mcclient.TokenCredential, nics []SGuestnetwork) (bool, error) {
 	defaultGwCnt := 0
+	for i := range nics {
+		if nics[i].Virtual || len(nics[i].TeamWith) > 0 {
+			continue
+		}
+		if nics[i].IsDefault {
+			defaultGwCnt++
+		}
+	}
+
+	if defaultGwCnt == 1 {
+		return false, nil
+	}
+
 	nicList := netutils2.SNicInfoList{}
-	nics, _ := guest.GetNetworks("")
 	for i := range nics {
 		if nics[i].Virtual || len(nics[i].TeamWith) > 0 {
 			continue
@@ -2646,22 +2701,24 @@ func (guest *SGuest) fixDefaultGateway(ctx context.Context, userCred mcclient.To
 		net, _ := nics[i].GetNetwork()
 		if net != nil {
 			nicList = nicList.Add(nics[i].IpAddr, nics[i].MacAddr, net.GuestGateway)
-			if nics[i].IsDefault {
-				defaultGwCnt++
-			}
 		}
 	}
-	if defaultGwCnt != 1 {
-		gwMac, _ := nicList.FindDefaultNicMac()
-		if gwMac != "" {
-			err := guest.setDefaultGateway(ctx, userCred, gwMac)
-			if err != nil {
-				log.Errorf("setDefaultGateway fail %s", err)
-				return errors.Wrap(err, "setDefaultGateway")
-			}
+
+	gwMac, _ := nicList.FindDefaultNicMac()
+	if gwMac != "" {
+		err := guest.setDefaultGateway(ctx, userCred, gwMac)
+		if err != nil {
+			log.Errorf("setDefaultGateway fail %s", err)
+			return true, errors.Wrap(err, "setDefaultGateway")
 		}
 	}
-	return nil
+	return true, nil
+}
+
+func (guest *SGuest) fixDefaultGateway(ctx context.Context, userCred mcclient.TokenCredential) error {
+	nics, _ := guest.GetNetworks("")
+	_, err := guest.fixDefaultGatewayByNics(ctx, userCred, nics)
+	return err
 }
 
 func (self *SGuest) PerformAttachnetwork(
@@ -5166,6 +5223,16 @@ func (self *SGuest) PerformSnapshotAndClone(
 			return nil, httperrors.NewInputParameterError("count must > 0")
 		}
 	}
+	if len(input.PreferHostId) > 0 {
+		if len(input.PreferHostId) > 0 {
+			iHost, _ := HostManager.FetchByIdOrName(ctx, userCred, input.PreferHostId)
+			if iHost == nil {
+				return nil, httperrors.NewBadRequestError("Host %s not found", input.PreferHostId)
+			}
+			host := iHost.(*SHost)
+			input.PreferHostId = host.Id
+		}
+	}
 
 	lockman.LockRawObject(ctx, InstanceSnapshotManager.Keyword(), "name")
 	defer lockman.ReleaseRawObject(ctx, InstanceSnapshotManager.Keyword(), "name")
@@ -6153,4 +6220,17 @@ func (self *SGuest) PerformSyncOsInfo(ctx context.Context, userCred mcclient.Tok
 		// try qga get os info
 		return nil, self.startQgaSyncOsInfoTask(ctx, userCred, "")
 	}
+}
+
+func (g *SGuest) PerformSetRootDiskMatcher(ctx context.Context, userCred mcclient.TokenCredential, _ jsonutils.JSONObject, data *api.BaremetalRootDiskMatcher) (jsonutils.JSONObject, error) {
+	if g.GetHypervisor() != api.HYPERVISOR_BAREMETAL {
+		return nil, httperrors.NewNotAcceptableError("only %s support for setting root disk matcher", api.HYPERVISOR_BAREMETAL)
+	}
+	if err := baremetal.ValidateRootDiskMatcher(data); err != nil {
+		return nil, err
+	}
+	if err := g.SetMetadata(ctx, api.BAREMETAL_SERVER_METATA_ROOT_DISK_MATCHER, jsonutils.Marshal(data), userCred); err != nil {
+		return nil, errors.Wrapf(err, "set %s", api.BAREMETAL_SERVER_METATA_ROOT_DISK_MATCHER)
+	}
+	return nil, nil
 }

@@ -234,10 +234,8 @@ const (
 )
 
 const (
-	QGA_STATUS_UNKNOWN        = "unknown"
-	QGA_STATUS_EXCUTING       = "executing"
-	QGA_STATUS_EXECUTE_FAILED = "execute_failed"
-	QGA_STATUS_AVAILABLE      = "available"
+	QGA_STATUS_UNKNOWN   = "unknown"
+	QGA_STATUS_AVAILABLE = "available"
 )
 
 const (
@@ -438,6 +436,7 @@ const (
 	VM_METADATA_HOT_REMOVE_NIC      = "hot_remove_nic"
 	VM_METADATA_START_VMEM_MB       = "start_vmem_mb"
 	VM_METADATA_START_VCPU_COUNT    = "start_vcpu_count"
+	VM_METADATA_CPU_NUMA_PIN        = "__cpu_numa_pin"
 )
 
 func Hypervisors2HostTypes(hypervisors []string) []string {
