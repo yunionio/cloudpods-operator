@@ -244,6 +244,8 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool, isEEOr
 		false, isEE,
 	)
 	obj.Web.Overview.ImagePullPolicy = corev1.PullIfNotPresent
+	clearContainerSpec(&obj.Web.Overview)
+
 	// setting web docs image
 	obj.Web.Docs.Image = getImage(
 		obj.ImageRepository, obj.Web.Docs.Repository,
@@ -252,6 +254,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool, isEEOr
 		false, isEE,
 	)
 	obj.Web.Docs.ImagePullPolicy = corev1.PullIfNotPresent
+	clearContainerSpec(&obj.Web.Docs)
 
 	// setting host spec
 	if obj.HostAgent.DefaultQemuVersion == "" {
