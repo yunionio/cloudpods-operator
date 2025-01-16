@@ -1,9 +1,10 @@
 package component
 
 import (
+	"yunion.io/x/onecloud/pkg/hostman/options"
+
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/util/option"
-	"yunion.io/x/onecloud/pkg/hostman/options"
 )
 
 func init() {
@@ -40,6 +41,6 @@ func (hd hostDeployer) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.One
 		opt.EnableRemoteExecutor = true
 	}
 	config := cfg.HostAgent
-	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
+	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions, cfg.CommonConfig)
 	return opt, nil
 }

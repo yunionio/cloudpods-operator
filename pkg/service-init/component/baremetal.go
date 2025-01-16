@@ -41,7 +41,7 @@ func (b baremetal) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.Oneclou
 
 	config := cfg.BaremetalAgent
 	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
-	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
+	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions, cfg.CommonConfig)
 	opt.Port = constants.BaremetalPort
 	opt.AutoRegisterBaremetal = false
 	opt.LinuxDefaultRootUser = true

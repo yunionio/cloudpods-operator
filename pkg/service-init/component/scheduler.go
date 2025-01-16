@@ -40,7 +40,7 @@ func (s *scheduler) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.Oneclo
 	}
 
 	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
-	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceDBCommonOptions.ServiceCommonOptions)
+	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceDBCommonOptions.ServiceCommonOptions, cfg.CommonConfig)
 
 	opt.SchedulerPort = constants.SchedulerPort
 	return opt, nil

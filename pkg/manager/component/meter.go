@@ -123,7 +123,7 @@ func (m *meterManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 
 	option.SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
 	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
-	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceDBCommonOptions.ServiceCommonOptions)
+	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceDBCommonOptions.ServiceCommonOptions, cfg.CommonConfig)
 
 	opt.BillingFileDirectory = filepath.Join(constants.MeterDataStore, constants.MeterBillingDataDir)
 	opt.CloudratesFileDirectory = filepath.Join(constants.MeterDataStore, constants.MeterRatesDataDir)

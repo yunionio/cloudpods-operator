@@ -3,10 +3,11 @@ package component
 import (
 	"fmt"
 
+	"yunion.io/x/onecloud/pkg/webconsole/options"
+
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/util/option"
-	"yunion.io/x/onecloud/pkg/webconsole/options"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 )
@@ -52,7 +53,7 @@ func (r webconsole) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.Oneclo
 	option.SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
 	opt.AutoSyncTable = true
 	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
-	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
+	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions, cfg.CommonConfig)
 
 	opt.IpmitoolPath = "/usr/sbin/ipmitool"
 	opt.EnableAutoLogin = true

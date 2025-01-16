@@ -746,6 +746,7 @@ func setDefaults_MonitorStackSpec(obj *MonitorStackSpec) {
 }
 
 func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
+	SetDefaults_GlobalServiceCommonConfig(&obj.CommonConfig)
 	setDefaults_KeystoneConfig(&obj.Keystone)
 
 	type userPort struct {
@@ -810,6 +811,21 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 	setDefaults_ItsmConfig(&obj.Itsm)
 
 	setDefaults_DBConfig(&obj.Grafana.DB, constants.MonitorStackGrafanaDB, constants.MonitorStackGrafanaDBUer)
+}
+
+func SetDefaults_GlobalServiceCommonConfig(g *GlobalServiceCommonConfig) {
+	if g.CronJobWorkerCount == 0 {
+		g.CronJobWorkerCount = 4
+	}
+	if g.LocalTaskWorkerCount == 0 {
+		g.LocalTaskWorkerCount = 4
+	}
+	if g.RequestWorkerCount == 0 {
+		g.RequestWorkerCount = 8
+	}
+	if g.TaskWorkerCount == 0 {
+		g.TaskWorkerCount = 4
+	}
 }
 
 func SetDefaults_ServiceBaseConfig(obj *ServiceBaseConfig, port int) {

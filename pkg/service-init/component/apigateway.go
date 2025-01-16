@@ -39,7 +39,7 @@ func (a apiGateway) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.Oneclo
 		return nil, err
 	}
 	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
-	option.SetServiceCommonOptions(&opt.CommonOptions, oc, cfg.APIGateway)
+	option.SetServiceCommonOptions(&opt.CommonOptions, oc, cfg.APIGateway, cfg.CommonConfig)
 	opt.Port = cfg.APIGateway.Port
 	opt.WsPort = constants.APIWebsocketPort
 	opt.CorsHosts = oc.Spec.APIGateway.CorsHosts

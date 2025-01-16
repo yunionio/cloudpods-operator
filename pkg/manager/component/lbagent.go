@@ -60,7 +60,7 @@ func (m *lbagentManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 	}
 	config := cfg.Lbagent
 	option.SetOptionsServiceTLS(&commonOpt.BaseOptions, false)
-	option.SetServiceCommonOptions(&commonOpt.CommonOptions, oc, config.ServiceCommonOptions)
+	option.SetServiceCommonOptions(&commonOpt.CommonOptions, oc, config.ServiceCommonOptions, cfg.CommonConfig)
 	commonOpt.Port = constants.LbagentPort
 	commonOpt.BaseDataDir = "/opt/cloud/workspace/lbagent"
 	commonOpt.EnableRemoteExecutor = true

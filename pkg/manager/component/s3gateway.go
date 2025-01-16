@@ -79,7 +79,7 @@ func (m *s3gatewayManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 	}
 	config := cfg.S3gateway
 	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
-	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config)
+	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config, cfg.CommonConfig)
 
 	return m.newServiceConfigMap(v1alpha1.S3gatewayComponentType, "", oc, opt), false, nil
 }

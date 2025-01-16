@@ -41,7 +41,7 @@ func (r cloudmon) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.Onecloud
 	}
 	config := cfg.Cloudmon
 	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
-	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config)
+	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config, cfg.CommonConfig)
 	opt.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
 	opt.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
 	opt.Port = config.Port
