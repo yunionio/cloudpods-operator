@@ -61,7 +61,7 @@ func (m *hostManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 	}
 	config := cfg.HostAgent
 	option.SetOptionsServiceTLS(&commonOpt.BaseOptions, false)
-	option.SetServiceCommonOptions(&commonOpt.CommonOptions, oc, config.ServiceCommonOptions)
+	option.SetServiceCommonOptions(&commonOpt.CommonOptions, oc, config.ServiceCommonOptions, cfg.CommonConfig)
 	commonOpt.Port = constants.HostPort
 
 	commonOpt.EnableRemoteExecutor = true

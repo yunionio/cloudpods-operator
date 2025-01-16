@@ -36,7 +36,7 @@ func (am *apiMap) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.Onecloud
 	}
 
 	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
-	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceDBCommonOptions.ServiceCommonOptions)
+	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceDBCommonOptions.ServiceCommonOptions, cfg.CommonConfig)
 
 	opt.Port = constants.APIMapPort
 	return opt, nil

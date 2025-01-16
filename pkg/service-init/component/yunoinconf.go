@@ -75,7 +75,7 @@ func (r yunionconfSvc) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.One
 	}
 
 	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
-	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
+	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions, cfg.CommonConfig)
 	opt.AutoSyncTable = true
 	opt.Port = config.Port
 

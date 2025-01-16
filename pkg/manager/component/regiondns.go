@@ -158,7 +158,7 @@ func (m *regionDNSManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 		InCloudOnly: spec.InCloudOnly,
 	}
 	config.Region = oc.GetRegion()
-	option.SetServiceCommonOptions(&config.CommonOptions, oc, cfg.RegionServer.ServiceDBCommonOptions.ServiceCommonOptions)
+	option.SetServiceCommonOptions(&config.CommonOptions, oc, cfg.RegionServer.ServiceDBCommonOptions.ServiceCommonOptions, cfg.CommonConfig)
 	if len(config.AdminProjectDomain) == 0 {
 		config.AdminProjectDomain = identity_api.DEFAULT_DOMAIN_NAME
 	}

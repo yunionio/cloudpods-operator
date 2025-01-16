@@ -65,7 +65,7 @@ func (k keystone) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.Onecloud
 
 	option.SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
 	option.SetOptionsServiceTLS(&opt.BaseOptions, oc.Spec.Keystone.DisableTLS)
-	option.SetServiceBaseOptions(&opt.BaseOptions, oc.GetRegion(), config.ServiceBaseConfig)
+	option.SetServiceBaseOptions(&opt.BaseOptions, oc.GetRegion(), config.ServiceBaseConfig, cfg.CommonConfig)
 
 	opt.BootstrapAdminUserPassword = oc.Spec.Keystone.BootstrapPassword
 	// always reset admin user password to ensure password is correct

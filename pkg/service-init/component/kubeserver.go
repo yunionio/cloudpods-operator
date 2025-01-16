@@ -74,7 +74,7 @@ func (r kubeServer) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.Oneclo
 
 	option.SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
 	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
-	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
+	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions, cfg.CommonConfig)
 	opt.AutoSyncTable = true
 	opt.TlsCertFile = path.Join(constants.CertDir, constants.ServiceCertName)
 	opt.TlsPrivateKeyFile = path.Join(constants.CertDir, constants.ServiceKeyName)

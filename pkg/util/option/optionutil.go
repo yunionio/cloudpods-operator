@@ -7,10 +7,11 @@ import (
 	"yunion.io/x/pkg/util/reflectutils"
 	"yunion.io/x/structarg"
 
+	"yunion.io/x/onecloud/pkg/cloudcommon/options"
+
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
-	"yunion.io/x/onecloud/pkg/cloudcommon/options"
 )
 
 func SetOptionsDefault(opt interface{}, serviceType string) error {
@@ -41,13 +42,17 @@ func enableConfigTLS(disableTLS bool, config *options.BaseOptions, certDir strin
 	config.SslKeyfile = path.Join(certDir, key)
 }
 
-func SetServiceBaseOptions(opt *options.BaseOptions, region string, input v1alpha1.ServiceBaseConfig) {
+func SetServiceBaseOptions(opt *options.BaseOptions, region string, input v1alpha1.ServiceBaseConfig, commonCfg v1alpha1.GlobalServiceCommonConfig) {
 	opt.Region = region
 	opt.Port = input.Port
+	opt.CronJobWorkerCount = commonCfg.CronJobWorkerCount
+	opt.LocalTaskWorkerCount = commonCfg.LocalTaskWorkerCount
+	opt.RequestWorkerCount = commonCfg.RequestWorkerCount
+	opt.TaskWorkerCount = commonCfg.TaskWorkerCount
 }
 
-func SetServiceCommonOptions(opt *options.CommonOptions, oc *v1alpha1.OnecloudCluster, input v1alpha1.ServiceCommonOptions) {
-	SetServiceBaseOptions(&opt.BaseOptions, oc.GetRegion(), input.ServiceBaseConfig)
+func SetServiceCommonOptions(opt *options.CommonOptions, oc *v1alpha1.OnecloudCluster, input v1alpha1.ServiceCommonOptions, commonCfg v1alpha1.GlobalServiceCommonConfig) {
+	SetServiceBaseOptions(&opt.BaseOptions, oc.GetRegion(), input.ServiceBaseConfig, commonCfg)
 	opt.AuthURL = controller.GetAuthURL(oc)
 	opt.AdminUser = input.CloudUser.Username
 	opt.AdminDomain = constants.DefaultDomain

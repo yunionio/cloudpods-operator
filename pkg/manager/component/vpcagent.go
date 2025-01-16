@@ -80,7 +80,7 @@ func (m *vpcAgentManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 	)
 	config := cfg.VpcAgent
 	option.SetOptionsServiceTLS(&opts.BaseOptions, false)
-	option.SetServiceCommonOptions(&opts.CommonOptions, oc, config.ServiceCommonOptions)
+	option.SetServiceCommonOptions(&opts.CommonOptions, oc, config.ServiceCommonOptions, cfg.CommonConfig)
 	opts.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
 	opts.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
 	opts.Port = constants.VpcAgentPort

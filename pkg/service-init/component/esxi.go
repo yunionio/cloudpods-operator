@@ -41,7 +41,7 @@ func (ea esxiAgent) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.Oneclo
 	opt.ListenInterface = "eth0"
 	config := cfg.EsxiAgent
 	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
-	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
+	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions, cfg.CommonConfig)
 	opt.Port = constants.EsxiAgentPort
 	return opt, nil
 }

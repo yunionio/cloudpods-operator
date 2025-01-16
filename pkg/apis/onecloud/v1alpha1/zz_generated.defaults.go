@@ -41,6 +41,7 @@ func SetObjectDefaults_OnecloudCluster(in *OnecloudCluster) {
 
 func SetObjectDefaults_OnecloudClusterConfig(in *OnecloudClusterConfig) {
 	SetDefaults_OnecloudClusterConfig(in)
+	SetDefaults_GlobalServiceCommonConfig(&in.CommonConfig)
 }
 
 func SetObjectDefaults_OnecloudClusterList(in *OnecloudClusterList) {

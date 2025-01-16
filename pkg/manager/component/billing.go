@@ -107,7 +107,7 @@ func (b *billingManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 
 	option.SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
 	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
-	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
+	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions, cfg.CommonConfig)
 
 	// TODO: fix this
 	// opt.AutoSyncTable = true

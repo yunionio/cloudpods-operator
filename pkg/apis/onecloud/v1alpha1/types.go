@@ -1190,43 +1190,51 @@ type GrafanaConfig struct {
 	DB DBConfig `json:"db"`
 }
 
+type GlobalServiceCommonConfig struct {
+	CronJobWorkerCount   int `json:"cron_job_worker_count" default:"4"`
+	LocalTaskWorkerCount int `json:"local_task_worker_count" default:"4"`
+	RequestWorkerCount   int `json:"request_worker_count" default:"8"`
+	TaskWorkerCount      int `json:"task_worker_count" default:"4"`
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type OnecloudClusterConfig struct {
 	metav1.TypeMeta
 
-	Keystone        KeystoneConfig         `json:"keystone"`
-	RegionServer    RegionConfig           `json:"region"`
-	Glance          GlanceConfig           `json:"glance"`
-	Webconsole      ServiceDBCommonOptions `json:"webconsole"`
-	Logger          ServiceDBCommonOptions `json:"logger"`
-	Yunionconf      ServiceDBCommonOptions `json:"yunionconf"`
-	Yunionagent     ServiceDBCommonOptions `json:"yunionagent"`
-	KubeServer      ServiceDBCommonOptions `json:"kubeserver"`
-	AnsibleServer   ServiceDBCommonOptions `json:"ansibleserver"`
-	Monitor         ServiceDBCommonOptions `json:"monitor"`
-	Suggestion      ServiceDBCommonOptions `json:"suggestion"`
-	Cloudnet        ServiceDBCommonOptions `json:"cloudnet"`
-	Cloudproxy      ServiceDBCommonOptions `json:"cloudproxy"`
-	Cloudevent      ServiceDBCommonOptions `json:"cloudevent"`
-	APIGateway      ServiceCommonOptions   `json:"apiGateway"`
-	Cloudmon        ServiceCommonOptions   `json:"cloudmon"`
-	Notify          ServiceDBCommonOptions `json:"notify"`
-	HostAgent       HostConfig             `json:"host"`
-	Lbagent         LbagentConfig          `json:"lbagent"`
-	BaremetalAgent  BaremetalConfig        `json:"baremetal"`
-	S3gateway       ServiceCommonOptions   `json:"s3gateway"`
-	Devtool         ServiceDBCommonOptions `json:"devtool"`
-	Meter           MeterConfig            `json:"meter"`
-	Billing         ServiceDBCommonOptions `json:"billing"`
-	AutoUpdate      ServiceDBCommonOptions `json:"autoupdate"`
-	EsxiAgent       EsxiAgentConfig        `json:"esxiagent"`
-	VpcAgent        VpcAgentConfig         `json:"vpcagent"`
-	ServiceOperator ServiceCommonOptions   `json:"onecloudServiceOperator"`
-	Itsm            ItsmConfig             `json:"itsm"`
-	CloudId         ServiceDBCommonOptions `json:"cloudid"`
-	Report          ServiceDBCommonOptions `json:"report"`
-	Grafana         GrafanaConfig          `json:"grafana"`
-	BastionHost     ServiceDBCommonOptions `json:"bastionHost"`
-	Extdb           ServiceDBCommonOptions `json:"extdb"`
+	CommonConfig    GlobalServiceCommonConfig `json:"commonConfig"`
+	Keystone        KeystoneConfig            `json:"keystone"`
+	RegionServer    RegionConfig              `json:"region"`
+	Glance          GlanceConfig              `json:"glance"`
+	Webconsole      ServiceDBCommonOptions    `json:"webconsole"`
+	Logger          ServiceDBCommonOptions    `json:"logger"`
+	Yunionconf      ServiceDBCommonOptions    `json:"yunionconf"`
+	Yunionagent     ServiceDBCommonOptions    `json:"yunionagent"`
+	KubeServer      ServiceDBCommonOptions    `json:"kubeserver"`
+	AnsibleServer   ServiceDBCommonOptions    `json:"ansibleserver"`
+	Monitor         ServiceDBCommonOptions    `json:"monitor"`
+	Suggestion      ServiceDBCommonOptions    `json:"suggestion"`
+	Cloudnet        ServiceDBCommonOptions    `json:"cloudnet"`
+	Cloudproxy      ServiceDBCommonOptions    `json:"cloudproxy"`
+	Cloudevent      ServiceDBCommonOptions    `json:"cloudevent"`
+	APIGateway      ServiceCommonOptions      `json:"apiGateway"`
+	Cloudmon        ServiceCommonOptions      `json:"cloudmon"`
+	Notify          ServiceDBCommonOptions    `json:"notify"`
+	HostAgent       HostConfig                `json:"host"`
+	Lbagent         LbagentConfig             `json:"lbagent"`
+	BaremetalAgent  BaremetalConfig           `json:"baremetal"`
+	S3gateway       ServiceCommonOptions      `json:"s3gateway"`
+	Devtool         ServiceDBCommonOptions    `json:"devtool"`
+	Meter           MeterConfig               `json:"meter"`
+	Billing         ServiceDBCommonOptions    `json:"billing"`
+	AutoUpdate      ServiceDBCommonOptions    `json:"autoupdate"`
+	EsxiAgent       EsxiAgentConfig           `json:"esxiagent"`
+	VpcAgent        VpcAgentConfig            `json:"vpcagent"`
+	ServiceOperator ServiceCommonOptions      `json:"onecloudServiceOperator"`
+	Itsm            ItsmConfig                `json:"itsm"`
+	CloudId         ServiceDBCommonOptions    `json:"cloudid"`
+	Report          ServiceDBCommonOptions    `json:"report"`
+	Grafana         GrafanaConfig             `json:"grafana"`
+	BastionHost     ServiceDBCommonOptions    `json:"bastionHost"`
+	Extdb           ServiceDBCommonOptions    `json:"extdb"`
 }
