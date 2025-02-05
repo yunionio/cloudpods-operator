@@ -156,7 +156,7 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 							Scheme: corev1.URISchemeHTTPS,
 						},
 					},
-					FailureThreshold: 30,
+					FailureThreshold: 300,
 					PeriodSeconds:    10,
 				},
 				ReadinessProbe: generateReadinessProbe("/ping", 8885),
@@ -215,7 +215,11 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 	if ds.Spec.UpdateStrategy.RollingUpdate == nil {
 		ds.Spec.UpdateStrategy.RollingUpdate = new(apps.RollingUpdateDaemonSet)
 	}
-	var maxUnavailableCount = intstr.FromInt(3)
+	var maxUnavailable = 3
+	if dsSpec.DaemonSetSpec.MaxUnavailable != nil && *dsSpec.DaemonSetSpec.MaxUnavailable > 0 {
+		maxUnavailable = *dsSpec.DaemonSetSpec.MaxUnavailable
+	}
+	var maxUnavailableCount = intstr.FromInt(maxUnavailable)
 	ds.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable = &maxUnavailableCount
 
 	/* add pod label for pod affinity */
