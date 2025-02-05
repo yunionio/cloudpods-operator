@@ -636,6 +636,7 @@ type DaemonSetSpec struct {
 	Annotations      map[string]string             `json:"annotations,omitempty"`
 	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 	UpdateStrategy   string                        `json:"updateStrategy,omitempty"`
+	MaxUnavailable   *int                          `json:"maxUnavailable,omitempty"`
 }
 
 type YunionagentSpec struct {
