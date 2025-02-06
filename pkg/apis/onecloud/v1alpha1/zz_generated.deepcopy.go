@@ -345,6 +345,11 @@ func (in *DaemonSetSpec) DeepCopyInto(out *DaemonSetSpec) {
 		*out = make([]v1.LocalObjectReference, len(*in))
 		copy(*out, *in)
 	}
+	if in.MaxUnavailable != nil {
+		in, out := &in.MaxUnavailable, &out.MaxUnavailable
+		*out = new(int)
+		**out = **in
+	}
 	return
 }
 
