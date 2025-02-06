@@ -1422,6 +1422,7 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		Reduce:      "last",
 		Description: "检查宿主机bond slave网卡状态",
 		GroupBy:     "host_id,interface,bond",
+		Level:       "important",
 	}
 
 	cloudaccountTem := onecloud.CommonAlertTem{
