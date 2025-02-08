@@ -331,7 +331,7 @@ func getSyncThanosParams(cId string, spec *v1alpha1.OnecloudClusterSpec, input *
 				Endpoint:  input.ObjectStoreConfig.Endpoint,
 				AccessKey: input.ObjectStoreConfig.AccessKey,
 				SecretKey: input.ObjectStoreConfig.SecretKey,
-				Insecure:  true,
+				Insecure:  !input.ObjectStoreConfig.Secure,
 			},
 		},
 	}
@@ -411,7 +411,7 @@ func getSyncMonitorParams(cId string, spec *v1alpha1.OnecloudClusterSpec, config
 					Endpoint:  loki.ObjectStoreConfig.Endpoint,
 					AccessKey: loki.ObjectStoreConfig.AccessKey,
 					SecretKey: loki.ObjectStoreConfig.SecretKey,
-					Insecure:  true,
+					Insecure:  !loki.ObjectStoreConfig.Secure,
 				},
 			},
 			Promtail: k8s.ClusterComponentMonitorPromtail{
@@ -425,7 +425,7 @@ func getSyncMonitorParams(cId string, spec *v1alpha1.OnecloudClusterSpec, config
 						Endpoint:  thanosSidecar.ObjectStoreConfig.Endpoint,
 						AccessKey: thanosSidecar.ObjectStoreConfig.AccessKey,
 						SecretKey: thanosSidecar.ObjectStoreConfig.SecretKey,
-						Insecure:  true,
+						Insecure:  !thanosSidecar.ObjectStoreConfig.Secure,
 					},
 				},
 			},
