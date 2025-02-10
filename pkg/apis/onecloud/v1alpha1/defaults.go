@@ -63,7 +63,7 @@ const (
 	DefaultNotifyPluginsImageName = "notify-plugins"
 
 	DefaultHostImageName = "host-image"
-	DefaultHostImageTag  = "v1.0.6"
+	DefaultHostImageTag  = "v1.0.7"
 
 	DefaultHostHealthName = "host-health"
 	DefaultHostHealthTag  = "v0.0.1"
