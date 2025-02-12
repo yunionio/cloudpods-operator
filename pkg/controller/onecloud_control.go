@@ -1482,6 +1482,21 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		From:        "5m",
 		Description: "监测节点总进程数",
 	}
+	systemLoad1Pcore := onecloud.CommonAlertTem{
+		Database:    "telegraf",
+		Measurement: "system",
+		Operator:    "",
+		FieldFunc:   "last",
+		Field:       []string{"load1_pcore"},
+		GroupBy:     "host_id",
+		Comparator:  ">=",
+		Threshold:   2,
+		Name:        "system.load1_pcore",
+		Reduce:      "last",
+		From:        "5m",
+		Description: "监测节点load",
+		Level:       "important",
+	}
 
 	speAlert := map[string]onecloud.CommonAlertTem{
 		cpuTem.Name:            cpuTem,
@@ -1495,6 +1510,7 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		noDataTem.Name:         noDataTem,
 		defunctProcessTem.Name: defunctProcessTem,
 		totalProcessTem.Name:   totalProcessTem,
+		systemLoad1Pcore.Name:  systemLoad1Pcore,
 	}
 	return speAlert
 }
