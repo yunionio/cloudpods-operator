@@ -150,6 +150,9 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool, isEEOr
 	if obj.ProductVersion == "" {
 		obj.ProductVersion = ProductVersionFullStack
 	}
+	if obj.ProductVersion == ProductVersionLightEdge {
+		obj.DisableLocalVpc = true
+	}
 	if obj.Region == "" {
 		obj.Region = DefaultOnecloudRegion
 	}
