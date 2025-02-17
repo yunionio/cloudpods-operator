@@ -173,7 +173,8 @@ const (
 	// ProductVersionCMP: Cloud Management Platform product
 	ProductVersionCMP ProductVersion = "CMP"
 	// ProductVersionEdge: Private Cloud Edge product
-	ProductVersionEdge ProductVersion = "Edge"
+	ProductVersionEdge      ProductVersion = "Edge"
+	ProductVersionLightEdge ProductVersion = "LightEdge"
 	// ProductVersionBaremetal: Baremetal management product
 	ProductVersionBaremetal ProductVersion = "Baremetal"
 )

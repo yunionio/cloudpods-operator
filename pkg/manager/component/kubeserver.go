@@ -38,6 +38,7 @@ func (m *kubeManager) getProductVersions() []v1alpha1.ProductVersion {
 		v1alpha1.ProductVersionFullStack,
 		v1alpha1.ProductVersionCMP,
 		v1alpha1.ProductVersionEdge,
+		v1alpha1.ProductVersionLightEdge,
 	}
 }
 
