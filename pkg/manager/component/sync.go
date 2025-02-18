@@ -97,6 +97,7 @@ func isValidProductVersion(oc *v1alpha1.OnecloudCluster) error {
 		v1alpha1.ProductVersionFullStack,
 		v1alpha1.ProductVersionCMP,
 		v1alpha1.ProductVersionEdge,
+		v1alpha1.ProductVersionLightEdge,
 	} {
 		if v == pv {
 			return nil
