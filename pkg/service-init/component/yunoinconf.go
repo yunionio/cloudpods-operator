@@ -282,6 +282,10 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 			FEAT_VMWARE,
 			FEAT_PROXMOX,
 		}
+		setupKeysLightEdge := []string{
+			"onecloud",
+			"onestack",
+		}
 		setupKeysBaremetal := []string{
 			"onecloud",
 			"baremetal",
@@ -296,6 +300,8 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 			oneStackInited = true
 		case v1alpha1.ProductVersionEdge:
 			setupKeys = setupKeysEdge
+		case v1alpha1.ProductVersionLightEdge:
+			setupKeys = setupKeysLightEdge
 		case v1alpha1.ProductVersionBaremetal:
 			setupKeys = setupKeysBaremetal
 		default:
@@ -304,7 +310,7 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 		setupKeys = append(setupKeys, "monitor", "auth")
 		if isEE {
 			switch oc.Spec.ProductVersion {
-			case v1alpha1.ProductVersionEdge:
+			case v1alpha1.ProductVersionEdge, v1alpha1.ProductVersionLightEdge:
 			default:
 				setupKeys = append(setupKeys,
 					"ucloud",
@@ -316,7 +322,9 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 					"incloudsphere",
 				)
 			}
-			setupKeys = append(setupKeys, "k8s", "bill")
+			if oc.Spec.ProductVersion != v1alpha1.ProductVersionLightEdge {
+				setupKeys = append(setupKeys, "k8s", "bill")
+			}
 		}
 		setupKeys = append(setupKeys, "default")
 
