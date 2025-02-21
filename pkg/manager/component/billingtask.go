@@ -40,7 +40,7 @@ func (m *billingTaskManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
 }
 
 func (m *billingTaskManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
-	return nil
+	return &cfg.BillingTask.DB
 }
 
 func (m *billingTaskManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
