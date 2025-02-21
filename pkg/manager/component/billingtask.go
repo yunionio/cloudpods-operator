@@ -10,6 +10,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
 type billingTaskManager struct {
@@ -20,8 +21,22 @@ func newBillingTaskManager(man *ComponentManager) manager.Manager {
 	return &billingTaskManager{man}
 }
 
+func (b *billingTaskManager) getProductVersions() []v1alpha1.ProductVersion {
+	return []v1alpha1.ProductVersion{
+		v1alpha1.ProductVersionFullStack,
+	}
+}
+
+func (b *billingTaskManager) GetComponentType() v1alpha1.ComponentType {
+	return v1alpha1.BillingTaskComponentType
+}
+
 func (m *billingTaskManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, oc.Spec.BillingTask.Disable)
+	return syncComponent(m, oc, "")
+}
+
+func (m *billingTaskManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
+	return oc.Spec.BillingTask.Disable
 }
 
 func (m *billingTaskManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
@@ -32,7 +47,7 @@ func (m *billingTaskManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *
 	return &cfg.BillingTask.CloudUser
 }
 
-func (m *billingTaskManager) getPhaseControl(man controller.ComponentManager) controller.PhaseControl {
+func (m *billingTaskManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return controller.NewRegisterEndpointComponent(man, v1alpha1.BillingTaskComponentType,
 		constants.ServiceNameBillingTask, constants.ServiceTypeBillingTask,
 		constants.BillingTaskPort, "")
@@ -54,27 +69,27 @@ type billingTaskOptions struct {
 	BillingPaymentStatusSyncIntervals int `help:"billing payment status sync intervals(seconds)" default:"60"`
 }
 
-func (m *billingTaskManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*corev1.ConfigMap, error) {
+func (m *billingTaskManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
 	opt := &billingTaskOptions{}
-	if err := SetOptionsDefault(opt, constants.ServiceTypeBillingTask); err != nil {
-		return nil, err
+	if err := option.SetOptionsDefault(opt, constants.ServiceTypeBillingTask); err != nil {
+		return nil, false, err
 	}
 	config := cfg.BillingTask
-	SetOptionsServiceTLS(&opt.BaseOptions)
-	SetServiceCommonOptions(&opt.CommonOptions, oc, config)
+	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
+	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config)
 	opt.Port = constants.BillingTaskPort
 
-	return m.newServiceConfigMap(v1alpha1.BillingTaskComponentType, oc, opt), nil
+	return m.newServiceConfigMap(v1alpha1.BillingTaskComponentType, "", oc, opt), false, nil
 }
 
-func (m *billingTaskManager) getService(oc *v1alpha1.OnecloudCluster) *corev1.Service {
-	return m.newSingleNodePortService(v1alpha1.BillingTaskComponentType, oc, constants.BillingTaskPort)
+func (m *billingTaskManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
+	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.BillingTaskComponentType, oc, constants.BillingTaskPort, int32(cfg.BillingTask.Port))}
 }
 
-func (m *billingTaskManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (*apps.Deployment, error) {
-	return m.newCloudServiceSinglePortDeployment(v1alpha1.BillingTaskComponentType, oc, oc.Spec.Billing, constants.BillingTaskPort, true)
+func (m *billingTaskManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
+	return m.newCloudServiceSinglePortDeployment(v1alpha1.BillingTaskComponentType, "", oc, &oc.Spec.BillingTask.DeploymentSpec, constants.BillingTaskPort, true, false)
 }
 
-func (m *billingTaskManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster) *v1alpha1.DeploymentStatus {
+func (m *billingTaskManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.BillingTask
 }
