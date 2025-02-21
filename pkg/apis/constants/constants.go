@@ -160,8 +160,9 @@ const (
 
 	BillingTaskAdminUser = "billingtaskadmin"
 	BillingTaskPort      = 30405
-	BillingTaskDB        = "yunionbillingtask"
-	BillingTaskDBUser    = "yunionbillingtask"
+	// NOTE: 不能叫 yunionbillingtask，数据库会报用户名不能超过16个字符的问题
+	BillingTaskDB     = "billingtask"
+	BillingTaskDBUser = "billingtask"
 
 	ServiceNameAPIGateway = "yunionapi"
 	ServiceTypeAPIGateway = "yunionapi"

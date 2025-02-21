@@ -43,6 +43,14 @@ func (m *billingTaskManager) getDBConfig(cfg *v1alpha1.OnecloudClusterConfig) *v
 	return &cfg.BillingTask.DB
 }
 
+func (m *billingTaskManager) getDBEngine(oc *v1alpha1.OnecloudCluster) v1alpha1.TDBEngineType {
+	return oc.Spec.GetDbEngine(oc.Spec.BillingTask.DbEngine)
+}
+
+func (b *billingTaskManager) getClickhouseConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
+	return &cfg.BillingTask.ClickhouseConf
+}
+
 func (m *billingTaskManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
 	return &cfg.BillingTask.CloudUser
 }
