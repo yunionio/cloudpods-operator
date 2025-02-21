@@ -202,6 +202,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool, isEEOr
 		ExtdbComponentType:           nHP(&obj.Extdb.DeploymentSpec, useHyperImage),
 		BillingComponentType:         nHP(&obj.Billing.DeploymentSpec, useHyperImage),
 		BillingTaskComponentType:     nHP(&obj.BillingTask.DeploymentSpec, false),
+		RegisterComponentType:        nHP(&obj.Register.DeploymentSpec, false),
 	} {
 		SetDefaults_DeploymentSpec(spec.DeploymentSpec, getImage(
 			obj.ImageRepository, spec.Repository,
@@ -475,6 +476,7 @@ func setDefaults_Components_ServicePort(obj *OnecloudClusterSpec) {
 		newSP(&obj.VpcAgent.Service, constants.VpcAgentPort),
 		newSP(&obj.BastionHost.Service, constants.BastionHostPort),
 		newSP(&obj.Extdb.Service, constants.ExtdbPort),
+		newSP(&obj.Register.Service, constants.RegisterPort),
 	} {
 		SetDefaults_ServiceSpec(spec.spec, spec.defaultPort)
 	}

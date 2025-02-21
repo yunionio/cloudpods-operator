@@ -97,7 +97,7 @@ func (m *registerManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 }
 
 func (m *registerManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
-	return m.newCloudServiceSinglePortDeployment(v1alpha1.RegisterComponentType, "", oc, &oc.Spec.Register, constants.RegisterPort, true, false)
+	return m.newCloudServiceSinglePortDeployment(v1alpha1.RegisterComponentType, "", oc, &oc.Spec.Register.DeploymentSpec, constants.RegisterPort, true, false)
 }
 
 func (m *registerManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {

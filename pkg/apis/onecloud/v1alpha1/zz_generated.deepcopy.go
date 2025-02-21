@@ -1398,6 +1398,7 @@ func (in *OnecloudClusterConfig) DeepCopyInto(out *OnecloudClusterConfig) {
 	out.Devtool = in.Devtool
 	out.Meter = in.Meter
 	out.Billing = in.Billing
+	out.BillingTask = in.BillingTask
 	out.AutoUpdate = in.AutoUpdate
 	out.EsxiAgent = in.EsxiAgent
 	out.VpcAgent = in.VpcAgent
@@ -1494,6 +1495,7 @@ func (in *OnecloudClusterSpec) DeepCopyInto(out *OnecloudClusterSpec) {
 	in.Webconsole.DeepCopyInto(&out.Webconsole)
 	in.Logger.DeepCopyInto(&out.Logger)
 	in.Register.DeepCopyInto(&out.Register)
+	in.BillingTask.DeepCopyInto(&out.BillingTask)
 	in.Yunionconf.DeepCopyInto(&out.Yunionconf)
 	in.Yunionagent.DeepCopyInto(&out.Yunionagent)
 	in.Influxdb.DeepCopyInto(&out.Influxdb)
@@ -1573,6 +1575,7 @@ func (in *OnecloudClusterStatus) DeepCopyInto(out *OnecloudClusterStatus) {
 	in.S3gateway.DeepCopyInto(&out.S3gateway)
 	in.Devtool.DeepCopyInto(&out.Devtool)
 	in.Meter.DeepCopyInto(&out.Meter)
+	in.BillingTask.DeepCopyInto(&out.BillingTask)
 	in.BillingStatus.DeepCopyInto(&out.BillingStatus)
 	in.AutoUpdate.DeepCopyInto(&out.AutoUpdate)
 	in.EsxiAgent.DeepCopyInto(&out.EsxiAgent)

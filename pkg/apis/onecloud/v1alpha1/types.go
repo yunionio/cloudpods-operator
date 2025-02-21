@@ -264,7 +264,7 @@ type OnecloudClusterSpec struct {
 	// Logger holds configuration for log service
 	Logger DeploymentServicePortSpec `json:"logger"`
 	// Register holds configuration for register service
-	Register DeploymentSpec `json:"register"`
+	Register DeploymentServicePortSpec `json:"register"`
 	// BillingTask holds configuration for billingtask service
 	BillingTask DeploymentServicePortSpec `json:"billingtask"`
 	// Yunionconf holds configuration for yunionconf service
