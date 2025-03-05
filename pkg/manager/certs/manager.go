@@ -57,7 +57,10 @@ func (c *CertsManager) CreateOrUpdate(oc *v1alpha1.OnecloudCluster) error {
 		//return nil
 	}
 
-	if !oc.Spec.Etcd.Disable && oc.Spec.Etcd.EnableTls {
+	if !oc.Spec.Etcd.Disable {
+		if oc.Spec.Etcd.EnableTls != nil && !*oc.Spec.Etcd.EnableTls {
+			return nil
+		}
 		for _, secretName := range []string{constants.EtcdServerSecret, constants.EtcdClientSecret, constants.EtcdPeerSecret} {
 			_, err := c.secretLister.Secrets(ns).Get(secretName)
 			if err != nil {
