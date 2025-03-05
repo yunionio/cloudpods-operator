@@ -553,7 +553,7 @@ func (c keystoneComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 		}
 		if !oc.Spec.Etcd.Disable {
 			var certName string
-			if oc.Spec.Etcd.EnableTls {
+			if oc.Spec.Etcd.EnableTls == nil || *oc.Spec.Etcd.EnableTls {
 				certConf, err := c.getEtcdCertificate(oc, c.baseComponent.manager.GetController().kubeCli)
 				if err != nil {
 					return errors.Wrap(err, "get etcd cert")
@@ -604,7 +604,7 @@ func (c keystoneComponent) getEtcdCertificate(oc *v1alpha1.OnecloudCluster, kube
 
 func (c keystoneComponent) getEtcdUrl(oc *v1alpha1.OnecloudCluster) string {
 	scheme := "http"
-	if oc.Spec.Etcd.EnableTls {
+	if oc.Spec.Etcd.EnableTls == nil || *oc.Spec.Etcd.EnableTls {
 		scheme = "https"
 	}
 	return fmt.Sprintf("%s://%s-etcd-client.%s.svc:%d", scheme, oc.Name, oc.Namespace, constants.EtcdClientPort)
@@ -735,7 +735,7 @@ func doSyncCommonConfigure(s *mcclient.ClientSession, defaultConf map[string]str
 
 func doCreateEtcdServiceEndpoint(oc *v1alpha1.OnecloudCluster, s *mcclient.ClientSession, regionId, certName string) error {
 	useHTTPS := true
-	if !oc.Spec.Etcd.EnableTls {
+	if oc.Spec.Etcd.EnableTls != nil && !*oc.Spec.Etcd.EnableTls {
 		useHTTPS = false
 	}
 	pubHost := oc.Spec.LoadBalancerEndpoint

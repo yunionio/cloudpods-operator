@@ -554,7 +554,7 @@ type Etcd struct {
 	// disable etcd
 	Disable bool `json:"disable"`
 	// enable tls
-	EnableTls bool `json:"enableTls"`
+	EnableTls *bool `json:"enableTls"`
 	// client service nodePort
 	ClientNodePort int `json:"clientNodePort"`
 }
