@@ -267,7 +267,7 @@ func (m *etcdManager) membersDefrag() {
 }
 
 func (m *etcdManager) isSecure() bool {
-	return m.oc.Spec.Etcd.EnableTls
+	return m.oc.Spec.Etcd.EnableTls == nil || *m.oc.Spec.Etcd.EnableTls
 }
 
 func (m *etcdManager) setup() error {
