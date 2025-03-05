@@ -473,7 +473,7 @@ func (h *VolumeHelper) addOnecloudVolumes() *VolumeHelper {
 }
 
 func (h *VolumeHelper) addEtcdClientTLSVolumes(oc *v1alpha1.OnecloudCluster) *VolumeHelper {
-	if !oc.Spec.Etcd.Disable && oc.Spec.Etcd.EnableTls {
+	if !oc.Spec.Etcd.Disable && (oc.Spec.Etcd.EnableTls == nil || *oc.Spec.Etcd.EnableTls) {
 		h.volumes = append(h.volumes, corev1.Volume{
 			Name: constants.EtcdClientSecret,
 			VolumeSource: corev1.VolumeSource{
