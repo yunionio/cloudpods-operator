@@ -621,6 +621,11 @@ func (in *EsxiAgentStatus) DeepCopy() *EsxiAgentStatus {
 func (in *Etcd) DeepCopyInto(out *Etcd) {
 	*out = *in
 	in.EtcdClusterSpec.DeepCopyInto(&out.EtcdClusterSpec)
+	if in.EnableTls != nil {
+		in, out := &in.EnableTls, &out.EnableTls
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 
