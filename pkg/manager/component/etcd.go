@@ -386,6 +386,8 @@ func (m *etcdManager) customPodSpec(pod *corev1.Pod, mb *etcdutil.Member, state,
 	pod.Spec.Containers[0].Command = m.newEtcdCommand(mb, state, token, initialCluster)
 	pod.Spec.Containers[0].LivenessProbe = m.newLivenessProbe(m.isSecure())
 	pod.Spec.Containers[0].ReadinessProbe = m.newReadinessProbe(m.isSecure())
+	shareProcessNamespace := true
+	pod.Spec.ShareProcessNamespace = &shareProcessNamespace
 
 	pod.Spec.InitContainers[0].Image = fmt.Sprintf("%s:%s",
 		path.Join(imageRepository, constants.BusyboxImageName), constants.BusyboxImageVersion)
