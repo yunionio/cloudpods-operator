@@ -558,6 +558,13 @@ func (c keystoneComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 				if err != nil {
 					return errors.Wrap(err, "get etcd cert")
 				}
+				if oc.Spec.Etcd.CreatedSecrets != nil && !*oc.Spec.Etcd.CreatedSecrets {
+					if err := doDeleteEtcdCertificate(s); err != nil {
+						return errors.Wrap(err, "delete etcd certificate")
+					}
+					createdSecrets := true
+					oc.Spec.Etcd.CreatedSecrets = &createdSecrets
+				}
 				if err := doCreateEtcdCertificate(s, certConf); err != nil {
 					return errors.Wrap(err, "create etcd certificate")
 				}
@@ -763,6 +770,13 @@ func doCreateEtcdServiceEndpoint(oc *v1alpha1.OnecloudCluster, s *mcclient.Clien
 func doCreateEtcdCertificate(s *mcclient.ClientSession, certDetails *jsonutils.JSONDict) error {
 	_, err := onecloud.EnsureServiceCertificate(s, constants.ServiceCertEtcdName, certDetails)
 	return err
+}
+
+func doDeleteEtcdCertificate(s *mcclient.ClientSession) error {
+	if err := onecloud.DeleteServiceEndpoints(s, constants.ServiceNameEtcd); err != nil {
+		return err
+	}
+	return onecloud.DeleteResource(s, &identity_modules.ServiceCertificatesV3, constants.ServiceCertEtcdName)
 }
 
 func doRegisterOfflineCloudMeta(s *mcclient.ClientSession, regionId string) error {
