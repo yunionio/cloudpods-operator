@@ -433,7 +433,8 @@ type EtcdClusterSpec struct {
 	Pod *PodPolicy `json:"pod,omitempty"`
 
 	// etcd cluster TLS configuration
-	TLS *TLSPolicy `json:"TLS,omitempty"`
+	TLS            *TLSPolicy `json:"TLS,omitempty"`
+	CreatedSecrets *bool      `json:"createdSecrets,omitempty"`
 }
 
 // TLSPolicy defines the TLS policy of an etcd cluster
