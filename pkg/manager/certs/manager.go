@@ -67,6 +67,8 @@ func (c *CertsManager) CreateOrUpdate(oc *v1alpha1.OnecloudCluster) error {
 				if !apierrors.IsNotFound(err) {
 					return err
 				}
+				createdSecrets := false
+				oc.Spec.Etcd.CreatedSecrets = &createdSecrets
 				if err := c.certControl.CreateEtcdCert(oc); err != nil {
 					return errors.Wrap(err, "create cluster cert")
 				}
