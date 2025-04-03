@@ -668,6 +668,11 @@ func (in *EtcdClusterSpec) DeepCopyInto(out *EtcdClusterSpec) {
 		*out = new(TLSPolicy)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.CreatedSecrets != nil {
+		in, out := &in.CreatedSecrets, &out.CreatedSecrets
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 
