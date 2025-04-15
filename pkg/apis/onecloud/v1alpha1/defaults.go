@@ -16,6 +16,7 @@ package v1alpha1
 
 import (
 	"fmt"
+	"sync"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -85,11 +86,18 @@ const (
 	DefaultGuacdVersion     = "1.5.3"
 )
 
+var (
+	clusterDefaultMutex sync.Mutex = sync.Mutex{}
+)
+
 func addDefaultingFuncs(scheme *runtime.Scheme) error {
 	return RegisterDefaults(scheme)
 }
 
 func SetDefaults_OnecloudCluster(obj *OnecloudCluster) {
+	clusterDefaultMutex.Lock()
+	defer clusterDefaultMutex.Unlock()
+
 	if _, ok := obj.GetLabels()[constants.InstanceLabelKey]; !ok {
 		obj.SetLabels(map[string]string{constants.InstanceLabelKey: fmt.Sprintf("onecloud-cluster-%s", rand.String(4))})
 	}
