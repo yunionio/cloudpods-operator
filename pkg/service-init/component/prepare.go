@@ -31,7 +31,7 @@ func NewPrepareManager() PrepareManager {
 
 func (m *prepareManager) ConstructCluster(dbConfig v1alpha1.Mysql, publicIp string, targetDir string, pv v1alpha1.ProductVersion) (*v1alpha1.OnecloudCluster, error) {
 	cls := cluster.NewDockerComposeCluster(dbConfig, publicIp, "region0", "v3.9.8", pv)
-	enableTls := true
+	enableTls := false
 	cls.Spec.Etcd.EnableTls = &enableTls
 
 	if err := ConstructCluster(targetDir, cls); err != nil {
