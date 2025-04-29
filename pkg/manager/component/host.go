@@ -108,6 +108,13 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 		dsSpec     = oc.Spec.HostAgent
 		configMap  = controller.ComponentConfigMapName(oc, cType)
 	)
+	hostSystemOffServices := "host-deployer,host_sdnagent,telegraf"
+	telegrafConfigDir := defaultTelegrafDir
+	if oc.Spec.Telegraf.TelegrafConfigDir != "" {
+		telegrafConfigDir = oc.Spec.Telegraf.TelegrafConfigDir
+		hostSystemOffServices = "host-deployer,host_sdnagent"
+	}
+
 	containersF := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		containers := []corev1.Container{
 			{
@@ -131,11 +138,15 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 					},
 					{
 						Name:  "HOST_SYSTEM_SERVICES_OFF",
-						Value: "host-deployer,host_sdnagent,telegraf",
+						Value: hostSystemOffServices,
 					},
 					{
 						Name:  "OVN_CONTAINER_IMAGE_TAG",
 						Value: v1alpha1.DefaultOvnImageTag,
+					},
+					{
+						Name:  "HOST_TELEGRAF_CONFIG_DIR",
+						Value: telegrafConfigDir,
 					},
 				},
 				Command: []string{

@@ -1006,6 +1006,7 @@ type TelegrafSpec struct {
 	DaemonSetSpec
 	InitContainerImage string `json:"initContainerImage"`
 	EnableRaidPlugin   bool   `json:"enableRaidPlugin"`
+	TelegrafConfigDir  string `json:"telegrafConfigDir"`
 	// TelegrafRaidImage  string `json:"telegrafRaidImage"`
 
 	TelegrafRaid ContainerSpec

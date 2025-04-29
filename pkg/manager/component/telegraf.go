@@ -14,7 +14,10 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/manager"
 )
 
-const hostRoot = "/hostfs"
+const (
+	hostRoot           = "/hostfs"
+	defaultTelegrafDir = "/etc/telegraf"
+)
 
 type telegrafManager struct {
 	*ComponentManager
@@ -55,6 +58,12 @@ func (m *telegrafManager) newTelegrafDaemonSet(
 ) (*apps.DaemonSet, error) {
 	dsSpec := oc.Spec.Telegraf
 	privileged := true
+
+	telegrafConfigDir := defaultTelegrafDir
+	if dsSpec.TelegrafConfigDir != "" {
+		telegrafConfigDir = dsSpec.TelegrafConfigDir
+	}
+
 	containersF := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		cs := []corev1.Container{
 			{
@@ -154,7 +163,7 @@ func (m *telegrafManager) newTelegrafDaemonSet(
 		MountPath: "/etc/telegraf",
 	}})
 	ds, err := m.newDaemonSet(
-		cType, oc, cfg, NewTelegrafVolume(cType, oc), dsSpec.DaemonSetSpec,
+		cType, oc, cfg, NewTelegrafVolume(cType, oc, telegrafConfigDir), dsSpec.DaemonSetSpec,
 		"", initContainers, containersF,
 	)
 	if err != nil {
@@ -174,6 +183,7 @@ func (m *telegrafManager) newTelegrafDaemonSet(
 func NewTelegrafVolume(
 	cType v1alpha1.ComponentType,
 	oc *v1alpha1.OnecloudCluster,
+	telegrafConfigDir string,
 ) *VolumeHelper {
 	var h = &VolumeHelper{
 		cluster:      oc,
@@ -201,7 +211,7 @@ func NewTelegrafVolume(
 			Name: "etc-telegraf",
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/etc/telegraf",
+					Path: telegrafConfigDir,
 					Type: &volSrcType,
 				},
 			},
