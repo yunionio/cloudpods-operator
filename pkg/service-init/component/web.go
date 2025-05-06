@@ -27,6 +27,8 @@ const (
         root /usr/share/nginx/html/web;
         index index.html;
         add_header Cache-Control no-cache;
+        add_header X-Frame-Options "SAMEORIGIN";
+        add_header X-XSS-Protection "1; mode=block";
         expires 1s;
         if (!-e $request_filename) {
             rewrite ^/(.*) /index.html last;
@@ -41,6 +43,8 @@ const (
     location / {
         root   /usr/share/nginx/html/dashboard;
         index index.html;
+        add_header X-Frame-Options "SAMEORIGIN";
+        add_header X-XSS-Protection "1; mode=block";
         try_files $uri $uri/ /index.html;
     }
 
