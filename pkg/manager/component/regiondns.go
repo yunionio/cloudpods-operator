@@ -36,7 +36,7 @@ const (
     cache 30
 
     yunion . {
-        sql_connection mysql+pymysql://{{.DBUser}}:{{.DBPassword}}@{{.DBHost}}:{{.DBPort}}/{{.DBName}}?charset=utf8
+        sql_connection mysql+pymysql://{{.DBUser}}:{{.DBPassword}}@{{.DBHost}}:{{.DBPort}}/{{.DBName}}?charset=utf8&parseTime=true&interpolateParams=true
         {{- if .DNSDomain }}
         dns_domain {{.DNSDomain}}
         {{- end }}
