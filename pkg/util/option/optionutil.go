@@ -56,7 +56,7 @@ func SetServiceCommonOptions(opt *options.CommonOptions, oc *v1alpha1.OnecloudCl
 }
 
 func SetMysqlOptions(opt *options.DBOptions, mysql v1alpha1.Mysql, input v1alpha1.DBConfig) {
-	opt.SqlConnection = fmt.Sprintf("mysql+pymysql://%s:%s@%s:%d/%s?charset=utf8", input.Username, input.Password, mysql.Host, mysql.Port, input.Database)
+	opt.SqlConnection = fmt.Sprintf("mysql+pymysql://%s:%s@%s:%d/%s?charset=utf8&parseTime=true&interpolateParams=true", input.Username, input.Password, mysql.Host, mysql.Port, input.Database)
 }
 
 func SetDamengOptions(opt *options.DBOptions, dameng v1alpha1.Dameng, input v1alpha1.DBConfig) {
