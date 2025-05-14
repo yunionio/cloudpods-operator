@@ -122,7 +122,9 @@ func ParseSQLAchemyURL(pySQLSrc string) (*v1alpha1.DBConfig, error) {
 	} else {
 		query = url.Values{}
 	}
-	query.Set("parseTime", "True")
+	// https://github.com/go-sql-driver/mysql?tab=readme-ov-file#interpolateparams
+	query.Set("parseTime", "true")
+	query.Set("interpolateParams", "true")
 	// ret = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?%s", user, passwd, host, port, dburl, query.Encode())
 	return &v1alpha1.DBConfig{
 		Database: dburl,
