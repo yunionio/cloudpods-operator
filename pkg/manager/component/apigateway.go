@@ -82,10 +82,10 @@ func (m *apiGatewayManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 func (m *apiGatewayManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
 	aCfg := cfg.APIGateway
 	ports := []corev1.ServicePort{
-		NewServiceNodePort("api", int32(oc.Spec.APIGateway.APIService.NodePort), int32(aCfg.Port)),
-		NewServiceNodePort("ws", int32(oc.Spec.APIGateway.WSService.NodePort), constants.APIWebsocketPort),
+		NewServiceNodePort("api", oc.Spec.APIGateway.APIService.InternalOnly, int32(oc.Spec.APIGateway.APIService.NodePort), int32(aCfg.Port)),
+		NewServiceNodePort("ws", oc.Spec.APIGateway.WSService.InternalOnly, int32(oc.Spec.APIGateway.WSService.NodePort), constants.APIWebsocketPort),
 	}
-	return []*corev1.Service{m.newNodePortService(v1alpha1.APIGatewayComponentType, oc, ports)}
+	return []*corev1.Service{m.newNodePortService(v1alpha1.APIGatewayComponentType, oc, oc.Spec.APIGateway.APIService.InternalOnly, ports)}
 }
 
 func (m *apiGatewayManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
