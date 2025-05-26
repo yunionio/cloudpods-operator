@@ -524,14 +524,17 @@ func (h *VolumeHelper) addOvsVolumes() *VolumeHelper {
 	return h
 }
 
-func NewServiceNodePort(name string, nodePort int32, targetPort int32) corev1.ServicePort {
-	return corev1.ServicePort{
+func NewServiceNodePort(name string, internalOnly bool, nodePort int32, targetPort int32) corev1.ServicePort {
+	portObj := corev1.ServicePort{
 		Name:       name,
 		Protocol:   corev1.ProtocolTCP,
 		Port:       nodePort,
 		TargetPort: intstr.FromInt(int(targetPort)),
-		NodePort:   nodePort,
 	}
+	if !internalOnly {
+		portObj.NodePort = nodePort
+	}
+	return portObj
 }
 
 var (

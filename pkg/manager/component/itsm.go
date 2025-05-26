@@ -240,7 +240,7 @@ func NewJavaBaseConfig(oc *v1alpha1.OnecloudCluster, port int, user, passwd stri
 }
 
 func (m *itsmManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.ItsmComponentType, oc, int32(oc.Spec.Itsm.Service.NodePort), int32(cfg.Itsm.Port))}
+	return []*corev1.Service{m.newSinglePortService(v1alpha1.ItsmComponentType, oc, oc.Spec.Itsm.Service.InternalOnly, int32(oc.Spec.Itsm.Service.NodePort), int32(cfg.Itsm.Port))}
 }
 
 func (m *itsmManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {

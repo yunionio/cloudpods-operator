@@ -105,7 +105,7 @@ func (m *reportManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 }
 
 func (m *reportManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.ReportComponentType, oc, int32(oc.Spec.Report.Service.NodePort), int32(cfg.Report.Port))}
+	return []*corev1.Service{m.newSinglePortService(v1alpha1.ReportComponentType, oc, oc.Spec.Report.Service.InternalOnly, int32(oc.Spec.Report.Service.NodePort), int32(cfg.Report.Port))}
 }
 
 func (m *reportManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {

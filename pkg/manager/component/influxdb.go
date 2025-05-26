@@ -64,7 +64,7 @@ func (m *influxdbManager) getPhaseControl(man controller.ComponentManager, zone 
 }
 
 func (m *influxdbManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.InfluxdbComponentType, oc, int32(oc.Spec.Influxdb.Service.NodePort), constants.InfluxdbPort)}
+	return []*corev1.Service{m.newSinglePortService(v1alpha1.InfluxdbComponentType, oc, oc.Spec.Influxdb.Service.InternalOnly, int32(oc.Spec.Influxdb.Service.NodePort), constants.InfluxdbPort)}
 }
 
 func (m *influxdbManager) getPVC(oc *v1alpha1.OnecloudCluster, zone string) (*corev1.PersistentVolumeClaim, error) {

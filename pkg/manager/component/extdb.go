@@ -108,7 +108,7 @@ func (m *extdbManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 }
 
 func (m *extdbManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.ExtdbComponentType, oc, int32(oc.Spec.Extdb.Service.NodePort), int32(cfg.Extdb.Port))}
+	return []*corev1.Service{m.newSinglePortService(v1alpha1.ExtdbComponentType, oc, oc.Spec.Extdb.Service.InternalOnly, int32(oc.Spec.Extdb.Service.NodePort), int32(cfg.Extdb.Port))}
 }
 
 func (m *extdbManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {

@@ -91,7 +91,7 @@ func (m *meterManager) getPhaseControl(man controller.ComponentManager, zone str
 }
 
 func (m *meterManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.MeterComponentType, oc, int32(oc.Spec.Meter.Service.NodePort), int32(cfg.Meter.Port))}
+	return []*corev1.Service{m.newSinglePortService(v1alpha1.MeterComponentType, oc, oc.Spec.Meter.Service.InternalOnly, int32(oc.Spec.Meter.Service.NodePort), int32(cfg.Meter.Port))}
 }
 
 type meterOptions struct {
