@@ -102,7 +102,7 @@ func (m *cloudnetManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 }
 
 func (m *cloudnetManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.CloudnetComponentType, oc, int32(oc.Spec.Cloudnet.Service.NodePort), int32(cfg.Cloudnet.Port))}
+	return []*corev1.Service{m.newSinglePortService(v1alpha1.CloudnetComponentType, oc, oc.Spec.Cloudnet.Service.InternalOnly, int32(oc.Spec.Cloudnet.Service.NodePort), int32(cfg.Cloudnet.Port))}
 }
 
 func (m *cloudnetManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {

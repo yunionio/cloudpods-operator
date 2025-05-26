@@ -108,7 +108,7 @@ func (m *cloudproxyManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 }
 
 func (m *cloudproxyManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.CloudproxyComponentType, oc, int32(oc.Spec.Cloudproxy.Service.NodePort), int32(cfg.Cloudproxy.Port))}
+	return []*corev1.Service{m.newSinglePortService(v1alpha1.CloudproxyComponentType, oc, oc.Spec.Cloudproxy.Service.InternalOnly, int32(oc.Spec.Cloudproxy.Service.NodePort), int32(cfg.Cloudproxy.Port))}
 }
 
 func (m *cloudproxyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {

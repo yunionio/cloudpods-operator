@@ -87,7 +87,7 @@ func (m *monitorManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 }
 
 func (m *monitorManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.MonitorComponentType, oc, int32(oc.Spec.Monitor.Service.NodePort), int32(cfg.Monitor.Port))}
+	return []*corev1.Service{m.newSinglePortService(v1alpha1.MonitorComponentType, oc, oc.Spec.Monitor.Service.InternalOnly, int32(oc.Spec.Monitor.Service.NodePort), int32(cfg.Monitor.Port))}
 }
 
 func (m *monitorManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {

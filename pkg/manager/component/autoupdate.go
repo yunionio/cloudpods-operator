@@ -139,7 +139,7 @@ func (m *autoUpdateManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 
 func (m *autoUpdateManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
 	return []*corev1.Service{
-		m.newSingleNodePortService(v1alpha1.AutoUpdateComponentType, oc, int32(oc.Spec.AutoUpdate.Service.NodePort), int32(cfg.AutoUpdate.Port)),
+		m.newSinglePortService(v1alpha1.AutoUpdateComponentType, oc, oc.Spec.AutoUpdate.Service.InternalOnly, int32(oc.Spec.AutoUpdate.Service.NodePort), int32(cfg.AutoUpdate.Port)),
 	}
 }
 

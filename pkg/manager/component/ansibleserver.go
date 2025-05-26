@@ -84,7 +84,7 @@ func (m *ansibleManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 func (m *ansibleManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
 	aCfg := cfg.AnsibleServer
 	return []*corev1.Service{
-		m.newSingleNodePortService(v1alpha1.AnsibleServerComponentType, oc, int32(oc.Spec.AnsibleServer.Service.NodePort), int32(aCfg.Port)),
+		m.newSinglePortService(v1alpha1.AnsibleServerComponentType, oc, oc.Spec.AnsibleServer.Service.InternalOnly, int32(oc.Spec.AnsibleServer.Service.NodePort), int32(aCfg.Port)),
 	}
 }
 
