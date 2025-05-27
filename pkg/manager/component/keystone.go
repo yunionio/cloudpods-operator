@@ -82,11 +82,11 @@ func (m *keystoneManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	spec := oc.Spec.Keystone
 	ksCfg := cfg.Keystone
 	ports := []corev1.ServicePort{
-		NewServiceNodePort("public", int32(spec.PublicService.NodePort), int32(ksCfg.Port)),
-		NewServiceNodePort("admin", int32(spec.AdminService.NodePort), constants.KeystoneAdminPort),
+		NewServiceNodePort("public", spec.PublicService.InternalOnly, int32(spec.PublicService.NodePort), int32(ksCfg.Port)),
+		NewServiceNodePort("admin", spec.AdminService.InternalOnly, int32(spec.AdminService.NodePort), constants.KeystoneAdminPort),
 	}
 
-	return []*corev1.Service{m.newNodePortService(v1alpha1.KeystoneComponentType, oc, ports)}
+	return []*corev1.Service{m.newNodePortService(v1alpha1.KeystoneComponentType, oc, spec.AdminService.InternalOnly, ports)}
 }
 
 func (m *keystoneManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {

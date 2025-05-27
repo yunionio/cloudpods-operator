@@ -697,15 +697,23 @@ func (m *ComponentManager) newServiceWithClusterIp(
 	return svc
 }
 
-func (m *ComponentManager) newNodePortService(cType v1alpha1.ComponentType, oc *v1alpha1.OnecloudCluster, ports []corev1.ServicePort) *corev1.Service {
-	return m.newService(cType, oc, corev1.ServiceTypeNodePort, ports)
+func (m *ComponentManager) newNodePortService(cType v1alpha1.ComponentType, oc *v1alpha1.OnecloudCluster, internalOnly bool, ports []corev1.ServicePort) *corev1.Service {
+	svcType := corev1.ServiceTypeNodePort
+	if internalOnly {
+		svcType = corev1.ServiceTypeClusterIP
+	}
+	return m.newService(cType, oc, svcType, ports)
 }
 
 func (m *ComponentManager) newSingleNodePortService(cType v1alpha1.ComponentType, oc *v1alpha1.OnecloudCluster, nodePort, targetPort int32) *corev1.Service {
+	return m.newSinglePortService(cType, oc, false, nodePort, targetPort)
+}
+
+func (m *ComponentManager) newSinglePortService(cType v1alpha1.ComponentType, oc *v1alpha1.OnecloudCluster, internalOnly bool, nodePort, targetPort int32) *corev1.Service {
 	ports := []corev1.ServicePort{
-		NewServiceNodePort("api", nodePort, targetPort),
+		NewServiceNodePort("api", internalOnly, nodePort, targetPort),
 	}
-	return m.newNodePortService(cType, oc, ports)
+	return m.newNodePortService(cType, oc, internalOnly, ports)
 }
 
 func (m *ComponentManager) newEtcdClientService(

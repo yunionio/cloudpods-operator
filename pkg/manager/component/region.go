@@ -91,9 +91,9 @@ func (m *regionManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 
 func (m *regionManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
 	ports := []corev1.ServicePort{
-		NewServiceNodePort("api", int32(oc.Spec.RegionServer.Service.NodePort), int32(cfg.RegionServer.Port)),
+		NewServiceNodePort("api", oc.Spec.RegionServer.Service.InternalOnly, int32(oc.Spec.RegionServer.Service.NodePort), int32(cfg.RegionServer.Port)),
 	}
-	return []*corev1.Service{m.newNodePortService(v1alpha1.RegionComponentType, oc, ports)}
+	return []*corev1.Service{m.newNodePortService(v1alpha1.RegionComponentType, oc, oc.Spec.RegionServer.Service.InternalOnly, ports)}
 }
 
 func (m *regionManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {

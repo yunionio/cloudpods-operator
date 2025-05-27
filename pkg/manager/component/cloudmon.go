@@ -80,7 +80,7 @@ func (m *cloudmonManager) getPhaseControl(man controller.ComponentManager, zone 
 }
 
 func (m *cloudmonManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.CloudmonComponentType, oc, int32(oc.Spec.Cloudmon.Service.NodePort), int32(cfg.Cloudmon.Port))}
+	return []*corev1.Service{m.newSinglePortService(v1alpha1.CloudmonComponentType, oc, oc.Spec.Cloudmon.Service.InternalOnly, int32(oc.Spec.Cloudmon.Service.NodePort), int32(cfg.Cloudmon.Port))}
 }
 
 func (m *cloudmonManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {

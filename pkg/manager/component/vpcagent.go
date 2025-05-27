@@ -108,7 +108,7 @@ func (m *vpcAgentManager) getPhaseControl(man controller.ComponentManager, zone 
 }
 
 func (m *vpcAgentManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.VpcAgentComponentType, oc, int32(oc.Spec.VpcAgent.Service.NodePort), int32(cfg.VpcAgent.Port))}
+	return []*corev1.Service{m.newSinglePortService(v1alpha1.VpcAgentComponentType, oc, oc.Spec.VpcAgent.Service.InternalOnly, int32(oc.Spec.VpcAgent.Service.NodePort), int32(cfg.VpcAgent.Port))}
 }
 
 func (m *vpcAgentManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
