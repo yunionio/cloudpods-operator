@@ -100,7 +100,7 @@ func (m *devtoolManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 }
 
 func (m *devtoolManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.DevtoolComponentType, oc, int32(oc.Spec.Devtool.Service.NodePort), int32(cfg.Devtool.Port))}
+	return []*corev1.Service{m.newSinglePortService(v1alpha1.DevtoolComponentType, oc, oc.Spec.Devtool.Service.InternalOnly, int32(oc.Spec.Devtool.Service.NodePort), int32(cfg.Devtool.Port))}
 }
 
 func (m *devtoolManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {

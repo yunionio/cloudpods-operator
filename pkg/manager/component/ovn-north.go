@@ -52,15 +52,16 @@ func (m *ovnNorthManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 }
 
 func (m *ovnNorthManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	np0 := NewServiceNodePort("north-db", constants.OvnNorthDbPort, constants.OvnNorthDbPort)
+	isInternalPort := false
+	np0 := NewServiceNodePort("north-db", isInternalPort, constants.OvnNorthDbPort, constants.OvnNorthDbPort)
 	np0.TargetPort = intstr.FromInt(6641)
-	np1 := NewServiceNodePort("south-db", constants.OvnSouthDbPort, constants.OvnSouthDbPort)
+	np1 := NewServiceNodePort("south-db", isInternalPort, constants.OvnSouthDbPort, constants.OvnSouthDbPort)
 	np1.TargetPort = intstr.FromInt(6642)
 	ports := []corev1.ServicePort{
 		np0,
 		np1,
 	}
-	return []*corev1.Service{m.newNodePortService(v1alpha1.OvnNorthComponentType, oc, ports)}
+	return []*corev1.Service{m.newNodePortService(v1alpha1.OvnNorthComponentType, oc, isInternalPort, ports)}
 }
 
 func (m *ovnNorthManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {

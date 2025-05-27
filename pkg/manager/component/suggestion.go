@@ -70,7 +70,7 @@ func (m *suggestionManager) getPhaseControl(man controller.ComponentManager, zon
 }
 
 func (m *suggestionManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.SuggestionComponentType, oc, int32(oc.Spec.Suggestion.Service.NodePort), int32(constants.SuggestionPort))}
+	return []*corev1.Service{m.newSinglePortService(v1alpha1.SuggestionComponentType, oc, oc.Spec.Suggestion.Service.InternalOnly, int32(oc.Spec.Suggestion.Service.NodePort), int32(constants.SuggestionPort))}
 }
 
 type suggestionOptions struct {
