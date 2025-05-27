@@ -48,7 +48,7 @@ func (m *scheduledtaskManager) getPhaseControl(man controller.ComponentManager, 
 }
 
 func (m *scheduledtaskManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.ScheduledtaskComponentType, oc, int32(oc.Spec.Scheduledtask.Service.NodePort), int32(constants.ScheduledtaskPort))}
+	return []*corev1.Service{m.newSinglePortService(v1alpha1.ScheduledtaskComponentType, oc, oc.Spec.Scheduledtask.Service.InternalOnly, int32(oc.Spec.Scheduledtask.Service.NodePort), int32(constants.ScheduledtaskPort))}
 }
 
 func (m *scheduledtaskManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {

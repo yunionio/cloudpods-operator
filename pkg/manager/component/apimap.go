@@ -70,7 +70,7 @@ func (m *apiMapManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	return m.newServiceConfigMap(v1alpha1.APIMapComponentType, "", oc, opt), false, nil
 }
 func (m *apiMapManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.APIMapComponentType, oc, int32(oc.Spec.APIMap.Service.NodePort), constants.APIMapPort)}
+	return []*corev1.Service{m.newSinglePortService(v1alpha1.APIMapComponentType, oc, oc.Spec.APIMap.Service.InternalOnly, int32(oc.Spec.APIMap.Service.NodePort), constants.APIMapPort)}
 }
 
 func (m *apiMapManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {

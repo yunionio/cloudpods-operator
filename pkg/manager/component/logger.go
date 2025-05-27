@@ -88,7 +88,7 @@ func (m *loggerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 }
 
 func (m *loggerManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSingleNodePortService(v1alpha1.LoggerComponentType, oc, int32(oc.Spec.Logger.Service.NodePort), int32(cfg.Logger.Port))}
+	return []*corev1.Service{m.newSinglePortService(v1alpha1.LoggerComponentType, oc, oc.Spec.Logger.Service.InternalOnly, int32(oc.Spec.Logger.Service.NodePort), int32(cfg.Logger.Port))}
 }
 
 func (m *loggerManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {

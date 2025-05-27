@@ -599,7 +599,8 @@ type DeploymentSpec struct {
 
 // ServicePortSpec contains listening port definition
 type ServicePortSpec struct {
-	NodePort int `json:"nodePort"`
+	InternalOnly bool `json:"internalOnly"`
+	NodePort     int  `json:"nodePort"`
 }
 
 type ServiceSpec struct {

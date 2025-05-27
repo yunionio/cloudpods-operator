@@ -75,7 +75,7 @@ func (m *vmManager) getPhaseControl(man controller.ComponentManager, zone string
 
 func (m *vmManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
 	return []*corev1.Service{
-		m.newSingleNodePortService(v1alpha1.VictoriaMetricsComponentType, oc, int32(oc.Spec.VictoriaMetrics.Service.NodePort), m.getContainerPort()),
+		m.newSinglePortService(v1alpha1.VictoriaMetricsComponentType, oc, oc.Spec.VictoriaMetrics.Service.InternalOnly, int32(oc.Spec.VictoriaMetrics.Service.NodePort), m.getContainerPort()),
 	}
 }
 
