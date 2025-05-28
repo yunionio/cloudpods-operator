@@ -67,7 +67,7 @@ const (
 	DefaultHostImageTag  = "v1.0.7"
 
 	DefaultHostHealthName = "host-health"
-	DefaultHostHealthTag  = "v0.0.1"
+	DefaultHostHealthTag  = "v0.0.3"
 
 	DefaultInfluxdbImageVersion = "1.7.7"
 
