@@ -74,7 +74,7 @@ const (
 	DefaultVictoriaMetricsImageVersion = "v1.95.1"
 
 	DefaultTelegrafImageName     = "telegraf"
-	DefaultTelegrafImageTag      = "release-1.19.2-9"
+	DefaultTelegrafImageTag      = "release-1.19.2-10"
 	DefaultTelegrafInitImageName = "telegraf-init"
 	DefaultTelegrafInitImageTag  = "release-1.19.2-0"
 	DefaultTelegrafRaidImageName = "telegraf-raid-plugin"
