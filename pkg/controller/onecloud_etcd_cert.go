@@ -105,6 +105,10 @@ func getServerAltNames(
 		},
 	}
 
+	if oc.Spec.LoadBalancerEndpoint != "" {
+		altNames.IPs = append(altNames.IPs, net.ParseIP(oc.Spec.LoadBalancerEndpoint))
+	}
+
 	return altNames, nil
 }
 
