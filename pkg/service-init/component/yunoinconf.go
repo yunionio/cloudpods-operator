@@ -128,11 +128,12 @@ func (pc *yunionconfPC) Setup() error {
 }
 
 type GlobalSettingsValue struct {
-	SetupKeys                []string        `json:"setupKeys"`
-	SetupKeysVersion         string          `json:"setupKeysVersion"`
-	SetupOneStackInitialized bool            `json:"setupOneStackInitialized"`
-	ProductVersion           string          `json:"productVersion"`
-	UserDefinedKeys          map[string]bool `json:"userDefinedKeys"`
+	Dictionary               jsonutils.JSONObject `json:"dictionary"`
+	SetupKeys                []string             `json:"setupKeys"`
+	SetupKeysVersion         string               `json:"setupKeysVersion"`
+	SetupOneStackInitialized bool                 `json:"setupOneStackInitialized"`
+	ProductVersion           string               `json:"productVersion"`
+	UserDefinedKeys          map[string]bool      `json:"userDefinedKeys"`
 }
 
 func NewGlobalSettingsValue(setupKeys []string, oneStackInited bool, productVersion v1alpha1.ProductVersion) *GlobalSettingsValue {
@@ -175,6 +176,8 @@ func (v *GlobalSettingsValue) CalculateSetupKeys(oldSettings GlobalSettingsValue
 	if len(oldSettings.UserDefinedKeys) == 0 {
 		oldSettings.UserDefinedKeys = make(map[string]bool)
 	}
+	// 旧字典配置
+	v.Dictionary = oldSettings.Dictionary
 	oldSs := sets.NewString(oldSettings.SetupKeys...)
 	// 根据旧配置，关闭或打开现有功能
 	if len(oldSettings.UserDefinedKeys) == 0 {
