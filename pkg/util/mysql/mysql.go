@@ -29,7 +29,7 @@ import (
 )
 
 var (
-	allHosts = []string{"%", "127.0.0.1"}
+	allHosts = []string{"%", "127.0.0.1", "::1"}
 )
 
 type Connection struct {
@@ -45,7 +45,11 @@ func NewConnection(info *apis.Mysql) (dbutil.IConnection, error) {
 	port := info.Port
 	username := info.Username
 	password := info.Password
-	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%d)/", username, password, host, port))
+
+	// Format host for MySQL connection (handle IPv6 addresses)
+	formattedHost := dbutil.FormatHost(host)
+
+	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%d)/", username, password, formattedHost, port))
 	if err != nil {
 		return nil, errors.Wrap(err, "Connect to database")
 	}

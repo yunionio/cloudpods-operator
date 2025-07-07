@@ -12,6 +12,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
+	"yunion.io/x/onecloud-operator/pkg/util/dbutil"
 )
 
 func SetOptionsDefault(opt interface{}, serviceType string) error {
@@ -61,16 +62,22 @@ func SetServiceCommonOptions(opt *options.CommonOptions, oc *v1alpha1.OnecloudCl
 }
 
 func SetMysqlOptions(opt *options.DBOptions, mysql v1alpha1.Mysql, input v1alpha1.DBConfig) {
-	opt.SqlConnection = fmt.Sprintf("mysql+pymysql://%s:%s@%s:%d/%s?charset=utf8&parseTime=true&interpolateParams=true", input.Username, input.Password, mysql.Host, mysql.Port, input.Database)
+	// Format host for MySQL connection (handle IPv6 addresses)
+	formattedHost := dbutil.FormatHost(mysql.Host)
+	opt.SqlConnection = fmt.Sprintf("mysql+pymysql://%s:%s@%s:%d/%s?charset=utf8&parseTime=true&interpolateParams=true", input.Username, input.Password, formattedHost, mysql.Port, input.Database)
 }
 
 func SetDamengOptions(opt *options.DBOptions, dameng v1alpha1.Dameng, input v1alpha1.DBConfig) {
-	opt.SqlConnection = fmt.Sprintf("dm://%s:%s@%s:%d/%s", input.Username, input.Password, dameng.Host, dameng.Port, input.Database)
+	// Format host for Dameng connection (handle IPv6 addresses)
+	formattedHost := dbutil.FormatHost(dameng.Host)
+	opt.SqlConnection = fmt.Sprintf("dm://%s:%s@%s:%d/%s", input.Username, input.Password, formattedHost, dameng.Port, input.Database)
 }
 
 func SetClickhouseOptions(opt *options.DBOptions, clickhouse v1alpha1.Clickhouse, input v1alpha1.DBConfig) {
 	if len(clickhouse.Host) > 0 && len(input.Database) > 0 {
-		opt.Clickhouse = fmt.Sprintf("tcp://%s:%d?database=%s&read_timeout=10&write_timeout=20&username=%s&password=%s", clickhouse.Host, clickhouse.Port, input.Database, input.Username, input.Password)
+		// Format host for ClickHouse connection (handle IPv6 addresses)
+		formattedHost := dbutil.FormatHost(clickhouse.Host)
+		opt.Clickhouse = fmt.Sprintf("tcp://%s:%d?database=%s&read_timeout=10&write_timeout=20&username=%s&password=%s", formattedHost, clickhouse.Port, input.Database, input.Username, input.Password)
 		opt.OpsLogWithClickhouse = true
 	}
 }
