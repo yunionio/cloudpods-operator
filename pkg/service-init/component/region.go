@@ -9,6 +9,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
+	"yunion.io/x/onecloud-operator/pkg/util/dbutil"
 	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
@@ -87,7 +88,7 @@ func (r region) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudCl
 
 func (r region) setBaremetalPrepareConfigure(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, opt *options.ComputeOptions) error {
 	masterAddress := oc.Spec.LoadBalancerEndpoint
-	opt.BaremetalPreparePackageUrl = fmt.Sprintf("https://%s/baremetal-prepare/baremetal_prepare.tar.gz", masterAddress)
+	opt.BaremetalPreparePackageUrl = fmt.Sprintf("https://%s/baremetal-prepare/baremetal_prepare.tar.gz", dbutil.FormatHost(masterAddress))
 	return nil
 }
 

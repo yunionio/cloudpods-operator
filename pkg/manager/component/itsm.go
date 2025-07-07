@@ -11,6 +11,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
 	"yunion.io/x/onecloud-operator/pkg/service-init/component"
+	"yunion.io/x/onecloud-operator/pkg/util/dbutil"
 )
 
 const (
@@ -218,7 +219,7 @@ func NewJavaDBConfig(oc *v1alpha1.OnecloudCluster, cfg v1alpha1.ServiceDBCommonO
 	opt := NewJavaBaseConfig(oc, cfg.Port, cfg.CloudUser.Username, cfg.CloudUser.Password)
 	dbCfg := &JavaDBConfig{
 		JavaBaseConfig: *opt,
-		DBHost:         oc.Spec.Mysql.Host,
+		DBHost:         dbutil.FormatHost(oc.Spec.Mysql.Host),
 		DBPort:         oc.Spec.Mysql.Port,
 		DB:             cfg.DB.Database,
 		DBUser:         cfg.DB.Username,
