@@ -19,6 +19,8 @@ type Member struct {
 
 	SecurePeer   bool
 	SecureClient bool
+	// IPv6Cluster indicates whether this member should listen on IPv6 addresses
+	IPv6Cluster bool
 }
 
 func (m *Member) Addr() string {
@@ -45,9 +47,15 @@ func (m *Member) peerScheme() string {
 }
 
 func (m *Member) ListenClientURL() string {
+	if m.IPv6Cluster {
+		return fmt.Sprintf("%s://[::]:2379", m.clientScheme())
+	}
 	return fmt.Sprintf("%s://0.0.0.0:2379", m.clientScheme())
 }
 func (m *Member) ListenPeerURL() string {
+	if m.IPv6Cluster {
+		return fmt.Sprintf("%s://[::]:2380", m.peerScheme())
+	}
 	return fmt.Sprintf("%s://0.0.0.0:2380", m.peerScheme())
 }
 

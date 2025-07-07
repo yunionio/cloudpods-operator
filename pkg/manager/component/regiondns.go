@@ -28,6 +28,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
 	"yunion.io/x/onecloud-operator/pkg/service-init/component"
+	"yunion.io/x/onecloud-operator/pkg/util/dbutil"
 	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
@@ -147,7 +148,7 @@ func (m *regionDNSManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 	config := RegionDNSConfig{
 		DBUser:     regionDB.Username,
 		DBPassword: regionDB.Password,
-		DBHost:     db.Host,
+		DBHost:     dbutil.FormatHost(db.Host),
 		DBPort:     db.Port,
 		DBName:     regionDB.Database,
 
