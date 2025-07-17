@@ -96,29 +96,34 @@ func (m *vmManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.On
 			rd = 90
 		}
 		fakeInfluxDBs := []string{"telegraf", "meter_db", "monitor", "system", "mysql_metrics"}
+		args := []string{
+			fmt.Sprintf("--httpListenAddr=:%d", m.getContainerPort()),
+			"--tls",
+			"--tlsCipherSuites=TLS_RSA_WITH_AES_128_GCM_SHA256,TLS_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384,TLS_CHACHA20_POLY1305_SHA256",
+			"--tlsMinVersion=TLS12",
+			fmt.Sprintf("--tlsCertFile=%s", path.Join(constants.CertDir, constants.ServiceCertName)),
+			fmt.Sprintf("--tlsKeyFile=%s", path.Join(constants.CertDir, constants.ServiceKeyName)),
+			// https://docs.victoriametrics.com/#retention
+			fmt.Sprintf("--retentionPeriod=%dd", rd),
+			fmt.Sprintf("--storageDataPath=%s", constants.VictoriaMetricsDataStore),
+			"--envflag.enable=true",
+			"--envflag.prefix=VM_",
+			"--loggerFormat=json",
+			fmt.Sprintf("--influx.databaseNames=%s", strings.Join(fakeInfluxDBs, ",")),
+			fmt.Sprintf("--maxLabelsPerTimeseries=%d", 60),
+			fmt.Sprintf("--pprofAuthKey=%s", "pprof@AuthKey"),
+		}
+		if oc.Spec.IPv6Cluster {
+			args = append(args, "-enableTCP6")
+		}
+
 		return []corev1.Container{
 			{
 				Name:            v1alpha1.VictoriaMetricsComponentType.String(),
 				Image:           oc.Spec.VictoriaMetrics.Image,
 				ImagePullPolicy: oc.Spec.VictoriaMetrics.ImagePullPolicy,
-				Args: []string{
-					fmt.Sprintf("--httpListenAddr=:%d", m.getContainerPort()),
-					"--tls",
-					"--tlsCipherSuites=TLS_RSA_WITH_AES_128_GCM_SHA256,TLS_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384,TLS_CHACHA20_POLY1305_SHA256",
-					"--tlsMinVersion=TLS12",
-					fmt.Sprintf("--tlsCertFile=%s", path.Join(constants.CertDir, constants.ServiceCertName)),
-					fmt.Sprintf("--tlsKeyFile=%s", path.Join(constants.CertDir, constants.ServiceKeyName)),
-					// https://docs.victoriametrics.com/#retention
-					fmt.Sprintf("--retentionPeriod=%dd", rd),
-					fmt.Sprintf("--storageDataPath=%s", constants.VictoriaMetricsDataStore),
-					"--envflag.enable=true",
-					"--envflag.prefix=VM_",
-					"--loggerFormat=json",
-					fmt.Sprintf("--influx.databaseNames=%s", strings.Join(fakeInfluxDBs, ",")),
-					fmt.Sprintf("--maxLabelsPerTimeseries=%d", 60),
-					fmt.Sprintf("--pprofAuthKey=%s", "pprof@AuthKey"),
-				},
-				VolumeMounts: volMounts,
+				Args:            args,
+				VolumeMounts:    volMounts,
 				Ports: []corev1.ContainerPort{
 					{
 						ContainerPort: m.getContainerPort(),

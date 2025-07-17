@@ -28,7 +28,7 @@ import (
 )
 
 var (
-	AllHosts = []string{"%", "127.0.0.1"}
+	AllHosts = []string{"%", "127.0.0.1", "::1"}
 )
 
 type Connection struct {
@@ -44,7 +44,11 @@ func NewConnection(info *apis.Dameng) (dbutil.IConnection, error) {
 	port := info.Port
 	username := info.Username
 	password := info.Password
-	db, err := sql.Open("dm", fmt.Sprintf("dm://%s:%s@%s:%d/%s", username, password, host, port, "SYS"))
+
+	// Format host for Dameng connection (handle IPv6 addresses)
+	formattedHost := dbutil.FormatHost(host)
+
+	db, err := sql.Open("dm", fmt.Sprintf("dm://%s:%s@%s:%d/%s", username, password, formattedHost, port, "SYS"))
 	if err != nil {
 		return nil, errors.Wrap(err, "Connect to database")
 	}

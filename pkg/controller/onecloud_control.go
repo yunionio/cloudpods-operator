@@ -43,6 +43,7 @@ import (
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
+	"yunion.io/x/onecloud-operator/pkg/util/dbutil"
 	"yunion.io/x/onecloud-operator/pkg/util/k8sutil"
 	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 )
@@ -438,7 +439,8 @@ func newInternalEndpoint(host string, port int, path string) *endpoint {
 }
 
 func (e endpoint) GetProtocolUrl(proto string) string {
-	url := fmt.Sprintf("%s://%s:%d", proto, e.Host, e.Port)
+	formattedHost := dbutil.FormatHost(e.Host)
+	url := fmt.Sprintf("%s://%s:%d", proto, formattedHost, e.Port)
 	if e.Path != "" {
 		url = fmt.Sprintf("%s/%s", url, e.Path)
 	}
@@ -592,7 +594,8 @@ func (c keystoneComponent) getWebAccessUrl(oc *v1alpha1.OnecloudCluster) (string
 	if oc.Spec.LoadBalancerEndpoint == "" {
 		return "", errors.Errorf("cluster %s LoadBalancerEndpoint is empty", oc.GetName())
 	}
-	return fmt.Sprintf("https://%s", oc.Spec.LoadBalancerEndpoint), nil
+	formattedHost := dbutil.FormatHost(oc.Spec.LoadBalancerEndpoint)
+	return fmt.Sprintf("https://%s", formattedHost), nil
 }
 
 func (c keystoneComponent) getCommonConfig(oc *v1alpha1.OnecloudCluster) (map[string]string, error) {
@@ -761,6 +764,9 @@ func doCreateEtcdServiceEndpoint(oc *v1alpha1.OnecloudCluster, s *mcclient.Clien
 	}
 	if pubHost == "" {
 		pubHost = intHost
+	} else {
+		// Format IPv6 addresses properly for use in URLs
+		pubHost = dbutil.FormatHost(pubHost)
 	}
 	eps := []*endpoint{
 		newInternalEndpoint(intHost, constants.EtcdClientPort, ""),
