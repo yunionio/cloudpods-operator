@@ -109,6 +109,10 @@ func (c composeComponentManager) EChartsSSR() controller.PhaseControl {
 	panic("implement me")
 }
 
+func (c composeComponentManager) Apigateway() controller.PhaseControl {
+	return controller.NewApigatewayPhaseControl(c)
+}
+
 func GetComponentDBConfig(cmpt Component, cfg *v1alpha1.OnecloudClusterConfig, existOpt jsonutils.JSONObject) (*v1alpha1.DBConfig, error) {
 	dbCfg := cmpt.GetDefaultDBConfig(cfg)
 	if dbCfg == nil {
