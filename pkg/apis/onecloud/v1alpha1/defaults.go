@@ -99,7 +99,13 @@ func SetDefaults_OnecloudCluster(obj *OnecloudCluster) {
 	defer clusterDefaultMutex.Unlock()
 
 	if _, ok := obj.GetLabels()[constants.InstanceLabelKey]; !ok {
-		obj.SetLabels(map[string]string{constants.InstanceLabelKey: fmt.Sprintf("onecloud-cluster-%s", rand.String(4))})
+		// 获取现有标签，避免覆盖
+		existingLabels := obj.GetLabels()
+		if existingLabels == nil {
+			existingLabels = make(map[string]string)
+		}
+		existingLabels[constants.InstanceLabelKey] = fmt.Sprintf("onecloud-cluster-%s", rand.String(4))
+		obj.SetLabels(existingLabels)
 	}
 
 	SetDefaults_OnecloudClusterSpec(&obj.Spec, IsEnterpriseEdition(obj), IsEEOrESEEdition(obj))
