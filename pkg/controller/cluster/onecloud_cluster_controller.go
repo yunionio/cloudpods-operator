@@ -15,6 +15,7 @@
 package cluster
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -226,19 +227,23 @@ func (c *Controller) sync(key string) error {
 	if err != nil {
 		return err
 	}
-	oc, err := c.ocLister.OnecloudClusters(ns).Get(name)
+	oc, err := c.cli.OnecloudV1alpha1().OnecloudClusters(ns).Get(context.Background(), name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		klog.Infof("OnecloudCluster has been deleted %v", key)
 		return nil
 	}
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get OnecloudCluster %s: %v", name, err)
 	}
 
 	tmpOc := oc.DeepCopy()
 	scheme.Scheme.Default(tmpOc)
+	updatedOc, err := c.cli.OnecloudV1alpha1().OnecloudClusters(ns).Update(context.Background(), tmpOc, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to update OnecloudCluster %s: %v", tmpOc.GetName(), err)
+	}
 
-	return c.syncCluster(tmpOc)
+	return c.syncCluster(updatedOc)
 }
 
 func (c *Controller) syncCluster(oc *v1alpha1.OnecloudCluster) error {
