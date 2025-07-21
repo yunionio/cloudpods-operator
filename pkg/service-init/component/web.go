@@ -76,9 +76,15 @@ map $http_upgrade $connection_upgrade {
 server {
 	{{- if .UseHTTP}}
     listen 80 default_server;
+	{{- if .EnableIPv6}}
+    listen [::]:80 default_server;
+	{{- end }}
     server_name _;
 	{{- else }}
     listen 443 default_server ssl;
+	{{- if .EnableIPv6}}
+    listen [::]:443 default_server ssl;
+	{{- end }}
     server_name _;
     ssl_certificate /etc/yunion/pki/service.crt;
     ssl_certificate_key /etc/yunion/pki/service.key;
@@ -287,6 +293,7 @@ type WebNginxConfig struct {
 	APIGatewayURL   string
 	GlanceURL       string
 	UseHTTP         bool
+	EnableIPv6      bool
 }
 
 func (c WebNginxConfig) GetContent() (string, error) {
@@ -313,6 +320,7 @@ func (w web) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClust
 		APIGatewayURL:   urlF(v1alpha1.APIGatewayComponentType, constants.APIGatewayPort),
 		GlanceURL:       urlF(v1alpha1.GlanceComponentType, constants.GlanceAPIPort),
 		UseHTTP:         oc.Spec.Web.UseHTTP,
+		EnableIPv6:      oc.Spec.IPv6Cluster,
 	}
 	return config.GetContent()
 }

@@ -27,7 +27,10 @@ func NewConnection(info *apis.Clickhouse) (dbutil.IConnection, error) {
 	username := info.Username
 	password := info.Password
 
-	connStr := fmt.Sprintf("tcp://%s:%d?read_timeout=10&write_timeout=20&username=%s&password=%s", host, port, username, password)
+	// Format host for ClickHouse connection (handle IPv6 addresses)
+	formattedHost := dbutil.FormatHost(host)
+
+	connStr := fmt.Sprintf("tcp://%s:%d?read_timeout=10&write_timeout=20&username=%s&password=%s", formattedHost, port, username, password)
 	db, err := sql.Open("clickhouse", connStr)
 	if err != nil {
 		return nil, errors.Wrap(err, "Connect to database")
