@@ -65,13 +65,17 @@ func (m *ovnNorthManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 }
 
 func (m *ovnNorthManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
+	cmds := []string{"/start.sh", "north"}
+	if oc.Spec.IPv6Cluster {
+		cmds = append(cmds, "ipv6")
+	}
 	containersF := func(volMounts []corev1.VolumeMount) []corev1.Container {
 		return []corev1.Container{
 			{
 				Name:            v1alpha1.OvnNorthComponentType.String(),
 				Image:           oc.Spec.OvnNorth.Image,
 				ImagePullPolicy: oc.Spec.OvnNorth.ImagePullPolicy,
-				Command:         []string{"/start.sh", "north"},
+				Command:         cmds,
 				SecurityContext: &corev1.SecurityContext{
 					Capabilities: &corev1.Capabilities{
 						Add: []corev1.Capability{

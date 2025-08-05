@@ -214,7 +214,7 @@ type OnecloudClusterSpec struct {
 	// EnableS3Gateway
 	EnableS3Gateway bool `json:"enableS3Gateway"`
 	// IPv6Cluster enables IPv6 support for cluster networking
-	IPv6Cluster bool `json:"IPv6Cluster"`
+	IPv6Cluster bool `json:"ipv6Cluster"`
 	// ProductVersion defines which product version used
 	ProductVersion ProductVersion `json:"productVersion"`
 	// UseHyperImage uses the cloudpods packed image to run components

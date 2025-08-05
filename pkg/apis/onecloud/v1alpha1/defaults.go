@@ -54,7 +54,7 @@ const (
 
 	DefaultOvnVersion   = "2.12.4"
 	DefaultOvnImageName = "openvswitch"
-	DefaultOvnImageTag  = DefaultOvnVersion + "-2"
+	DefaultOvnImageTag  = DefaultOvnVersion + "-4"
 
 	DefaultSdnAgentImageName = "sdnagent"
 
