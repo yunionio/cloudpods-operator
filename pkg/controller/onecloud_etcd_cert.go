@@ -102,6 +102,7 @@ func getServerAltNames(
 		},
 		IPs: []net.IP{
 			net.ParseIP("127.0.0.1"),
+			net.ParseIP("::1"),
 		},
 	}
 

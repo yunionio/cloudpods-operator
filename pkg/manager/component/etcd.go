@@ -330,6 +330,7 @@ func (m *etcdManager) startSeedMember() error {
 		Namespace:    m.oc.GetNamespace(),
 		SecurePeer:   m.isSecure(),
 		SecureClient: m.isSecure(),
+		IPv6Cluster:  m.oc.Spec.IPv6Cluster,
 	}
 	ms := etcdutil.NewMemberSet(mb)
 	if err := m.createPod(ms, mb, "new"); err != nil {
@@ -489,7 +490,7 @@ func (m *etcdManager) newEtcdCommand(mb *etcdutil.Member, state, token string, i
 }
 
 func (m *etcdManager) removePod(name string) error {
-	ns := m.oc.Namespace
+	ns := m.oc.GetNamespace()
 	opts := metav1.NewDeleteOptions(podTerminationGracePeriod)
 	err := m.kubeCli.CoreV1().Pods(ns).Delete(context.Background(), name, *opts)
 	if err != nil {
@@ -501,7 +502,7 @@ func (m *etcdManager) removePod(name string) error {
 }
 
 func (m *etcdManager) pollPods() (running, pending, failed []*corev1.Pod, err error) {
-	podList, err := m.kubeCli.CoreV1().Pods(m.oc.Namespace).List(context.Background(), k8sutil.ClusterListOpt(m.getEtcdClusterPrefix()))
+	podList, err := m.kubeCli.CoreV1().Pods(m.oc.GetNamespace()).List(context.Background(), k8sutil.ClusterListOpt(m.getEtcdClusterPrefix()))
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to list running pods: %v", err)
 	}
@@ -632,11 +633,11 @@ func (m *etcdManager) reportFailedStatus() {
 
 func (m *etcdManager) setupServices() error {
 	errs := make([]error, 0)
-	if err := CreateClientService(m.kubeCli, m.getEtcdClusterPrefix(), m.oc.Namespace, controller.GetOwnerRef(m.oc), m.oc.Spec.Etcd.ClientNodePort); err != nil {
+	if err := CreateClientService(m.kubeCli, m.getEtcdClusterPrefix(), m.oc.GetNamespace(), controller.GetOwnerRef(m.oc), m.oc.Spec.Etcd.ClientNodePort); err != nil {
 		errs = append(errs, errors.Wrap(err, "create etcd client service"))
 	}
 
-	if err := CreatePeerService(m.kubeCli, m.getEtcdClusterPrefix(), m.oc.Namespace, controller.GetOwnerRef(m.oc)); err != nil {
+	if err := CreatePeerService(m.kubeCli, m.getEtcdClusterPrefix(), m.oc.GetNamespace(), controller.GetOwnerRef(m.oc)); err != nil {
 		errs = append(errs, errors.Wrap(err, "create etcd peer service"))
 	}
 	return errors.NewAggregate(errs)
@@ -791,7 +792,7 @@ Loop:
 				break Loop
 			}
 			if rerr != nil || m.members == nil {
-				rerr = m.updateMembers(podsToMemberSet(running, m.isSecure()))
+				rerr = m.updateMembers(m.podsToMemberSet(running))
 				if rerr != nil {
 					log.Errorf("failed to update members: %v", rerr)
 					break
@@ -840,7 +841,7 @@ func (m *etcdManager) reconcile(pods []*corev1.Pod) error {
 	}()
 
 	sp := m.oc.Spec.Etcd
-	running := podsToMemberSet(pods, m.isSecure())
+	running := m.podsToMemberSet(pods)
 	if !running.IsEqual(m.members) || m.members.Size() != sp.Size {
 		return m.reconcileMembers(running)
 	}
@@ -943,9 +944,10 @@ func (m *etcdManager) newMember() *etcdutil.Member {
 	name := k8sutil.UniqueMemberName(m.getEtcdClusterPrefix())
 	mb := &etcdutil.Member{
 		Name:         name,
-		Namespace:    m.oc.Namespace,
+		Namespace:    m.oc.GetNamespace(),
 		SecurePeer:   m.isSecure(),
 		SecureClient: m.isSecure(),
+		IPv6Cluster:  m.oc.Spec.IPv6Cluster,
 	}
 
 	//if m.oc.Spec.Etcd.Pod != nil {
@@ -1010,7 +1012,7 @@ func (m *etcdManager) cleanAllMembers() error {
 }
 
 func (m *etcdManager) removePVC(pvcName string) error {
-	err := m.kubeCli.CoreV1().PersistentVolumeClaims(m.oc.Namespace).Delete(context.Background(), pvcName, metav1.DeleteOptions{})
+	err := m.kubeCli.CoreV1().PersistentVolumeClaims(m.oc.GetNamespace()).Delete(context.Background(), pvcName, metav1.DeleteOptions{})
 	if err != nil && !k8sutil.IsKubernetesResourceNotFoundError(err) {
 		return fmt.Errorf("remove pvc (%s) failed: %v", pvcName, err)
 	}
@@ -1031,10 +1033,11 @@ func (m *etcdManager) updateMembers(known etcdutil.MemberSet) error {
 
 		members[name] = &etcdutil.Member{
 			Name:         name,
-			Namespace:    m.oc.Namespace,
+			Namespace:    m.oc.GetNamespace(),
 			ID:           mb.ID,
 			SecurePeer:   m.isSecure(),
 			SecureClient: m.isSecure(),
+			IPv6Cluster:  m.oc.Spec.IPv6Cluster,
 		}
 	}
 	m.members = members
@@ -1042,7 +1045,7 @@ func (m *etcdManager) updateMembers(known etcdutil.MemberSet) error {
 }
 
 func (m *etcdManager) upgradeOneMember(memberName string) error {
-	ns := m.oc.Namespace
+	ns := m.oc.GetNamespace()
 	pod, err := m.kubeCli.CoreV1().Pods(ns).Get(context.Background(), memberName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("fail to get pod (%s): %v", memberName, err)
@@ -1079,11 +1082,16 @@ func pickOneOldMember(pods []*corev1.Pod, newVersion string) *etcdutil.Member {
 	return nil
 }
 
-func podsToMemberSet(pods []*corev1.Pod, sc bool) etcdutil.MemberSet {
+func (m *etcdManager) podsToMemberSet(pods []*corev1.Pod) etcdutil.MemberSet {
 	members := etcdutil.MemberSet{}
 	for _, pod := range pods {
-		m := &etcdutil.Member{Name: pod.Name, Namespace: pod.Namespace, SecureClient: sc}
-		members.Add(m)
+		member := &etcdutil.Member{
+			Name:         pod.Name,
+			Namespace:    pod.Namespace,
+			SecureClient: m.isSecure(),
+			IPv6Cluster:  m.oc.Spec.IPv6Cluster,
+		}
+		members.Add(member)
 	}
 	return members
 }
