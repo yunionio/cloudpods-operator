@@ -7,6 +7,7 @@ import (
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/controller"
+	"yunion.io/x/onecloud-operator/pkg/util/dbutil"
 	"yunion.io/x/onecloud-operator/pkg/util/option"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -60,7 +61,7 @@ func (r webconsole) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.Oneclo
 	address := oc.Spec.LoadBalancerEndpoint
 	opt.Port = constants.WebconsolePort
 	// opt.ApiServer = fmt.Sprintf("https://%s:%d", address, constants.WebconsolePort)
-	opt.ApiServer = fmt.Sprintf("https://%s", address)
+	opt.ApiServer = fmt.Sprintf("https://%s", dbutil.FormatHost(address))
 
 	return opt, nil
 }
