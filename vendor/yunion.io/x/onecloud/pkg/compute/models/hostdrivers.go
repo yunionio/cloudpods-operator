@@ -49,7 +49,7 @@ type IHostDriver interface {
 	// create disk
 	RequestAllocateDiskOnStorage(ctx context.Context, userCred mcclient.TokenCredential, host *SHost, storage *SStorage, disk *SDisk, task taskman.ITask, input api.DiskAllocateInput) error
 	RequestRebuildDiskOnStorage(ctx context.Context, host *SHost, storage *SStorage, disk *SDisk, task taskman.ITask, input api.DiskAllocateInput) error
-
+	RequestRemoteUpdateDisk(ctx context.Context, userCred mcclient.TokenCredential, storage *SStorage, disk *SDisk, replaceTags bool) error
 	// delete disk
 	RequestDeallocateDiskOnHost(ctx context.Context, host *SHost, storage *SStorage, disk *SDisk, cleanSnapshots bool, task taskman.ITask) error
 	RequestDeallocateBackupDiskOnHost(ctx context.Context, host *SHost, storage *SStorage, disk *SDisk, task taskman.ITask) error
@@ -78,6 +78,7 @@ type IHostDriver interface {
 	RequestDetachStorage(ctx context.Context, host *SHost, storage *SStorage, task taskman.ITask) error
 	RequestSyncOnHost(ctx context.Context, host *SHost, task taskman.ITask) error
 	RequestProbeIsolatedDevices(ctx context.Context, userCred mcclient.TokenCredential, host *SHost, input jsonutils.JSONObject) (*jsonutils.JSONArray, error)
+	RequestUploadGuestsStatus(ctx context.Context, host *SHost, guests []SGuest, task taskman.ITask) error
 }
 
 var hostDrivers map[string]IHostDriver

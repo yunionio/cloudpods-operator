@@ -81,6 +81,9 @@ type IQueryField interface {
 	// return variables
 	Variables() []interface{}
 
+	// ConvertFromValue returns the SQL representation of a value for this
+	ConvertFromValue(val interface{}) interface{}
+
 	// Database returns the database of this IQuerySource
 	database() *SDatabase
 }
@@ -195,11 +198,30 @@ func queryString(tq *SQuery, tmpFields ...IQueryField) string {
 	}
 	if tq.groupBy != nil && len(tq.groupBy) > 0 {
 		buf.WriteString(" GROUP BY ")
-		for i, f := range tq.groupBy {
+		groupByFields := make(map[string]IQueryField)
+		for i := range tq.groupBy {
+			f := tq.groupBy[i]
+			if _, ok := groupByFields[f.Reference()]; ok {
+				continue
+			}
 			if i > 0 {
 				buf.WriteString(", ")
 			}
 			buf.WriteString(f.Reference())
+			groupByFields[f.Reference()] = f
+		}
+		// DAMENG SQL Compatibility, all order by fields should be in group by
+		for i := range tq.orderBy {
+			f := tq.orderBy[i]
+			if _, ok := groupByFields[f.field.Reference()]; ok {
+				continue
+			}
+			if ff, ok := f.field.(IFunctionQueryField); ok && ff.IsAggregate() {
+				continue
+			}
+			buf.WriteString(", ")
+			buf.WriteString(f.field.Reference())
+			groupByFields[f.field.Reference()] = f.field
 		}
 	}
 	/*if tq.having != nil {
@@ -208,7 +230,8 @@ func queryString(tq *SQuery, tmpFields ...IQueryField) string {
 	}*/
 	if tq.orderBy != nil && len(tq.orderBy) > 0 {
 		buf.WriteString(" ORDER BY ")
-		for i, f := range tq.orderBy {
+		for i := range tq.orderBy {
+			f := tq.orderBy[i]
 			if i > 0 {
 				buf.WriteString(", ")
 			}

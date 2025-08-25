@@ -20,11 +20,13 @@ import (
 	"fmt"
 	"path"
 	"strconv"
+	"strings"
 
 	"yunion.io/x/cloudmux/pkg/cloudprovider"
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
 	"yunion.io/x/pkg/errors"
+	"yunion.io/x/pkg/gotypes"
 	"yunion.io/x/pkg/tristate"
 	"yunion.io/x/pkg/util/compare"
 	"yunion.io/x/pkg/util/rbacscope"
@@ -88,7 +90,7 @@ type SStorage struct {
 	// example: ssd
 	MediumType string `width:"32" charset:"ascii" nullable:"false" list:"user" update:"domain" create:"domain_required"`
 	// 超售比
-	Cmtbound float32 `nullable:"true" default:"1" list:"domain" update:"domain"`
+	Cmtbound float32 `nullable:"true" list:"domain"`
 	// 存储配置信息
 	StorageConf jsonutils.JSONObject `nullable:"true" get:"domain" list:"domain" update:"domain"`
 
@@ -117,11 +119,14 @@ func (self *SStorage) ValidateUpdateData(ctx context.Context, userCred mcclient.
 	if err != nil {
 		return input, err
 	}
-	input.StorageConf = jsonutils.NewDict()
+
+	if gotypes.IsNil(input.StorageConf) {
+		input.StorageConf = jsonutils.NewDict()
+	}
 	if self.StorageConf != nil {
 		confs, _ := self.StorageConf.GetMap()
 		for k, v := range confs {
-			if !input.StorageConf.Contains(k) {
+			if input.StorageConf.Contains(k) {
 				continue
 			}
 			input.StorageConf.Set(k, v)
@@ -756,9 +761,9 @@ func (self *SStorage) GetUsedCapacity(isReady tristate.TriState) int64 {
 	}
 }
 
-func (self *SStorage) GetOvercommitBound() float32 {
-	if self.Cmtbound > 0 {
-		return self.Cmtbound
+func (storage *SStorage) GetOvercommitBound() float32 {
+	if storage.Cmtbound > 0 {
+		return storage.Cmtbound
 	} else {
 		return options.Options.DefaultStorageOvercommitBound
 	}
@@ -1103,13 +1108,17 @@ func (self *SStorage) syncWithCloudStorage(ctx context.Context, userCred mcclien
 		// self.Name = extStorage.GetName()
 		self.Status = ext.GetStatus()
 		self.StorageType = ext.GetStorageType()
-		self.MediumType = ext.GetMediumType()
-		if capacity := ext.GetCapacityMB(); capacity != 0 {
-			self.Capacity = capacity
+
+		if provider != nil && !utils.IsInStringArray(provider.Provider, strings.Split(options.Options.SkipSyncStorageConfigInfoProviders, ",")) {
+			self.MediumType = ext.GetMediumType()
+			if capacity := ext.GetCapacityMB(); capacity != 0 {
+				self.Capacity = capacity
+			}
+			if capacity := ext.GetCapacityUsedMB(); capacity != 0 {
+				self.ActualCapacityUsed = capacity
+			}
 		}
-		if capacity := ext.GetCapacityUsedMB(); capacity != 0 {
-			self.ActualCapacityUsed = capacity
-		}
+
 		self.StorageConf = ext.GetStorageConf()
 
 		self.Enabled = tristate.NewFromBool(ext.GetEnabled())
@@ -1508,6 +1517,7 @@ func (self *SStorage) createDisk(ctx context.Context, name string, diskConfig *a
 	disk.Iops = diskConfig.Iops
 	disk.Throughput = diskConfig.Throughput
 	disk.Preallocation = diskConfig.Preallocation
+	disk.AutoReset = diskConfig.AutoReset
 
 	if self.MediumType == api.DISK_TYPE_SSD {
 		disk.IsSsd = true
@@ -1684,6 +1694,19 @@ func (manager *SStorageManager) InitializeData() error {
 			}
 		}
 	}
+	sq := CloudproviderManager.Query("id").Equals("provider", api.CLOUD_PROVIDER_ALIYUN).SubQuery()
+	q = manager.Query().NotEquals("medium_type", api.DISK_TYPE_SSD).In("manager_id", sq)
+	storages = make([]SStorage, 0)
+	err = db.FetchModelObjects(manager, q, &storages)
+	if err != nil {
+		return err
+	}
+	for i := range storages {
+		db.Update(&storages[i], func() error {
+			storages[i].MediumType = api.DISK_TYPE_SSD
+			return nil
+		})
+	}
 	return nil
 }
 
@@ -1734,6 +1757,10 @@ func (manager *SStorageManager) ListItemFilter(
 
 	if query.Local != nil && *query.Local {
 		q = q.Filter(sqlchemy.In(q.Field("storage_type"), api.STORAGE_LOCAL_TYPES))
+	}
+
+	if len(query.StorageType) > 0 {
+		q = q.Equals("storage_type", query.StorageType)
 	}
 
 	if len(query.SchedtagId) > 0 {
@@ -1928,6 +1955,26 @@ func (self *SStorage) GetDynamicConditionInput() *jsonutils.JSONDict {
 
 func (self *SStorage) PerformSetSchedtag(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
 	return PerformSetResourceSchedtag(self, ctx, userCred, query, data)
+}
+
+func (self *SStorage) PerformSetCommitBound(
+	ctx context.Context,
+	userCred mcclient.TokenCredential,
+	query jsonutils.JSONObject,
+	input api.StorageSetCmtBoundInput,
+) (jsonutils.JSONObject, error) {
+	_, err := db.Update(self, func() error {
+		if input.Cmtbound != nil {
+			self.Cmtbound = *input.Cmtbound
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	db.OpsLog.LogEvent(self, db.ACT_SET_COMMIT_BOUND, input, userCred)
+	logclient.AddActionLogWithContext(ctx, self, logclient.ACT_SET_COMMIT_BOUND, input, userCred, true)
+	return nil, nil
 }
 
 func (self *SStorage) GetSchedtagJointManager() ISchedtagJointManager {

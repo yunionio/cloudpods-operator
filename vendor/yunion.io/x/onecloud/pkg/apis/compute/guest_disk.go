@@ -34,6 +34,8 @@ type GuestDiskDetails struct {
 	// 磁盘类型
 	// example: data
 	DiskType string `json:"disk_type"`
+	// 关机自动重置
+	AutoReset bool `json:"auto_reset"`
 	// 介质类型
 	// example: ssd
 	MediumType string `json:"medium_type"`
@@ -91,6 +93,7 @@ type GuestdiskJsonDesc struct {
 	Dev           string `json:"dev"`
 	IsSSD         bool   `json:"is_ssd"`
 	NumQueues     uint8  `json:"num_queues"`
+	AutoReset     bool   `json:"auto_reset"`
 
 	// esxi
 	ImageInfo struct {

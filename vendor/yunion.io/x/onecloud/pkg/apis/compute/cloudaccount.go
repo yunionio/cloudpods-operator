@@ -338,7 +338,7 @@ type CloudaccountDetail struct {
 	SyncIntervalSeconds int `json:"sync_interval_seconds"`
 
 	// 同步状态
-	SyncStatus2 string `json:"sync_stauts2"`
+	SyncStatus2 string `json:"sync_status2"`
 
 	// 云账号环境类型
 	// public: 公有云
@@ -560,12 +560,12 @@ type SyncRangeInput struct {
 	Zone   []string `json:"zone"`
 	Host   []string `json:"host"`
 
-	// swagger: ignore
+	// swagger:ignore
 	SkipSyncResources []string `json:"skip_sync_resources"`
 
 	// 按资源类型同步，可输入多个
 	// enmu: project, compute, network, eip, loadbalancer, objectstore, rds, cache, event, cloudid, dnszone, public_ip, intervpcnetwork, saml_auth, quota, nat, nas, waf, mongodb, es, kafka, app, cdn, container, ipv6_gateway, tablestore, modelarts, vpcpeer, misc
-	Resources []string `json:"resources" choices:"project|compute|network|eip|loadbalancer|objectstore|rds|cache|event|cloudid|dnszone|public_ip|intervpcnetwork|saml_auth|quota|nat|nas|waf|mongodb|es|kafka|app|cdn|container|ipv6_gateway|tablestore|modelarts|vpcpeer|misc"`
+	Resources []string `json:"resources" choices:"project|compute|network|eip|loadbalancer|objectstore|rds|cache|event|cloudid|dnszone|public_ip|intervpcnetwork|saml_auth|quota|nat|nas|waf|mongodb|es|kafka|app|cdn|container|ipv6_gateway|tablestore|modelarts|vpcpeer|misc|image"`
 }
 
 type iRes interface {

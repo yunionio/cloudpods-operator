@@ -18,6 +18,8 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -33,8 +35,9 @@ const (
 	TELEGRAF_INPUT_RADEONTOP           = "radeontop"
 	TELEGRAF_INPUT_RADEONTOP_DEV_PATHS = "device_paths"
 	TELEGRAF_INPUT_CONF_BIN_PATH       = "bin_path"
-	TELEGAF_INPUT_NETDEV               = "ni_rsrc_mon"
-	TELEGAF_INPUT_VASMI                = "vasmi"
+	TELEGRAF_INPUT_NETDEV              = "ni_rsrc_mon"
+	TELEGRAF_INPUT_VASMI               = "vasmi"
+	TELEGRAF_INPUT_NVIDIASMI           = "nvidia-smi"
 )
 
 type STelegraf struct {
@@ -210,14 +213,18 @@ func (s *STelegraf) GetConfig(kwargs map[string]interface{}) string {
 	}
 	ignorePathSegments := []string{
 		"/run/k3s/containerd/",
+		"/run/onecloud/containerd/",
+		"/var/lib/",
 	}
-	ignorePathSegments = append(ignorePathSegments, kwargs["server_path"].(string))
+	if sp, ok := kwargs["server_path"]; ok {
+		ignorePathSegments = append(ignorePathSegments, sp.(string))
+	}
 	for i := range ignorePathSegments {
 		ignorePathSegments[i] = fmt.Sprintf("%q", ignorePathSegments[i])
 	}
 	conf += "  ignore_mount_points = [" + strings.Join(ignoreMountPoints, ", ") + "]\n"
 	conf += "  ignore_path_segments = [" + strings.Join(ignorePathSegments, ", ") + "]\n"
-	conf += "  ignore_fs = [\"tmpfs\", \"devtmpfs\", \"devfs\", \"overlay\", \"squashfs\", \"iso9660\", \"rootfs\", \"hugetlbfs\", \"autofs\", \"aufs\"]\n"
+	conf += "  ignore_fs = [\"devtmpfs\", \"devfs\", \"overlayfs\", \"overlay\", \"squashfs\", \"iso9660\", \"rootfs\", \"hugetlbfs\", \"autofs\", \"aufs\"]\n"
 	conf += "\n"
 	conf += "[[inputs.diskio]]\n"
 	conf += "  skip_serial_number = false\n"
@@ -286,7 +293,7 @@ func (s *STelegraf) GetConfig(kwargs map[string]interface{}) string {
 	conf += "[[inputs.linux_sysctl_fs]]\n"
 	conf += "\n"
 	conf += "[[inputs.http_listener_v2]]\n"
-	conf += "  service_address = \"127.0.0.1:8087\"\n"
+	conf += "  service_address = \"localhost:8087\"\n"
 	conf += "  path = \"/write\"\n"
 	conf += "  data_source = \"body\"\n"
 	conf += "  data_format = \"influx\"\n"
@@ -315,24 +322,46 @@ func (s *STelegraf) GetConfig(kwargs map[string]interface{}) string {
 		conf += "\n"
 	}
 
-	if netdev, ok := kwargs[TELEGAF_INPUT_NETDEV]; ok {
+	if netdev, ok := kwargs[TELEGRAF_INPUT_NETDEV]; ok {
 		netdevMap, _ := netdev.(map[string]interface{})
-		conf += fmt.Sprintf("[[inputs.%s]]\n", TELEGAF_INPUT_NETDEV)
+		conf += fmt.Sprintf("[[inputs.%s]]\n", TELEGRAF_INPUT_NETDEV)
 		conf += fmt.Sprintf("  bin_path = \"%s\"\n", netdevMap[TELEGRAF_INPUT_CONF_BIN_PATH].(string))
 		conf += "\n"
 	}
 
-	if vasmi, ok := kwargs[TELEGAF_INPUT_VASMI]; ok {
+	if vasmi, ok := kwargs[TELEGRAF_INPUT_VASMI]; ok {
 		vasmiMap, _ := vasmi.(map[string]interface{})
-		conf += fmt.Sprintf("[[inputs.%s]]\n", TELEGAF_INPUT_VASMI)
+		conf += fmt.Sprintf("[[inputs.%s]]\n", TELEGRAF_INPUT_VASMI)
 		conf += fmt.Sprintf("  bin_path = \"%s\"\n", vasmiMap[TELEGRAF_INPUT_CONF_BIN_PATH].(string))
 		conf += "\n"
 	}
+
+	if _, ok := kwargs[TELEGRAF_INPUT_NVIDIASMI]; ok {
+		conf += "[[inputs.nvidia_smi]]\n"
+		conf += "\n"
+	}
+
 	return conf
 }
 
 func (s *STelegraf) GetConfigFile() string {
-	return "/etc/telegraf/telegraf.conf"
+	dir := getTelegrafConfigDir()
+	procutils.NewRemoteCommandAsFarAsPossible("mkdir", "-p", dir).Run()
+	return filepath.Join(dir, "telegraf.conf")
+}
+
+func getTelegrafConfigDir() string {
+	defaultTelegrafConfigDir := "/etc/telegraf"
+	telegrafConfigDir := os.Getenv("HOST_TELEGRAF_CONFIG_DIR")
+	if telegrafConfigDir == "" {
+		telegrafConfigDir = defaultTelegrafConfigDir
+	}
+	return telegrafConfigDir
+}
+
+func GetTelegrafConfDDir() string {
+	dir := getTelegrafConfigDir()
+	return filepath.Join(dir, "telegraf.d")
 }
 
 func (s *STelegraf) Reload(kwargs map[string]interface{}) error {
@@ -389,7 +418,7 @@ func (s *STelegraf) reloadTelegrafByDocker() error {
 }
 
 func (s *STelegraf) reloadTelegrafByHTTP() error {
-	telegrafReoladUrl := "http://127.0.0.1:8087/reload"
+	telegrafReoladUrl := "http://localhost:8087/reload"
 	log.Infof("Reloading telegraf by %q ...", telegrafReoladUrl)
 	if _, _, err := httputils.JSONRequest(
 		httputils.GetDefaultClient(), context.Background(),

@@ -72,6 +72,8 @@ type IColumnSpec interface {
 	// IsNumeric returns whether this column is a numeric type column, e.g. integer or float
 	IsNumeric() bool
 
+	GetWidth() int
+
 	// ConvertFromString returns the SQL representation of a value in string format for this column
 	ConvertFromString(str string) interface{}
 
@@ -304,6 +306,10 @@ func (c *SBaseColumn) SetColIndex(idx int) {
 	c.colIndex = idx
 }
 
+func (c *SBaseColumn) GetWidth() int {
+	return 0
+}
+
 // NewBaseColumn returns an instance of SBaseColumn
 func NewBaseColumn(name string, sqltype string, tagmap map[string]string, isPointer bool) SBaseColumn {
 	var val string
@@ -382,6 +388,10 @@ func (c *SBaseWidthColumn) ColType() string {
 	return c.sqlType
 }
 
+func (c *SBaseWidthColumn) GetWidth() int {
+	return c.width
+}
+
 // NewBaseWidthColumn return an instance of SBaseWidthColumn
 func NewBaseWidthColumn(name string, sqltype string, tagmap map[string]string, isPointer bool) SBaseWidthColumn {
 	width := 0
@@ -412,6 +422,9 @@ func (c *SBaseCompoundColumn) ConvertFromValue(val interface{}) interface{} {
 	bVal, ok := val.(gotypes.ISerializable)
 	if ok && bVal != nil {
 		return bVal.String()
+	}
+	if _, ok := val.(string); ok {
+		return val
 	}
 	return jsonutils.Marshal(val).String()
 }

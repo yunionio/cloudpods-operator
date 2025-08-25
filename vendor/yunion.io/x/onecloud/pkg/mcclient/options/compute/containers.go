@@ -25,12 +25,14 @@ import (
 
 	"yunion.io/x/onecloud/pkg/apis"
 	computeapi "yunion.io/x/onecloud/pkg/apis/compute"
+	"yunion.io/x/onecloud/pkg/mcclient/modules/compute"
 	"yunion.io/x/onecloud/pkg/mcclient/options"
 )
 
 type ContainerListOptions struct {
 	options.BaseListOptions
 	GuestId string `json:"guest_id" help:"guest(pod) id or name"`
+	HostId  string `json:"host_id" help:"host id or name"`
 }
 
 func (o *ContainerListOptions) Params() (jsonutils.JSONObject, error) {
@@ -52,6 +54,7 @@ type ContainerCreateCommonOptions struct {
 	Args              []string `help:"Args for the Command (i.e. command for docker)" json:"args"`
 	WorkingDir        string   `help:"Current working directory of the command" json:"working_dir"`
 	Env               []string `help:"List of environment variable to set in the container and the format is: <key>=<value>"`
+	RootFs            string   `help:"Root filesystem of the container, e.g.: disk_index=<disk_number>,disk_id=<disk_id>"`
 	VolumeMount       []string `help:"Volume mount of the container and the format is: name=<val>,mount=<container_path>,readonly=<true_or_false>,case_insensitive_paths=p1,p2,disk_index=<disk_number>,disk_id=<disk_id>"`
 	Device            []string `help:"Host device: <host_path>:<container_path>:<permissions>, e.g.: /dev/snd:/dev/snd:rwm"`
 	Privileged        bool     `help:"Privileged mode"`
@@ -65,6 +68,7 @@ type ContainerCreateCommonOptions struct {
 	Uid               int64    `help:"UID of container" default:"0"`
 	Gid               int64    `help:"GID of container" default:"0"`
 	DisableNoNewPrivs bool     `help:"Disable no_new_privs flag of the container"`
+	Apparmor          string   `help:"Apparmor profile for container"`
 }
 
 func (o ContainerCreateCommonOptions) getCreateSpec() (*computeapi.ContainerSpec, error) {
@@ -96,6 +100,9 @@ func (o ContainerCreateCommonOptions) getCreateSpec() (*computeapi.ContainerSpec
 	if o.Gid > 0 {
 		req.ContainerSpec.SecurityContext.RunAsGroup = &o.Gid
 	}
+	if o.Apparmor != "" {
+		req.ContainerSpec.SecurityContext.ApparmorProfile = o.Apparmor
+	}
 	if len(o.PostStartExec) != 0 {
 		req.Lifecyle = &apis.ContainerLifecyle{
 			PostStart: &apis.ContainerLifecyleHandler{
@@ -118,6 +125,13 @@ func (o ContainerCreateCommonOptions) getCreateSpec() (*computeapi.ContainerSpec
 			return nil, errors.Wrapf(err, "parseContainerEnv %s", env)
 		}
 		req.Envs = append(req.Envs, e)
+	}
+	if len(o.RootFs) != 0 {
+		rootFs, err := parseContainerRootFs(o.RootFs)
+		if err != nil {
+			return nil, errors.Wrapf(err, "parseContainerRootFs %s", o.RootFs)
+		}
+		req.RootFs = rootFs
 	}
 	for _, vmStr := range o.VolumeMount {
 		vm, err := parseContainerVolumeMount(vmStr)
@@ -166,6 +180,32 @@ func parseContainerEnv(env string) (*apis.ContainerKeyValue, error) {
 		Key:   kv[0],
 		Value: kv[1],
 	}, nil
+}
+
+func parseContainerRootFs(rootFs string) (*apis.ContainerRootfs, error) {
+	out := &apis.ContainerRootfs{
+		Type: apis.CONTAINER_VOLUME_MOUNT_TYPE_DISK,
+		Disk: &apis.ContainerVolumeMountDisk{},
+	}
+	for _, seg := range strings.Split(rootFs, ",") {
+		info := strings.Split(seg, "=")
+		if len(info) != 2 {
+			return nil, errors.Errorf("invalid option %s", seg)
+		}
+		key := info[0]
+		val := info[1]
+		switch key {
+		case "disk_index":
+			index, err := strconv.Atoi(val)
+			if err != nil {
+				return nil, errors.Wrapf(err, "wrong disk_index %s", val)
+			}
+			out.Disk.Index = &index
+		case "disk_id":
+			out.Disk.Id = val
+		}
+	}
+	return out, nil
 }
 
 func parseContainerVolumeMount(vmStr string) (*apis.ContainerVolumeMount, error) {
@@ -302,18 +342,22 @@ type ContainerStartOptions struct {
 
 type ContainerSaveVolumeMountImage struct {
 	options.ResourceIdOptions
-	IMAGENAME    string `help:"Image name"`
-	INDEX        int    `help:"Index of volume mount"`
-	GenerateName string `help:"Generate image name automatically"`
-	Notes        string `help:"Extra notes of the image"`
+	IMAGENAME         string   `help:"Image name"`
+	INDEX             int      `help:"Index of volume mount"`
+	GenerateName      string   `help:"Generate image name automatically"`
+	Notes             string   `help:"Extra notes of the image"`
+	UsedByPostOverlay bool     `help:"Used by voluem mount post-overlay"`
+	Dirs              []string `help:"Internal directories"`
 }
 
 func (o ContainerSaveVolumeMountImage) Params() (jsonutils.JSONObject, error) {
 	return jsonutils.Marshal(&computeapi.ContainerSaveVolumeMountToImageInput{
-		Name:         o.IMAGENAME,
-		GenerateName: o.GenerateName,
-		Notes:        o.Notes,
-		Index:        o.INDEX,
+		Name:              o.IMAGENAME,
+		GenerateName:      o.GenerateName,
+		Notes:             o.Notes,
+		Index:             o.INDEX,
+		Dirs:              o.Dirs,
+		UsedByPostOverlay: o.UsedByPostOverlay,
 	}), nil
 }
 
@@ -324,13 +368,15 @@ type ContainerExecOptions struct {
 	Args    []string
 }
 
-func (o *ContainerExecOptions) ToAPIInput() *computeapi.ContainerExecInput {
+func (o *ContainerExecOptions) ToAPIInput() *compute.ContainerExecInput {
 	cmd := []string{o.COMMAND}
 	cmd = append(cmd, o.Args...)
-	return &computeapi.ContainerExecInput{
+	return &compute.ContainerExecInput{
 		Command: cmd,
-		//Tty:     o.Tty,
-		Tty: true,
+		Tty:     true,
+		Stdin:   os.Stdin,
+		Stdout:  os.Stdout,
+		Stderr:  os.Stderr,
 	}
 }
 
@@ -456,6 +502,7 @@ type ContainerAddVolumeMountPostOverlayOptions struct {
 	ServerIdOptions
 	INDEX     int      `help:"INDEX of volume mount"`
 	MountDesc []string `help:"Mount description, <host_lower_dir>:<container_target_dir>" short-token:"m"`
+	Image     []string `help:"Image name or id"`
 }
 
 func (o *ContainerAddVolumeMountPostOverlayOptions) Params() (jsonutils.JSONObject, error) {
@@ -474,6 +521,15 @@ func (o *ContainerAddVolumeMountPostOverlayOptions) Params() (jsonutils.JSONObje
 			HostLowerDir:       []string{lowerDir},
 			ContainerTargetDir: containerTargetDir,
 		})
+	}
+	if len(o.Image) != 0 {
+		for _, img := range o.Image {
+			input.PostOverlay = append(input.PostOverlay, &apis.ContainerVolumeMountDiskPostOverlay{
+				Image: &apis.ContainerVolumeMountDiskPostImageOverlay{
+					Id: img,
+				},
+			})
+		}
 	}
 	return jsonutils.Marshal(input), nil
 }

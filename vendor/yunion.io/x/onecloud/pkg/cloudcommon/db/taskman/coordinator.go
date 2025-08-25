@@ -17,6 +17,7 @@ package taskman
 import (
 	"context"
 	"reflect"
+	"sync"
 
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
@@ -25,6 +26,14 @@ import (
 	"yunion.io/x/onecloud/pkg/appsrv"
 	"yunion.io/x/onecloud/pkg/cloudcommon/db"
 )
+
+var taskWorkerMap map[string]interface{}
+var taskWorkManLock *sync.Mutex
+
+func init() {
+	taskWorkerMap = make(map[string]interface{})
+	taskWorkManLock = &sync.Mutex{}
+}
 
 /*type TaskStageFunc func(ctx context.Context, obj db.IStandaloneModel, body jsonutils.JSONObject)
 type BatchTaskStageFunc func(ctx context.Context, objs []db.IStandaloneModel, body jsonutils.JSONObject)
@@ -53,6 +62,14 @@ func init() {
 }
 
 func RegisterTaskAndWorker(task interface{}, workerMan *appsrv.SWorkerManager) {
+	registerTaskAndWorkerMan(task, workerMan)
+}
+
+func RegisterTaskAndHashedWorkerManager(task interface{}, workerMan *appsrv.SHashedWorkerManager) {
+	registerTaskAndWorkerMan(task, workerMan)
+}
+
+func registerTaskAndWorkerMan(task interface{}, workerMan interface{}) {
 	taskName := gotypes.GetInstanceTypeName(task)
 	if _, ok := taskTable[taskName]; ok {
 		log.Fatalf("Task %s already registered!", taskName)
@@ -60,13 +77,13 @@ func RegisterTaskAndWorker(task interface{}, workerMan *appsrv.SWorkerManager) {
 	taskType := reflect.Indirect(reflect.ValueOf(task)).Type()
 	taskTable[taskName] = taskType
 	// log.Infof("Task %s registerd", taskName)
-	if workerMan != nil {
-		taskWorkerTable[taskName] = workerMan
+	if workerMan != nil && !gotypes.IsNil(workerMan) {
+		taskWorkerMap[taskName] = workerMan
 	}
 }
 
 func RegisterTask(task interface{}) {
-	RegisterTaskAndWorker(task, nil)
+	registerTaskAndWorkerMan(task, nil)
 }
 
 func isTaskExist(taskName string) bool {
