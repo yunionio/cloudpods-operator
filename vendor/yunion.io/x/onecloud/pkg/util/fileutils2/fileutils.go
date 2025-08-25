@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -30,6 +31,7 @@ import (
 
 	"yunion.io/x/log"
 	"yunion.io/x/pkg/errors"
+	"yunion.io/x/pkg/util/regutils"
 
 	"yunion.io/x/onecloud/pkg/util/procutils"
 )
@@ -146,7 +148,7 @@ func IsBlockDeviceUsed(dev string) bool {
 
 func GetAllBlkdevsIoSchedulers() ([]string, error) {
 	if _, err := os.Stat("/sys/block"); !os.IsNotExist(err) {
-		blockDevs, err := ioutil.ReadDir("/sys/block")
+		blockDevs, err := os.ReadDir("/sys/block")
 		if err != nil {
 			log.Errorf("ReadDir /sys/block error: %s", err)
 			return nil, errors.Wrap(err, "ioutil.ReadDir(/sys/block)")
@@ -212,7 +214,7 @@ func BlockDevIsSsd(dev string) bool {
 
 func ChangeSsdBlkdevsParams(params map[string]string) {
 	if _, err := os.Stat("/sys/block"); !os.IsNotExist(err) {
-		blockDevs, err := ioutil.ReadDir("/sys/block")
+		blockDevs, err := os.ReadDir("/sys/block")
 		if err != nil {
 			log.Errorf("ReadDir /sys/block error: %s", err)
 			return
@@ -233,7 +235,7 @@ func ChangeSsdBlkdevsParams(params map[string]string) {
 
 func ChangeHddBlkdevsParams(params map[string]string) {
 	if _, err := os.Stat("/sys/block"); !os.IsNotExist(err) {
-		blockDevs, err := ioutil.ReadDir("/sys/block")
+		blockDevs, err := os.ReadDir("/sys/block")
 		if err != nil {
 			log.Errorf("ReadDir /sys/block error: %s", err)
 			return
@@ -357,11 +359,30 @@ func (hf HostsFile) String() string {
 	return ret
 }
 
+func FormatHostsFile(content string, ips []string, hostname, hostdomain string) string {
+	hf := make(HostsFile, 0)
+	hf.Parse(content)
+	hf.Add("127.0.0.1", "localhost")
+	isV6 := false
+	for _, ip := range ips {
+		if regutils.MatchIP6Addr(ip) {
+			isV6 = true
+		}
+	}
+	if isV6 {
+		hf.Add("::1", "localhost", "ip6-localhost", "ip6-loopback")
+	}
+	for _, ip := range ips {
+		hf.Add(ip, hostdomain, hostname)
+	}
+	return hf.String()
+}
+
 func FsFormatToDiskType(fsFormat string) string {
 	switch {
 	case fsFormat == "swap":
 		return "linux-swap"
-	case strings.HasPrefix(fsFormat, "ext") || fsFormat == "xfs":
+	case strings.HasPrefix(fsFormat, "ext") || fsFormat == "xfs" || fsFormat == "f2fs":
 		return "ext2"
 	case strings.HasPrefix(fsFormat, "fat"):
 		return "fat32"
@@ -474,10 +495,23 @@ func IsTarGzipFile(fPath string) bool {
 		return false
 	}
 
-	tarReader := tar.NewReader(gzf)
-	_, err = tarReader.Next()
+	return IsTarStream(gzf)
+}
+
+func IsTarStream(f io.Reader) bool {
+	tarReader := tar.NewReader(f)
+	_, err := tarReader.Next()
 	if err != nil {
 		return false
 	}
 	return true
+}
+
+func IsTarFile(fPath string) bool {
+	f, err := os.Open(fPath)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	return IsTarStream(f)
 }

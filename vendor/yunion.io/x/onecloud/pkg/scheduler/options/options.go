@@ -42,15 +42,17 @@ type SchedOptions struct {
 	SchedulerHistoryCleanPeriod string `help:"Scheduler history cleanup period" default:"60s"`
 
 	// parallelization options
-	HostBuildParallelizeSize int `help:"Number of host description build parallelization" default:"14"`
-	PredicateParallelizeSize int `help:"Number of execute predicates parallelization" default:"14"`
-	PriorityParallelizeSize  int `help:"Number of execute priority parallelization" default:"14"`
+	HostBuildParallelizeSize int `help:"Number of host description build parallelization" default:"64"`
+	PredicateParallelizeSize int `help:"Number of execute predicates parallelization" default:"64"`
+	PriorityParallelizeSize  int `help:"Number of execute priority parallelization" default:"64"`
 
 	// expire queue options
 	ExpireQueueConsumptionPeriod  string `help:"Expire queue consumption period" default:"3s"`
 	ExpireQueueConsumptionTimeout string `help:"Expire queue consumption timeout" default:"10s"`
 	ExpireQueueMaxLength          int    `help:"Expire queue max length" default:"1000"`
 	ExpireQueueDealLength         int    `help:"Expire queue deal length" default:"100"`
+
+	ExpireSessionUsageTimeout int `help:"Expire Session usage timeout second" default:"60"`
 
 	// completed queue options
 	CompletedQueueConsumptionPeriod  string `help:"Completed queue consumption period" default:"30s"`
@@ -93,6 +95,9 @@ type SchedOptions struct {
 	ContainerNumaAllocate            bool `help:"Allocate numa pin for container guests" default:"false"`
 	GuestCpusetAllocSequence         bool `help:"Guest alloc cpuset sequence" default:"false"`
 	GuestCpusetAllocSequenceInterval int  `help:"Guest alloc cpuset sequence interval" default:"4"`
+
+	EnableDynamicSchedtag bool `help:"Enable dynamic schedtag feature" default:"false"`
+	EnableAnalysis        bool `help:"Enable analysis feature" default:"false"`
 
 	OpenstackOptions
 }

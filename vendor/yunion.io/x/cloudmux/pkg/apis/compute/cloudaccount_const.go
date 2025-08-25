@@ -49,11 +49,14 @@ const (
 	CLOUD_PROVIDER_SANGFOR        = "SangFor"
 	CLOUD_PROVIDER_ZETTAKIT       = "ZettaKit"
 	CLOUD_PROVIDER_UIS            = "UIS"
+	CLOUD_PROVIDER_CAS            = "CAS"
 
 	CLOUD_PROVIDER_GENERICS3 = "S3"
 	CLOUD_PROVIDER_CEPH      = "Ceph"
 	CLOUD_PROVIDER_CEPHFS    = "CephFS"
 	CLOUD_PROVIDER_XSKY      = "Xsky"
+
+	CLOUD_PROVIDER_CLOUDFLARE = "Cloudflare"
 
 	CLOUD_PROVIDER_HEALTH_NORMAL        = "normal"        // 远端处于健康状态
 	CLOUD_PROVIDER_HEALTH_INSUFFICIENT  = "insufficient"  // 不足按需资源余额
