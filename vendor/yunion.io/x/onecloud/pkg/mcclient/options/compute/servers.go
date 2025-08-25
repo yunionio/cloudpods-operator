@@ -25,6 +25,7 @@ import (
 	"yunion.io/x/pkg/util/fileutils"
 	"yunion.io/x/pkg/util/regutils"
 
+	"yunion.io/x/onecloud/pkg/apis/cloudcommon/db"
 	computeapi "yunion.io/x/onecloud/pkg/apis/compute"
 	schedapi "yunion.io/x/onecloud/pkg/apis/scheduler"
 	"yunion.io/x/onecloud/pkg/cloudcommon/cmdline"
@@ -78,7 +79,8 @@ type ServerListOptions struct {
 
 	WithUserMeta *bool `help:"filter by user metadata" negative:"without_user_meta"`
 
-	WithHost *bool `help:"filter guest with host or not" negative:"without_host"`
+	WithHost         *bool  `help:"filter guest with host or not" negative:"without_host"`
+	SnapshotpolicyId string `help:"filter guest with snapshotpolicy or not" json:"snapshotpolicy_id"`
 }
 
 func (o *ServerListOptions) Params() (jsonutils.JSONObject, error) {
@@ -125,6 +127,7 @@ type ServerStartOptions struct {
 	ServerIdsOptions
 
 	QemuVersion string `help:"prefer qemu version" json:"qemu_version"`
+	AutoPrepaid *bool  `help:"Auto convert postpaid to prepaid"`
 }
 
 func (o *ServerStartOptions) Params() (jsonutils.JSONObject, error) {
@@ -467,7 +470,8 @@ type ServerCreateOptionalOptions struct {
 
 	GuestImageID string `help:"create from guest image, need to specify the guest image id"`
 
-	EncryptKey string `help:"encryption key"`
+	EncryptKey string   `help:"encryption key"`
+	Tags       []string `help:"tags in the form of key=value"`
 }
 
 func (o *ServerCreateOptions) ToScheduleInput() (*schedapi.ScheduleInput, error) {
@@ -632,6 +636,17 @@ func (opts *ServerCreateOptions) Params() (*computeapi.ServerCreateInput, error)
 	if err != nil {
 		return nil, err
 	}
+	meta := map[string]string{}
+	for _, v := range opts.Tags {
+		tag := strings.Split(v, "=")
+		if len(tag) != 2 {
+			return nil, fmt.Errorf("invalid tag %s", v)
+		}
+		prefix := db.USER_TAG_PREFIX
+		k, v := prefix+strings.TrimPrefix(tag[0], prefix), tag[1]
+		meta[k] = v
+	}
+	params.Metadata = meta
 
 	if opts.GenerateName {
 		params.GenerateName = opts.NAME
@@ -709,6 +724,7 @@ type ServerDeleteOptions struct {
 	DeleteSnapshots       *bool `help:"Delete server snapshots"`
 	DeleteDisks           *bool `help:"Delete server disks"`
 	DeleteEip             *bool `help:"Delete eip"`
+	DeleteBastionServer   *bool `help:"Remove from bastion host"`
 }
 
 func (o *ServerDeleteOptions) QueryParams() (jsonutils.JSONObject, error) {
@@ -807,6 +823,16 @@ func (o *ServerModifySrcCheckOptions) Description() string {
 	return "Modify src ip, mac check settings"
 }
 
+type ServerDisableAutoMergeSnapshot struct {
+	ServerIdOptions
+
+	DisableAutoMergeSnapshot bool `help:"Disable auto merge snapshots"`
+}
+
+func (o *ServerDisableAutoMergeSnapshot) Params() (jsonutils.JSONObject, error) {
+	return options.StructToParams(o)
+}
+
 type ServerSendKeyOptions struct {
 	ID   string `help:"ID or Name of server" metavar:"Guest" json:"-"`
 	KEYS string `help:"Special keys to send, eg. ctrl, alt, f12, shift, etc, separated by \"-\""`
@@ -851,7 +877,7 @@ type ServerQgaCommand struct {
 	ServerIdOptions
 
 	COMMAND string `help:"qga command"`
-	Timeout int    `help:"qga command execute timeout (ms)"`
+	Timeout int    `help:"qga command execute timeout (s)"`
 }
 
 func (o *ServerQgaCommand) Params() (jsonutils.JSONObject, error) {
@@ -861,7 +887,7 @@ func (o *ServerQgaCommand) Params() (jsonutils.JSONObject, error) {
 type ServerQgaPing struct {
 	ServerIdOptions
 
-	Timeout int `help:"qga command execute timeout (ms)"`
+	Timeout int `help:"qga command execute timeout (s)"`
 }
 
 func (o *ServerQgaPing) Params() (jsonutils.JSONObject, error) {
@@ -1521,4 +1547,13 @@ func (o *ServerSetRootDiskMatcher) Params() (jsonutils.JSONObject, error) {
 		return nil, err
 	}
 	return jsonutils.Marshal(matcher), nil
+}
+
+type ServerChangeBillingTypeOptions struct {
+	ServerIdOptions
+	BillingType string `choices:"prepaid|postpaid"`
+}
+
+func (o *ServerChangeBillingTypeOptions) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.Marshal(map[string]string{"billing_type": o.BillingType}), nil
 }

@@ -20,10 +20,10 @@ require (
 	k8s.io/apimachinery v0.19.3
 	k8s.io/client-go v0.19.3
 	k8s.io/klog v0.3.3
-	yunion.io/x/jsonutils v1.0.1-0.20240930100528-1671a2d0d22f
+	yunion.io/x/jsonutils v1.0.1-0.20250507052344-1abcf4f443b1
 	yunion.io/x/log v1.0.1-0.20240305175729-7cf2d6cd5a91
-	yunion.io/x/onecloud v0.0.0-20241220100042-8818e68e75d4
-	yunion.io/x/pkg v1.10.2
+	yunion.io/x/onecloud v0.0.0-20250822074504-32b85c1b2884
+	yunion.io/x/pkg v1.10.4-0.20250820035218-6008459eb4f0
 	yunion.io/x/structarg v0.0.0-20231017124457-df4d5009457c
 )
 
@@ -57,6 +57,7 @@ require (
 	github.com/google/gofuzz v1.1.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/gnostic v0.4.1 // indirect
+	github.com/gorilla/mux v1.7.0 // indirect
 	github.com/hako/durafmt v0.0.0-20180520121703-7b7ae1e72ead // indirect
 	github.com/hashicorp/golang-lru v0.5.1 // indirect
 	github.com/jaypipes/ghw v0.11.0 // indirect
@@ -78,6 +79,7 @@ require (
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
 	github.com/mozillazg/go-pinyin v0.19.0 // indirect
 	github.com/opencontainers/go-digest v0.0.0-20170106003457-a6d0ee40d420 // indirect
+	github.com/petermattis/goid v0.0.0-20250508124226-395b08cebbdb // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
 	github.com/richardlehane/mscfb v1.0.4 // indirect
 	github.com/richardlehane/msoleps v1.0.3 // indirect
@@ -127,10 +129,10 @@ require (
 	moul.io/http2curl/v2 v2.3.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect
 	sigs.k8s.io/yaml v1.2.0 // indirect
-	yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20241216075651-a689b780f647 // indirect
-	yunion.io/x/executor v0.0.0-20241205080005-48f5b1212256 // indirect
-	yunion.io/x/s3cli v0.0.0-20190917004522-13ac36d8687e // indirect
-	yunion.io/x/sqlchemy v1.1.3-0.20240926163039-d41512b264e1 // indirect
+	yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20250820024124-b54c4686c57c // indirect
+	yunion.io/x/executor v0.0.0-20250518005516-5402e9e0bed0 // indirect
+	yunion.io/x/s3cli v0.0.0-20241221171442-1c11599d28e1 // indirect
+	yunion.io/x/sqlchemy v1.1.3-0.20250806073422-e37f5197cec0 // indirect
 )
 
 replace (

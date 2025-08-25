@@ -188,6 +188,12 @@ func NewWorkerManager(name string, workerCount int, backlog int, dbWorker bool) 
 }
 
 func NewWorkerManagerIgnoreOverflow(name string, workerCount int, backlog int, dbWorker bool, ignoreOverflow bool) *SWorkerManager {
+	if workerCount <= 0 {
+		workerCount = 1
+	}
+	if backlog <= 0 {
+		backlog = 128
+	}
 	manager := SWorkerManager{name: name,
 		queue:          NewRing(workerCount * backlog),
 		workerCount:    workerCount,
@@ -292,15 +298,14 @@ func (wm *SWorkerManager) scheduleWithLock() {
 			log.Debugf("no enough worker, add new worker %s", worker)
 		}
 		go worker.run()
-	} else if queueSize > 10 {
-		log.Warningf("[%s] BUSY activeWork %d detachedWork %d max %d queue: %d", wm, wm.ActiveWorkerCount(), wm.DetachedWorkerCount(), wm.workerCount, wm.queue.Size())
 	} else if queueSize > 50 {
 		w := wm.activeWorker.list.Front()
-		for w != nil {
+		if w != nil {
 			worker := w.Value.(*SWorker)
 			log.Warningf("work [%s]%s stucking for a while", worker.task.start, worker.task.task.Dump())
-			w = w.Next()
 		}
+	} else if queueSize > 10 {
+		log.Warningf("[%s] BUSY activeWork %d detachedWork %d max %d queue: %d", wm, wm.ActiveWorkerCount(), wm.DetachedWorkerCount(), wm.workerCount, wm.queue.Size())
 	}
 }
 

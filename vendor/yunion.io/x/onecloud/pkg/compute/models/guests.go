@@ -422,12 +422,20 @@ func (manager *SGuestManager) ListItemFilter(
 	}
 
 	if len(query.IpAddrs) > 0 {
+		// 如果只有一个ip地址，则使用正则匹配，否则使用等于匹配
+		cmpFunc := sqlchemy.Equals
+		if len(query.IpAddrs) == 1 {
+			cmpFunc = func(f sqlchemy.IQueryField, v interface{}) sqlchemy.ICondition {
+				return sqlchemy.Regexp(f, v.(string))
+			}
+		}
+
 		grpnets := GroupnetworkManager.Query().SubQuery()
 		vipq := GroupguestManager.Query("guest_id")
 		conditions := []sqlchemy.ICondition{}
 		for _, ipAddr := range query.IpAddrs {
-			conditions = append(conditions, sqlchemy.Regexp(grpnets.Field("ip_addr"), ipAddr))
-			conditions = append(conditions, sqlchemy.Regexp(grpnets.Field("ip6_addr"), ipAddr))
+			conditions = append(conditions, cmpFunc(grpnets.Field("ip_addr"), ipAddr))
+			conditions = append(conditions, cmpFunc(grpnets.Field("ip6_addr"), ipAddr))
 		}
 		vipq = vipq.Join(grpnets, sqlchemy.Equals(grpnets.Field("group_id"), vipq.Field("group_id"))).Filter(
 			sqlchemy.OR(conditions...),
@@ -436,7 +444,7 @@ func (manager *SGuestManager) ListItemFilter(
 		grpeips := ElasticipManager.Query().Equals("associate_type", api.EIP_ASSOCIATE_TYPE_INSTANCE_GROUP).SubQuery()
 		conditions = []sqlchemy.ICondition{}
 		for _, ipAddr := range query.IpAddrs {
-			conditions = append(conditions, sqlchemy.Regexp(grpeips.Field("ip_addr"), ipAddr))
+			conditions = append(conditions, cmpFunc(grpeips.Field("ip_addr"), ipAddr))
 		}
 		vipeipq := GroupguestManager.Query("guest_id")
 		vipeipq = vipeipq.Join(grpeips, sqlchemy.Equals(grpeips.Field("associate_id"), vipeipq.Field("group_id"))).Filter(
@@ -446,15 +454,15 @@ func (manager *SGuestManager) ListItemFilter(
 		gnQ := GuestnetworkManager.Query("guest_id")
 		conditions = []sqlchemy.ICondition{}
 		for _, ipAddr := range query.IpAddrs {
-			conditions = append(conditions, sqlchemy.Regexp(gnQ.Field("ip_addr"), ipAddr))
-			conditions = append(conditions, sqlchemy.Regexp(gnQ.Field("ip6_addr"), ipAddr))
+			conditions = append(conditions, cmpFunc(gnQ.Field("ip_addr"), ipAddr))
+			conditions = append(conditions, cmpFunc(gnQ.Field("ip6_addr"), ipAddr))
 		}
 		gn := gnQ.Filter(sqlchemy.OR(conditions...))
 
 		guestEipQ := ElasticipManager.Query("associate_id").Equals("associate_type", api.EIP_ASSOCIATE_TYPE_SERVER)
 		conditions = []sqlchemy.ICondition{}
 		for _, ipAddr := range query.IpAddrs {
-			conditions = append(conditions, sqlchemy.Regexp(guestEipQ.Field("ip_addr"), ipAddr))
+			conditions = append(conditions, cmpFunc(guestEipQ.Field("ip_addr"), ipAddr))
 		}
 		guestEip := guestEipQ.Filter(sqlchemy.OR(conditions...))
 
@@ -462,7 +470,7 @@ func (manager *SGuestManager) ListItemFilter(
 		conditions = []sqlchemy.ICondition{}
 		for _, ipAddr := range query.IpAddrs {
 			conditions = append(conditions, sqlchemy.AND(
-				sqlchemy.Regexp(metadataQ.Field("value"), ipAddr),
+				cmpFunc(metadataQ.Field("value"), ipAddr),
 				sqlchemy.Equals(metadataQ.Field("key"), "sync_ips"),
 				sqlchemy.Equals(metadataQ.Field("obj_type"), "server"),
 			))
@@ -706,6 +714,23 @@ func (manager *SGuestManager) ListItemFilter(
 			q = q.IsNotEmpty("host_id")
 		} else {
 			q = q.IsNullOrEmpty("host_id")
+		}
+	}
+	if len(query.SnapshotpolicyId) > 0 {
+		sp := SnapshotPolicyResourceManager.Query("resource_id").
+			Equals("resource_type", api.SNAPSHOT_POLICY_TYPE_SERVER).
+			Equals("snapshotpolicy_id", query.SnapshotpolicyId).SubQuery()
+		q = q.In("id", sp)
+	}
+
+	if query.BindingSnapshotpolicy != nil {
+		spjsq := SnapshotPolicyResourceManager.Query("resource_id").
+			Equals("resource_type", api.SNAPSHOT_POLICY_TYPE_SERVER).
+			SubQuery()
+		if *query.BindingSnapshotpolicy {
+			q = q.In("id", spjsq)
+		} else {
+			q = q.NotIn("id", spjsq)
 		}
 	}
 
@@ -1386,9 +1411,13 @@ func (self *SGuest) ValidateUpdateData(ctx context.Context, userCred mcclient.To
 	}
 
 	var err error
-	input, err = self.GetDriver().ValidateUpdateData(ctx, self, userCred, input)
-	if err != nil {
-		return input, errors.Wrap(err, "GetDriver().ValidateUpdateData")
+	// 避免调度失败的机器修改删除保护时报no rows in result set 错误，导致前端删不掉机器
+	if len(self.HostId) > 0 {
+		drv := self.GetDriver()
+		input, err = drv.ValidateUpdateData(ctx, self, userCred, input)
+		if err != nil {
+			return input, errors.Wrap(err, "GetDriver().ValidateUpdateData")
+		}
 	}
 
 	input.VirtualResourceBaseUpdateInput, err = self.SVirtualResourceBase.ValidateUpdateData(ctx, userCred, query, input.VirtualResourceBaseUpdateInput)
@@ -1617,6 +1646,7 @@ func (manager *SGuestManager) validateCreateData(
 		}
 		var imgProperties map[string]string
 		var imgEncryptKeyId string
+		var imageDiskFormat string
 
 		if len(input.Disks) > 0 {
 			diskConfig := input.Disks[0]
@@ -1627,6 +1657,7 @@ func (manager *SGuestManager) validateCreateData(
 			input.Disks[0] = diskConfig
 			imgEncryptKeyId = diskConfig.ImageEncryptKeyId
 			imgProperties = diskConfig.ImageProperties
+			imageDiskFormat = imgProperties[imageapi.IMAGE_DISK_FORMAT]
 			if imgProperties[imageapi.IMAGE_DISK_FORMAT] == "iso" {
 				return nil, httperrors.NewInputParameterError("System disk does not support iso image, please consider using cdrom parameter")
 			}
@@ -1638,6 +1669,7 @@ func (manager *SGuestManager) validateCreateData(
 				return nil, httperrors.NewInputParameterError("parse cdrom device info error %s", err)
 			}
 			input.Cdrom = image.Id
+			imageDiskFormat = image.DiskFormat
 			if len(imgProperties) == 0 {
 				imgProperties = image.Properties
 			}
@@ -1661,28 +1693,29 @@ func (manager *SGuestManager) validateCreateData(
 			input.OsArch = apis.OS_ARCH_AARCH64
 		}
 
-		var imgSupportUEFI *bool
-		if desc, ok := imgProperties[imageapi.IMAGE_UEFI_SUPPORT]; ok {
-			support := desc == "true"
-			imgSupportUEFI = &support
-		}
-		if input.OsArch == apis.OS_ARCH_AARCH64 {
-			// arm image supports UEFI by default
-			support := true
-			imgSupportUEFI = &support
-		}
-
-		switch {
-		case imgSupportUEFI != nil && *imgSupportUEFI:
-			if len(input.Bios) == 0 {
-				input.Bios = "UEFI"
-			} else if input.Bios != "UEFI" {
-				return nil, httperrors.NewInputParameterError("UEFI image requires UEFI boot mode")
+		if imageDiskFormat != "iso" {
+			var imgSupportUEFI *bool
+			if desc, ok := imgProperties[imageapi.IMAGE_UEFI_SUPPORT]; ok {
+				support := desc == "true"
+				imgSupportUEFI = &support
 			}
-		default:
-			// not UEFI image
-			if input.Bios == "UEFI" && len(imgProperties) != 0 {
-				return nil, httperrors.NewInputParameterError("UEFI boot mode requires UEFI image")
+			if input.OsArch == apis.OS_ARCH_AARCH64 {
+				// arm image supports UEFI by default
+				support := true
+				imgSupportUEFI = &support
+			}
+			switch {
+			case imgSupportUEFI != nil && *imgSupportUEFI:
+				if len(input.Bios) == 0 {
+					input.Bios = "UEFI"
+				} else if input.Bios != "UEFI" {
+					return nil, httperrors.NewInputParameterError("UEFI image requires UEFI boot mode")
+				}
+			default:
+				// not UEFI image
+				if input.Bios == "UEFI" && len(imgProperties) != 0 {
+					return nil, httperrors.NewInputParameterError("UEFI boot mode requires UEFI image")
+				}
 			}
 		}
 
@@ -1885,10 +1918,6 @@ func (manager *SGuestManager) validateCreateData(
 		}
 
 		if len(input.Duration) > 0 {
-			/*if !userCred.IsAllow(rbacutils.ScopeSystem, consts.GetServiceType(), manager.KeywordPlural(), policy.PolicyActionPerform, "renew") {
-				return nil, httperrors.NewForbiddenError("only admin can create prepaid resource")
-			}*/
-
 			if input.ResourceType == api.HostResourceTypePrepaidRecycle {
 				return nil, httperrors.NewConflictError("cannot create prepaid server on prepaid resource type")
 			}
@@ -1912,10 +1941,10 @@ func (manager *SGuestManager) validateCreateData(
 				input.BillingType = billing_api.BILLING_TYPE_PREPAID
 			}
 			input.BillingCycle = billingCycle.String()
-			// expired_at will be set later by callback
-			// data.Add(jsonutils.NewTimeString(billingCycle.EndAt(time.Time{})), "expired_at")
-
 			input.Duration = billingCycle.String()
+			if input.BillingType == billing_api.BILLING_TYPE_POSTPAID {
+				input.ReleaseAt = billingCycle.EndAt(time.Now())
+			}
 		}
 	}
 
@@ -3154,15 +3183,15 @@ func (g *SGuest) syncWithCloudVM(ctx context.Context, userCred mcclient.TokenCre
 		if len(extVM.GetDescription()) > 0 {
 			g.Description = extVM.GetDescription()
 		}
-		g.IsEmulated = extVM.IsEmulated()
 
-		if provider.GetFactory().IsSupportPrepaidResources() && !recycle {
-			g.BillingType = extVM.GetBillingType()
+		g.BillingType = extVM.GetBillingType()
+		g.ExpiredAt = time.Time{}
+		g.AutoRenew = false
+		if g.BillingType == billing_api.BILLING_TYPE_PREPAID {
 			g.ExpiredAt = extVM.GetExpiredAt()
-			if g.GetDriver().IsSupportSetAutoRenew() {
-				g.AutoRenew = extVM.IsAutoRenew()
-			}
+			g.AutoRenew = extVM.IsAutoRenew()
 		}
+
 		return nil
 	})
 	if err != nil {
@@ -3229,14 +3258,12 @@ func (manager *SGuestManager) newCloudVM(ctx context.Context, userCred mcclient.
 
 	guest.IsEmulated = extVM.IsEmulated()
 
-	if provider.GetFactory().IsSupportPrepaidResources() {
-		guest.BillingType = extVM.GetBillingType()
-		if expired := extVM.GetExpiredAt(); !expired.IsZero() {
-			guest.ExpiredAt = expired
-		}
-		if guest.GetDriver().IsSupportSetAutoRenew() {
-			guest.AutoRenew = extVM.IsAutoRenew()
-		}
+	guest.BillingType = extVM.GetBillingType()
+	guest.ExpiredAt = time.Time{}
+	guest.AutoRenew = false
+	if guest.BillingType == billing_api.BILLING_TYPE_PREPAID {
+		guest.ExpiredAt = extVM.GetExpiredAt()
+		guest.AutoRenew = extVM.IsAutoRenew()
 	}
 
 	if createdAt := extVM.GetCreatedAt(); !createdAt.IsZero() {
@@ -3246,18 +3273,6 @@ func (manager *SGuestManager) newCloudVM(ctx context.Context, userCred mcclient.
 	guest.HostId = host.Id
 
 	instanceType := extVM.GetInstanceType()
-
-	/*zoneExtId, err := metaData.GetString("zone_ext_id")
-	if err != nil {
-		log.Errorf("get zone external id fail %s", err)
-	}
-
-	isku, err := ServerSkuManager.FetchByZoneExtId(zoneExtId, instanceType)
-	if err != nil {
-		log.Errorf("get sku zone %s instance type %s fail %s", zoneExtId, instanceType, err)
-	} else {
-		guest.SkuId = isku.GetId()
-	}*/
 
 	if len(instanceType) > 0 {
 		guest.InstanceType = instanceType

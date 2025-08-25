@@ -15,12 +15,10 @@
 package component
 
 import (
-	"path"
-
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
-	"yunion.io/x/onecloud/pkg/ansibleserver/options"
+	common_options "yunion.io/x/onecloud/pkg/cloudcommon/options"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -82,8 +80,13 @@ func (m *extdbManager) getPhaseControl(man controller.ComponentManager, zone str
 		man.GetCluster().Spec.Extdb.Service.NodePort, "")
 }
 
+type extdbOptions struct {
+	common_options.CommonOptions
+	common_options.DBOptions
+}
+
 func (m *extdbManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
-	opt := &options.Options
+	opt := &extdbOptions{}
 	if err := option.SetOptionsDefault(opt, constants.ServiceTypeExtdb); err != nil {
 		return nil, false, err
 	}
@@ -98,11 +101,11 @@ func (m *extdbManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 		option.SetMysqlOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
 	}
 
+	option.SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
 	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
 	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions)
+
 	opt.AutoSyncTable = true
-	opt.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
-	opt.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
 	opt.Port = config.Port
 	return m.newServiceConfigMap(v1alpha1.ExtdbComponentType, "", oc, opt), false, nil
 }

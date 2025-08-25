@@ -127,8 +127,13 @@ type ServerListInput struct {
 	// 根据镜像发行版排序
 	OrderByOsDist string `json:"order_by_os_dist"`
 
+	SnapshotpolicyId string `json:"snapshotpolicy_id"`
+
 	// 是否调度到宿主机上
 	WithHost *bool `json:"with_host"`
+
+	// 根据是否绑定快照策略过滤
+	BindingSnapshotpolicy *bool `json:"binding_snapshotpolicy"`
 }
 
 func (input *ServerListInput) AfterUnmarshal() {
@@ -313,6 +318,8 @@ func (self ServerDetails) GetMetricTags() map[string]string {
 		"paltform":            self.Hypervisor,
 		"host":                self.Host,
 		"host_id":             self.HostId,
+		"ips":                 self.IPs,
+		"vm_ip":               self.IPs,
 		"vm_id":               self.Id,
 		"vm_name":             self.Name,
 		"zone":                self.Zone,
@@ -359,9 +366,11 @@ type GuestDiskInfo struct {
 	Driver        string `json:"driver"`
 	CacheMode     string `json:"cache_mode"`
 	AioMode       string `json:"aio_mode"`
+	AutoReset     bool   `json:"auto_reset"`
 	MediumType    string `json:"medium_type"`
 	StorageType   string `json:"storage_type"`
 	Iops          int    `json:"iops"`
+	Throughput    int    `json:"throughput"`
 	Bps           int    `json:"bps"`
 	ImageId       string `json:"image_id,omitempty"`
 	Image         string `json:"image,omitemtpy"`
@@ -624,6 +633,7 @@ type ServerStopInput struct {
 	TimeoutSecs int `json:"timeout_secs"`
 
 	// 是否关机停止计费, 若平台不支持停止计费，此参数无作用
+	// 若包年包月机器关机设置此参数，则先转换计费模式到按量计费，再关机不收费
 	// 目前仅阿里云，腾讯云此参数生效
 	StopCharging bool `json:"stop_charging"`
 }
@@ -978,6 +988,13 @@ type ServerChangeDiskStorageInternalInput struct {
 	CloneDiskCount     int `json:"disk_count"`
 }
 
+type ServerCopyDiskToStorageInput struct {
+	KeepOriginDisk     bool `json:"keep_origin_disk"`
+	GuestRunning       bool `json:"guest_running"`
+	CompletedDiskCount int  `json:"completed_disk_count"`
+	CloneDiskCount     int  `json:"disk_count"`
+}
+
 type ServerSetExtraOptionInput struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
@@ -1163,7 +1180,7 @@ type ServerQgaGetNetworkInput struct {
 }
 
 type ServerQgaTimeoutInput struct {
-	// qga execute timeout millisecond
+	// qga execute timeout second
 	Timeout int
 }
 
@@ -1247,6 +1264,8 @@ type GuestPerformStartInput struct {
 	// 指定启动虚拟机的Qemu版本，可选值：2.12.1, 4.2.0
 	// 仅适用于KVM虚拟机
 	QemuVersion string `json:"qemu_version"`
+	// 按量机器自动转换为包年包月
+	AutoPrepaid bool `json:"auto_prepaid"`
 }
 
 type ServerSetOSInfoInput struct {
@@ -1332,6 +1351,10 @@ func (conf ServerChangeConfigSettings) MemChanged() bool {
 	return conf.VmemSize != conf.Old.VmemSize
 }
 
+func (conf ServerChangeConfigSettings) InstanceTypeChanged() bool {
+	return len(conf.InstanceType) > 0 && conf.InstanceType != conf.Old.InstanceType
+}
+
 func (conf ServerChangeConfigSettings) AddedMem() int {
 	addMem := conf.VmemSize - conf.Old.VmemSize
 	if addMem < 0 {
@@ -1349,4 +1372,11 @@ func (conf ServerChangeConfigSettings) AddedDisk() int {
 		size += create.SizeMb
 	}
 	return size
+}
+
+type ServerChangeBillingTypeInput struct {
+	// 仅在虚拟机开机或关机状态下调用
+	// enmu: [postpaid, prepaid]
+	// required: true
+	BillingType string `json:"billing_type"`
 }

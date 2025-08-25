@@ -23,7 +23,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"io/ioutil"
 	olog "log"
 	"math/rand"
 	"net"
@@ -78,6 +77,8 @@ type Application struct {
 	isTLS bool
 
 	enableProfiling bool
+
+	allowTLS1x bool
 }
 
 const (
@@ -92,13 +93,13 @@ const (
 
 var quitHandlerRegisted bool
 
-func NewApplication(name string, connMax int, db bool) *Application {
+func NewApplication(name string, connMax int, queueSize int, db bool) *Application {
 	app := Application{name: name,
 		context:           ctx.CtxWithTime(),
 		connMax:           connMax,
-		session:           NewWorkerManager("HttpRequestWorkerManager", connMax, DEFAULT_BACKLOG, db),
-		readSession:       NewWorkerManager("HttpGetRequestWorkerManager", connMax, DEFAULT_BACKLOG, db),
-		systemSession:     NewWorkerManager("InternalHttpRequestWorkerManager", 1, DEFAULT_BACKLOG, false),
+		session:           NewWorkerManager("HttpRequestWorkerManager", connMax, connMax*queueSize, db),
+		readSession:       NewWorkerManager("HttpGetRequestWorkerManager", connMax, connMax*queueSize, db),
+		systemSession:     NewWorkerManager("InternalHttpRequestWorkerManager", 1, queueSize, false),
 		roots:             make(map[string]*RadixNode),
 		rootLock:          &sync.RWMutex{},
 		idleTimeout:       DEFAULT_IDLE_TIMEOUT,
@@ -136,6 +137,12 @@ func (app *Application) OnException(exception func(method, path string, body jso
 func (app *Application) SetDefaultTimeout(to time.Duration) *Application {
 	log.Infof("adjust application default timeout to %f seconds", to.Seconds())
 	app.processTimeout = to
+	return app
+}
+
+func (app *Application) AllowTLS1x() *Application {
+	log.Infof("Allow TLS1.0&1.1")
+	app.allowTLS1x = true
 	return app
 }
 
@@ -361,6 +368,7 @@ func (app *Application) defaultHandle(w http.ResponseWriter, r *http.Request, ri
 	w.Header().Set("Server", "Yunion AppServer/Go/2018.4")
 	w.Header().Set("X-Frame-Options", "SAMEORIGIN")
 	w.Header().Set("X-XSS-Protection", "1; mode=block")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	if app.isTLS {
 		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 	}
@@ -406,11 +414,11 @@ func (app *Application) defaultHandle(w http.ResponseWriter, r *http.Request, ri
 			task.appParams.Request = r
 			task.appParams.Response = w
 			if r.Body != nil && r.ContentLength > 0 && getContentType(r) == ContentTypeJson {
-				data, _ := ioutil.ReadAll(r.Body)
+				data, _ := io.ReadAll(r.Body)
 				task.appParams.Body, _ = jsonutils.Parse(data)
-				r.Body = ioutil.NopCloser(bytes.NewBuffer(data))
+				r.Body = io.NopCloser(bytes.NewBuffer(data))
 			}
-			session.Run(
+			inqueue := session.Run(
 				task,
 				currentWorker,
 				func(err error) {
@@ -418,13 +426,17 @@ func (app *Application) defaultHandle(w http.ResponseWriter, r *http.Request, ri
 					task.fw.closeChannels()
 				},
 			)
-			runErr := task.fw.wait(task.ctx, currentWorker)
-			if runErr != nil {
-				switch je := runErr.(type) {
-				case *httputils.JSONClientError:
-					httperrors.GeneralServerError(task.ctx, w, je)
-				default:
-					httperrors.InternalServerError(task.ctx, w, "Internal server error")
+			if !inqueue {
+				httperrors.TooManyRequestsError(task.ctx, w, "Request queue is full")
+			} else {
+				runErr := task.fw.wait(task.ctx, currentWorker)
+				if runErr != nil {
+					switch je := runErr.(type) {
+					case *httputils.JSONClientError:
+						httperrors.GeneralServerError(task.ctx, w, je)
+					default:
+						httperrors.InternalServerError(task.ctx, w, "Internal server error")
+					}
 				}
 			}
 			task.fw.closeChannels()
@@ -469,6 +481,10 @@ func timeoutHandle(h http.Handler) http.HandlerFunc {
 }
 
 func (app *Application) initServer(addr string) *http.Server {
+	return InitHTTPServer(app, addr)
+}
+
+func InitHTTPServer(app *Application, addr string) *http.Server {
 	/* db := AppContextDB(app.context)
 	if db != nil {
 		db.SetMaxIdleConns(app.connMax + 1)
@@ -478,7 +494,18 @@ func (app *Application) initServer(addr string) *http.Server {
 
 	cipherSuites := []uint16{}
 	for _, suite := range tls.CipherSuites() {
-		cipherSuites = append(cipherSuites, suite.ID)
+		if !strings.HasSuffix(suite.Name, "_SHA") {
+			cipherSuites = append(cipherSuites, suite.ID)
+		}
+	}
+
+	minTLSVer := uint16(tls.VersionTLS12)
+	if app.allowTLS1x {
+		minTLSVer = tls.VersionTLS10
+	}
+	tlsConf := &tls.Config{
+		CipherSuites: cipherSuites,
+		MinVersion:   minTLSVer,
 	}
 
 	s := &http.Server{
@@ -493,9 +520,7 @@ func (app *Application) initServer(addr string) *http.Server {
 		// issue like: https://github.com/megaease/easegress/issues/481
 		ErrorLog: olog.New(io.Discard, "", olog.LstdFlags),
 
-		TLSConfig: &tls.Config{
-			CipherSuites: cipherSuites,
-		},
+		TLSConfig: tlsConf,
 	}
 	return s
 }
@@ -601,22 +626,6 @@ func (app *Application) listenAndServeInternal(s *http.Server, certFile, keyFile
 	if err != nil && err != http.ErrServerClosed {
 		log.Fatalf("ListAndServer fail: %s (cert=%s key=%s)", err, certFile, keyFile)
 	}
-}
-
-func isJsonContentType(r *http.Request) bool {
-	contType := strings.ToLower(r.Header.Get("Content-Type"))
-	if strings.HasPrefix(contType, "application/json") {
-		return true
-	}
-	return false
-}
-
-func isFormContentType(r *http.Request) bool {
-	contType := strings.ToLower(r.Header.Get("Content-Type"))
-	if strings.HasPrefix(contType, "application/json") {
-		return true
-	}
-	return false
 }
 
 type TContentType string

@@ -163,6 +163,30 @@ type HostListInput struct {
 	// 按内存分配大小排序
 	// enmu: asc,desc
 	OrderByMemCommit string `json:"order_by_mem_commit"`
+
+	// 按物理cpu使用率排序
+	// enmu: asc,desc
+	OrderByCpuUsage string `json:"order_by_cpu_usage"`
+
+	// 按物理内存使用率排序
+	// enmu: asc,desc
+	OrderByMemUsage string `json:"order_by_mem_usage"`
+
+	// 按物理存储使用率排序
+	// enmu: asc,desc
+	OrderByStorageUsage string `json:"order_by_storage_usage"`
+
+	// 按虚拟内存使用率排序
+	// enmu: asc,desc
+	OrderByVirtualMemUsage string `json:"order_by_virtual_mem_usage"`
+
+	// 按虚拟cpu使用率排序
+	// enmu: asc,desc
+	OrderByVirtualCpuUsage string `json:"order_by_virtual_cpu_usage"`
+
+	// 按虚拟存储使用率排序
+	// enmu: asc,desc
+	OrderByVirtualStorageUsage string `json:"order_by_virtual_storage_usage"`
 }
 
 type HostDetails struct {
@@ -313,6 +337,8 @@ type HostResourceInfo struct {
 
 	// 宿主机类型
 	HostType string `json:"host_type"`
+
+	HostAccessIp string `json:"host_access_ip"`
 }
 
 type HostFilterListInput struct {
@@ -543,7 +569,8 @@ type SHostStorageStat struct {
 type SHostPingInput struct {
 	WithData bool `json:"with_data"`
 
-	MemoryUsedMb int `json:"memory_used_mb"`
+	MemoryUsedMb    int     `json:"memory_used_mb"`
+	CpuUsagePercent float64 `json:"cpu_usage_percent"`
 
 	RootPartitionUsedCapacityMb int `json:"root_partition_used_capacity_mb"`
 
@@ -652,4 +679,9 @@ type HostLoginInfoOutput struct {
 }
 
 type HostPerformStartInput struct {
+}
+
+type HostSetCommitBoundInput struct {
+	CpuCmtbound *float32
+	MemCmtbound *float32
 }

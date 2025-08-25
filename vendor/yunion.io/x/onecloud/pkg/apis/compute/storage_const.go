@@ -74,6 +74,8 @@ const (
 	STORAGE_CLOUD_BASIC   = compute.STORAGE_CLOUD_BASIC
 	STORAGE_CLOUD_PREMIUM = compute.STORAGE_CLOUD_PREMIUM //高性能云硬盘
 	STORAGE_CLOUD_HSSD    = compute.STORAGE_CLOUD_HSSD    //增强型SSD云硬盘
+	STORAGE_CLOUD_BSSD    = compute.STORAGE_CLOUD_BSSD    //增强型SSD云硬盘
+	STORAGE_CLOUD_TSSD    = compute.STORAGE_CLOUD_TSSD    //极速型SSD云硬盘
 
 	// huawei storage type
 	STORAGE_HUAWEI_SSD   = compute.STORAGE_HUAWEI_SSD   // 超高IO云硬盘
@@ -181,6 +183,7 @@ var (
 
 	SHARED_FILE_STORAGE = []string{STORAGE_NFS, STORAGE_GPFS}
 	FIEL_STORAGE        = []string{STORAGE_LOCAL, STORAGE_NFS, STORAGE_GPFS, STORAGE_LVM, STORAGE_CLVM, STORAGE_SLVM}
+	LVM_STORAGE         = []string{STORAGE_LVM, STORAGE_CLVM, STORAGE_SLVM}
 
 	// supported shared storage types
 	SHARED_STORAGE = []string{STORAGE_NFS, STORAGE_GPFS, STORAGE_RBD, STORAGE_CLVM, STORAGE_SLVM}
@@ -272,4 +275,7 @@ type StorageListInput struct {
 
 	// filter storages of baremetal host
 	IsBaremetal *bool `json:"is_baremetal"`
+
+	// filter by storage type
+	StorageType string `json:"storage_type"`
 }

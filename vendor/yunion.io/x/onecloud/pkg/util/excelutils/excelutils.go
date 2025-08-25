@@ -19,13 +19,13 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 	"strings"
 
 	excelize "github.com/xuri/excelize/v2"
 
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/pkg/errors"
+	"yunion.io/x/pkg/gotypes"
 )
 
 func decimalBaseMaxWidth(decNum int, base int) int {
@@ -93,14 +93,22 @@ func exportRow(xlsx *excelize.File, data jsonutils.JSONObject, keys []string, ro
 		var val jsonutils.JSONObject
 		if strings.Contains(keys[i], ".") {
 			val, _ = data.GetIgnoreCases(strings.Split(keys[i], ".")...)
+			// hack payment_bills
+			if !gotypes.IsNil(val) && strings.HasPrefix(keys[i], "tags.") {
+				vv := []string{}
+				val.Unmarshal(&vv)
+				if len(vv) > 0 || val.Equals(jsonutils.Marshal([]string{})) {
+					val = jsonutils.NewString(strings.Join(vv, ","))
+				}
+			}
 		} else {
 			val, _ = data.GetIgnoreCases(keys[i])
 		}
 		if val != nil {
 			// hack, make floating point number prettier
 			if fval, ok := val.(*jsonutils.JSONFloat); ok {
-				f, _ := fval.Float()
-				fvalResult, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", f), 64)
+				// 费用需要原样导出，避免数额不准
+				fvalResult, _ := fval.Float()
 				xlsx.SetCellValue(sheet, cell, fvalResult)
 			} else if ival, ok := val.(*jsonutils.JSONInt); ok {
 				i, _ := ival.Int()
