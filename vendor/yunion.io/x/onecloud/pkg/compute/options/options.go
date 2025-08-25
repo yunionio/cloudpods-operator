@@ -18,6 +18,7 @@ import (
 	"yunion.io/x/cloudmux/pkg/multicloud/esxi"
 	"yunion.io/x/log"
 
+	api "yunion.io/x/onecloud/pkg/apis/compute"
 	common_options "yunion.io/x/onecloud/pkg/cloudcommon/options"
 	"yunion.io/x/onecloud/pkg/cloudcommon/pending_delete"
 )
@@ -34,8 +35,12 @@ type ComputeOptions struct {
 	DefaultMemoryOvercommitBound  float32 `default:"1.0" help:"Default memory overcommit bound for host, default to 1"`
 	DefaultStorageOvercommitBound float32 `default:"1.0" help:"Default storage overcommit bound for storage, default to 1"`
 
-	DefaultSecurityGroupId      string `help:"Default security rules" default:"default"`
-	DefaultAdminSecurityGroupId string `help:"Default admin security rules" default:""`
+	DefaultSecurityGroupId                  string `help:"Default security rules" default:"default"`
+	DefaultSecurityGroupIdForKvm            string `help:"Default security rules for KVM" default:"default"`
+	DefaultSecurityGroupIdForContainer      string `help:"Default security rules for Container" default:"default"`
+	DefaultAdminSecurityGroupId             string `help:"Default admin security rules" default:""`
+	DefaultAdminSecurityGroupIdForKvm       string `help:"Default admin security rules for KVM" default:""`
+	DefaultAdminSecurityGroupIdForContainer string `help:"Default admin security rules for Container" default:""`
 
 	DefaultDiskSizeMB int `default:"10240" help:"Default disk size in MB if not specified, default to 10GiB" json:"default_disk_size"`
 
@@ -103,11 +108,11 @@ type ComputeOptions struct {
 	AutoSnapshotHour int `default:"2" help:"What hour take sanpshot, default 02:00"`
 
 	//snapshot policy options
-	RetentionDaysLimit int `default:"49" help:"Days of snapshot retention, default 49 days"`
-	TimePointsLimit    int `default:"1" help:"time point of every days, default 1 point"`
+	RetentionDaysLimit  int `default:"49" help:"Days of snapshot retention, default 49 days"`
+	RetentionCountLimit int `default:"10" help:"Count of snapshot retention, default 10"`
+	TimePointsLimit     int `default:"1" help:"time point of every days, default 1 point"`
 
-	ServerStatusSyncIntervalMinutes int `default:"5" help:"Interval to sync server status, defualt is 5 minutes"`
-	CloudAccountBatchSyncSize       int `default:"10" help:"How many cloud account syncing in a batch"`
+	CloudAccountBatchSyncSize int `default:"10" help:"How many cloud account syncing in a batch"`
 
 	ServerSkuSyncIntervalMinutes int `default:"60" help:"Interval to sync public cloud server skus, defualt is 1 hour"`
 	SkuBatchSync                 int `default:"5" help:"How many skus can be sync in a batch"`
@@ -192,10 +197,14 @@ type ComputeOptions struct {
 
 	KeepDeletedSnapshotDays int `help:"The day of cleanup snapshot" default:"30"`
 	// 弹性伸缩中的ecs一般会有特殊的系统标签，通过指定这些标签可以忽略这部分ecs的同步, 指定多个key需要以 ',' 分隔
-	SkipServerBySysTagKeys  string `help:"skip server,disk sync and create with system tags" default:""`
-	SkipServerByUserTagKeys string `help:"skip server,disk sync and create with user tags" default:""`
+	SkipServerBySysTagKeys    string   `help:"skip server,disk sync and create with system tags" default:""`
+	SkipServerByUserTagKeys   string   `help:"skip server,disk sync and create with user tags" default:""`
+	SkipServerByUserTagValues []string `help:"skip server,disk sync and create with user tag values"`
 	// 修改标签时不再同步至云上, 云账号同步资源时不会冲掉本地打的标签(key相同的会覆盖), 云账号开启只读同步和此参数效果相同,且仅影响开启只读同步的账号
 	KeepTagLocalization bool `help:"keep tag localization, not synchronized to the cloud" default:"false"`
+
+	// 调整虚拟机配置时，新增磁盘使用虚拟机标签
+	UseServerTagsForDisk bool `help:"use server tags for disk" default:"true"`
 
 	EnableMonitorAgent bool `help:"enable public cloud vm monitor agent" default:"false"`
 
@@ -220,9 +229,23 @@ type ComputeOptions struct {
 
 	ResourceExpiredNotifyDays []int `help:"The notify of resource expired" default:"1,3,30"`
 
+	SkipSyncHostConfigInfoProviders    string `help:"Skip sync host cpu and mem config by provider"`
+	SkipSyncStorageConfigInfoProviders string `help:"Skip sync storage capacity and media type config by provider"`
+
 	esxi.EsxiOptions
 
 	NetworkAlwaysManualConfig bool `help:"always manually configure network settings" default:"false"`
+
+	SSLAccounts []string `help:"SSL account"`
+
+	ComputeEEOptions
+}
+
+type ComputeEEOptions struct {
+	// 快速同步资源状态时间周期
+	ServerStatusSyncIntervalMinutes int `default:"5" help:"Interval to sync server status, defualt is 5 minutes"`
+	// 跳过新增资源同步时间范围
+	SkipServerStatusSyncTimeRange string `help:"Skip server status sync time range example: 08:00-18:00"`
 }
 
 type SCapabilityOptions struct {
@@ -266,4 +289,22 @@ func OnOptionsChange(oldO, newO interface{}) bool {
 	}
 
 	return changed
+}
+
+func (o ComputeOptions) GetDefaultSecurityGroupId(hypervisor string) string {
+	if hypervisor == api.HYPERVISOR_KVM && len(o.DefaultSecurityGroupIdForKvm) > 0 {
+		return o.DefaultSecurityGroupIdForKvm
+	} else if hypervisor == api.HYPERVISOR_POD && len(o.DefaultSecurityGroupIdForContainer) > 0 {
+		return o.DefaultSecurityGroupIdForContainer
+	}
+	return o.DefaultSecurityGroupId
+}
+
+func (o ComputeOptions) GetDefaultAdminSecurityGroupId(hypervisor string) string {
+	if hypervisor == api.HYPERVISOR_KVM && len(o.DefaultAdminSecurityGroupIdForKvm) > 0 {
+		return o.DefaultAdminSecurityGroupIdForKvm
+	} else if hypervisor == api.HYPERVISOR_POD && len(o.DefaultAdminSecurityGroupIdForContainer) > 0 {
+		return o.DefaultAdminSecurityGroupIdForContainer
+	}
+	return o.DefaultAdminSecurityGroupId
 }

@@ -20,12 +20,10 @@ import (
 	"yunion.io/x/jsonutils"
 )
 
-type TaskListInput struct {
-	ModelBaseListInput
+type TaskBaseListInput struct {
 	ProjectizedResourceListInput
 	StatusResourceBaseListInput
 
-	Id         []string `json:"id" help:"id filter"`
 	ObjId      []string `json:"obj_id" help:"object id filter"`
 	ObjType    []string `json:"obj_type" help:"object type (in singular form) filter"`
 	ObjName    []string `json:"obj_name" help:"object name filter"`
@@ -33,9 +31,30 @@ type TaskListInput struct {
 	IsMulti    *bool    `json:"is_multi" negative:"is_single" help:"is multi task"`
 	IsComplete *bool    `json:"is_complete" negative:"not_complete" help:"is task completed, either fail or complete"`
 	IsInit     *bool    `json:"is_init" negative:"not_init" help:"is task started?"`
-	Stage      []string `json:"stage" help:"task stage"`
+	Stage      []string `json:"stage" help:"tasks in stages"`
+	NotStage   []string `json:"not_stage" help:"tasks not in stages"`
 	ParentId   []string `json:"parent_id" help:"filter tasks by parent_task_id"`
 	IsRoot     *bool    `json:"is_root" help:"filter root tasks"`
+
+	ParentTaskId string `json:"parent_task_id" help:"filter by parent_task_id"`
+
+	SubTask *bool `json:"sub_task" help:"show sub task states"`
+}
+
+type TaskListInput struct {
+	ModelBaseListInput
+
+	TaskBaseListInput
+
+	Id []string `json:"id" help:"id filter"`
+}
+
+type ArchivedTaskListInput struct {
+	LogBaseListInput
+
+	TaskBaseListInput
+
+	TaskId []string `json:"task_id" help:"filter by task_id"`
 }
 
 type TaskDetails struct {
@@ -60,7 +79,11 @@ type TaskDetails struct {
 	ObjName      string
 	ObjId        string
 	TaskName     string
-	Params       *jsonutils.JSONDict
+	Params       jsonutils.JSONObject
+	UserCred     jsonutils.JSONObject
 	Stage        string
 	ParentTaskId string
+}
+
+type TaskCancelInput struct {
 }

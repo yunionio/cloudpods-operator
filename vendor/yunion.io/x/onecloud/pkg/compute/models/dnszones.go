@@ -70,8 +70,31 @@ type SDnsZone struct {
 	db.SExternalizedResourceBase
 	SManagedResourceBase
 
+	NameServers         *api.SNameServers `width:"256" charset:"utf8" nullable:"true" list:"user" create:"optional"`
+	OriginalNameServers *api.SNameServers `width:"256" charset:"utf8" nullable:"true" list:"user" create:"optional"`
+
 	ZoneType    string `width:"32" charset:"ascii" nullable:"false" list:"domain" create:"domain_required"`
+	Registrar   string `width:"32" charset:"utf8" nullable:"true" list:"domain" create:"domain_optional"`
 	ProductType string `width:"32" charset:"ascii" nullable:"false" list:"domain" create:"domain_optional"`
+}
+
+func (self *SDnsZone) GetUniqValues() jsonutils.JSONObject {
+	return jsonutils.Marshal(map[string]string{"manager_id": self.ManagerId})
+}
+
+func (manager *SDnsZoneManager) FetchUniqValues(ctx context.Context, data jsonutils.JSONObject) jsonutils.JSONObject {
+	managerId, _ := data.GetString("manager_id")
+	return jsonutils.Marshal(map[string]string{"manager_id": managerId})
+}
+
+func (manager *SDnsZoneManager) FilterByUniqValues(q *sqlchemy.SQuery, values jsonutils.JSONObject) *sqlchemy.SQuery {
+	managerId, _ := values.GetString("manager_id")
+	if len(managerId) > 0 {
+		q = q.Equals("manager_id", managerId)
+	} else {
+		q = q.IsNullOrEmpty("manager_id")
+	}
+	return q
 }
 
 // 创建
@@ -446,7 +469,7 @@ func (self *SCloudprovider) SyncDnsZones(ctx context.Context, userCred mcclient.
 
 	if !xor {
 		for i := 0; i < len(commondb); i += 1 {
-			err = commondb[i].syncWithDnsZone(ctx, userCred, self, commonext[i])
+			err = commondb[i].SyncWithDnsZone(ctx, userCred, commonext[i])
 			if err != nil {
 				result.UpdateError(err)
 				continue
@@ -497,18 +520,30 @@ func (self *SDnsZone) GetICloudDnsZone(ctx context.Context) (cloudprovider.IClou
 	return provider.GetICloudDnsZoneById(self.ExternalId)
 }
 
-func (self *SDnsZone) syncWithDnsZone(ctx context.Context, userCred mcclient.TokenCredential, provider *SCloudprovider, ext cloudprovider.ICloudDnsZone) error {
+func (self *SDnsZone) SyncWithDnsZone(ctx context.Context, userCred mcclient.TokenCredential, ext cloudprovider.ICloudDnsZone) error {
 	_, err := db.Update(self, func() error {
+		self.ExternalId = ext.GetGlobalId()
 		self.Status = ext.GetStatus()
 		self.ProductType = string(ext.GetDnsProductType())
+		if v, err := ext.GetNameServers(); err == nil {
+			ns := api.SNameServers{}
+			ns = append(ns, v...)
+			self.NameServers = &ns
+		}
+		if v, err := ext.GetOriginalNameServers(); err == nil {
+			ns := api.SNameServers{}
+			ns = append(ns, v...)
+			self.OriginalNameServers = &ns
+		}
+		self.Registrar = ext.GetRegistrar()
 		return nil
 	})
 	if err != nil {
 		return err
 	}
 
-	privider := self.GetCloudprovider()
-	if privider != nil {
+	provider := self.GetCloudprovider()
+	if provider != nil {
 		if account, _ := provider.GetCloudaccount(); account != nil {
 			syncVirtualResourceMetadata(ctx, userCred, self, ext, account.ReadOnly)
 		}
@@ -527,6 +562,17 @@ func (self *SCloudprovider) newFromCloudDnsZone(ctx context.Context, userCred mc
 	zone.Enabled = tristate.True
 	zone.ZoneType = string(ext.GetZoneType())
 	zone.ProductType = string(ext.GetDnsProductType())
+	if v, err := ext.GetNameServers(); err == nil {
+		ns := api.SNameServers{}
+		ns = append(ns, v...)
+		zone.NameServers = &ns
+	}
+	if v, err := ext.GetOriginalNameServers(); err == nil {
+		ns := api.SNameServers{}
+		ns = append(ns, v...)
+		zone.OriginalNameServers = &ns
+	}
+	zone.Registrar = ext.GetRegistrar()
 	zone.SetModelManager(DnsZoneManager, zone)
 	err := DnsZoneManager.TableSpec().Insert(ctx, zone)
 	if err != nil {

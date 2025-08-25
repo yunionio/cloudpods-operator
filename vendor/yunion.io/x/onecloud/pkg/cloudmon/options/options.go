@@ -29,7 +29,7 @@ type CloudMonOptions struct {
 	InfluxDatabase string `help:"influxdb database name, default telegraf" default:"telegraf"`
 
 	DisableServiceMetric               bool  `help:"disable service metric collect"`
-	CollectServiceMetricIntervalMinute int64 `help:"Collect Service metirc Interval unit:minute" default:"5"`
+	CollectServiceMetricIntervalMinute int64 `help:"Collect Service metirc Interval unit:minute" default:"1"`
 
 	HistoryMetricPullDays          int  `help:"pull history metrics" default:"-1"`
 	SupportAzureTableStorageMetric bool `help:"support collect azure memory and disk usage metric, there may be additional charges" default:"false"`
@@ -37,6 +37,17 @@ type CloudMonOptions struct {
 	CloudAccountCollectMetricsBatchCount        int `help:"Cloud Account Collect Metrics Batch Count" default:"10"`
 	CloudResourceCollectMetricsBatchCount       int `help:"Cloud Resource Collect Metrics BatchC ount" default:"40"`
 	OracleCloudResourceCollectMetricsBatchCount int `help:"OracleCloud Resource Collect Metrics BatchC ount" default:"1"`
+
+	StatusProbeIntervalMinutes int      `help:"Status Probe Interval unit:minute" default:"15"`
+	StatusProbeModels          []string `help:"Status Probe Models" default:"compute-servers,compute-hosts"`
+	EnableStatusProbe          bool     `help:"Enable Status Probe" default:"false"`
+	EnableStatusProbeDebug     bool     `help:"Enable Status Probe Debug" default:"false"`
+
+	BucketProbeIntervalMinutes int    `help:"Bucket Probe Interval unit:minute" default:"15"`
+	EnableBucketProbe          bool   `help:"Enable Bucket Probe" default:"false"`
+	EnableBucketProbeDebug     bool   `help:"Enable Bucket Probe Debug" default:"false"`
+	BucketProbeTestKey         string `help:"Bucket Probe Test Key" default:"bucket_performance_test_object"`
+	BucketProbeTestSizeMb      int    `help:"Bucket Probe Test Size" default:"4"`
 }
 
 type PingProbeOptions struct {
@@ -44,7 +55,7 @@ type PingProbeOptions struct {
 	ProbeCount    int  `help:"probe count, default is 3" default:"3"`
 	TimeoutSecond int  `help:"probe timeout in second, default is 1 second" default:"1"`
 
-	DisablePingProbe      bool  `help:"enable ping probe"`
+	DisablePingProbe      bool  `help:"enable ping probe" default:"true"`
 	PingProbIntervalHours int64 `help:"PingProb Interval unit:hour" default:"6"`
 
 	PingReserveIPTimeoutHours int `help:"expire hours to reserve the probed IP, default 0, never expire" default:"0"`

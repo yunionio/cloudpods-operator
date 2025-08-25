@@ -15,12 +15,10 @@
 package component
 
 import (
-	"path"
-
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
-	"yunion.io/x/onecloud/pkg/ansibleserver/options"
+	common_options "yunion.io/x/onecloud/pkg/cloudcommon/options"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -79,8 +77,13 @@ func (m *reportManager) getPhaseControl(man controller.ComponentManager, zone st
 		man.GetCluster().Spec.Report.Service.NodePort, "")
 }
 
+type reportOptions struct {
+	common_options.CommonOptions
+	common_options.DBOptions
+}
+
 func (m *reportManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
-	opt := &options.Options
+	opt := &reportOptions{}
 	if err := option.SetOptionsDefault(opt, constants.ServiceTypeReport); err != nil {
 		return nil, false, err
 	}
@@ -95,12 +98,13 @@ func (m *reportManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 		option.SetMysqlOptions(&opt.DBOptions, oc.Spec.Mysql, config.DB)
 	}
 
+	option.SetClickhouseOptions(&opt.DBOptions, oc.Spec.Clickhouse, config.ClickhouseConf)
 	option.SetOptionsServiceTLS(&opt.BaseOptions, false)
 	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions, cfg.CommonConfig)
+
 	opt.AutoSyncTable = true
-	opt.SslCertfile = path.Join(constants.CertDir, constants.ServiceCertName)
-	opt.SslKeyfile = path.Join(constants.CertDir, constants.ServiceKeyName)
 	opt.Port = config.Port
+
 	return m.newServiceConfigMap(v1alpha1.ReportComponentType, "", oc, opt), false, nil
 }
 
