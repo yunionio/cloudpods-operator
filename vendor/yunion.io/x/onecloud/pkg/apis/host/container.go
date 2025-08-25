@@ -29,6 +29,8 @@ type ContainerVolumeMountDisk struct {
 	Overlay              *apis.ContainerVolumeMountDiskOverlay       `json:"overlay"`
 	CaseInsensitivePaths []string                                    `json:"case_insensitive_paths"`
 	PostOverlay          []*apis.ContainerVolumeMountDiskPostOverlay `json:"post_overlay"`
+	ResGid               int                                         `json:"res_gid"`
+	ResUid               int                                         `json:"res_uid"`
 }
 
 type ContainerVolumeMountCephFS struct {
@@ -37,6 +39,12 @@ type ContainerVolumeMountCephFS struct {
 	Path    string `json:"path"`
 	Secret  string `json:"secret"`
 	Name    string `json:"name"`
+}
+
+type ContainerRootfs struct {
+	Type apis.ContainerVolumeMountType `json:"type"`
+	Disk *ContainerVolumeMountDisk     `json:"disk"`
+	// CephFS *ContainerVolumeMountCephFS   `json:"ceph_fs"`
 }
 
 type ContainerVolumeMount struct {
@@ -63,6 +71,7 @@ type ContainerVolumeMount struct {
 type ContainerSpec struct {
 	apis.ContainerSpec
 	ImageCredentialToken string                  `json:"image_credential_token"`
+	Rootfs               *ContainerRootfs        `json:"rootfs"`
 	VolumeMounts         []*ContainerVolumeMount `json:"volume_mounts"`
 	Devices              []*ContainerDevice      `json:"devices"`
 }
@@ -77,10 +86,15 @@ type ContainerDevice struct {
 }
 
 type ContainerIsolatedDevice struct {
-	Id         string `json:"id"`
-	Addr       string `json:"addr"`
-	Path       string `json:"path"`
-	DeviceType string `json:"device_type"`
+	Id          string                                 `json:"id"`
+	Addr        string                                 `json:"addr"`
+	Path        string                                 `json:"path"`
+	DeviceType  string                                 `json:"device_type"`
+	CardPath    string                                 `json:"card_path"`
+	RenderPath  string                                 `json:"render_path"`
+	Index       int                                    `json:"index"`
+	DeviceMinor int                                    `json:"device_minor"`
+	OnlyEnv     []*apis.ContainerIsolatedDeviceOnlyEnv `json:"only_env"`
 }
 
 type ContainerHostDevice struct {
@@ -124,6 +138,9 @@ type ContainerSaveVolumeMountToImageInput struct {
 
 	VolumeMountIndex int                   `json:"volume_mount_index"`
 	VolumeMount      *ContainerVolumeMount `json:"volume_mount"`
+	VolumeMountDirs  []string              `json:"volume_mount_dirs"`
+
+	VolumeMountPrefix string `json:"volume_mount_prefix"`
 }
 
 type ContainerCommitInput struct {

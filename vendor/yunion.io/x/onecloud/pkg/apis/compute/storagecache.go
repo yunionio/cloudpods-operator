@@ -46,41 +46,54 @@ type StoragecacheListInput struct {
 	Path []string `json:"path"`
 }
 
+type UncacheImageInput struct {
+	// 镜像ID
+	ImageId string `json:"image_id"`
+	// swagger:ignore
+	StoragecacheId string `json:"storagecache_id"`
+
+	DeactivateImage *bool `json:"deactivate_image"`
+}
+
 type CacheImageInput struct {
+	// swagger:ignore
 	Image   string `json:"image" yunion-deprecated-by:"image_id"`
 	ImageId string `json:"image_id"`
 	IsForce bool   `json:"is_force"`
 	Format  string `json:"format"`
 
-	// swagger: ignore
+	// swagger:ignore
 	Zone string `json:"zone"`
-	// swagger: ignore
+	// swagger:ignore
 	OsType string `json:"os_type"`
-	// swagger: ignore
+	// swagger:ignore
 	OsArch string `json:"os_arch"`
-	// swagger: ignore
+	// swagger:ignore
 	OsDistribution string `json:"os_distribution"`
-	// swagger: ignore
+	// swagger:ignore
 	OsFullVersion string `json:"os_full_version"`
-	// swagger: ignore
+	// swagger:ignore
 	OsVersion string `json:"os_version"`
-	// swagger: ignore
+	// swagger:ignore
 	ImageName string `json:"image_name"`
 
-	// swagger: ignore
+	// swagger:ignore
 	ServerId string `json:"server_id"`
-	// swagger: ignore
+	// swagger:ignore
 	ParentTaskId string `json:"parent_task_id"`
-	// swagger: ignore
+	// swagger:ignore
 	SourceHostId string `json:"source_host_id"`
-	// swagger: ignore
+	// swagger:ignore
 	SrcUrl string `json:"src_url"`
-	// swagger: ignore
+	// swagger:ignore
 	StoragecacheId string `json:"storagecache_id"`
-	// swagger: ignore
+	// swagger:ignore
 	Checksum string `json:"checksum"`
-	// swagger: ignore
+	// swagger:ignore
 	SkipChecksumIfExists bool `json:"skip_checksum_if_exists"`
+
+	// swagger:ignore
+	PreCache bool `json:"pre_cache"`
 }
 
 type StoragecacheResourceInput struct {
@@ -106,6 +119,12 @@ type StoragecacheResourceInfo struct {
 
 	// 关联存储信息
 	StorageInfo []StorageInfo `json:"storage_info"`
+
+	// 关联宿主机名称
+	Hosts []string `json:"hosts"`
+
+	// 关联宿主机信息
+	HostInfo []HostInfo `json:"host_info"`
 }
 
 type StorageInfo struct {

@@ -36,9 +36,10 @@ const (
 )
 
 const (
-	POD_METADATA_CRI_ID        = "cri_id"
-	POD_METADATA_CRI_CONFIG    = "cri_config"
-	POD_METADATA_PORT_MAPPINGS = "port_mappings"
+	POD_METADATA_CRI_ID                   = "cri_id"
+	POD_METADATA_CRI_CONFIG               = "cri_config"
+	POD_METADATA_PORT_MAPPINGS            = "port_mappings"
+	POD_METADATA_POST_STOP_CLEANUP_CONFIG = "post_stop_cleanup_config"
 )
 
 type PodContainerCreateInput struct {
@@ -80,6 +81,7 @@ type PodSecurityContext struct {
 
 type PodCreateInput struct {
 	Containers []*PodContainerCreateInput `json:"containers"`
+	HostIPC    bool                       `json:"host_ipc"`
 	//PortMappings    []*PodPortMapping          `json:"port_mappings"`
 	SecurityContext *PodSecurityContext `json:"security_context,omitempty"`
 }
@@ -162,4 +164,8 @@ func ValidatePodLogOptions(opts *PodLogOptions) error {
 		}
 	}
 	return nil
+}
+
+type PodPostStopCleanupConfig struct {
+	Dirs []string `json:"dirs"`
 }

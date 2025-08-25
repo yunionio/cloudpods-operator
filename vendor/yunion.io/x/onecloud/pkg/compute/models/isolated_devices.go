@@ -35,6 +35,7 @@ import (
 	"yunion.io/x/pkg/utils"
 	"yunion.io/x/sqlchemy"
 
+	"yunion.io/x/onecloud/pkg/apis"
 	api "yunion.io/x/onecloud/pkg/apis/compute"
 	hostapi "yunion.io/x/onecloud/pkg/apis/host"
 	"yunion.io/x/onecloud/pkg/apis/notify"
@@ -69,6 +70,7 @@ var VENDOR_ID_MAP = api.VENDOR_ID_MAP
 type SIsolatedDeviceManager struct {
 	db.SStandaloneResourceBaseManager
 	db.SExternalizedResourceBaseManager
+	db.SSharableBaseResourceManager
 	SHostResourceBaseManager
 }
 
@@ -93,11 +95,12 @@ func init() {
 type SIsolatedDevice struct {
 	db.SStandaloneResourceBase
 	db.SExternalizedResourceBase
-	SHostResourceBase `width:"36" charset:"ascii" nullable:"false" default:"" index:"true" list:"domain" create:"domain_required"`
+	db.SSharableBaseResource `"is_public->create":"domain_optional" "public_scope->create":"domain_optional"`
+	SHostResourceBase        `width:"36" charset:"ascii" nullable:"false" default:"" index:"true" list:"domain" create:"domain_required"`
 
 	// # PCI / GPU-HPC / GPU-VGA / USB / NIC
 	// 设备类型
-	DevType string `width:"36" charset:"ascii" nullable:"false" default:"" index:"true" list:"domain" create:"domain_required" update:"domain"`
+	DevType string `width:"128" charset:"ascii" nullable:"false" default:"" index:"true" list:"domain" create:"domain_required" update:"domain"`
 
 	// # Specific device name read from lspci command, e.g. `Tesla K40m` ...
 	Model string `width:"512" charset:"ascii" nullable:"false" default:"" index:"true" list:"domain" create:"domain_required" update:"domain"`
@@ -120,6 +123,15 @@ type SIsolatedDevice struct {
 	// # pci address of `Bus:Device.Function` format, or usb bus address of `bus.addr`
 	Addr       string `width:"16" charset:"ascii" nullable:"true" list:"domain" update:"domain" create:"domain_optional"`
 	DevicePath string `width:"128" charset:"ascii" nullable:"true" list:"domain" update:"domain" create:"optional"`
+
+	// GPU card path, like /dev/dri/cardX
+	CardPath string `width:"128" charset:"ascii" nullable:"true" list:"domain" update:"domain" create:"optional"`
+	// GPU render path, like /dev/dri/renderDX
+	RenderPath string `width:"128" charset:"ascii" nullable:"true" list:"domain" update:"domain" create:"optional"`
+	// Nvidia GPU index
+	Index int `nullable:"true" default:"-1" list:"user" update:"domain"`
+	// Nvidia GPU minor number, parsing from /proc/driver/nvidia/gpus/*/information
+	DeviceMinor int `nullable:"true" default:"-1" list:"user" update:"domain"`
 
 	// Is vgpu physical funcion, That means it cannot be attached to guest
 	// VGPUPhysicalFunction bool `nullable:"true" default:"false" list:"domain" create:"domain_optional"`
@@ -339,8 +351,20 @@ func (manager *SIsolatedDeviceManager) ListItemFilter(
 	if len(query.Addr) > 0 {
 		q = q.In("addr", query.Addr)
 	}
+	if len(query.DevicePath) > 0 {
+		q = q.In("device_path", query.DevicePath)
+	}
 	if len(query.VendorDeviceId) > 0 {
 		q = q.In("vendor_device_id", query.VendorDeviceId)
+	}
+	if len(query.NumaNode) > 0 {
+		q = q.In("numa_node", query.NumaNode)
+	}
+	if query.Index != nil && *query.Index >= 0 {
+		q = q.Equals("index", query.Index)
+	}
+	if query.DeviceMinor != nil && *query.DeviceMinor >= 0 {
+		q = q.Equals("device_minor", query.DeviceMinor)
 	}
 
 	if !query.ShowBaremetalIsolatedDevices {
@@ -972,6 +996,7 @@ func (manager *SIsolatedDeviceManager) attachHostDeviceToGuestByModel(
 					continue
 				} else {
 					selectedDev = &groupDevs[i].Devs[0]
+					break
 				}
 			}
 			if selectedDev != nil {
@@ -983,6 +1008,8 @@ func (manager *SIsolatedDeviceManager) attachHostDeviceToGuestByModel(
 	if selectedDev == nil {
 		selectedDev = &groupDevs[0].Devs[0]
 	}
+	devAddr := strings.Split(selectedDev.Addr, "-")[0]
+	usedDevMap[devAddr] = selectedDev
 
 	return guest.attachIsolatedDevice(ctx, userCred, selectedDev, devConfig.NetworkIndex, devConfig.DiskIndex)
 }
@@ -1157,8 +1184,16 @@ func (manager *SIsolatedDeviceManager) totalCountQ(
 }
 
 type IsolatedDeviceCountStat struct {
-	Devices int
-	Gpus    int
+	Devices     int
+	Gpus        int
+	DevicesUsed int
+	GpusUsed    int
+}
+
+type IsolatedDeviceStat struct {
+	DevType string
+	GuestId string
+	Count   int
 }
 
 func (manager *SIsolatedDeviceManager) totalCount(
@@ -1173,8 +1208,8 @@ func (manager *SIsolatedDeviceManager) totalCount(
 	cloudEnv string,
 	rangeObjs []db.IStandaloneModel,
 	policyResult rbacutils.SPolicyResult,
-) (int, error) {
-	return manager.totalCountQ(
+) ([]IsolatedDeviceStat, error) {
+	iq := manager.totalCountQ(
 		ctx,
 		scope,
 		ownerId,
@@ -1186,7 +1221,20 @@ func (manager *SIsolatedDeviceManager) totalCount(
 		cloudEnv,
 		rangeObjs,
 		policyResult,
-	).CountWithError()
+	)
+	sq := iq.SubQuery()
+	q := sq.Query(
+		sq.Field("dev_type"),
+		sq.Field("guest_id"),
+		sqlchemy.COUNT("count", sq.Field("id")),
+	)
+	q = q.GroupBy(q.Field("dev_type"), q.Field("guest_id"))
+	ret := []IsolatedDeviceStat{}
+	err := q.All(&ret)
+	if err != nil {
+		return nil, err
+	}
+	return ret, nil
 }
 
 func (manager *SIsolatedDeviceManager) TotalCount(
@@ -1201,26 +1249,28 @@ func (manager *SIsolatedDeviceManager) TotalCount(
 	rangeObjs []db.IStandaloneModel,
 	policyResult rbacutils.SPolicyResult,
 ) (IsolatedDeviceCountStat, error) {
-	stat := IsolatedDeviceCountStat{}
-	devCnt, err := manager.totalCount(
+	ret := IsolatedDeviceCountStat{}
+	stat, err := manager.totalCount(
 		ctx,
 		scope, ownerId, nil, hostType, resourceTypes,
 		providers, brands, cloudEnv,
 		rangeObjs, policyResult)
 	if err != nil {
-		return stat, err
+		return ret, err
 	}
-	gpuCnt, err := manager.totalCount(
-		ctx,
-		scope, ownerId, VALID_GPU_TYPES, hostType, resourceTypes,
-		providers, brands, cloudEnv,
-		rangeObjs, policyResult)
-	if err != nil {
-		return stat, err
+	for _, s := range stat {
+		ret.Devices += s.Count
+		if utils.IsInStringArray(s.DevType, VALID_GPU_TYPES) {
+			ret.Gpus += s.Count
+		}
+		if len(s.GuestId) > 0 {
+			ret.DevicesUsed += s.Count
+			if utils.IsInStringArray(s.DevType, VALID_GPU_TYPES) {
+				ret.GpusUsed += s.Count
+			}
+		}
 	}
-	stat.Devices = devCnt
-	stat.Gpus = gpuCnt
-	return stat, nil
+	return ret, nil
 }
 
 func (self *SIsolatedDevice) getDesc() *api.IsolatedDeviceJsonDesc {
@@ -1389,11 +1439,13 @@ func (manager *SIsolatedDeviceManager) FetchCustomizeColumns(
 
 	stdRows := manager.SStandaloneResourceBaseManager.FetchCustomizeColumns(ctx, userCred, query, objs, fields, isList)
 	hostRows := manager.SHostResourceBaseManager.FetchCustomizeColumns(ctx, userCred, query, objs, fields, isList)
+	shareRows := manager.SSharableBaseResourceManager.FetchCustomizeColumns(ctx, userCred, query, objs, fields, isList)
 	guestIds := make([]string, len(rows))
 	for i := range rows {
 		rows[i] = api.IsolateDeviceDetails{
 			StandaloneResourceDetails: stdRows[i],
 			HostResourceInfo:          hostRows[i],
+			SharableResourceBaseInfo:  shareRows[i],
 		}
 		guestIds[i] = objs[i].(*SIsolatedDevice).GuestId
 	}
@@ -1438,7 +1490,7 @@ func (self *SIsolatedDevice) PerformPurge(ctx context.Context, userCred mcclient
 func (self *SIsolatedDevice) CustomizeDelete(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) error {
 	if len(self.GuestId) > 0 {
 		if !jsonutils.QueryBoolean(data, "purge", false) {
-			return httperrors.NewBadRequestError("Isolated device used by server: %s", self.GuestId)
+			return httperrors.NewBadRequestError("%s: %s", api.ErrMsgIsolatedDeviceUsedByServer, self.GuestId)
 		}
 		iGuest, err := GuestManager.FetchById(self.GuestId)
 		if err != nil {
@@ -1578,7 +1630,7 @@ func (manager *SIsolatedDeviceManager) NamespaceScope() rbacscope.TRbacScope {
 }
 
 func (manager *SIsolatedDeviceManager) ResourceScope() rbacscope.TRbacScope {
-	return rbacscope.ScopeDomain
+	return rbacscope.ScopeProject
 }
 
 func (manager *SIsolatedDeviceManager) FilterByOwner(ctx context.Context, q *sqlchemy.SQuery, man db.FilterByOwnerProvider, userCred mcclient.TokenCredential, owner mcclient.IIdentityProvider, scope rbacscope.TRbacScope) *sqlchemy.SQuery {
@@ -1616,7 +1668,39 @@ func (model *SIsolatedDevice) syncWithCloudIsolateDevice(ctx context.Context, us
 		model.VendorDeviceId = dev.GetVendorDeviceId()
 		return nil
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	sharedProjectIds, err := dev.GetSharedProjectIds()
+	if err != nil {
+		if errors.Cause(err) == cloudprovider.ErrNotImplemented {
+			return nil
+		}
+		return err
+	}
+	log.Infof("share projectIds: %s", sharedProjectIds)
+	if len(sharedProjectIds) == 0 {
+		return nil
+	}
+	host := model.getHost()
+	if host == nil {
+		return nil
+	}
+	if len(sharedProjectIds) > 0 {
+		projectIds, err := db.FetchField(ExternalProjectManager, "tenant_id", func(q *sqlchemy.SQuery) *sqlchemy.SQuery {
+			return q.Equals("manager_id", host.ManagerId).In("external_id", sharedProjectIds)
+		})
+		if err != nil {
+			return err
+		}
+		input := apis.PerformPublicProjectInput{SharedProjectIds: projectIds}
+		input.Scope = "project"
+		err = db.SharablePerformPublic(model, ctx, userCred, input)
+		if err != nil {
+			return errors.Wrapf(err, "SharablePerformPublic")
+		}
+	}
+	return nil
 }
 
 func (model *SIsolatedDevice) SetNetworkIndex(idx int) error {
@@ -1625,4 +1709,36 @@ func (model *SIsolatedDevice) SetNetworkIndex(idx int) error {
 		return nil
 	})
 	return err
+}
+
+func (model *SIsolatedDevice) GetRequiredSharedDomainIds() []string {
+	host := model.getHost()
+	if host != nil {
+		return []string{host.DomainId}
+	}
+	return []string{}
+}
+
+func (model *SIsolatedDevice) GetSharableTargetDomainIds() []string {
+	return nil
+}
+
+func (model *SIsolatedDevice) GetSharedDomains() []string {
+	return db.SharableGetSharedProjects(model, db.SharedTargetDomain)
+}
+
+func (model *SIsolatedDevice) PerformPublic(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input apis.PerformPublicProjectInput) (jsonutils.JSONObject, error) {
+	err := db.SharablePerformPublic(model, ctx, userCred, input)
+	if err != nil {
+		return nil, errors.Wrap(err, "SharablePerformPublic")
+	}
+	return nil, nil
+}
+
+func (model *SIsolatedDevice) PerformPrivate(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input apis.PerformPrivateInput) (jsonutils.JSONObject, error) {
+	err := db.SharablePerformPrivate(model, ctx, userCred)
+	if err != nil {
+		return nil, errors.Wrap(err, "SharablePerformPrivate")
+	}
+	return nil, nil
 }

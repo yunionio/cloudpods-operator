@@ -15,12 +15,15 @@
 package options
 
 import (
+	"reflect"
 	"sort"
 
 	"yunion.io/x/log"
 	"yunion.io/x/pkg/util/netutils"
 
+	"yunion.io/x/onecloud/pkg/appsrv"
 	"yunion.io/x/onecloud/pkg/cloudcommon/consts"
+	"yunion.io/x/onecloud/pkg/util/netutils2"
 )
 
 func OnBaseOptionsChange(oOpts, nOpts interface{}) bool {
@@ -62,14 +65,31 @@ func OnBaseOptionsChange(oOpts, nOpts interface{}) bool {
 	if oldOpts.ApiServer != newOpts.ApiServer {
 		log.Debugf("api_server changed from %s to %s", oldOpts.ApiServer, newOpts.ApiServer)
 	}
+	if !reflect.DeepEqual(oldOpts.MetadataServerIp4s, newOpts.MetadataServerIp4s) {
+		netutils2.SetIp4MetadataServers(newOpts.MetadataServerIp4s)
+		log.Debugf("Metadata server IPv4 address changed to %s", newOpts.MetadataServerIp4s)
+	}
+	if !reflect.DeepEqual(oldOpts.MetadataServerIp6s, newOpts.MetadataServerIp6s) {
+		netutils2.SetIp6MetadataServers(newOpts.MetadataServerIp6s)
+		log.Debugf("Metadata server IPv6 address changed to %s", newOpts.MetadataServerIp6s)
+	}
 	if oldOpts.TaskWorkerCount != newOpts.TaskWorkerCount {
 		consts.SetTaskWorkerCount(newOpts.TaskWorkerCount)
 	}
 	if oldOpts.LocalTaskWorkerCount != newOpts.LocalTaskWorkerCount {
 		consts.SetLocalTaskWorkerCount(newOpts.LocalTaskWorkerCount)
 	}
+	if oldOpts.TaskArchiveThresholdHours != newOpts.TaskArchiveThresholdHours {
+		consts.SetTaskArchiveThresholdHours(newOpts.TaskArchiveThresholdHours)
+	}
+	if oldOpts.TaskArchiveBatchLimit != newOpts.TaskArchiveBatchLimit {
+		consts.SetTaskArchiveBatchLimit(newOpts.TaskArchiveBatchLimit)
+	}
 	if oldOpts.EnableChangeOwnerAutoRename != newOpts.EnableChangeOwnerAutoRename {
 		consts.SetChangeOwnerAutoRename(newOpts.EnableChangeOwnerAutoRename)
+	}
+	if privatePrrefixesChanged(oldOpts.DefaultHandlersWhitelistUserAgents, newOpts.DefaultHandlersWhitelistUserAgents) {
+		appsrv.SetDefaultHandlersWhitelistUserAgents(newOpts.DefaultHandlersWhitelistUserAgents)
 	}
 	return changed
 }

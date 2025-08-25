@@ -48,6 +48,9 @@ type SHostBaseOptions struct {
 	DhcpLeaseTime   int `default:"100663296" help:"DHCP lease time in seconds"`
 	DhcpRenewalTime int `default:"67108864" help:"DHCP renewal time in seconds"`
 
+	Dhcp6RouterAdvertisementIntervalSecs int `default:"3" help:"DHCPv6 router advertisement interval in seconds, default 3 seconds"`
+	Dhcp6RouterAdvertisementAttempts     int `default:"3" help:"DHCPv6 router advertisement attempts, default 3 attempts"`
+
 	Ext4LargefileSizeGb int `default:"4096" help:"Use largefile options when the ext4 fs greater than this size"`
 	Ext4HugefileSizeGb  int `default:"512" help:"Use huge options when the ext4 fs greater than this size"`
 
@@ -81,6 +84,7 @@ type SHostOptions struct {
 	ServersPath         string `help:"Path for virtual server configuration files" default:"/opt/cloud/workspace/servers"`
 	ImageCachePath      string `help:"Path for storing image caches" default:"/opt/cloud/workspace/disks/image_cache"`
 	MemorySnapshotsPath string `help:"Path for memory snapshot stat files" default:"/opt/cloud/workspace/memory_snapshots"`
+	HostFilesPath       string `help:"Path for host files" default:"/opt/cloud/workspace/host_files"`
 	// ImageCacheLimit int    `help:"Maximal storage space for image caching, in GB" default:"20"`
 	AgentTempPath  string `help:"Path for ESXi agent"`
 	AgentTempLimit int    `help:"Maximal storage space for ESXi agent, in GB" default:"10"`
@@ -104,8 +108,9 @@ type SHostOptions struct {
 	DnsServer       string `help:"Address of host DNS server"`
 	DnsServerLegacy string `help:"Deprecated Address of host DNS server"`
 
-	ChntpwPath string `help:"path to chntpw tool" default:"/usr/local/bin/chntpw.static"`
-	OvmfPath   string `help:"Path to OVMF.fd" default:"/opt/cloud/contrib/OVMF.fd"`
+	ChntpwPath   string `help:"path to chntpw tool" default:"/usr/local/bin/chntpw.static"`
+	OvmfPath     string `help:"Path to OVMF.fd" default:"/opt/cloud/contrib/OVMF.fd"`
+	OvmfVarsPath string `help:"Path to OVMF_VARS.fd" default:"/opt/cloud/contrib/OVMF_VARS.fd"`
 
 	LinuxDefaultRootUser    bool `help:"Default account for linux system is root"`
 	WindowsDefaultAdminUser bool `default:"true" help:"Default account for Windows system is Administrator"`
@@ -121,13 +126,15 @@ type SHostOptions struct {
 	SharedStorages  []string `help:"Path of shared storages"`
 	LVMVolumeGroups []string `help:"LVM Volume Groups(vgs)"`
 
-	DhcpRelay []string `help:"DHCP relay upstream"`
+	DhcpRelay  []string `help:"DHCP relay upstream"`
+	Dhcp6Relay []string `help:"DHCPv6 relay upstream"`
 
 	TunnelPaddingBytes int64 `help:"Specify tunnel padding bytes" default:"0"`
 
 	CheckSystemServices bool `help:"Check system services (ntpd, telegraf) on startup" default:"true"`
 
 	DhcpServerPort     int    `help:"Host dhcp server bind port" default:"67"`
+	Dhcp6ServerPort    int    `help:"Host dhcp6 server bind port" default:"547"`
 	FetcherfsPath      string `default:"/opt/yunion/fetchclient/bin/fetcherfs" help:"Fuse fetcherfs path"`
 	FetcherfsBlockSize int    `default:"16" help:"Fuse fetcherfs fetch chunk_size MB"`
 
@@ -164,6 +171,7 @@ type SHostOptions struct {
 	MaxReservedMemory int `default:"10240" help:"host reserved memory"`
 
 	DefaultRequestWorkerCount int `default:"8" help:"default request worker count"`
+	ImageCacheWorkerCount     int `default:"8" help:"default request worker count"`
 	ContainerStartWorkerCount int `default:"1" help:"container start worker count"`
 	ContainerStopWorkerCount  int `default:"1" help:"container stop worker count"`
 
@@ -221,9 +229,10 @@ type SHostOptions struct {
 
 	BinaryMemcleanPath string `help:"execute binary memclean path" default:"/opt/yunion/bin/memclean"`
 
-	MaxHotplugVCpuCount int  `help:"maximal possible vCPU count that the platform kvm supports"`
-	PcieRootPortCount   int  `help:"pcie root port count" default:"2"`
-	EnableQemuDebugLog  bool `help:"enable qemu debug logs" default:"false"`
+	MaxHotplugVCpuCount int    `help:"maximal possible vCPU count that the platform kvm supports"`
+	PcieRootPortCount   int    `help:"pcie root port count" default:"2"`
+	EnableQemuDebugLog  bool   `help:"enable qemu debug logs" default:"false"`
+	ResetDiskTmpDir     string `help:"auto reset disk after guest shutdown will write disk to tmpdir"`
 
 	// container related endpoint
 	// EnableContainerRuntime   bool   `help:"enable container runtime" default:"false"`
@@ -231,11 +240,13 @@ type SHostOptions struct {
 	ContainerDeviceConfigFile                string `help:"container device configuration file path"`
 	LxcfsPath                                string `help:"lxcfs directory path" default:"/var/lib/lxcfs"`
 	ContainerSystemCpufreqSimulateConfigFile string `help:"container system cpu simulate config file path" default:"/etc/yunion/container_cpufreq_simulate.conf"`
+	EnableRealtimeCpufreqSimulate            bool   `help:"realtime cpufreq simulate" default:"true"`
+	RealtimeCpufreqSimulateInterval          int    `help:"realtime cpufreq simulate interval(second)" default:"2"`
 
 	EnableCudaMPS        bool   `help:"enable cuda mps" default:"false"`
 	CudaMPSPipeDirectory string `help:"cuda mps pipe dir" default:"/tmp/nvidia-mps/pipe"`
 	CudaMPSLogDirectory  string `help:"cuda mps log dir" default:"/tmp/nvidia-mps/log"`
-	CudaMPSReplicas      int    `help:"cuda mps replias" default:"10"`
+	CudaMPSReplicas      int    `help:"cuda mps replicas" default:"10"`
 
 	EnableContainerAscendNPU bool `help:"enable container npu" default:"false"`
 

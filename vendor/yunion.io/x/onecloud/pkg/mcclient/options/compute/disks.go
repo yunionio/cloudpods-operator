@@ -108,7 +108,10 @@ func (o *DiskResetTemplateOptions) Params() (jsonutils.JSONObject, error) {
 
 type DiskRebuildOptions struct {
 	options.ResourceIdOptions
-	BackupId string `help:"disk backup id" json:"backup_id"`
+	BackupId   string `help:"disk backup id" json:"backup_id"`
+	TemplateId string `help:"disk template id" json:"template_id"`
+	Size       string `help:"disk size in MB" json:"size"`
+	Fs         string `help:"disk fs type"`
 }
 
 func (o *DiskRebuildOptions) Params() (jsonutils.JSONObject, error) {
@@ -149,4 +152,17 @@ func (opts *DiskListOptions) Params() (jsonutils.JSONObject, error) {
 		}
 	}
 	return params, nil
+}
+
+type DiskChangeBillingTypeOptions struct {
+	ID          string
+	BillingType string `choices:"prepaid|postpaid"`
+}
+
+func (o *DiskChangeBillingTypeOptions) GetId() string {
+	return o.ID
+}
+
+func (o *DiskChangeBillingTypeOptions) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.Marshal(map[string]string{"billing_type": o.BillingType}), nil
 }
