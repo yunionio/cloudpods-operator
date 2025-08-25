@@ -19,6 +19,7 @@ import (
 	"database/sql"
 	"fmt"
 	"sort"
+	"time"
 
 	"yunion.io/x/cloudmux/pkg/cloudprovider"
 	"yunion.io/x/jsonutils"
@@ -33,6 +34,7 @@ import (
 	"yunion.io/x/sqlchemy"
 
 	"yunion.io/x/onecloud/pkg/apis"
+	billing_api "yunion.io/x/onecloud/pkg/apis/billing"
 	api "yunion.io/x/onecloud/pkg/apis/compute"
 	"yunion.io/x/onecloud/pkg/cloudcommon/consts"
 	"yunion.io/x/onecloud/pkg/cloudcommon/db"
@@ -593,12 +595,11 @@ func (self *SElasticip) SyncWithCloudEip(ctx context.Context, userCred mcclient.
 			self.ChargeType = chargeType
 		}
 
-		factory, _ := provider.GetProviderFactory()
-		if factory != nil && factory.IsSupportPrepaidResources() {
-			self.BillingType = ext.GetBillingType()
-			if expired := ext.GetExpiredAt(); !expired.IsZero() {
-				self.ExpiredAt = expired
-			}
+		self.BillingType = ext.GetBillingType()
+		self.ExpiredAt = time.Time{}
+		self.AutoRenew = false
+		if self.BillingType == billing_api.BILLING_TYPE_PREPAID {
+			self.ExpiredAt = ext.GetExpiredAt()
 			self.AutoRenew = ext.IsAutoRenew()
 		}
 
@@ -653,6 +654,13 @@ func (manager *SElasticipManager) newFromCloudEip(ctx context.Context, userCred 
 	eip.AssociateType = extEip.GetAssociationType()
 	if !extEip.GetCreatedAt().IsZero() {
 		eip.CreatedAt = extEip.GetCreatedAt()
+	}
+	eip.BillingType = extEip.GetBillingType()
+	eip.ExpiredAt = time.Time{}
+	eip.AutoRenew = false
+	if eip.BillingType == billing_api.BILLING_TYPE_PREPAID {
+		eip.ExpiredAt = extEip.GetExpiredAt()
+		eip.AutoRenew = extEip.IsAutoRenew()
 	}
 	if len(eip.ChargeType) == 0 {
 		eip.ChargeType = api.EIP_CHARGE_TYPE_BY_TRAFFIC
@@ -895,8 +903,9 @@ func (self *SElasticip) AssociateLoadbalancer(ctx context.Context, userCred mccl
 	if len(self.AssociateType) > 0 && len(self.AssociateId) > 0 {
 		if self.AssociateType == api.EIP_ASSOCIATE_TYPE_LOADBALANCER && self.AssociateId == lb.Id {
 			return nil
-		} else {
-			return fmt.Errorf("EIP has been associated!!")
+		}
+		if self.GetAssociateResource() != nil {
+			return fmt.Errorf("eip has been associated!!")
 		}
 	}
 	_, err := db.Update(self, func() error {
@@ -927,7 +936,9 @@ func (self *SElasticip) AssociateInstance(ctx context.Context, userCred mcclient
 		if self.AssociateType == insType && self.AssociateId == ins.GetId() {
 			return nil
 		}
-		return fmt.Errorf("EIP has been associated!!")
+		if self.GetAssociateResource() != nil {
+			return fmt.Errorf("eip has been associated!!")
+		}
 	}
 	_, err := db.Update(self, func() error {
 		self.AssociateType = insType
@@ -957,7 +968,9 @@ func (self *SElasticip) AssociateInstanceGroup(ctx context.Context, userCred mcc
 		if self.AssociateType == insType && self.AssociateId == ins.GetId() {
 			return nil
 		}
-		return fmt.Errorf("EIP has been associated!!")
+		if self.GetAssociateResource() != nil {
+			return fmt.Errorf("eip has been associated!!")
+		}
 	}
 	_, err := db.Update(self, func() error {
 		self.AssociateType = insType

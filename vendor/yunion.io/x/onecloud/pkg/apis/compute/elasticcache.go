@@ -53,6 +53,8 @@ func (self ElasticcacheDetails) GetMetricTags() map[string]string {
 		"tenant":         self.Project,
 		"tenant_id":      self.ProjectId,
 		"brand":          self.Brand,
+		"account":        self.Account,
+		"account_id":     self.AccountId,
 		"domain_id":      self.DomainId,
 		"project_domain": self.ProjectDomain,
 		"external_id":    self.ExternalId,
@@ -244,12 +246,12 @@ type ElasticcacheCreateInput struct {
 	// 包年包月时间周期
 	Duration string `json:"duration"`
 
+	// 到期释放时间
+	ReleaseAt time.Time `json:"release_at"`
+
 	// 是否自动续费(仅包年包月时生效)
 	// default: false
 	AutoRenew bool `json:"auto_renew"`
-
-	// swagger:ignore
-	ExpiredAt time.Time `json:"expired_at"`
 
 	// 计费方式
 	// enum: postpaid, prepaid

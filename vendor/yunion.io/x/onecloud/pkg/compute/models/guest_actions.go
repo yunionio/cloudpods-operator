@@ -29,6 +29,7 @@ import (
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
 	"yunion.io/x/pkg/errors"
+	"yunion.io/x/pkg/gotypes"
 	"yunion.io/x/pkg/tristate"
 	"yunion.io/x/pkg/util/billing"
 	"yunion.io/x/pkg/util/httputils"
@@ -1586,6 +1587,9 @@ func (self *SGuest) fixFakeServerInfo(ctx context.Context, userCred mcclient.Tok
 }
 
 func (self *SGuest) StartSyncstatus(ctx context.Context, userCred mcclient.TokenCredential, parentTaskId string) error {
+	if len(parentTaskId) == 0 {
+		self.SetStatus(ctx, userCred, apis.STATUS_START_SYNC_STATUS, "")
+	}
 	return self.GetDriver().StartGuestSyncstatusTask(self, ctx, userCred, parentTaskId)
 }
 
@@ -1665,6 +1669,9 @@ func (self *SGuest) PerformRebuildRoot(
 		}
 
 		diskCat := self.CategorizeDisks()
+		if gotypes.IsNil(diskCat.Root) {
+			return nil, httperrors.NewInputParameterError("no root disk is found")
+		}
 		if img.MinDiskMB == 0 || img.Status != imageapi.IMAGE_STATUS_ACTIVE {
 			return nil, httperrors.NewInputParameterError("invlid image")
 		}
@@ -1891,7 +1898,7 @@ func (self *SGuest) PerformCreatedisk(ctx context.Context, userCred mcclient.Tok
 	lockman.LockObject(ctx, host)
 	defer lockman.ReleaseObject(ctx, host)
 
-	err = self.CreateDisksOnHost(ctx, userCred, host, disksConf, pendingUsage, false, false, nil, nil, false)
+	err = self.CreateDisksOnHost(ctx, userCred, host, disksConf, pendingUsage, false, options.Options.UseServerTagsForDisk, nil, nil, false)
 	if err != nil {
 		quotas.CancelPendingUsage(ctx, userCred, pendingUsage, pendingUsage, false)
 		logclient.AddActionLogWithContext(ctx, self, logclient.ACT_CREATE, err.Error(), userCred, false)
@@ -2223,8 +2230,7 @@ func (self *SGuest) attachIsolatedDevice(ctx context.Context, userCred mcclient.
 	if len(dev.GuestId) > 0 {
 		return fmt.Errorf("Isolated device already attached to another guest: %s", dev.GuestId)
 	}
-	if dev.HostId !=
-		self.HostId {
+	if dev.HostId != self.HostId {
 		return fmt.Errorf("Isolated device and guest are not located in the same host")
 	}
 	_, err := db.Update(dev, func() error {
@@ -2391,7 +2397,11 @@ func (self *SGuest) PerformChangeIpaddr(
 	if input.NetConf != nil {
 		conf = input.NetConf
 	} else if len(input.NetDesc) > 0 {
-		netConf, err := cmdline.ParseNetworkConfigByJSON(jsonutils.NewString(input.NetDesc), -1)
+		netDescJson, err := jsonutils.ParseString(input.NetDesc)
+		if err != nil {
+			netDescJson = jsonutils.NewString(input.NetDesc)
+		}
+		netConf, err := cmdline.ParseNetworkConfigByJSON(netDescJson, -1)
 		if err != nil {
 			return nil, httperrors.NewInputParameterError("fail to parse net_desc %s: %s", input.NetDesc, err)
 		}
@@ -2961,15 +2971,7 @@ func (self *SGuest) PerformChangeConfig(ctx context.Context, userCred mcclient.T
 		return nil, httperrors.NewBadRequestError("Guest have backup not allow to change config")
 	}
 
-	changeStatus, err := self.GetDriver().GetChangeConfigStatus(self)
-	if err != nil {
-		return nil, httperrors.NewInputParameterError("%v", err)
-	}
-	if !utils.IsInStringArray(self.Status, changeStatus) {
-		return nil, httperrors.NewInvalidStatusError("Cannot change config in %s for %s, requires %s", self.Status, self.GetHypervisor(), changeStatus)
-	}
-
-	_, err = self.GetHost()
+	_, err := self.GetHost()
 	if err != nil {
 		return nil, httperrors.NewInvalidStatusError("no valid host")
 	}
@@ -2979,10 +2981,30 @@ func (self *SGuest) PerformChangeConfig(ctx context.Context, userCred mcclient.T
 		return nil, errors.Wrap(err, "ValidateGuestChangeConfigInput")
 	}
 
+	if confs.CpuChanged() || confs.MemChanged() || confs.InstanceTypeChanged() {
+		changeStatus, err := self.GetDriver().GetChangeInstanceTypeStatus()
+		if err != nil {
+			return nil, httperrors.NewInputParameterError("%v", err)
+		}
+		if !utils.IsInStringArray(self.Status, changeStatus) {
+			return nil, httperrors.NewInvalidStatusError("Cannot change config in %s for %s, requires %s", self.Status, self.GetHypervisor(), changeStatus)
+		}
+	}
+
 	if self.PowerStates == api.VM_POWER_STATES_ON && (confs.CpuChanged() || confs.MemChanged()) {
 		confs, err = self.GetDriver().ValidateGuestHotChangeConfigInput(ctx, self, confs)
 		if err != nil {
 			return nil, httperrors.NewInvalidStatusError("cannot change CPU/Memory spec in power status %s: %s", self.PowerStates, err)
+		}
+	}
+
+	if len(confs.Create) > 0 {
+		attachStatus, err := self.GetDriver().GetAttachDiskStatus()
+		if err != nil {
+			return nil, httperrors.NewInputParameterError("%v", err)
+		}
+		if !utils.IsInStringArray(self.Status, attachStatus) {
+			return nil, httperrors.NewInvalidStatusError("Cannot attach disk in %s for %s, requires %s", self.Status, self.GetHypervisor(), attachStatus)
 		}
 	}
 
@@ -3091,7 +3113,8 @@ func (self *SGuest) DoCancelPendingDelete(ctx context.Context, userCred mcclient
 	}
 
 	if self.BillingType == billing_api.BILLING_TYPE_POSTPAID && !self.ExpiredAt.IsZero() {
-		if err := self.CancelExpireTime(ctx, userCred); err != nil {
+		err := SaveReleaseAt(ctx, self, userCred, time.Time{})
+		if err != nil {
 			return err
 		}
 	}
@@ -4103,16 +4126,22 @@ func (self *SGuest) PerformCancelExpire(ctx context.Context, userCred mcclient.T
 	if self.BillingType != billing_api.BILLING_TYPE_POSTPAID {
 		return nil, httperrors.NewBadRequestError("guest billing type %s not support cancel expire", self.BillingType)
 	}
-	if err := self.GetDriver().CancelExpireTime(ctx, userCred, self); err != nil {
+
+	err := SaveReleaseAt(ctx, self, userCred, time.Time{})
+	if err != nil {
 		return nil, err
 	}
+
 	disks, err := self.GetDisks()
 	if err != nil {
 		return nil, err
 	}
 	for i := 0; i < len(disks); i += 1 {
-		if err := disks[i].CancelExpireTime(ctx, userCred); err != nil {
-			return nil, err
+		if disks[i].BillingType == billing_api.BILLING_TYPE_POSTPAID {
+			err := SaveReleaseAt(ctx, &disks[i], userCred, time.Time{})
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 	return nil, nil
@@ -4127,16 +4156,15 @@ func (self *SGuest) PerformPostpaidExpire(ctx context.Context, userCred mcclient
 		return nil, httperrors.NewBadRequestError("guest %s unsupport postpaid expire", self.Hypervisor)
 	}
 
-	bc, err := ParseBillingCycleInput(&self.SBillingResourceBase, input)
+	releaseAt, err := input.GetReleaseAt()
 	if err != nil {
 		return nil, err
 	}
 
-	err = self.SaveRenewInfo(ctx, userCred, bc, nil, billing_api.BILLING_TYPE_POSTPAID)
+	err = SaveReleaseAt(ctx, self, userCred, releaseAt)
 	if err != nil {
 		return nil, err
 	}
-	logclient.AddActionLogWithContext(ctx, self, logclient.ACT_SET_EXPIRED_TIME, input, userCred, true)
 	return nil, nil
 }
 
@@ -4194,7 +4222,7 @@ func (self *SGuest) SaveRenewInfo(
 	ctx context.Context, userCred mcclient.TokenCredential,
 	bc *billing.SBillingCycle, expireAt *time.Time, billingType string,
 ) error {
-	err := self.doSaveRenewInfo(ctx, userCred, bc, expireAt, billingType)
+	err := SaveRenewInfo(ctx, userCred, self, bc, expireAt, billingType)
 	if err != nil {
 		return err
 	}
@@ -4204,56 +4232,12 @@ func (self *SGuest) SaveRenewInfo(
 	}
 	for i := 0; i < len(disks); i += 1 {
 		if disks[i].AutoDelete {
-			err = disks[i].SaveRenewInfo(ctx, userCred, bc, expireAt, billingType)
+			err = SaveRenewInfo(ctx, userCred, &disks[i], bc, expireAt, billingType)
 			if err != nil {
 				return err
 			}
 		}
 	}
-	return nil
-}
-
-func (self *SGuest) doSaveRenewInfo(
-	ctx context.Context, userCred mcclient.TokenCredential,
-	bc *billing.SBillingCycle, expireAt *time.Time, billingType string,
-) error {
-	_, err := db.Update(self, func() error {
-		if billingType == "" {
-			billingType = billing_api.BILLING_TYPE_PREPAID
-		}
-		if self.BillingType == "" {
-			self.BillingType = billingType
-		}
-		if expireAt != nil && !expireAt.IsZero() {
-			self.ExpiredAt = *expireAt
-		} else if bc != nil {
-			self.BillingCycle = bc.String()
-			self.ExpiredAt = bc.EndAt(self.ExpiredAt)
-		}
-		return nil
-	})
-	if err != nil {
-		log.Errorf("UpdateItem error %s", err)
-		return err
-	}
-	db.OpsLog.LogEvent(self, db.ACT_RENEW, self.GetShortDesc(ctx), userCred)
-	return nil
-}
-
-func (self *SGuest) CancelExpireTime(ctx context.Context, userCred mcclient.TokenCredential) error {
-	if self.BillingType != billing_api.BILLING_TYPE_POSTPAID {
-		return fmt.Errorf("billing type %s not support cancel expire", self.BillingType)
-	}
-	_, err := sqlchemy.GetDB().Exec(
-		fmt.Sprintf(
-			"update %s set expired_at = NULL and billing_cycle = NULL where id = ?",
-			GuestManager.TableSpec().Name(),
-		), self.Id,
-	)
-	if err != nil {
-		return errors.Wrap(err, "guest cancel expire time")
-	}
-	db.OpsLog.LogEvent(self, db.ACT_RENEW, "guest cancel expire time", userCred)
 	return nil
 }
 
@@ -5041,6 +5025,7 @@ func (self *SGuest) validateCreateInstanceBackup(
 	return input, nil
 }
 
+// 创建主机快照
 // 1. validate guest status, guest hypervisor
 // 2. validate every disk manual snapshot count
 // 3. validate snapshot quota with disk count
@@ -5789,7 +5774,21 @@ func (self *SGuest) PerformChangeDiskStorage(ctx context.Context, userCred mccli
 		return nil, err
 	}
 
-	// create a disk on target storage from source disk
+	{
+		copyInput := api.ServerCopyDiskToStorageInput{
+			KeepOriginDisk: input.KeepOriginDisk,
+			GuestRunning:   self.Status == api.VM_RUNNING,
+		}
+		err := self.CopyDiskToStorage(ctx, userCred, srcDisk, storage, copyInput, "")
+		if err != nil {
+			return nil, errors.Wrap(err, "CopyDiskToStorage")
+		}
+	}
+
+	return nil, nil
+}
+
+func (guest *SGuest) CopyDiskToStorage(ctx context.Context, userCred mcclient.TokenCredential, srcDisk *SDisk, storage *SStorage, input api.ServerCopyDiskToStorageInput, parentTaskId string) error {
 	diskConf := &api.DiskConfig{
 		Index:    -1,
 		ImageId:  srcDisk.TemplateId,
@@ -5798,19 +5797,39 @@ func (self *SGuest) PerformChangeDiskStorage(ctx context.Context, userCred mccli
 		DiskType: srcDisk.DiskType,
 	}
 
-	targetDisk, err := self.CreateDiskOnStorage(ctx, userCred, storage, diskConf, nil, true, true)
+	targetDisk, err := guest.CreateDiskOnStorage(ctx, userCred, storage, diskConf, nil, true, true)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Create target disk on storage %s", storage.GetName())
+		return errors.Wrapf(err, "Create target disk on storage %s", storage.GetName())
+	}
+
+	{
+		err := db.InheritFromTo(ctx, userCred, srcDisk, targetDisk)
+		if err != nil {
+			return errors.Wrapf(err, "Inherit class metadata from src %s to target %s", srcDisk.GetName(), targetDisk.GetName())
+		}
 	}
 
 	internalInput := &api.ServerChangeDiskStorageInternalInput{
-		ServerChangeDiskStorageInput: *input,
-		StorageId:                    srcDisk.StorageId,
-		TargetDiskId:                 targetDisk.GetId(),
-		GuestRunning:                 self.Status == api.VM_RUNNING,
+		ServerChangeDiskStorageInput: api.ServerChangeDiskStorageInput{
+			DiskId:          srcDisk.Id,
+			TargetStorageId: storage.Id,
+			KeepOriginDisk:  input.KeepOriginDisk,
+		},
+		StorageId:          srcDisk.StorageId,
+		TargetDiskId:       targetDisk.GetId(),
+		GuestRunning:       input.GuestRunning,
+		CloneDiskCount:     input.CloneDiskCount,
+		CompletedDiskCount: input.CompletedDiskCount,
 	}
 
-	return nil, self.StartChangeDiskStorageTask(ctx, userCred, internalInput, "")
+	{
+		err := guest.StartChangeDiskStorageTask(ctx, userCred, internalInput, parentTaskId)
+		if err != nil {
+			return errors.Wrap(err, "StartChangeDiskStorageTask")
+		}
+	}
+
+	return nil
 }
 
 func (self *SGuest) StartChangeDiskStorageTask(ctx context.Context, userCred mcclient.TokenCredential, input *api.ServerChangeDiskStorageInternalInput, parentTaskId string) error {
@@ -6233,4 +6252,35 @@ func (g *SGuest) PerformSetRootDiskMatcher(ctx context.Context, userCred mcclien
 		return nil, errors.Wrapf(err, "set %s", api.BAREMETAL_SERVER_METATA_ROOT_DISK_MATCHER)
 	}
 	return nil, nil
+}
+
+func (g *SGuest) PerformChangeBillingType(ctx context.Context, userCred mcclient.TokenCredential, _ jsonutils.JSONObject, input *api.ServerChangeBillingTypeInput) (jsonutils.JSONObject, error) {
+	if !utils.IsInStringArray(g.Status, []string{api.VM_RUNNING, api.VM_READY}) {
+		return nil, httperrors.NewServerStatusError("Cannot change guest billing type in status %s", g.Status)
+	}
+	if len(input.BillingType) == 0 {
+		return nil, httperrors.NewMissingParameterError("billing_type")
+	}
+	if !utils.IsInStringArray(input.BillingType, []string{billing_api.BILLING_TYPE_POSTPAID, billing_api.BILLING_TYPE_PREPAID}) {
+		return nil, httperrors.NewInputParameterError("invalid billing_type %s", input.BillingType)
+	}
+	if g.BillingType == input.BillingType {
+		return nil, nil
+	}
+	return nil, g.StartChangeBillingTypeTask(ctx, userCred, "")
+}
+
+func (self *SGuest) StartChangeBillingTypeTask(ctx context.Context, userCred mcclient.TokenCredential, parentTaskId string) error {
+	self.SetStatus(ctx, userCred, apis.STATUS_CHANGE_BILLING_TYPE, "")
+	kwargs := jsonutils.NewDict()
+	task, err := taskman.TaskManager.NewTask(ctx, "GuestChangeBillingTypeTask", self, userCred, kwargs, parentTaskId, "", nil)
+	if err != nil {
+		return err
+	}
+	return task.ScheduleRun(nil)
+}
+
+func (self *SGuest) PerformDisableAutoMergeSnapshots(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
+	disableAutoMergeSnapshot := jsonutils.QueryBoolean(data, "disable_auto_merge_snapshot", false)
+	return nil, self.SetMetadata(ctx, api.VM_METADATA_DISABLE_AUTO_MERGE_SNAPSHOT, disableAutoMergeSnapshot, userCred)
 }

@@ -15,6 +15,8 @@
 package compute
 
 import (
+	"time"
+
 	"yunion.io/x/jsonutils"
 
 	"yunion.io/x/onecloud/pkg/apis"
@@ -171,6 +173,10 @@ type DiskConfig struct {
 	// enum: swap, ext2, ext3, ext4, xfs, ntfs, fat, hfsplus
 	// requried: false
 	Fs string `json:"fs"`
+
+	// 关机后自动重置磁盘
+	// required: false
+	AutoReset bool `json:"auto_reset"`
 
 	// 磁盘存储格式
 	// enum: qcow2, raw, docker, iso, vmdk, vmdkflatver1, vmdkflatver2, vmdkflat, vmdksparse, vmdksparsever1, vmdksparsever2, vmdksepsparse vhd
@@ -630,6 +636,8 @@ type ServerCreateInput struct {
 	BillingType string `json:"billing_type"`
 	// swagger:ignore
 	BillingCycle string `json:"billing_cycle"`
+	// 到期释放时间
+	ReleaseAt time.Time `json:"release_at"`
 
 	// swagger:ignore
 	// Deprecated

@@ -182,6 +182,21 @@ func lang(ctx context.Context, contactType npk.TNotifyChannel, reIds []string, c
 	return langMap, nil
 }
 
+func isEmptyRecipients(recipientId, robots []string) bool {
+	var recvs []string
+	for _, c := range recipientId {
+		if len(c) > 0 {
+			recvs = append(recvs, c)
+		}
+	}
+	for _, robot := range robots {
+		if len(robot) > 0 {
+			recvs = append(recvs, robot)
+		}
+	}
+	return len(recvs) == 0
+}
+
 func genMsgViaLang(ctx context.Context, p sNotifyParams) ([]npk.SNotifyMessage, error) {
 	reIds := make([]string, 0)
 	s, err := AdminSessionGenerator(context.Background(), consts.GetRegion())
@@ -208,6 +223,10 @@ func genMsgViaLang(ctx context.Context, p sNotifyParams) ([]npk.SNotifyMessage, 
 		reIds = p.recipientId
 	}
 
+	if isEmptyRecipients(p.recipientId, p.robots) {
+		return nil, errors.Wrap(errors.ErrEmpty, "empty receipients")
+	}
+
 	if !hasTemplateOfTopic(p.event) {
 		msg := npk.SNotifyMessage{}
 		msg.Uid = reIds
@@ -227,6 +246,9 @@ func genMsgViaLang(ctx context.Context, p sNotifyParams) ([]npk.SNotifyMessage, 
 
 	if p.channel == npk.NotifyByRobot {
 		langMap, err = langRobot(ctx, p.robots)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		langMap, err = lang(ctx, p.channel, reIds, p.contacts)
 		if err != nil {
@@ -248,7 +270,10 @@ func genMsgViaLang(ctx context.Context, p sNotifyParams) ([]npk.SNotifyMessage, 
 			topic = p.event
 		}
 		msg.Topic = topic
-		body, _ := getContent(langSuffix, p.event, "content", p.channel, p.data)
+		body, err := getContent(langSuffix, p.event, "content", p.channel, p.data)
+		if err != nil {
+			log.Errorf("get content error: %s", err)
+		}
 		if len(body) == 0 {
 			body, _ = p.data.GetString()
 		}
@@ -334,13 +359,10 @@ func notifyNormal(ctx context.Context, recipientId []string, isGroup bool, event
 }
 
 func notifyWithChannel(ctx context.Context, p sNotifyParams, channels ...npk.TNotifyChannel) {
-	reps := p.recipientId
 	for _, c := range channels {
-		p.recipientId = []string{}
-		p.contacts = []string{}
-		p.channel = c
-		p.recipientId = reps
-		rawNotify(ctx, p)
+		np := p
+		np.channel = c
+		rawNotify(ctx, np)
 	}
 }
 
@@ -369,7 +391,7 @@ func (t *notifyTask) Run() {
 			break
 		}
 		if !t.createReceiver {
-			log.Errorf("unable to send notification: %v", err)
+			log.Errorf("unable to send notification to contacts %s uid %s gid %s @%s: %s", strings.Join(t.msg.Contacts, ","), strings.Join(t.msg.Uid, ","), strings.Join(t.msg.Gid, ","), t.msg.ContactType, jsonutils.Marshal(err))
 			break
 		}
 		jerr, ok := err.(*httputils.JSONClientError)
@@ -396,18 +418,20 @@ func (t *notifyTask) Run() {
 		}
 		log.Infof("create receiver %q successfully", receiverId)
 	}
-	return
 }
 
 func intelliNotify(ctx context.Context, p sNotifyParams) {
-	log.Infof("recipientId: %v, contacts: %v, event %s priority %s", p.recipientId, p.contacts, p.event, p.priority)
+	if isEmptyRecipients(p.recipientId, p.robots) {
+		return
+	}
+	log.Infof("recipientId: %v, robots: %v, contacts: %v, event %s priority %s", p.recipientId, p.robots, p.contacts, p.event, p.priority)
 	msgs, err := genMsgViaLang(ctx, p)
 	if err != nil {
 		log.Errorf("unable send notification: %v", err)
 	}
 	for i := range msgs {
 		t := notifyTask{
-			ctx:            context.Background(),
+			ctx:            ctx,
 			createReceiver: p.createReceiver,
 			msg:            msgs[i],
 		}

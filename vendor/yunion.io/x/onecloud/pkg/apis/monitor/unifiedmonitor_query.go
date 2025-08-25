@@ -107,6 +107,9 @@ type SimpleQueryInput struct {
 	EndTime time.Time `json:"end_time"`
 	// 指定标签
 	Tags map[string]string `json:"tag_pairs"`
+	// 间隔周期
+	// default: 5m
+	Interval string `json:"interval"`
 }
 
 type SimpleQueryOutput struct {
@@ -128,11 +131,12 @@ type TimeSeriesSlice []*TimeSeries
 
 type TimeSeries struct {
 	// RawName is used to frontend displaying the curve name
-	RawName string            `json:"raw_name"`
-	Columns []string          `json:"columns"`
-	Name    string            `json:"name"`
-	Points  TimeSeriesPoints  `json:"points"`
-	Tags    map[string]string `json:"tags,omitempty"`
+	RawName   string            `json:"raw_name"`
+	Columns   []string          `json:"columns"`
+	Name      string            `json:"name"`
+	Points    TimeSeriesPoints  `json:"points"`
+	Tags      map[string]string `json:"tags,omitempty"`
+	CloudTags map[string]string `json:"cloud_tags,omitempty"`
 }
 
 type TimePoint []interface{}

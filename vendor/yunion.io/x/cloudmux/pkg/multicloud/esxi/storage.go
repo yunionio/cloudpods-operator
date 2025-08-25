@@ -147,6 +147,8 @@ func (self *SDatastore) getVolumeId() (string, error) {
 		return fsInfo.Vmfs.Uuid, nil
 	case *types.NasDatastoreInfo:
 		return fmt.Sprintf("%s:%s", fsInfo.Nas.RemoteHost, fsInfo.Nas.RemotePath), nil
+	case *types.PMemDatastoreInfo:
+		return strings.TrimPrefix(fsInfo.Url, "ds:///"), nil
 	}
 	if moStore.Summary.Type == "vsan" {
 		vsanId := moStore.Summary.Url
@@ -189,6 +191,9 @@ func (self *SDatastore) getAttachedHosts() ([]cloudprovider.ICloudHost, error) {
 		idstr := moRefId(moStore.Host[i].Key)
 		host, err := self.datacenter.GetIHostByMoId(idstr)
 		if err != nil {
+			if errors.Cause(err) == cloudprovider.ErrNotFound {
+				continue
+			}
 			return nil, err
 		}
 		ihosts = append(ihosts, host)
@@ -411,10 +416,12 @@ func (self *SDatastore) GetStorageType() string {
 		}
 	case "nfs", "nfs41":
 		return api.STORAGE_NFS
-	case "vsan":
+	case "vsan", "vsand":
 		return api.STORAGE_VSAN
 	case "cifs":
 		return api.STORAGE_CIFS
+	case "pmem":
+		return api.STORAGE_PMEM
 	default:
 		log.Fatalf("unsupported datastore type %s", moStore.Summary.Type)
 		return ""
@@ -702,7 +709,7 @@ func (self *SDatastore) CheckFile(ctx context.Context, remotePath string) (*SDat
 
 	req, err := http.NewRequest("HEAD", url, nil)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "HEAD %s", url)
 	}
 
 	var size uint64

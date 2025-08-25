@@ -63,6 +63,7 @@ type IBillingResource interface {
 	GetExpiredAt() time.Time
 	SetAutoRenew(bc billing.SBillingCycle) error
 	Renew(bc billing.SBillingCycle) error
+	ChangeBillingType(billType string) error
 	IsAutoRenew() bool
 }
 
@@ -829,7 +830,13 @@ type ICloudLoadbalancerBackendGroup interface {
 }
 
 type ICloudLoadbalancerBackend interface {
-	ICloudResource
+	GetId() string
+	GetName() string
+	GetGlobalId() string
+	GetCreatedAt() time.Time
+	GetDescription() string
+
+	GetStatus() string
 
 	GetWeight() int
 	GetPort() int
@@ -1242,6 +1249,12 @@ type ICloudQuota interface {
 	GetCurrentQuotaUsedCount() int
 }
 
+type SClouduserEnableOptions struct {
+	Password              string
+	EnableMfa             bool
+	PasswordResetRequired bool
+}
+
 // 公有云子账号
 type IClouduser interface {
 	GetGlobalId() string
@@ -1256,6 +1269,9 @@ type IClouduser interface {
 
 	AttachPolicy(policyName string, policyType api.TPolicyType) error
 	DetachPolicy(policyName string, policyType api.TPolicyType) error
+
+	SetEnable(opts *SClouduserEnableOptions) error
+	SetDisable() error
 
 	Delete() error
 

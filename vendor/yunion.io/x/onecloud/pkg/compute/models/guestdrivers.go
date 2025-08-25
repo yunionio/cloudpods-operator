@@ -112,6 +112,7 @@ type IGuestDriver interface {
 	RequestStartOnHost(ctx context.Context, guest *SGuest, host *SHost, userCred mcclient.TokenCredential, task taskman.ITask) error
 
 	RequestStopOnHost(ctx context.Context, guest *SGuest, host *SHost, task taskman.ITask, syncStatus bool) error
+	RequestChangeBillingType(ctx context.Context, guest *SGuest, task taskman.ITask) error
 
 	StartDeleteGuestTask(ctx context.Context, userCred mcclient.TokenCredential, guest *SGuest, params *jsonutils.JSONDict, parentTaskId string) error
 
@@ -140,7 +141,7 @@ type IGuestDriver interface {
 	GetAttachDiskStatus() ([]string, error)
 	GetRebuildRootStatus() ([]string, error)
 	IsAllowSaveImageOnRunning() bool
-	GetChangeConfigStatus(guest *SGuest) ([]string, error)
+	GetChangeInstanceTypeStatus() ([]string, error)
 	GetDeployStatus() ([]string, error)
 	ValidateResizeDisk(guest *SGuest, disk *SDisk, storage *SStorage) error
 	CanKeepDetachDisk() bool
@@ -200,7 +201,6 @@ type IGuestDriver interface {
 	GetUserDataType() string
 	GetWindowsUserDataType() string
 	IsWindowsUserDataTypeNeedEncode() bool
-	CancelExpireTime(ctx context.Context, userCred mcclient.TokenCredential, guest *SGuest) error
 
 	IsSupportCdrom(guest *SGuest) (bool, error)
 	IsSupportFloppy(guest *SGuest) (bool, error)
