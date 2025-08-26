@@ -223,6 +223,8 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool, isEEOr
 			spec.Supported, isEE,
 		))
 	}
+	// disable the apimap service defaultly
+	obj.APIMap.Disable = true
 
 	// CE or EE parts
 	for cType, spec := range map[ComponentType]*hyperImagePair{
