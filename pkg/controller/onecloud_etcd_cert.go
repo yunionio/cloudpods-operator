@@ -121,6 +121,10 @@ func getPeerAltNames(oc *v1alpha1.OnecloudCluster, serviceName string, certName 
 			fmt.Sprintf("*.%s-etcd.%s.svc.cluster.local", oc.Name, ns),
 			constants.Localhost,
 		},
+		IPs: []net.IP{
+			net.ParseIP("127.0.0.1"),
+			net.ParseIP("::1"),
+		},
 	}
 
 	return altNames, nil
