@@ -69,6 +69,7 @@ func (occ *defaultClusterControl) UpdateOnecloudCluster(oc *v1alpha1.OnecloudClu
 	oldStatus := oc.Status.DeepCopy()
 
 	if err := occ.updateOnecloudCluster(oc); err != nil {
+		log.Errorf("updateOnecloudCluster error: %v", err)
 		errs = append(errs, err)
 	}
 	if apiequality.Semantic.DeepEqual(&oc.Status, oldStatus) && !v1alpha1.ClearComponent {
@@ -103,12 +104,12 @@ func (occ *defaultClusterControl) reconcileComponent(oc *v1alpha1.OnecloudCluste
 func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudCluster) error {
 	// syncing global cluster configuration
 	if _, err := occ.clusterConfigManager.CreateOrUpdate(oc); err != nil {
-		return err
+		return errors.Wrap(err, "CreateOrUpdate configmap")
 	}
 
 	// syncing cluster certs
 	if err := occ.clusterCertsManager.CreateOrUpdate(oc); err != nil {
-		return err
+		return errors.Wrap(err, "CreateOrUpdate certs")
 	}
 
 	// syncing all PVs managed by operator's reclaim policy to Retain
@@ -124,7 +125,7 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 	components := occ.components
 
 	if err := components.Etcd().Sync(oc); err != nil {
-		return err
+		return errors.Wrap(err, "Sync etcd")
 	}
 
 	for _, component := range []manager.Manager{
@@ -157,7 +158,7 @@ func (occ *defaultClusterControl) updateOnecloudCluster(oc *v1alpha1.OnecloudClu
 	} {
 		if err := occ.reconcileComponent(oc, component); err != nil {
 			if !controller.StopServices {
-				return errors.Wrap(err, "sync component")
+				return errors.Wrapf(err, "sync component %q", component.GetComponentType())
 			} else {
 				log.Warningf("Stop service error: %v", err)
 			}
