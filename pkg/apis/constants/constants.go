@@ -190,7 +190,7 @@ const (
 	MonitorAdminProject = SysAdminProject
 	MonitorPort         = 30093
 	MonitorDB           = "monitor"
-	MonitorDBUser       = "monitor"
+	MonitorDBUser       = "yunionmonitor"
 
 	AnsibleServerAdminUser    = "ansibleadmin"
 	AnsibleServerAdminProject = SysAdminProject
