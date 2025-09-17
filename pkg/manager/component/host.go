@@ -1,11 +1,16 @@
 package component
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
+	"yunion.io/x/jsonutils"
+	"yunion.io/x/log"
+
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -54,6 +59,51 @@ func (m *hostManager) getPhaseControl(man controller.ComponentManager, zone stri
 	return controller.NewRegisterServiceComponent(man, constants.ServiceNameHost, constants.ServiceTypeHost)
 }
 
+func (m *hostManager) setS3Config(oc *v1alpha1.OnecloudCluster, confJson *jsonutils.JSONDict) error {
+	if !oc.Spec.Minio.Enable {
+		return nil
+	}
+	sec, err := m.kubeCli.CoreV1().Secrets(constants.OnecloudMinioNamespace).Get(context.Background(), constants.OnecloudMinioSecret, metav1.GetOptions{})
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			return err
+		}
+		log.Infof("namespace %s not found", constants.OnecloudMinioNamespace)
+		return fmt.Errorf("namespace %s not found", constants.OnecloudMinioNamespace)
+	}
+
+	svc, err := m.kubeCli.CoreV1().Services(constants.OnecloudMinioNamespace).Get(context.Background(), constants.OnecloudMinioSvc, metav1.GetOptions{})
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			return err
+		}
+		log.Infof("service %s not found", constants.OnecloudMinioNamespace)
+		return fmt.Errorf("service %s not found", constants.OnecloudMinioSvc)
+	}
+
+	//svc.Spec.ClusterIP
+	port := svc.Spec.Ports[0].Port
+	endpoint := fmt.Sprintf("%s.%s:%d", svc.GetName(), svc.GetNamespace(), port)
+
+	var ak, sk string
+	// base64 decode
+	if accessKey, ok := sec.Data["accesskey"]; ok {
+		ak = string(accessKey)
+	} else {
+		return fmt.Errorf("s3 access key not found")
+	}
+	if secretKey, ok := sec.Data["secretkey"]; ok {
+		sk = string(secretKey)
+	} else {
+		return fmt.Errorf("s3 secret key not found")
+	}
+	confJson.Set("s3_endpoint", jsonutils.NewString(endpoint))
+	confJson.Set("s3_use_ssl", jsonutils.NewBool(false))
+	confJson.Set("s3_access_key", jsonutils.NewString(ak))
+	confJson.Set("s3_secret_key", jsonutils.NewString(sk))
+	return nil
+}
+
 func (m *hostManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
 	commonOpt := new(options.SHostBaseOptions)
 	// opt := &options.HostOptions
@@ -76,8 +126,12 @@ func (m *hostManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 	commonOpt.HostCpuPassthrough = hostCpuPassthrough
 	commonOpt.DefaultQemuVersion = oc.Spec.HostAgent.DefaultQemuVersion
 	commonOpt.DisableLocalVpc = oc.Spec.DisableLocalVpc
+	optJson := jsonutils.Marshal(commonOpt).(*jsonutils.JSONDict)
+	if err := m.setS3Config(oc, optJson); err != nil {
+		log.Errorf("failed set s3 config for host component %s", err)
+	}
 
-	return m.shouldSyncConfigmap(oc, v1alpha1.HostComponentType, commonOpt, func(oldOpt string) bool {
+	cm, syncConf, err := m.shouldSyncConfigmap(oc, v1alpha1.HostComponentType, optJson, func(oldOpt string) bool {
 		for _, k := range []string{
 			"enable_remote_executor",
 			"disable_security_group",
@@ -92,6 +146,36 @@ func (m *hostManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 		}
 		return false
 	})
+	if err != nil {
+		return nil, false, err
+	}
+	if syncConf {
+		return cm, syncConf, nil
+	}
+
+	cmName := controller.ComponentConfigMapName(oc, v1alpha1.HostComponentType)
+	cfgCli := m.kubeCli.CoreV1().ConfigMaps(oc.GetNamespace())
+	oldCfgMap, _ := cfgCli.Get(context.Background(), cmName, metav1.GetOptions{})
+	if oldCfgMap != nil {
+		optStr, ok := oldCfgMap.Data["config"]
+		if !ok {
+			return m.newServiceConfigMap(v1alpha1.HostComponentType, "", oc, optJson), true, nil
+		}
+		oldCfgJson, err := jsonutils.ParseYAML(optStr)
+		if err != nil {
+			return cm, false, nil
+		}
+		oldCfg := oldCfgJson.(*jsonutils.JSONDict)
+		if !oldCfg.Contains("s3_endpoint") {
+			if err := m.setS3Config(oc, oldCfg); err != nil {
+				log.Errorf("failed set s3 config for host component %s", err)
+				return cm, false, nil
+			}
+			cfgMap := m.newServiceConfigMap(v1alpha1.HostComponentType, "", oc, oldCfg)
+			return cfgMap, true, nil
+		}
+	}
+	return cm, false, nil
 }
 
 func (m *hostManager) getDaemonSet(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.DaemonSet, error) {
