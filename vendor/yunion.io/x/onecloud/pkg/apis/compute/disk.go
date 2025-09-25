@@ -354,15 +354,21 @@ type DiskMigrateInput struct {
 	TargetStorageId string `json:"target_storage_id"`
 }
 
+type DiskChagneStorageTypeInput struct {
+	// 目标存储类型
+	StorageType string `json:"storage_type"`
+}
+
 type DiskSnapshotpolicyInput struct {
 	SnapshotpolicyId string `json:"snapshotpolicy_id"`
 }
 
 type DiskRebuildInput struct {
-	BackupId   *string `json:"backup_id,allowempty"`
-	TemplateId *string `json:"template_id,allowempty"`
-	Size       *string `json:"size,allowempty"`
-	Fs         *string `json:"fs,allowempty"`
+	BackupId   *string         `json:"backup_id,allowempty"`
+	TemplateId *string         `json:"template_id,allowempty"`
+	Size       *string         `json:"size,allowempty"`
+	Fs         *string         `json:"fs,allowempty"`
+	FsFeatures *DiskFsFeatures `json:"fs_features,allowempty"`
 }
 
 type DiskFsExt4Features struct {
@@ -370,8 +376,14 @@ type DiskFsExt4Features struct {
 	ReservedBlocksPercentage int  `json:"reserved_blocks_percentage"`
 }
 
+type DiskFsF2fsFeatures struct {
+	CaseInsensitive              bool `json:"case_insensitive"`
+	OverprovisionRatioPercentage int  `json:"overprovision_ratio_percentage"`
+}
+
 type DiskFsFeatures struct {
 	Ext4 *DiskFsExt4Features `json:"ext4"`
+	F2fs *DiskFsF2fsFeatures `json:"f2fs"`
 }
 
 func (d *DiskFsFeatures) String() string {
