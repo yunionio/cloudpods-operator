@@ -74,6 +74,8 @@ const (
 	CONTAINER_STATUS_SAVE_IMAGE_FAILED   = "save_image_failed"
 	CONTAINER_STATUS_STARTING            = "starting"
 	CONTAINER_STATUS_START_FAILED        = "start_failed"
+	CONTAINER_STATUS_SYNCING_CONF        = "syncing_conf"
+	CONTAINER_STATUS_SYNC_CONF_FAILED    = "sync_conf_failed"
 	CONTAINER_STATUS_STOPPING            = "stopping"
 	CONTAINER_STATUS_STOP_FAILED         = "stop_failed"
 	CONTAINER_STATUS_SYNC_STATUS         = "sync_status"
@@ -149,8 +151,9 @@ func (c *ContainerSpec) IsZero() bool {
 type ContainerCreateInput struct {
 	apis.VirtualResourceCreateInput
 
-	GuestId string        `json:"guest_id"`
-	Spec    ContainerSpec `json:"spec"`
+	GuestId   string        `json:"guest_id"`
+	Spec      ContainerSpec `json:"spec"`
+	AutoStart bool          `json:"auto_start"`
 	// swagger:ignore
 	SkipTask bool `json:"skip_task"`
 }
@@ -167,6 +170,11 @@ type ContainerListInput struct {
 }
 
 type ContainerStopInput struct {
+	Timeout int  `json:"timeout"`
+	Force   bool `json:"force"`
+}
+
+type ContainerRestartInput struct {
 	Timeout int  `json:"timeout"`
 	Force   bool `json:"force"`
 }
@@ -193,6 +201,7 @@ type ContainerIsolatedDevice struct {
 	Index   *int                                   `json:"index"`
 	Id      string                                 `json:"id"`
 	OnlyEnv []*apis.ContainerIsolatedDeviceOnlyEnv `json:"only_env"`
+	CDI     *apis.ContainerIsolatedDeviceCDI       `json:"cdi"`
 }
 
 type ContainerDevice struct {

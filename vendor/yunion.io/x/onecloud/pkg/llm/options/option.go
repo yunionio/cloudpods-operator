@@ -14,22 +14,15 @@
 
 package options
 
-import (
-	"yunion.io/x/onecloud/pkg/cloudcommon/etcd"
-	common_options "yunion.io/x/onecloud/pkg/cloudcommon/options"
-)
+import common_options "yunion.io/x/onecloud/pkg/cloudcommon/options"
 
-type CloudSyncOptions struct {
-	Provider    string `help:"Public cloud provider" choices:"Aliyun|Azure|Aws|Qcloud|OpenStack|Ucloud|Huawei|ZStack"`
-	Environment string `help:"environment of public cloud"`
-	Cloudregion string `help:"region of public cloud"`
-	Zone        string `help:"availability zone of public cloud"`
-
-	etcd.SEtcdOptions
-
+type LLMOptions struct {
 	common_options.CommonOptions
+	common_options.DBOptions
+
+	StartTaskWorkerCount int `help:"start task worker count" default:"128"`
 }
 
 var (
-	Options CloudSyncOptions
+	Options LLMOptions
 )

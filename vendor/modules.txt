@@ -122,8 +122,8 @@ github.com/golang-plus/uuid/internal/timebased
 # github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
 ## explicit
 github.com/golang/groupcache/lru
-# github.com/golang/protobuf v1.5.3
-## explicit; go 1.9
+# github.com/golang/protobuf v1.5.4
+## explicit; go 1.17
 github.com/golang/protobuf/proto
 github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
@@ -179,6 +179,9 @@ github.com/json-iterator/go
 # github.com/klauspost/cpuid v1.3.1
 ## explicit; go 1.12
 github.com/klauspost/cpuid
+# github.com/klauspost/cpuid/v2 v2.0.9
+## explicit; go 1.13
+github.com/klauspost/cpuid/v2
 # github.com/leodido/go-urn v1.2.0
 ## explicit; go 1.13
 github.com/leodido/go-urn
@@ -250,7 +253,7 @@ github.com/opencontainers/go-digest
 # github.com/pborman/uuid v1.2.0
 ## explicit
 github.com/pborman/uuid
-# github.com/petermattis/goid v0.0.0-20250508124226-395b08cebbdb
+# github.com/petermattis/goid v0.0.0-20250904145737-900bdf8bb490
 ## explicit; go 1.17
 github.com/petermattis/goid
 # github.com/pkg/errors v0.9.1
@@ -355,6 +358,9 @@ github.com/xuri/nfp
 # github.com/yusufpapurcu/wmi v1.2.2
 ## explicit; go 1.16
 github.com/yusufpapurcu/wmi
+# github.com/zeebo/xxh3 v1.0.2
+## explicit; go 1.17
+github.com/zeebo/xxh3
 # go.etcd.io/etcd/api/v3 v3.5.0
 ## explicit; go 1.16
 go.etcd.io/etcd/api/v3/authpb
@@ -393,7 +399,7 @@ go.uber.org/zap/internal/color
 go.uber.org/zap/internal/exit
 go.uber.org/zap/zapcore
 go.uber.org/zap/zapgrpc
-# golang.org/x/crypto v0.19.0
+# golang.org/x/crypto v0.21.0
 ## explicit; go 1.18
 golang.org/x/crypto/argon2
 golang.org/x/crypto/bcrypt
@@ -410,7 +416,7 @@ golang.org/x/crypto/sha3
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
 golang.org/x/crypto/ssh/terminal
-# golang.org/x/net v0.21.0
+# golang.org/x/net v0.23.0
 ## explicit; go 1.18
 golang.org/x/net/bpf
 golang.org/x/net/html
@@ -442,7 +448,7 @@ golang.org/x/sys/cpu
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/term v0.17.0
+# golang.org/x/term v0.18.0
 ## explicit; go 1.18
 golang.org/x/term
 # golang.org/x/text v0.14.0
@@ -895,8 +901,8 @@ sigs.k8s.io/structured-merge-diff/v4/value
 # sigs.k8s.io/yaml v1.2.0
 ## explicit; go 1.12
 sigs.k8s.io/yaml
-# yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20250821083203-8bb4481c5631
-## explicit; go 1.21
+# yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20251023061543-c98989df8cfd
+## explicit; go 1.24
 yunion.io/x/cloudmux/pkg/apis
 yunion.io/x/cloudmux/pkg/apis/billing
 yunion.io/x/cloudmux/pkg/apis/cloudid
@@ -918,8 +924,8 @@ yunion.io/x/jsonutils
 ## explicit; go 1.12
 yunion.io/x/log
 yunion.io/x/log/hooks
-# yunion.io/x/onecloud v0.0.0-20250825034751-be04e9f5b259
-## explicit; go 1.21
+# yunion.io/x/onecloud v0.0.0-20251024074836-c7b8129ed686
+## explicit; go 1.24
 yunion.io/x/onecloud/cmd/climc/shell
 yunion.io/x/onecloud/locales
 yunion.io/x/onecloud/pkg/ansibleserver/options
@@ -973,7 +979,6 @@ yunion.io/x/onecloud/pkg/cloudmon/options
 yunion.io/x/onecloud/pkg/cloudnet/options
 yunion.io/x/onecloud/pkg/cloudproxy/agent/options
 yunion.io/x/onecloud/pkg/cloudproxy/options
-yunion.io/x/onecloud/pkg/cloutpost/options
 yunion.io/x/onecloud/pkg/compute/baremetal
 yunion.io/x/onecloud/pkg/compute/guestdrivers/types
 yunion.io/x/onecloud/pkg/compute/models
@@ -998,6 +1003,7 @@ yunion.io/x/onecloud/pkg/lbagent
 yunion.io/x/onecloud/pkg/lbagent/gobetween
 yunion.io/x/onecloud/pkg/lbagent/models
 yunion.io/x/onecloud/pkg/lbagent/utils
+yunion.io/x/onecloud/pkg/llm/options
 yunion.io/x/onecloud/pkg/logger/extern
 yunion.io/x/onecloud/pkg/logger/options
 yunion.io/x/onecloud/pkg/mcclient
@@ -1126,7 +1132,7 @@ yunion.io/x/pkg/utils
 # yunion.io/x/s3cli v0.0.0-20241221171442-1c11599d28e1
 ## explicit; go 1.12
 yunion.io/x/s3cli
-# yunion.io/x/sqlchemy v1.1.3-0.20250806073422-e37f5197cec0
+# yunion.io/x/sqlchemy v1.1.3-0.20250925091009-4ca0766fc8f0
 ## explicit; go 1.17
 yunion.io/x/sqlchemy
 yunion.io/x/sqlchemy/backends/clickhouse
