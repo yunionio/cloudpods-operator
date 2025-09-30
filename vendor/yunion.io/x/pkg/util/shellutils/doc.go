@@ -12,11 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package compute
-
-const (
-	KEYPAIRE_SCHEME_RSA     = "RSA"
-	KEYPAIRE_SCHEME_DSA     = "DSA"
-	KEYPAIRE_SCHEME_ECDSA   = "ECDSA"
-	KEYPAIRE_SCHEME_ED25519 = "ED25519"
-)
+package shellutils // import "yunion.io/x/pkg/util/shellutils"

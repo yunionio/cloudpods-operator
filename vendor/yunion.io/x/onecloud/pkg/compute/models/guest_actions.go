@@ -141,15 +141,27 @@ func (self *SGuest) PerformEvent(ctx context.Context, userCred mcclient.TokenCre
 	}
 	if event == "GUEST_PANICKED" {
 		kwargs := jsonutils.NewDict()
-		kwargs.Set("reason", data)
+		kwargs.Set("reason", jsonutils.NewString(event))
+		if data.Contains("screen_dump_info") {
+			screenDumpInfo := api.SGuestScreenDump{}
+			if err := data.Unmarshal(&screenDumpInfo, "screen_dump_info"); err != nil {
+				log.Errorf("failed unmarshal screen_dump_info %s", err)
+			} else {
+				kwargs.Set("screen_dump_name", jsonutils.NewString(screenDumpInfo.S3ObjectName))
+				if _, err := self.SaveGuestScreenDump(ctx, userCred, &screenDumpInfo); err != nil {
+					log.Errorf("SaveGuestScreenDump failed %s", err)
+				}
+			}
+		}
 
-		db.OpsLog.LogEvent(self, db.ACT_GUEST_PANICKED, data.String(), userCred)
-		logclient.AddSimpleActionLog(self, logclient.ACT_GUEST_PANICKED, data.String(), userCred, true)
+		db.OpsLog.LogEvent(self, db.ACT_GUEST_PANICKED, kwargs.String(), userCred)
+		logclient.AddSimpleActionLog(self, logclient.ACT_GUEST_PANICKED, kwargs.String(), userCred, true)
 		notifyclient.EventNotify(ctx, userCred, notifyclient.SEventNotifyParam{
 			Obj:    self,
 			Action: notifyclient.ActionServerPanicked,
 			IsFail: true,
 		})
+
 	}
 	return nil, nil
 }
@@ -1660,10 +1672,12 @@ func (self *SGuest) PerformRebuildRoot(
 		}
 
 		// compare os arch
-		if len(self.InstanceType) > 0 {
+		if len(img.Properties["os_arch"]) > 0 && len(self.OsArch) > 0 && !apis.IsSameArch(self.OsArch, img.Properties["os_arch"]) {
+			return nil, httperrors.NewConflictError("root disk image(%s) and guest(%s) OsArch mismatch", img.Properties["os_arch"], self.OsArch)
+		} else if len(self.InstanceType) > 0 {
 			provider := GetDriver(self.Hypervisor).GetProvider()
 			sku, _ := ServerSkuManager.FetchSkuByNameAndProvider(self.InstanceType, provider, true)
-			if sku != nil && len(sku.CpuArch) > 0 && len(img.Properties["os_arch"]) > 0 && !strings.Contains(img.Properties["os_arch"], sku.CpuArch) {
+			if sku != nil && len(sku.CpuArch) > 0 && len(img.Properties["os_arch"]) > 0 && !apis.IsSameArch(img.Properties["os_arch"], sku.CpuArch) {
 				return nil, httperrors.NewConflictError("root disk image(%s) and sku(%s) architecture mismatch", img.Properties["os_arch"], sku.CpuArch)
 			}
 		}

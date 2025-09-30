@@ -12,11 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package compute
+package shellutils
 
-const (
-	KEYPAIRE_SCHEME_RSA     = "RSA"
-	KEYPAIRE_SCHEME_DSA     = "DSA"
-	KEYPAIRE_SCHEME_ECDSA   = "ECDSA"
-	KEYPAIRE_SCHEME_ED25519 = "ED25519"
-)
+type CMD struct {
+	Options  interface{}
+	Command  string
+	Desc     string
+	Callback interface{}
+}
+
+var CommandTable = make([]CMD, 0)
+
+func R(options interface{}, command string, desc string, callback interface{}) {
+	CommandTable = append(CommandTable, CMD{options, command, desc, callback})
+}
