@@ -464,6 +464,26 @@ func (l *sLinuxRootFs) DeployNetworkingScripts(rootFs IDiskPartition, nics []*ty
 			log.Errorf("rootFs.GenerateSshHostKeys fail %s", err)
 		}
 	}
+	{
+		// deploy /etc/gai.conf if both IPv4 and IPv6 are enabled
+		v4Enabled := false
+		v6Enabled := false
+		for _, nic := range nics {
+			if nic.Ip != "" {
+				v4Enabled = true
+			}
+			if nic.Ip6 != "" {
+				v6Enabled = true
+			}
+			if v4Enabled && v6Enabled {
+				// prefer IPv4 over IPv6 by default of /etc/gai.conf not present
+				if !rootFs.Exists("/etc/gai.conf", false) {
+					rootFs.FilePutContents("/etc/gai.conf", "precedence ::ffff:0:0/96 100\n", false, false)
+				}
+				break
+			}
+		}
+	}
 	return nil
 }
 
@@ -830,6 +850,29 @@ func (d *sLinuxRootFs) DeployTelegraf(config string) (bool, error) {
 		return false, errors.Wrapf(err, "add crontab %s", output)
 	}*/
 	return true, nil
+}
+
+func (d *sLinuxRootFs) ConfigSshd(loginAccount, loginPassword string, sshPort int) error {
+	if d.rootFs.Exists("/etc/ssh/sshd_config.d", false) {
+		content := "### sshd config for cloud config\n"
+		if loginAccount == "root" {
+			content += "PermitRootLogin yes\n"
+		}
+		if len(loginPassword) > 0 {
+			content += "PasswordAuthentication yes\n"
+		}
+		if sshPort > 0 && sshPort != 22 {
+			content += fmt.Sprintf("Port %d\n", sshPort)
+		}
+		return d.rootFs.FilePutContents("/etc/ssh/sshd_config.d/00-cloud-config.conf", content, false, false)
+	} else {
+		content, err := d.rootFs.FileGetContents("/etc/ssh/sshd_config", false)
+		if err != nil {
+			return errors.Wrap(err, "read sshd config")
+		}
+		lines := genSshdConfig(strings.Split(string(content), "\n"), loginAccount, loginPassword, sshPort)
+		return d.rootFs.FilePutContents("/etc/ssh/sshd_config", strings.Join(lines, "\n"), false, false)
+	}
 }
 
 type sDebianLikeRootFs struct {
@@ -2242,4 +2285,8 @@ func (d *SCoreOsRootFs) CommitChanges(IDiskPartition) error {
 		}
 	}
 	return d.rootFs.FilePutContents("/cloud-config.yml", conf.String(), false, false)
+}
+
+func (d *SCoreOsRootFs) ConfigSshd(loginAccount, loginPassword string, sshPort int) error {
+	return nil
 }

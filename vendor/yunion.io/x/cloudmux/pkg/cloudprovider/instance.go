@@ -181,13 +181,14 @@ type SManagedVMChangeConfig struct {
 }
 
 type SManagedVMRebuildRootConfig struct {
-	Account   string
-	Password  string
-	ImageId   string
-	PublicKey string
-	SysSizeGB int
-	OsType    string
-	UserData  string
+	Account     string
+	Password    string
+	ImageId     string
+	KeypairName string
+	PublicKey   string
+	SysSizeGB   int
+	OsType      string
+	UserData    string
 }
 
 func (vmConfig *SManagedVMCreateConfig) GetConfig(config *jsonutils.JSONDict) error {
@@ -353,6 +354,9 @@ type ServerVncOutput struct {
 	ApiServer     string `json:"api_server"`
 	ConnectParams string `json:"connect_params"`
 	Session       string `json:"session"`
+
+	// sangfor
+	Cookie string `json:"cookie"`
 
 	Hypervisor string `json:"hypervisor"`
 }

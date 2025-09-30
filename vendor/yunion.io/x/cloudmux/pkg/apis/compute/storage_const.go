@@ -87,10 +87,15 @@ const (
 	STORAGE_ZSTACK_SHARED_BLOCK  = "sharedblock"
 
 	// Google storage type
-	STORAGE_GOOGLE_LOCAL_SSD   = "local-ssd"   //本地SSD暂存盘 (最多8个)
-	STORAGE_GOOGLE_PD_STANDARD = "pd-standard" //标准永久性磁盘
-	STORAGE_GOOGLE_PD_SSD      = "pd-ssd"      //SSD永久性磁盘
-	STORAGE_GOOGLE_PD_BALANCED = "pd-balanced" //平衡永久性磁盘
+	STORAGE_GOOGLE_LOCAL_SSD            = "local-ssd"            //本地SSD暂存盘 (最多8个)
+	STORAGE_GOOGLE_PD_STANDARD          = "pd-standard"          //标准永久性磁盘
+	STORAGE_GOOGLE_PD_SSD               = "pd-ssd"               //SSD永久性磁盘
+	STORAGE_GOOGLE_PD_BALANCED          = "pd-balanced"          //平衡永久性磁盘
+	STORAGE_GOOGLE_PD_EXTREME           = "pd-extreme"           //极端永久性磁盘
+	STORAGE_GOOGLE_HYPERDISK_THROUGHPUT = "hyperdisk-throughput" //Hyperdisk Throughput
+	STORAGE_GOOGLE_HYPERDISK_ML         = "hyperdisk-ml"         //Hyperdisk ML
+	STORAGE_GOOGLE_HYPERDISK_BALANCED   = "hyperdisk-balanced"   //平衡 Hyperdisk
+	STORAGE_GOOGLE_HYPERDISK_EXTREME    = "hyperdisk-extreme"    //Hyperdisk Extreme
 
 	// ctyun storage type
 	STORAGE_CTYUN_SSD        = "SSD"        // 超高IO云硬盘
@@ -118,6 +123,39 @@ const (
 
 	STORAGE_FULL        = "full"
 	STORAGE_SYSTEM_FULL = "system_full"
+
+	// baidu storage type
+	STORAGE_BAIDU_SSD              = "ssd"              // 通用型SSD
+	STORAGE_BAIDU_PREMIUM_SSD      = "premium_ssd"      // 高性能云磁盘
+	STORAGE_BAIDU_HDD              = "hdd"              // 通用型HDD
+	STORAGE_BAIDU_ENHANCED_SSD_PL1 = "enhanced_ssd_pl1" // 增强型SSD_PL1
+	STORAGE_BAIDU_ENHANCED_SSD_PL2 = "enhanced_ssd_pl2" // 增强型SSD_PL2
+	STORAGE_BAIDU_ENHANCED_SSD_PL3 = "enhanced_ssd_pl3" // 增强型SSD_PL2
+
+	// ksyun storage type
+	// ESSD AutoPL云硬盘
+	STORAGE_KSYUN_ESSD_AUTO_PL = "ESSD_AutoPL"
+	// 极速型ESSD云硬盘
+	STORAGE_KSYUN_ESSD_PL1 = "ESSD_PL1"
+	STORAGE_KSYUN_ESSD_PL2 = "ESSD_PL2"
+	STORAGE_KSYUN_ESSD_PL3 = "ESSD_PL3"
+	// SSD3.0云硬盘
+	STORAGE_KSYUN_SSD3_0 = "SSD3.0"
+	// 高效云硬盘
+	STORAGE_KSYUN_EHDD = "EHDD"
+	// 本地SSD云硬盘
+	STORAGE_KSYUN_LOCAL_SSD = "Local_SSD"
+
+	// cnware storage type
+	STORAGE_CNWARE_FC_SAN = "fc-san"
+	STORAGE_CNWARE_IP_SAN = "ip-scan"
+	STORAGE_CNWARE_NAS    = "nas"
+	STORAGE_CNWARE_CEPH   = "ceph"
+	STORAGE_CNWARE_LOCAL  = "local"
+	STORAGE_CNWARE_NVME   = "nvme"
+
+	// ZettaKit
+	STORAGE_ZETTAKIT_NORMAL = "normal"
 )
 
 const (
@@ -128,3 +166,13 @@ const (
 	DISK_TYPE_SSD    = "ssd"
 	DISK_TYPE_HYBRID = "hybrid"
 )
+
+var KSYUN_STORAGES = []string{
+	STORAGE_KSYUN_ESSD_AUTO_PL,
+	STORAGE_KSYUN_ESSD_PL1,
+	STORAGE_KSYUN_ESSD_PL2,
+	STORAGE_KSYUN_ESSD_PL3,
+	STORAGE_KSYUN_SSD3_0,
+	STORAGE_KSYUN_EHDD,
+	STORAGE_KSYUN_LOCAL_SSD,
+}

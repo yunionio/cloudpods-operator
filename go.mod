@@ -22,7 +22,7 @@ require (
 	k8s.io/klog v0.3.3
 	yunion.io/x/jsonutils v1.0.1-0.20250507052344-1abcf4f443b1
 	yunion.io/x/log v1.0.1-0.20240305175729-7cf2d6cd5a91
-	yunion.io/x/onecloud v0.0.0-20250822074504-32b85c1b2884
+	yunion.io/x/onecloud v0.0.0-20250930051911-ded669c7a2a1
 	yunion.io/x/pkg v1.10.4-0.20250820035218-6008459eb4f0
 	yunion.io/x/structarg v0.0.0-20231017124457-df4d5009457c
 )
@@ -85,7 +85,6 @@ require (
 	github.com/richardlehane/msoleps v1.0.3 // indirect
 	github.com/rs/xid v1.2.1 // indirect
 	github.com/serialx/hashring v0.0.0-20180504054112-49a4782e9908 // indirect
-	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
 	github.com/shirou/gopsutil/v3 v3.22.10 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/tatsushid/go-fastping v0.0.0-20160109021039-d7bb493dee3e // indirect
@@ -129,10 +128,10 @@ require (
 	moul.io/http2curl/v2 v2.3.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect
 	sigs.k8s.io/yaml v1.2.0 // indirect
-	yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20250820024124-b54c4686c57c // indirect
+	yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20250930042114-21b568af0ce9 // indirect
 	yunion.io/x/executor v0.0.0-20250518005516-5402e9e0bed0 // indirect
 	yunion.io/x/s3cli v0.0.0-20241221171442-1c11599d28e1 // indirect
-	yunion.io/x/sqlchemy v1.1.3-0.20250806073422-e37f5197cec0 // indirect
+	yunion.io/x/sqlchemy v1.1.3-0.20250925091009-4ca0766fc8f0 // indirect
 )
 
 replace (
