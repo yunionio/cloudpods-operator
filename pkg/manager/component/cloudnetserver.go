@@ -48,7 +48,7 @@ func (m *cloudnetManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *cloudnetManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.Cloudnet.Disable
+	return oc.Spec.Cloudnet.Disable || !oc.Spec.EnableCloudNet || !isInProductVersion(m, oc)
 }
 
 func (m *cloudnetManager) Sync(oc *v1alpha1.OnecloudCluster) error {

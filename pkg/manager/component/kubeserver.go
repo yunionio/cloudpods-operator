@@ -47,7 +47,7 @@ func (m *kubeManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *kubeManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.KubeServer.Disable
+	return oc.Spec.KubeServer.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *kubeManager) Sync(oc *v1alpha1.OnecloudCluster) error {

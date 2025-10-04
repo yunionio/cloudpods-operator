@@ -47,7 +47,7 @@ func (m *loggerManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *loggerManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.Logger.Disable
+	return oc.Spec.Logger.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *loggerManager) GetServiceName() string {

@@ -31,7 +31,7 @@ func (m *hostImageManager) getProductVersions() []v1alpha1.ProductVersion {
 }
 
 func (m *hostImageManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.HostImage.Disable
+	return oc.Spec.HostImage.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *hostImageManager) GetComponentType() v1alpha1.ComponentType {

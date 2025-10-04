@@ -50,7 +50,7 @@ func (m *cloudproxyManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *cloudproxyManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.Cloudproxy.Disable
+	return oc.Spec.Cloudproxy.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *cloudproxyManager) GetServiceName() string {

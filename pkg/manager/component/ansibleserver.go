@@ -46,7 +46,7 @@ func (m *ansibleManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *ansibleManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.AnsibleServer.Disable
+	return oc.Spec.AnsibleServer.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *ansibleManager) GetServiceName() string {
