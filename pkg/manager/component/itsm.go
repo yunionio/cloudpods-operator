@@ -160,7 +160,7 @@ func (m *itsmManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *itsmManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.Itsm.Disable || !IsEnterpriseEdition(oc)
+	return oc.Spec.Itsm.Disable || !IsEnterpriseEdition(oc) || !isInProductVersion(m, oc)
 }
 
 func (m *itsmManager) GetServiceName() string {
@@ -168,10 +168,6 @@ func (m *itsmManager) GetServiceName() string {
 }
 
 func (m *itsmManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	//isEE create itsm DeploymentSpec
-	if !IsEnterpriseEdition(oc) {
-		return nil
-	}
 	return syncComponent(m, oc, "")
 }
 

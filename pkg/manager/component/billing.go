@@ -46,7 +46,7 @@ func (b *billingManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *billingManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.Billing.Disable || !IsEnterpriseEdition(oc)
+	return oc.Spec.Billing.Disable || !IsEnterpriseEdition(oc) || !isInProductVersion(m, oc)
 }
 
 func (m *billingManager) GetServiceName() string {
@@ -54,9 +54,6 @@ func (m *billingManager) GetServiceName() string {
 }
 
 func (b *billingManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if !IsEnterpriseEdition(oc) {
-		return nil
-	}
 	return syncComponent(b, oc, "")
 }
 

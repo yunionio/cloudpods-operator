@@ -49,7 +49,7 @@ func (m *notifyManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *notifyManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.Notify.Disable
+	return oc.Spec.Notify.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *notifyManager) GetServiceName() string {

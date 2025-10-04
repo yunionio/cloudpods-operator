@@ -48,7 +48,7 @@ func (m *devtoolManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *devtoolManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.Devtool.Disable
+	return oc.Spec.Devtool.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *devtoolManager) GetServiceName() string {

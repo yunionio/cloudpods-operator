@@ -47,7 +47,7 @@ func (m *apiGatewayManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *apiGatewayManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.APIGateway.Disable
+	return oc.Spec.APIGateway.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *apiGatewayManager) GetServiceName() string {

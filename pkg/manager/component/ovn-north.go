@@ -36,6 +36,7 @@ func (m *ovnNorthManager) getProductVersions() []v1alpha1.ProductVersion {
 	return []v1alpha1.ProductVersion{
 		v1alpha1.ProductVersionFullStack,
 		v1alpha1.ProductVersionEdge,
+		v1alpha1.ProductVersionLightEdge,
 	}
 }
 
@@ -44,7 +45,7 @@ func (m *ovnNorthManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *ovnNorthManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.DisableLocalVpc
+	return oc.Spec.OvnNorth.Disable || !isInProductVersion(m, oc) || oc.Spec.DisableLocalVpc
 }
 
 func (m *ovnNorthManager) Sync(oc *v1alpha1.OnecloudCluster) error {
