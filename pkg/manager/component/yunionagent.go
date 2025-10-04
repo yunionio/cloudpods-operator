@@ -56,7 +56,7 @@ func (m *yunionagentManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *yunionagentManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.Yunionagent.Disable || !IsEEOrESEEdition(oc)
+	return oc.Spec.Yunionagent.Disable || !IsEEOrESEEdition(oc) || !isInProductVersion(m, oc)
 }
 
 func (m *yunionagentManager) GetServiceName() string {

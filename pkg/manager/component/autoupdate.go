@@ -51,7 +51,7 @@ func (m *autoUpdateManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *autoUpdateManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.AutoUpdate.Disable
+	return oc.Spec.AutoUpdate.Disable || !IsEnterpriseEdition(oc) || !isInProductVersion(m, oc)
 }
 
 func (m *autoUpdateManager) GetServiceName() string {
@@ -59,9 +59,6 @@ func (m *autoUpdateManager) GetServiceName() string {
 }
 
 func (m *autoUpdateManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if !IsEnterpriseEdition(oc) {
-		return nil
-	}
 	return syncComponent(m, oc, "")
 }
 

@@ -35,7 +35,7 @@ func (m *cloudmonManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *cloudmonManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.Cloudmon.Disable
+	return oc.Spec.Cloudmon.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *cloudmonManager) ensureOldCronjobsDeleted(oc *v1alpha1.OnecloudCluster) error {

@@ -45,7 +45,7 @@ func (m *cloudidManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *cloudidManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.CloudId.Disable
+	return oc.Spec.CloudId.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *cloudidManager) GetServiceName() string {
