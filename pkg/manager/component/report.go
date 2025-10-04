@@ -48,7 +48,7 @@ func (m *reportManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *reportManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.Report.Disable || !IsEnterpriseEdition(oc)
+	return oc.Spec.Report.Disable || !IsEnterpriseEdition(oc) || !isInProductVersion(m, oc)
 }
 
 func (m *reportManager) GetServiceName() string {

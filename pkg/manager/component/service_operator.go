@@ -48,7 +48,7 @@ func (m *serviceOperatorManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *serviceOperatorManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.ServiceOperator.Disable
+	return oc.Spec.ServiceOperator.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *serviceOperatorManager) Sync(oc *v1alpha1.OnecloudCluster) error {

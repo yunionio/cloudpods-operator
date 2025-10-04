@@ -44,7 +44,7 @@ func (m *hostManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *hostManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.HostAgent.Disable
+	return oc.Spec.HostAgent.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *hostManager) Sync(oc *v1alpha1.OnecloudCluster) error {
@@ -354,7 +354,7 @@ func (m *hostHealthManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *hostHealthManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.HostAgent.Disable
+	return oc.Spec.HostAgent.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *hostHealthManager) Sync(oc *v1alpha1.OnecloudCluster) error {

@@ -103,6 +103,7 @@ func (m *regionDNSManager) getProductVersions() []v1alpha1.ProductVersion {
 		v1alpha1.ProductVersionFullStack,
 		v1alpha1.ProductVersionEdge,
 		v1alpha1.ProductVersionCMP,
+		v1alpha1.ProductVersionLightEdge,
 	}
 }
 
@@ -111,7 +112,7 @@ func (m *regionDNSManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *regionDNSManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.RegionDNS.Disable
+	return oc.Spec.RegionDNS.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *regionDNSManager) Sync(oc *v1alpha1.OnecloudCluster) error {

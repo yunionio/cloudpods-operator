@@ -149,7 +149,7 @@ func (m *etcdManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *etcdManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.Etcd.Disable
+	return oc.Spec.Etcd.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *etcdManager) Sync(oc *v1alpha1.OnecloudCluster) error {

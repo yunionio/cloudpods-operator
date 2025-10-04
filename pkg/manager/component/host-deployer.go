@@ -36,7 +36,7 @@ func (m *hostDeployerManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *hostDeployerManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.HostDeployer.Disable
+	return oc.Spec.HostDeployer.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *hostDeployerManager) Sync(oc *v1alpha1.OnecloudCluster) error {

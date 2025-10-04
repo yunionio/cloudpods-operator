@@ -46,7 +46,7 @@ func (m *echartsSSRManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *echartsSSRManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return (oc.Spec.EChartsSSR.Disable != nil && *oc.Spec.EChartsSSR.Disable) || !IsEnterpriseEdition(oc)
+	return (oc.Spec.EChartsSSR.Disable != nil && *oc.Spec.EChartsSSR.Disable) || !IsEnterpriseEdition(oc) || !isInProductVersion(m, oc)
 }
 
 func (m *echartsSSRManager) GetServiceName() string {
