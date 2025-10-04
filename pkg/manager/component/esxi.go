@@ -51,7 +51,7 @@ func (m *esxiManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *esxiManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.EsxiAgent.Disable
+	return oc.Spec.EsxiAgent.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *esxiManager) Sync(oc *v1alpha1.OnecloudCluster) error {

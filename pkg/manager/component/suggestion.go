@@ -36,7 +36,7 @@ func (m *suggestionManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *suggestionManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.Suggestion.Disable || !IsEnterpriseEdition(oc)
+	return oc.Spec.Suggestion.Disable || !IsEnterpriseEdition(oc) || !isInProductVersion(m, oc)
 }
 
 func (m *suggestionManager) GetServiceName() string {
