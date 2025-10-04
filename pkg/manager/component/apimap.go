@@ -47,7 +47,7 @@ func (m *apiMapManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *apiMapManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.APIMap.Disable
+	return oc.Spec.APIMap.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *apiMapManager) GetServiceName() string {

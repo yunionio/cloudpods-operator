@@ -48,7 +48,7 @@ func (m *influxdbManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *influxdbManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.Influxdb.Disable
+	return oc.Spec.Influxdb.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *influxdbManager) GetServiceName() string {
