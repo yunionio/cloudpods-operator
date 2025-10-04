@@ -51,7 +51,7 @@ func (m *meterManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *meterManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.Meter.Disable || !IsEnterpriseEdition(oc)
+	return oc.Spec.Meter.Disable || !IsEnterpriseEdition(oc) || !isInProductVersion(m, oc)
 }
 
 func (m *meterManager) GetServiceName() string {
@@ -59,9 +59,6 @@ func (m *meterManager) GetServiceName() string {
 }
 
 func (m *meterManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if !IsEnterpriseEdition(oc) {
-		return nil
-	}
 	return syncComponent(m, oc, "")
 }
 

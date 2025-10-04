@@ -47,7 +47,7 @@ func (m *monitorManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *monitorManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.Monitor.Disable
+	return oc.Spec.Monitor.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *monitorManager) GetServiceName() string {

@@ -48,7 +48,7 @@ func (m *extdbManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *extdbManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.Extdb.Disable || !IsEnterpriseEdition(oc)
+	return oc.Spec.Extdb.Disable || !IsEnterpriseEdition(oc) || !isInProductVersion(m, oc)
 }
 
 func (m *extdbManager) GetServiceName() string {
@@ -56,9 +56,6 @@ func (m *extdbManager) GetServiceName() string {
 }
 
 func (m *extdbManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if !IsEnterpriseEdition(oc) {
-		return nil
-	}
 	return syncComponent(m, oc, "")
 }
 

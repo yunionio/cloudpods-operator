@@ -47,7 +47,7 @@ func (m *s3gatewayManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *s3gatewayManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.S3gateway.Disable || !oc.Spec.EnableS3Gateway
+	return oc.Spec.S3gateway.Disable || !oc.Spec.EnableS3Gateway || !isInProductVersion(m, oc)
 }
 
 func (m *s3gatewayManager) GetServiceName() string {

@@ -48,7 +48,7 @@ func (m *bastionHostManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *bastionHostManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.BastionHost.Disable || !IsEnterpriseEdition(oc)
+	return oc.Spec.BastionHost.Disable || !IsEnterpriseEdition(oc) || !isInProductVersion(m, oc)
 }
 
 func (m *bastionHostManager) GetServiceName() string {
@@ -56,9 +56,6 @@ func (m *bastionHostManager) GetServiceName() string {
 }
 
 func (m *bastionHostManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if !IsEnterpriseEdition(oc) {
-		return nil
-	}
 	return syncComponent(m, oc, "")
 }
 

@@ -57,7 +57,7 @@ func (m *monitorStackManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *monitorStackManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.MonitorStack.Disable
+	return oc.Spec.MonitorStack.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *monitorStackManager) Sync(oc *v1alpha1.OnecloudCluster) error {

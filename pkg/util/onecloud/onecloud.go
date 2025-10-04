@@ -156,6 +156,21 @@ func EnsureDisableService(s *mcclient.ClientSession, srvName string) error {
 	if !exist {
 		return nil
 	}
+	// service exists, try to disable endpoints
+	endpoints, err := GetEndpointsByService(s, srvName)
+	if err != nil {
+		return errors.Wrap(err, "GetEndpointsByService")
+	}
+	for _, ep := range endpoints {
+		enabled, _ := ep.Bool("enabled")
+		if !enabled {
+			continue
+		}
+		id, _ := ep.GetString("id")
+		if err := DisableEndpoint(s, id); err != nil {
+			return errors.Wrap(err, "DisableEndpoint")
+		}
+	}
 	// service exists, try to disable service
 	enabled, err := srv.Bool("enabled")
 	if err != nil {
@@ -430,6 +445,7 @@ func GetEndpointsByService(s *mcclient.ClientSession, serviceName string) ([]jso
 	svcId, _ := obj.GetString("id")
 	searchParams := jsonutils.NewDict()
 	searchParams.Add(jsonutils.NewString(svcId), "service_id")
+	searchParams.Add(jsonutils.NewInt(0), "limit")
 	ret, err := identity.EndpointsV3.List(s, searchParams)
 	if err != nil {
 		return nil, err
