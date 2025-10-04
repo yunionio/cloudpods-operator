@@ -48,7 +48,7 @@ func (m *webconsoleManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *webconsoleManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.Webconsole.Disable
+	return oc.Spec.Webconsole.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *webconsoleManager) Sync(oc *v1alpha1.OnecloudCluster) error {

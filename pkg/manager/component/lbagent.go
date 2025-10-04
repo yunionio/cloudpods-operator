@@ -38,7 +38,7 @@ func (m *lbagentManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *lbagentManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.Lbagent.Disable
+	return oc.Spec.Lbagent.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *lbagentManager) Sync(oc *v1alpha1.OnecloudCluster) error {

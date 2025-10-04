@@ -45,7 +45,7 @@ func (m *cloudmuxManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *cloudmuxManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return *oc.Spec.Cloudmux.Disable
+	return *oc.Spec.Cloudmux.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *cloudmuxManager) Sync(oc *v1alpha1.OnecloudCluster) error {

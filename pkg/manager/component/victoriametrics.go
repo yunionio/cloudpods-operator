@@ -57,7 +57,7 @@ func (m *vmManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *vmManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.VictoriaMetrics.Disable
+	return oc.Spec.VictoriaMetrics.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *vmManager) GetServiceName() string {

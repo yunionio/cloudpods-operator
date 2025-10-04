@@ -49,7 +49,7 @@ func (m *cloudeventManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *cloudeventManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.Cloudevent.Disable
+	return oc.Spec.Cloudevent.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *cloudeventManager) GetServiceName() string {

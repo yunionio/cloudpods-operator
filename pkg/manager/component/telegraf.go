@@ -37,7 +37,7 @@ func (m *telegrafManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *telegrafManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.Telegraf.Disable
+	return oc.Spec.Telegraf.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *telegrafManager) Sync(oc *v1alpha1.OnecloudCluster) error {

@@ -48,7 +48,7 @@ func (m *regionManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *regionManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.RegionServer.Disable
+	return oc.Spec.RegionServer.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *regionManager) GetServiceName() string {

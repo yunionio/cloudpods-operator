@@ -32,7 +32,7 @@ func (m *scheduledtaskManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *scheduledtaskManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.Scheduledtask.Disable
+	return oc.Spec.Scheduledtask.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *scheduledtaskManager) GetServiceName() string {

@@ -50,7 +50,7 @@ func (m *keystoneManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *keystoneManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.Keystone.Disable
+	return oc.Spec.Keystone.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *keystoneManager) Sync(oc *v1alpha1.OnecloudCluster) error {
