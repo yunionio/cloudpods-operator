@@ -442,6 +442,14 @@ const (
 	ExtdbPort         = 30991
 	ExtdbDB           = "extdb"
 	ExtdbDBUser       = "extdb"
+
+	ServiceNameLLM  = "llm"
+	ServiceTypeLLM  = "llm"
+	LLMPort         = 31512
+	LLMAdminUser    = "llmadmin"
+	LLMAdminProject = SysAdminProject
+	LLMDB           = "llm"
+	LLMDBUser       = "llm"
 )
 
 var (

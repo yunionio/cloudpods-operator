@@ -153,6 +153,9 @@ const (
 	CloudmuxComponentType    ComponentType = "cloudmux"
 
 	ExtdbComponentType ComponentType = "extdb"
+
+	// LLMComponentType is large language model service based on pod & container
+	LLMComponentType ComponentType = "llm"
 )
 
 // ComponentPhase is the current state of component
@@ -344,6 +347,9 @@ type OnecloudClusterSpec struct {
 	// Cloudmux holds configuration for cloudmux
 	Cloudmux CloudmuxSpec              `json:"cloudmux"`
 	Extdb    DeploymentServicePortSpec `json:"extdb"`
+
+	// LLM holds configuration for large language model service
+	LLM DeploymentServicePortSpec `json:"llm"`
 }
 
 func (s OnecloudClusterSpec) GetDbEngine(srvSpec TDBEngineType) TDBEngineType {
@@ -399,6 +405,7 @@ type OnecloudClusterStatus struct {
 	ECharts         DeploymentStatus     `json:"echarts,omitempty"`
 	BastionHost     DeploymentStatus     `json:"bastionHost,omitempty"`
 	Extdb           DeploymentStatus     `json:"extdb,omitempty"`
+	LLM             DeploymentStatus     `json:"llm,omitempty"`
 }
 
 type EtcdClusterSpec struct {
@@ -1245,4 +1252,5 @@ type OnecloudClusterConfig struct {
 	Grafana         GrafanaConfig             `json:"grafana"`
 	BastionHost     ServiceDBCommonOptions    `json:"bastionHost"`
 	Extdb           ServiceDBCommonOptions    `json:"extdb"`
+	LLM             ServiceDBCommonOptions    `json:"llm"`
 }

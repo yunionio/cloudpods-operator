@@ -113,6 +113,10 @@ func (c composeComponentManager) Apigateway() controller.PhaseControl {
 	return controller.NewApigatewayPhaseControl(c)
 }
 
+func (c composeComponentManager) LLM() controller.PhaseControl {
+	return controller.NewLLMPhaseControl(c)
+}
+
 func GetComponentDBConfig(cmpt Component, cfg *v1alpha1.OnecloudClusterConfig, existOpt jsonutils.JSONObject) (*v1alpha1.DBConfig, error) {
 	dbCfg := cmpt.GetDefaultDBConfig(cfg)
 	if dbCfg == nil {
