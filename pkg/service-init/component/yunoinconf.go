@@ -257,19 +257,10 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 			"huawei",
 			"qcloud",
 			FEAT_VOLCENGINE,
-			// "ucloud",
-			// "ecloud",
-			// "jdcloud",
 			FEAT_VMWARE,
 			"openstack",
-			// "dstack",
-			// "zstack",
-			// "apsara",
 			"cloudpods",
-			// "hcso",
 			"nutanix",
-			// "bingocloud",
-			// "incloudsphere",
 			"s3",
 			"ceph",
 			"xsky",
@@ -280,6 +271,7 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 		setupKeysEdge := []string{
 			"onecloud",
 			"onestack",
+			"pod",
 			"baremetal",
 			"lb",
 			FEAT_VMWARE,
@@ -288,6 +280,7 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 		setupKeysLightEdge := []string{
 			"onecloud",
 			"onestack",
+			"pod",
 		}
 		setupKeysBaremetal := []string{
 			"onecloud",
