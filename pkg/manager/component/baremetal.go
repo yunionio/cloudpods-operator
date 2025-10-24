@@ -38,7 +38,7 @@ func (m *baremetalManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *baremetalManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.BaremetalAgent.Disable
+	return oc.Spec.BaremetalAgent.Disable || !isInProductVersion(m, oc)
 }
 
 func (b *baremetalManager) GetServiceName() string {

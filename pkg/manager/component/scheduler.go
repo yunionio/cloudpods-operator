@@ -49,7 +49,7 @@ func (m *schedulerManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *schedulerManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.Scheduler.Disable
+	return oc.Spec.Scheduler.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *schedulerManager) Sync(oc *v1alpha1.OnecloudCluster) error {

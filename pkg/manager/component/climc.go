@@ -49,7 +49,7 @@ func (m *climcManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *climcManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.Climc.Disable
+	return oc.Spec.Climc.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *climcManager) Sync(oc *v1alpha1.OnecloudCluster) error {

@@ -50,7 +50,7 @@ func (m *webManager) getProductVersions() []v1alpha1.ProductVersion {
 }
 
 func (m *webManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.Web.Disable
+	return oc.Spec.Web.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *webManager) Sync(oc *v1alpha1.OnecloudCluster) error {

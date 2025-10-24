@@ -44,6 +44,7 @@ func (m *vpcAgentManager) getProductVersions() []v1alpha1.ProductVersion {
 	return []v1alpha1.ProductVersion{
 		v1alpha1.ProductVersionFullStack,
 		v1alpha1.ProductVersionEdge,
+		v1alpha1.ProductVersionLightEdge,
 	}
 }
 
@@ -52,7 +53,7 @@ func (m *vpcAgentManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *vpcAgentManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.VpcAgent.Disable
+	return oc.Spec.VpcAgent.Disable || !isInProductVersion(m, oc) || oc.Spec.DisableLocalVpc
 }
 
 func (m *vpcAgentManager) Sync(oc *v1alpha1.OnecloudCluster) error {

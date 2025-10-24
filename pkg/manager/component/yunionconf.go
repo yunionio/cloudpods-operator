@@ -47,7 +47,7 @@ func (m *yunoinconfManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *yunoinconfManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.Yunionconf.Disable
+	return oc.Spec.Yunionconf.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *yunoinconfManager) GetServiceName() string {

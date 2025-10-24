@@ -63,7 +63,7 @@ func (m *glanceManager) GetComponentType() v1alpha1.ComponentType {
 }
 
 func (m *glanceManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.Glance.Disable
+	return oc.Spec.Glance.Disable || !isInProductVersion(m, oc)
 }
 
 func (m *glanceManager) GetServiceName() string {
