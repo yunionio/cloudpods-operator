@@ -924,7 +924,7 @@ yunion.io/x/jsonutils
 ## explicit; go 1.12
 yunion.io/x/log
 yunion.io/x/log/hooks
-# yunion.io/x/onecloud v0.0.0-20251024145409-29585a8af611
+# yunion.io/x/onecloud v0.0.0-20251028072320-1052eb4451ae
 ## explicit; go 1.24
 yunion.io/x/onecloud/cmd/climc/shell
 yunion.io/x/onecloud/locales
@@ -1031,6 +1031,7 @@ yunion.io/x/onecloud/pkg/mcclient/options/compute
 yunion.io/x/onecloud/pkg/mcclient/options/identity
 yunion.io/x/onecloud/pkg/mcclient/options/k8s
 yunion.io/x/onecloud/pkg/mcclient/utils
+yunion.io/x/onecloud/pkg/mcp-server/options
 yunion.io/x/onecloud/pkg/monitor/options
 yunion.io/x/onecloud/pkg/monitor/tsdb
 yunion.io/x/onecloud/pkg/notify/options

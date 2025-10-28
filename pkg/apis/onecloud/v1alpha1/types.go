@@ -156,6 +156,8 @@ const (
 
 	// LLMComponentType is large language model service based on pod & container
 	LLMComponentType ComponentType = "llm"
+
+	McpServerComponentType ComponentType = "mcp-server"
 )
 
 // ComponentPhase is the current state of component
@@ -350,6 +352,8 @@ type OnecloudClusterSpec struct {
 
 	// LLM holds configuration for large language model service
 	LLM DeploymentServicePortSpec `json:"llm"`
+
+	McpServer DeploymentServicePortSpec `json:"mcpServer"`
 }
 
 func (s OnecloudClusterSpec) GetDbEngine(srvSpec TDBEngineType) TDBEngineType {
@@ -406,6 +410,7 @@ type OnecloudClusterStatus struct {
 	BastionHost     DeploymentStatus     `json:"bastionHost,omitempty"`
 	Extdb           DeploymentStatus     `json:"extdb,omitempty"`
 	LLM             DeploymentStatus     `json:"llm,omitempty"`
+	McpServer       DeploymentStatus     `json:"mcpServer,omitempty"`
 }
 
 type EtcdClusterSpec struct {
@@ -1253,4 +1258,5 @@ type OnecloudClusterConfig struct {
 	BastionHost     ServiceDBCommonOptions    `json:"bastionHost"`
 	Extdb           ServiceDBCommonOptions    `json:"extdb"`
 	LLM             ServiceDBCommonOptions    `json:"llm"`
+	McpServer       ServiceDBCommonOptions    `json:"mcpServer"`
 }
