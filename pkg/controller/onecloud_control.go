@@ -1015,6 +1015,7 @@ type registerEndpointComponent struct {
 	serviceName string
 	serviceType string
 	port        int
+	enableSSL   bool
 	prefix      string
 }
 
@@ -1025,6 +1026,17 @@ func NewRegisterEndpointComponent(
 	serviceType string,
 	port int, prefix string,
 ) PhaseControl {
+	return NewRegisterEndpointComponentWithSSL(man, ctype, serviceName, serviceType, port, prefix, true)
+}
+
+func NewRegisterEndpointComponentWithSSL(
+	man ComponentManager,
+	ctype v1alpha1.ComponentType,
+	serviceName string,
+	serviceType string,
+	port int, prefix string,
+	enableSSL bool,
+) PhaseControl {
 	return &registerEndpointComponent{
 		baseComponent: newBaseComponent(man),
 		cType:         ctype,
@@ -1032,11 +1044,12 @@ func NewRegisterEndpointComponent(
 		serviceType:   serviceType,
 		port:          port,
 		prefix:        prefix,
+		enableSSL:     enableSSL,
 	}
 }
 
 func (c *registerEndpointComponent) Setup() error {
-	return c.RegisterCloudServiceEndpoint(c.cType, c.serviceName, c.serviceType, c.port, c.prefix, true)
+	return c.RegisterCloudServiceEndpoint(c.cType, c.serviceName, c.serviceType, c.port, c.prefix, c.enableSSL)
 }
 
 type tsdbComponent struct {
