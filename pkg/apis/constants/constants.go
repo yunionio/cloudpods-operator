@@ -450,6 +450,10 @@ const (
 	LLMAdminProject = SysAdminProject
 	LLMDB           = "llm"
 	LLMDBUser       = "llm"
+
+	ServiceNameMcpServer = "mcp-server"
+	ServiceTypeMcpServer = "mcp-server"
+	McpServerPort        = 30876
 )
 
 var (

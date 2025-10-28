@@ -216,6 +216,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool, isEEOr
 		ExtdbComponentType:           nHP(&obj.Extdb.DeploymentSpec, useHyperImage),
 		BillingComponentType:         nHP(&obj.Billing.DeploymentSpec, useHyperImage),
 		LLMComponentType:             nHP(&obj.LLM.DeploymentSpec, useHyperImage),
+		McpServerComponentType:       nHP(&obj.McpServer.DeploymentSpec, useHyperImage),
 	} {
 		SetDefaults_DeploymentSpec(spec.DeploymentSpec, getImage(
 			obj.ImageRepository, spec.Repository,
@@ -492,6 +493,7 @@ func setDefaults_Components_ServicePort(obj *OnecloudClusterSpec) {
 		newSP(&obj.BastionHost.Service, constants.BastionHostPort),
 		newSP(&obj.Extdb.Service, constants.ExtdbPort),
 		newSP(&obj.LLM.Service, constants.LLMPort),
+		newSP(&obj.McpServer.Service, constants.McpServerPort),
 	} {
 		SetDefaults_ServiceSpec(spec.spec, spec.defaultPort)
 	}
@@ -829,6 +831,7 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		registryPorts[tmp.port] = tmp.user
 		SetDefaults_ServiceDBCommonOptions(opt, tmp.db, tmp.dbUser, tmp.user, tmp.port)
 	}
+	SetDefaults_ServiceBaseConfig(&obj.McpServer.ServiceBaseConfig, constants.McpServerPort)
 	SetDefaults_ServiceCommonOptions(&obj.Cloudmon, constants.CloudmonAdminUser, constants.CloudmonPort)
 	setDefaults_ItsmConfig(&obj.Itsm)
 

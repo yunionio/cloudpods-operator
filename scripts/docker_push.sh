@@ -170,3 +170,20 @@ for component in $COMPONENTS; do
             ;;
     esac
 done
+
+show_update_cmd() {
+    local component=$1
+    local arch=$2
+    local is_all_arch="false"
+    if [[ $arch == all ]]; then
+        is_all_arch="true"
+    fi
+
+    local img_name=$(get_image_name $component $arch $is_all_arch)
+    echo "kubectl patch deployments -n onecloud onecloud-operator --type='json' -p='[{op: replace, path: /spec/template/spec/containers/0/image, value: ${img_name}}]'"
+}
+
+
+for component in $COMPONENTS; do
+    show_update_cmd $component $ARCH
+done
