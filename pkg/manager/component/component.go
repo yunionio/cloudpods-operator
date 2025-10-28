@@ -1124,6 +1124,19 @@ func (m *ComponentManager) newDaemonSet(
 	initContainers []corev1.Container,
 	containersFactory func([]corev1.VolumeMount) []corev1.Container,
 ) (*apps.DaemonSet, error) {
+	return m.newDaemonSetWithLimits(componentType, oc, cfg, volHelper, &spec, updateStrategy, initContainers, containersFactory, false)
+}
+
+func (m *ComponentManager) newDaemonSetWithLimits(
+	componentType v1alpha1.ComponentType,
+	oc *v1alpha1.OnecloudCluster,
+	cfg *v1alpha1.OnecloudClusterConfig,
+	volHelper *VolumeHelper,
+	spec *v1alpha1.DaemonSetSpec, updateStrategy apps.DaemonSetUpdateStrategyType,
+	initContainers []corev1.Container,
+	containersFactory func([]corev1.VolumeMount) []corev1.Container,
+	setLimits bool,
+) (*apps.DaemonSet, error) {
 	ns := oc.GetNamespace()
 	ocName := oc.GetName()
 	appLabel := m.getComponentLabel(oc, componentType)
@@ -1168,6 +1181,12 @@ func (m *ComponentManager) newDaemonSet(
 				Type: updateStrategy,
 			},
 		},
+	}
+	if setLimits {
+		templateSpec := &appDaemonSet.Spec.Template.Spec
+		if err := m.setContainerResources(oc.Spec.DisableResourceManagement, &spec.ContainerSpec, templateSpec); err != nil {
+			log.Errorf("set %s container resources %v", componentType, err)
+		}
 	}
 	return appDaemonSet, nil
 }
