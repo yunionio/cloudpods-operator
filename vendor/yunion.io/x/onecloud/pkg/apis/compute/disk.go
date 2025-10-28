@@ -284,7 +284,7 @@ type DiskSaveInput struct {
 	Name   string
 	Format string
 
-	// swagger:ignore
+	// swagger: ignore
 	ImageId string
 }
 
