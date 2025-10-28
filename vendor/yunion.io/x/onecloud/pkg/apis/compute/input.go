@@ -148,7 +148,6 @@ type SnapshotPolicyListInput struct {
 	// pattern:asc|desc
 	OrderByBindDiskCount string `json:"order_by_bind_disk_count"`
 	// 按类型过滤
-	// example: disk, server
 	Type string `json:"type"`
 }
 

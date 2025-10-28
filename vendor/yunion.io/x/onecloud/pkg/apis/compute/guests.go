@@ -83,7 +83,6 @@ type ServerListInput struct {
 
 	OrderByIp string `json:"order_by_ip"`
 	// 根据ip查找机器
-	// swagger:ignore
 	IpAddr string `json:"ip_addr" yunion-deprecated-by:"ip_addrs"`
 	// 根据多个ip查找机器
 	IpAddrs []string `json:"ip_addrs"`
@@ -95,7 +94,6 @@ type ServerListInput struct {
 	AttachableServersForDisk string `json:"attachable_servers_for_disk"`
 	// Deprecated
 	// 列出可以挂载磁盘的主机
-	// swagger:ignore
 	Disk string `json:"disk" yunion-deprecated-by:"attachable_servers_for_disk"`
 
 	// 按主机资源类型进行排序
@@ -148,13 +146,13 @@ func (input *ServerListInput) AfterUnmarshal() {
 type ServerRebuildRootInput struct {
 	apis.Meta
 
-	// swagger:ignore
+	// swagger: ignore
 	Image string `json:"image" yunion-deprecated-by:"image_id"`
 	// 关机且停机不收费情况下不允许重装系统
 	// 镜像 id
 	// required: true
 	ImageId string `json:"image_id"`
-	// swagger:ignore
+	// swagger: ignore
 	// Keypair string `json:"keypair" yunion-deprecated-by:"keypair_id"`
 	// 秘钥Id
 	// KeypairId     string `json:"keypair_id"`
@@ -519,7 +517,7 @@ type GuestSyncFixNicsInput struct {
 }
 
 type GuestMigrateInput struct {
-	// swagger:ignore
+	// swagger: ignore
 	PreferHost   string `json:"prefer_host" yunion-deprecated-by:"prefer_host_id"`
 	PreferHostId string `json:"prefer_host_id"`
 	AutoStart    bool   `json:"auto_start"`
@@ -527,7 +525,7 @@ type GuestMigrateInput struct {
 }
 
 type GuestLiveMigrateInput struct {
-	// swagger:ignore
+	// swagger: ignore
 	PreferHost string `json:"prefer_host" yunion-deprecated-by:"prefer_host_id"`
 	// 指定期望的迁移目标宿主机
 	PreferHostId string `json:"prefer_host_id"`
@@ -667,16 +665,16 @@ type ServerSaveImageInput struct {
 	// 公有云若支持开机保存镜像，此参数则不生效
 	// default: false
 	AutoStart bool
-	// swagger:ignore
+	// swagger: ignore
 	Restart bool
 
-	// swagger:ignore
+	// swagger: ignore
 	OsType string
 
-	// swagger:ignore
+	// swagger: ignore
 	OsArch string
 
-	// swagger:ignore
+	// swagger: ignore
 	ImageId string
 }
 
@@ -733,7 +731,6 @@ func (input ServerDetachnetworkInput) IsForce() bool {
 type ServerMigrateForecastInput struct {
 	PreferHostId string `json:"prefer_host_id"`
 	// Deprecated
-	// swagger:ignore
 	PreferHost      string `json:"prefer_host" yunion-deprecated-by:"prefer_host_id"`
 	LiveMigrate     bool   `json:"live_migrate"`
 	SkipCpuCheck    bool   `json:"skip_cpu_check"`
@@ -744,7 +741,7 @@ type ServerMigrateForecastInput struct {
 }
 
 type ServerResizeDiskInput struct {
-	// swagger:ignore
+	// swagger: ignore
 	Disk string `json:"disk" yunion-deprecated-by:"disk_id"`
 	// 磁盘Id
 	DiskId string `json:"disk_id"`
@@ -771,7 +768,7 @@ type ServerDeployInput struct {
 }
 
 type ServerDeployInputBase struct {
-	// swagger:ignore
+	// swagger: ignore
 	Keypair string `json:"keypair" yunion-deprecated-by:"keypair_id"`
 	// 秘钥Id
 	KeypairId string `json:"keypair_id"`
@@ -790,15 +787,15 @@ type ServerDeployInputBase struct {
 	// 支持特殊user data平台: Aliyun, Qcloud, Azure, Apsara, Ucloud
 	// required: false
 	UserData string `json:"user_data"`
-	// swagger:ignore
+	// swagger: ignore
 	LoginAccount string `json:"login_account"`
 
-	// swagger:ignore
+	// swagger: ignore
 	Restart bool `json:"restart"`
 
-	// swagger:ignore
+	// swagger: ignore
 	DeployConfigs []*DeployConfig `json:"deploy_configs"`
-	// swagger:ignore
+	// swagger: ignore
 	DeployTelegraf bool `json:"deploy_telegraf"`
 }
 
@@ -824,9 +821,9 @@ type ServerChangeConfigInput struct {
 	// 关机且停机不收费情况下不允许调整配置
 	// 实例类型, 优先级高于vcpu_count和vmem_size
 	InstanceType string `json:"instance_type"`
-	// swagger:ignore
+	// swagger: ignore
 	Sku string `json:"sku" yunion-deprecated-by:"instance_type"`
-	// swagger:ignore
+	// swagger: ignore
 	Flavor string `json:"flavor" yunion-deprecated-by:"instance_type"`
 
 	// cpu卡槽数
@@ -872,7 +869,7 @@ type ServerUpdateInput struct {
 
 	SshPort int `json:"ssh_port"`
 
-	// swagger:ignore
+	// swagger: ignore
 	ProgressMbps float32 `json:"progress_mbps"`
 }
 

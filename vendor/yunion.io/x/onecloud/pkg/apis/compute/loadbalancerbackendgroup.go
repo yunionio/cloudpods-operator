@@ -68,7 +68,7 @@ type LoadbalancerBackendGroupFilterListInput struct {
 type LoadbalancerBackendGroupCreateInput struct {
 	apis.StatusStandaloneResourceCreateInput
 
-	//swagger:ignore
+	//swagger: ignore
 	Loadbalancer string `json:"loadbalancer" yunion-deprecated-by:"loadbalancer_id"`
 	// 负载均衡ID
 	LoadbalancerId            string `json:"loadbalancer_id"`
