@@ -277,6 +277,7 @@ type ComponentManager interface {
 	Cloudproxy() PhaseControl
 	EChartsSSR() PhaseControl
 	Apigateway() PhaseControl
+	LLM() PhaseControl
 }
 
 func (w *OnecloudControl) Components(oc *v1alpha1.OnecloudCluster) ComponentManager {
@@ -388,6 +389,14 @@ func (c *realComponent) Apigateway() PhaseControl {
 
 func NewApigatewayPhaseControl(c ComponentManager) PhaseControl {
 	return &apigatewayComponent{newBaseComponent(c)}
+}
+
+func (c *realComponent) LLM() PhaseControl {
+	return NewLLMPhaseControl(c)
+}
+
+func NewLLMPhaseControl(c ComponentManager) PhaseControl {
+	return &llmComponent{newBaseComponent(c)}
 }
 
 type baseComponent struct {
@@ -1667,4 +1676,15 @@ func (c *apigatewayComponent) Setup() error {
 		v1alpha1.APIGatewayComponentType,
 		constants.ServiceNameAPIGateway, constants.ServiceTypeAPIGateway,
 		c.GetCluster().Spec.APIGateway.APIService.NodePort, "", true)
+}
+
+type llmComponent struct {
+	*baseComponent
+}
+
+func (c *llmComponent) Setup() error {
+	return c.RegisterCloudServiceEndpoint(
+		v1alpha1.LLMComponentType,
+		constants.ServiceNameLLM, constants.ServiceTypeLLM,
+		c.GetCluster().Spec.LLM.Service.NodePort, "", true)
 }

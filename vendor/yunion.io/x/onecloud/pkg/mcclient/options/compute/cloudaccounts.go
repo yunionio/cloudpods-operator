@@ -1570,3 +1570,62 @@ func (opts *SCephFSCloudAccountCreateOptions) Params() (jsonutils.JSONObject, er
 	params.(*jsonutils.JSONDict).Add(jsonutils.NewString("CephFS"), "provider")
 	return params, nil
 }
+
+type SCNwareCloudAccountCreateOptions struct {
+	SCloudAccountCreateBaseOptions
+	SUserPasswordCredential
+	AuthURL string `help:"CNware auth_url" positional:"true" json:"auth_url"`
+}
+
+func (opts *SCNwareCloudAccountCreateOptions) Params() (jsonutils.JSONObject, error) {
+	params := jsonutils.Marshal(opts)
+	params.(*jsonutils.JSONDict).Add(jsonutils.NewString("CNware"), "provider")
+	return params, nil
+}
+
+type SCNwareCloudAccountUpdateCredentialOptions struct {
+	SCloudAccountIdOptions
+	SUserPasswordCredential
+}
+
+func (opts *SCNwareCloudAccountUpdateCredentialOptions) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.Marshal(opts), nil
+}
+
+type SCNwareCloudAccountUpdateOptions struct {
+	SCloudAccountUpdateBaseOptions
+}
+
+func (opts *SCNwareCloudAccountUpdateOptions) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.Marshal(opts), nil
+}
+
+type SOceanbaseCloudAccountCreateOptions struct {
+	SCloudAccountCreateBaseOptions
+	SAccessKeyCredential
+}
+
+func (opts *SOceanbaseCloudAccountCreateOptions) Params() (jsonutils.JSONObject, error) {
+	params := jsonutils.Marshal(opts)
+	params.(*jsonutils.JSONDict).Add(jsonutils.NewString("OceanBase"), "provider")
+	return params, nil
+}
+
+type SOceanbaseCloudAccountUpdateOptions struct {
+	SCloudAccountUpdateBaseOptions
+}
+
+func (opts *SOceanbaseCloudAccountUpdateOptions) Params() (jsonutils.JSONObject, error) {
+	params := jsonutils.Marshal(opts).(*jsonutils.JSONDict)
+
+	return params, nil
+}
+
+type SOceanbaseCloudAccountUpdateCredentialOptions struct {
+	SCloudAccountIdOptions
+	SAccessKeyCredential
+}
+
+func (opts *SOceanbaseCloudAccountUpdateCredentialOptions) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.Marshal(opts), nil
+}

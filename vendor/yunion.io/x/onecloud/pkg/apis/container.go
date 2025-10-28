@@ -81,6 +81,8 @@ type ContainerResources struct {
 	// flag is enabled in a cgroup, a new cpuset cgroup will copy its
 	// configuration fromthe parent during initialization.
 	CpusetCloneChildren bool `json:"cpuset_clone_children"`
+	// cgroup memory.high
+	MemoryHighRatio *float64 `json:"memory_high_ratio"`
 }
 
 type ContainerEnvRefValueType string
@@ -94,6 +96,16 @@ type ContainerIsolatedDeviceOnlyEnv struct {
 	FromRenderPath  bool   `json:"from_render_path"`
 	FromIndex       bool   `json:"from_index"`
 	FromDeviceMinor bool   `json:"from_device_minor"`
+}
+
+type ContainerCDIKind string
+
+var (
+	CONTAINER_CDI_KIND_NVIDIA_GPU ContainerCDIKind = "nvidia.com/gpu"
+)
+
+type ContainerIsolatedDeviceCDI struct {
+	Kind ContainerCDIKind
 }
 
 type ContainerSpec struct {
@@ -361,4 +373,7 @@ type ContainerRootfs struct {
 	Type ContainerVolumeMountType  `json:"type"`
 	Disk *ContainerVolumeMountDisk `json:"disk"`
 	//CephFS *ContainerVolumeMountCephFS `json:"ceph_fs"`
+
+	// 是否持久化
+	Persistent bool `json:"persistent"`
 }

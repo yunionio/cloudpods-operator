@@ -223,6 +223,7 @@ const (
 	HYPERVISOR_ZETTAKIT       = compute.HYPERVISOR_ZETTAKIT
 	HYPERVISOR_UIS            = compute.HYPERVISOR_UIS
 	HYPERVISOR_CAS            = compute.HYPERVISOR_CAS
+	HYPERVISOR_CNWARE         = compute.HYPERVISOR_CNWARE
 
 	//	HYPERVISOR_DEFAULT = HYPERVISOR_KVM
 	HYPERVISOR_DEFAULT = HYPERVISOR_KVM
@@ -305,6 +306,7 @@ var HYPERVISORS = []string{
 	HYPERVISOR_SANGFOR,
 	HYPERVISOR_ZETTAKIT,
 	HYPERVISOR_UIS,
+	HYPERVISOR_CNWARE,
 }
 
 const (
@@ -337,6 +339,8 @@ const (
 	VM_METADATA_RELEASED_DEVICES = "released_devices"
 
 	VM_METADATA_CPU_NUMA_PIN = "__cpu_numa_pin"
+
+	VM_METADATA_VIRTUAL_ISOLATED_DEVICE_CONFIG = "__virtual_isolated_device_config"
 )
 
 // windows allow a maximal length of 15

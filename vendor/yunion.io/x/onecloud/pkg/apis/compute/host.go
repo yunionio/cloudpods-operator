@@ -467,6 +467,8 @@ type HostSizeAttributes struct {
 	CpuMicrocode string `json:"cpu_microcode"`
 	// CPU架构
 	CpuArchitecture string `json:"cpu_architecture"`
+	// KVM 允许单台虚机最大 vcpu 个数
+	KvmCapMaxVcpu *int `json:"kvm_cap_max_vcpu"`
 
 	// 内存大小(单位MB)
 	MemSize string `json:"mem_size"`
@@ -759,6 +761,10 @@ type HostUploadGuestStatusInput struct {
 
 type HostUploadGuestsStatusInput struct {
 	Guests map[string]*HostUploadGuestStatusInput `json:"guests"`
+}
+
+type HostIsolatedDeviceNumaStatsInput struct {
+	DevType string
 }
 
 type GuestUploadContainerStatusResponse struct {

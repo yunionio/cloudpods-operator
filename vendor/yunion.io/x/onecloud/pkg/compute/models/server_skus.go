@@ -354,6 +354,7 @@ func (self *SServerSkuManager) ValidateCreateData(ctx context.Context, userCred 
 		input.Provider = region.Provider
 	}
 	if input.Provider == api.CLOUD_PROVIDER_ONECLOUD {
+		input.CloudregionId = api.DEFAULT_REGION_ID
 	} else if utils.IsInStringArray(input.Provider, api.PRIVATE_CLOUD_PROVIDERS) {
 		input.Status = api.SkuStatusCreating
 	}
@@ -1202,7 +1203,7 @@ func (region *SCloudregion) newPublicCloudSku(ctx context.Context, userCred mccl
 		zoneId := sku.ZoneId
 		sku.ZoneId = yunionmeta.GetZoneIdBySuffix(zoneMaps, zoneId)
 		if len(sku.ZoneId) == 0 {
-			return errors.Wrapf(cloudprovider.ErrNotFound, zoneId)
+			return errors.Wrapf(cloudprovider.ErrNotFound, "%v", zoneId)
 		}
 	}
 
@@ -1489,7 +1490,7 @@ func (self *SServerSku) GetICloudSku(ctx context.Context) (cloudprovider.ICloudS
 			}
 		}
 	}
-	return nil, errors.Wrapf(cloudprovider.ErrNotFound, self.ExternalId)
+	return nil, errors.Wrapf(cloudprovider.ErrNotFound, "%v", self.ExternalId)
 }
 
 func fetchSkuSyncCloudregions() []SCloudregion {
@@ -1555,8 +1556,8 @@ func SyncServerSkus(ctx context.Context, userCred mcclient.TokenCredential, isSt
 		db.Metadata.SetValue(ctx, skuMeta, db.SKU_METADAT_KEY, newMd5, userCred)
 
 		result := ServerSkuManager.SyncServerSkus(ctx, userCred, region, false)
-		notes := fmt.Sprintf("SyncServerSkusByRegion %s result: %s", region.Name, result.Result())
-		log.Debugf(notes)
+		notes := fmt.Sprintf("SyncServerSkusByRegion %s result: %v", region.Name, result.Result())
+		log.Debugf("%s", notes)
 	}
 
 }
@@ -1565,7 +1566,7 @@ func SyncServerSkus(ctx context.Context, userCred mcclient.TokenCredential, isSt
 func SyncServerSkusByRegion(ctx context.Context, userCred mcclient.TokenCredential, region *SCloudregion, xor bool) compare.SyncResult {
 	result := compare.SyncResult{}
 	result = ServerSkuManager.SyncServerSkus(ctx, userCred, region, xor)
-	notes := fmt.Sprintf("SyncServerSkusByRegion %s result: %s", region.Name, result.Result())
-	log.Infof(notes)
+	notes := fmt.Sprintf("SyncServerSkusByRegion %s result: %v", region.Name, result.Result())
+	log.Infof("%s", notes)
 	return result
 }

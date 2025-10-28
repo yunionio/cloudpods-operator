@@ -50,6 +50,7 @@ type SHostBaseOptions struct {
 
 	Dhcp6RouterAdvertisementIntervalSecs int `default:"3" help:"DHCPv6 router advertisement interval in seconds, default 3 seconds"`
 	Dhcp6RouterAdvertisementAttempts     int `default:"3" help:"DHCPv6 router advertisement attempts, default 3 attempts"`
+	Dhcp6RouterLifetimeSeconds           int `default:"9000" help:"DHCPv6 router lifetime in seconds, default 9000 seconds"`
 
 	Ext4LargefileSizeGb int `default:"4096" help:"Use largefile options when the ext4 fs greater than this size"`
 	Ext4HugefileSizeGb  int `default:"512" help:"Use huge options when the ext4 fs greater than this size"`
@@ -63,6 +64,8 @@ type SHostBaseOptions struct {
 	TelegrafKafkaOutputSaslUsername  string `json:"telegraf_kafka_output_sasl_username" help:"telegraf kafka output sasl_username"`
 	TelegrafKafkaOutputSaslPassword  string `json:"telegraf_kafka_output_sasl_password" help:"telegraf kafka output sasl_password"`
 	TelegrafKafkaOutputSaslMechanism string `json:"telegraf_kafka_output_sasl_mechanism" help:"telegraf kafka output sasl_mechanism"`
+
+	BackupTaskWorkerCount int `default:"3" help:"backup task worker count"`
 }
 
 type SHostOptions struct {
@@ -148,7 +151,7 @@ type SHostOptions struct {
 	UseBootVga             bool `default:"false" help:"Use boot VGA GPU for guest"`
 
 	EnableStrictCpuBind         bool   `default:"false" help:"Enable strict cpu bind, one vcpu bind one pcpu"`
-	EnableHostAgentNumaAllocate bool   `default:"false" help:"Enable host agent numa allocate"`
+	EnableHostAgentNumaAllocate bool   `default:"true" help:"Enable host agent numa allocate"`
 	EnableCpuBinding            bool   `default:"true" help:"Enable cpu binding and rebalance"`
 	EnableOpenflowController    bool   `default:"false"`
 	BootVgaPciAddr              string `help:"Specific boot vga pci addr incase detect wrong device"`
@@ -187,7 +190,8 @@ type SHostOptions struct {
 	SdnEnableTapMan bool   `help:"enable tap service" default:"$SDN_ENABLE_TAP_MAN|true"`
 	TapBridgeName   string `help:"bridge name for tap service" default:"brtap"`
 
-	SdnAllowConntrackInvalid bool `help:"allow packets marked by conntrack as INVALID to pass" default:"$SDN_ALLOW_CONNTRACK_INVALID|false"`
+	SdnAllowConntrackInvalid       bool `help:"allow packets marked by conntrack as INVALID to pass" default:"$SDN_ALLOW_CONNTRACK_INVALID|false"`
+	SdnFetchDataFromComputeService bool `help:"fetch network releated data from compute service" default:"$SDN_FETCH_DATA_FROM_COMPUTE_SERVICE|true"`
 
 	ovnutils.SOvnOptions
 
