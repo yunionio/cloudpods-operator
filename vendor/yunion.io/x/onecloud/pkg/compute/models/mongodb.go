@@ -104,7 +104,7 @@ type SMongoDB struct {
 	Iops           int `nullable:"true" list:"user" create:"optional"`
 
 	// 实例IP地址
-	IpAddr string `width:"32" charset:"ascii" nullable:"true" list:"user"`
+	IpAddr string `width:"64" charset:"ascii" nullable:"true" list:"user"`
 
 	// 引擎
 	// example: MySQL
@@ -230,6 +230,15 @@ func (man *SMongoDBManager) QueryDistinctExtraField(q *sqlchemy.SQuery, field st
 		return q, nil
 	}
 	q, err = man.SVpcResourceBaseManager.QueryDistinctExtraField(q, field)
+	if err == nil {
+		return q, nil
+	}
+	return q, httperrors.ErrNotFound
+}
+
+func (manager *SMongoDBManager) QueryDistinctExtraFields(q *sqlchemy.SQuery, resource string, fields []string) (*sqlchemy.SQuery, error) {
+	var err error
+	q, err = manager.SManagedResourceBaseManager.QueryDistinctExtraFields(q, resource, fields)
 	if err == nil {
 		return q, nil
 	}

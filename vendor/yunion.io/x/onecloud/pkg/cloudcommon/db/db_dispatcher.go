@@ -1077,12 +1077,15 @@ func (dispatcher *DBModelDispatcher) GetSpecific(ctx context.Context, idStr stri
 
 	funcName := fmt.Sprintf("GetDetails%s", specCamel)
 	funcValue := modelValue.MethodByName(funcName)
+	log.Errorf("MethodByName %s", funcName)
 	if !funcValue.IsValid() || funcValue.IsNil() {
+		log.Errorf("MethodByName2 %s", funcName)
 		return nil, httperrors.NewSpecNotFoundError("%s %s %s not found", dispatcher.Keyword(), idStr, spec)
 	}
 
 	outs, err := callFunc(funcValue, funcName, params...)
 	if err != nil {
+		log.Errorf("MethodByName4 %s", funcName)
 		return nil, err
 	}
 	if len(outs) != 2 {
@@ -1092,6 +1095,7 @@ func (dispatcher *DBModelDispatcher) GetSpecific(ctx context.Context, idStr stri
 	resVal := outs[0]
 	errVal := outs[1].Interface()
 	if !gotypes.IsNil(errVal) {
+		log.Errorf("MethodByName3 %s", funcName)
 		return nil, errVal.(error)
 	} else {
 		if gotypes.IsNil(resVal.Interface()) {
@@ -1401,7 +1405,7 @@ func (dispatcher *DBModelDispatcher) Create(ctx context.Context, query jsonutils
 		}
 		failErr := manager.OnCreateFailed(ctx, userCred, ownerId, query, data)
 		if failErr != nil {
-			err = errors.Wrapf(err, failErr.Error())
+			err = errors.Wrapf(err, "%s", failErr.Error())
 		}
 		return nil, httperrors.NewGeneralError(err)
 	}
@@ -1565,24 +1569,27 @@ func (dispatcher *DBModelDispatcher) BatchCreate(ctx context.Context, query json
 	if err != nil {
 		failErr := manager.OnCreateFailed(ctx, userCred, ownerId, query, data)
 		if failErr != nil {
-			err = errors.Wrapf(err, failErr.Error())
+			err = errors.Wrapf(err, "%s", failErr.Error())
 		}
 		return nil, httperrors.NewGeneralError(errors.Wrap(err, "createResults"))
 	}
 
 	results := make([]printutils.SubmitResult, count)
 	models := make([]IModel, 0)
-	for i, res := range createResults {
+	for i := range createResults {
+		res := createResults[i]
 		result := printutils.SubmitResult{}
 		if res.err != nil {
 			jsonErr := httperrors.NewGeneralError(res.err)
 			result.Status = jsonErr.Code
 			result.Data = jsonutils.Marshal(jsonErr)
 		} else {
-			lockman.LockObject(ctx, res.model)
-			defer lockman.ReleaseObject(ctx, res.model)
+			func() {
+				lockman.LockObject(ctx, res.model)
+				defer lockman.ReleaseObject(ctx, res.model)
 
-			res.model.PostCreate(ctx, userCred, ownerId, query, data)
+				res.model.PostCreate(ctx, userCred, ownerId, query, data)
+			}()
 
 			models = append(models, res.model)
 			body, err := getItemDetails(manager, res.model, ctx, userCred, query)
@@ -1597,10 +1604,12 @@ func (dispatcher *DBModelDispatcher) BatchCreate(ctx context.Context, query json
 		results[i] = result
 	}
 	if len(models) > 0 {
-		lockman.LockClass(ctx, manager, GetLockClassKey(manager, ownerId))
-		defer lockman.ReleaseClass(ctx, manager, GetLockClassKey(manager, ownerId))
+		func() {
+			lockman.LockClass(ctx, manager, GetLockClassKey(manager, ownerId))
+			defer lockman.ReleaseClass(ctx, manager, GetLockClassKey(manager, ownerId))
 
-		manager.OnCreateComplete(ctx, models, userCred, ownerId, query, multiData)
+			manager.OnCreateComplete(ctx, models, userCred, ownerId, query, multiData)
+		}()
 	}
 	return results, nil
 }

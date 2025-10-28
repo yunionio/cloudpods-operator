@@ -649,6 +649,14 @@ func (manager *SDiskManager) ValidateFsFeatures(fsType string, feature *api.Disk
 			return httperrors.NewInputParameterError("ext4.reserved_blocks_percentage must in range [1, 99]")
 		}
 	}
+	if feature.F2fs != nil {
+		if fsType != "f2fs" {
+			return httperrors.NewInputParameterError("only f2fs fs can set fs_features.f2fs, current is %q", fsType)
+		}
+		if feature.F2fs.OverprovisionRatioPercentage < 0 || feature.F2fs.OverprovisionRatioPercentage >= 100 {
+			return httperrors.NewInputParameterError("f2fs.reserved_blocks_percentage must in range [1, 99]")
+		}
+	}
 	return nil
 }
 
@@ -1063,6 +1071,40 @@ func (self *SDisk) PerformMigrate(ctx context.Context, userCred mcclient.TokenCr
 	params := jsonutils.NewDict()
 	params.Set("target_storage_id", jsonutils.NewString(input.TargetStorageId))
 	task, err := taskman.TaskManager.NewTask(ctx, "DiskMigrateTask", self, userCred, params, "", "", nil)
+	if err != nil {
+		return nil, errors.Wrapf(err, "NewTask")
+	}
+	return nil, task.ScheduleRun(nil)
+}
+
+func (self *SDisk) PerformChangeStorageType(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input *api.DiskChagneStorageTypeInput) (jsonutils.JSONObject, error) {
+	if len(input.StorageType) == 0 {
+		return nil, httperrors.NewMissingParameterError("storage_type")
+	}
+	storage, err := self.GetStorage()
+	if err != nil {
+		return nil, errors.Wrapf(err, "GetStorage")
+	}
+	if storage.StorageType == input.StorageType {
+		return nil, httperrors.NewInputParameterError("Storage type is already %s", input.StorageType)
+	}
+	storages := []SStorage{}
+	q := StorageManager.Query().Equals("zone_id", storage.ZoneId).Equals("storage_type", input.StorageType).IsTrue("enabled").Equals("status", api.STORAGE_ONLINE).Equals("manager_id", storage.ManagerId)
+	err = q.All(&storages)
+	if err != nil {
+		return nil, errors.Wrapf(err, "CountWithError")
+	}
+	if len(storages) == 0 {
+		return nil, httperrors.NewInputParameterError("no available storage type %s to change", input.StorageType)
+	}
+	if len(storages) > 1 {
+		return nil, httperrors.NewInputParameterError("duplicate storage type %s found", input.StorageType)
+	}
+
+	self.SetStatus(ctx, userCred, api.DISK_MIGRATING, "")
+	params := jsonutils.NewDict()
+	params.Set("storage_id", jsonutils.NewString(storages[0].Id))
+	task, err := taskman.TaskManager.NewTask(ctx, "DiskChangeStorageTypeTask", self, userCred, params, "", "", nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "NewTask")
 	}
@@ -3272,6 +3314,15 @@ func (disk *SDisk) resetDiskinfo(
 	if len(disk.FsFormat) == 0 {
 		return errors.Wrap(errors.ErrInvalidStatus, "fs_format must be set")
 	}
+	if input.Fs != nil {
+		if disk.FsFeatures != nil {
+			err := DiskManager.ValidateFsFeatures(*input.Fs, input.FsFeatures)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	if input.TemplateId != nil {
 		if len(*input.TemplateId) > 0 {
 			imageObj, err := CachedimageManager.FetchByIdOrName(ctx, userCred, *input.TemplateId)
@@ -3320,6 +3371,7 @@ func (disk *SDisk) resetDiskinfo(
 		}
 		if input.Fs != nil {
 			disk.FsFormat = *input.Fs
+			disk.FsFeatures = input.FsFeatures
 		}
 		return nil
 	})

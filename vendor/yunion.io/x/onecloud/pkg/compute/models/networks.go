@@ -95,11 +95,11 @@ type SNetwork struct {
 	IfnameHint string `width:"9" charset:"ascii" nullable:"true" list:"user" create:"optional"`
 
 	// 起始IP地址
-	GuestIpStart string `width:"16" charset:"ascii" nullable:"false" list:"user" update:"user" create:"optional"`
+	GuestIpStart string `width:"16" charset:"ascii" nullable:"true" list:"user" update:"user" create:"optional"`
 	// 结束IP地址
-	GuestIpEnd string `width:"16" charset:"ascii" nullable:"false" list:"user" update:"user" create:"optional"`
+	GuestIpEnd string `width:"16" charset:"ascii" nullable:"true" list:"user" update:"user" create:"optional"`
 	// 掩码
-	GuestIpMask int8 `nullable:"false" list:"user" update:"user" create:"optional"`
+	GuestIpMask int8 `nullable:"true" list:"user" update:"user" create:"optional"`
 	// 网关地址
 	GuestGateway string `width:"16" charset:"ascii" nullable:"true" list:"user" update:"user" create:"optional"`
 	// DNS, allow multiple dns, seperated by ","
@@ -921,17 +921,39 @@ func (manager *SNetworkManager) fetchAllOnpremiseNetworks(serverType string, isP
 }
 
 func (manager *SNetworkManager) GetOnPremiseNetworkOfIP(ipAddr string, serverType string, isPublic tristate.TriState) (*SNetwork, error) {
-	address, err := netutils.NewIPV4Addr(ipAddr)
-	if err != nil {
-		return nil, errors.Wrap(err, "NewIPV4Addr")
+	var addr4 netutils.IPV4Addr
+	var addr6 netutils.IPV6Addr
+	var isIpv6Addr = false
+	var err error
+	if strings.Contains(ipAddr, ":") {
+		isIpv6Addr = true
 	}
+
+	if isIpv6Addr {
+		addr6, err = netutils.NewIPV6Addr(ipAddr)
+		if err != nil {
+			return nil, errors.Wrap(err, "NewIPV6Addr")
+		}
+	} else {
+		addr4, err = netutils.NewIPV4Addr(ipAddr)
+		if err != nil {
+			return nil, errors.Wrap(err, "NewIPV4Addr")
+		}
+	}
+
 	nets, err := manager.fetchAllOnpremiseNetworks(serverType, isPublic)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetchAllOnpremiseNetworks")
 	}
 	for _, n := range nets {
-		if n.IsAddressInRange(address) {
-			return &n, nil
+		if isIpv6Addr {
+			if n.IsAddress6InRange(addr6) {
+				return &n, nil
+			}
+		} else {
+			if n.IsAddressInRange(addr4) {
+				return &n, nil
+			}
 		}
 	}
 	return nil, sql.ErrNoRows
@@ -2738,9 +2760,15 @@ func (manager *SNetworkManager) ListItemFilter(
 				ipStart := sqlchemy.INET_ATON(q.Field("guest_ip_start"))
 				ipEnd := sqlchemy.INET_ATON(q.Field("guest_ip_end"))
 
+				ipConst := sqlchemy.INET_ATON(q.StringField(ip4Addr.String()))
+
 				ipCondtion = sqlchemy.AND(
-					sqlchemy.GE(ipEnd, uint32(ip4Addr)),
-					sqlchemy.LE(ipStart, uint32(ip4Addr)),
+					sqlchemy.IsNotNull(q.Field("guest_ip_start")),
+					sqlchemy.IsNotNull(q.Field("guest_ip_end")),
+					sqlchemy.IsNotEmpty(q.Field("guest_ip_start")),
+					sqlchemy.IsNotEmpty(q.Field("guest_ip_end")),
+					sqlchemy.GE(ipEnd, ipConst),
+					sqlchemy.LE(ipStart, ipConst),
 				)
 				if !exactIpMatch {
 					ipCondtion = sqlchemy.OR(
@@ -2751,18 +2779,24 @@ func (manager *SNetworkManager) ListItemFilter(
 				}
 			} else if ip6Addr, err := netutils.NewIPV6Addr(ipstr); err == nil {
 				// ipv6 address, exactly
-				ipStart := q.Field("guest_ip6_start")
-				ipEnd := q.Field("guest_ip6_end")
+				ipStart := sqlchemy.INET6_ATON(q.Field("guest_ip6_start"))
+				ipEnd := sqlchemy.INET6_ATON(q.Field("guest_ip6_end"))
+
+				ipConst := sqlchemy.INET6_ATON(q.StringField(ip6Addr.String()))
 
 				ipCondtion = sqlchemy.AND(
-					sqlchemy.GE(ipEnd, ip6Addr.String()),
-					sqlchemy.LE(ipStart, ip6Addr.String()),
+					sqlchemy.IsNotNull(q.Field("guest_ip6_start")),
+					sqlchemy.IsNotNull(q.Field("guest_ip6_end")),
+					sqlchemy.IsNotEmpty(q.Field("guest_ip6_start")),
+					sqlchemy.IsNotEmpty(q.Field("guest_ip6_end")),
+					sqlchemy.GE(ipEnd, ipConst),
+					sqlchemy.LE(ipStart, ipConst),
 				)
 				if !exactIpMatch {
 					ipCondtion = sqlchemy.OR(
 						ipCondtion,
-						sqlchemy.Contains(q.Field("guest_ip6_start"), ipstr),
-						sqlchemy.Contains(q.Field("guest_ip6_end"), ipstr),
+						sqlchemy.Contains(q.Field("guest_ip6_start"), ip6Addr.String()),
+						sqlchemy.Contains(q.Field("guest_ip6_end"), ip6Addr.String()),
 					)
 				}
 			} else {
@@ -3605,7 +3639,7 @@ func (network *SNetwork) GetUsedAddressDetails(ctx context.Context, addr string)
 			return &address[i], nil
 		}
 	}
-	return nil, errors.Wrapf(errors.ErrNotFound, addr)
+	return nil, errors.Wrapf(errors.ErrNotFound, "%s", addr)
 }
 
 func (network *SNetwork) GetAddressDetails(ctx context.Context, userCred mcclient.TokenCredential, owner mcclient.IIdentityProvider, scope rbacscope.TRbacScope) ([]api.SNetworkUsedAddress, error) {

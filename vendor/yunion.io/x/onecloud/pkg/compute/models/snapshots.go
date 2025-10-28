@@ -84,9 +84,6 @@ type SSnapshot struct {
 	// create disk from snapshot, snapshot as disk backing file
 	RefCount int `nullable:"false" default:"0" list:"user"`
 
-	// 区域Id
-	// CloudregionId string    `width:"36" charset:"ascii" nullable:"true" list:"user" create:"optional"`
-
 	BackingDiskId string    `width:"36" charset:"ascii" nullable:"true" default:""`
 	DiskBackupId  string    `width:"36" charset:"ascii" nullable:"true" default:""`
 	ExpiredAt     time.Time `nullable:"true" list:"user" create:"optional"`
@@ -310,6 +307,9 @@ func (manager *SSnapshotManager) QueryDistinctExtraFields(q *sqlchemy.SQuery, re
 		}
 		q = q.Join(storages, sqlchemy.Equals(q.Field("storage_id"), storages.Field("id")))
 		return q, nil
+
+	case CloudproviderManager.Keyword():
+		return manager.SManagedResourceBaseManager.QueryDistinctExtraFields(q, resource, fields)
 	}
 	return q, httperrors.ErrNotFound
 }
@@ -447,6 +447,7 @@ func (self *SSnapshot) GetShortDesc(ctx context.Context) *jsonutils.JSONDict {
 	return res
 }
 
+// 创建快照
 func (manager *SSnapshotManager) ValidateCreateData(
 	ctx context.Context,
 	userCred mcclient.TokenCredential,
@@ -807,6 +808,7 @@ func (self *SSnapshot) CustomizeDelete(ctx context.Context, userCred mcclient.To
 	return self.StartSnapshotDeleteTask(ctx, userCred, false, "", 0, 0)
 }
 
+// +onecloud:swagger-gen-ignore
 func (self *SSnapshot) PerformDeleted(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
 	_, err := db.Update(self, func() error {
 		self.OutOfChain = true
@@ -847,18 +849,15 @@ func (self *SSnapshotManager) GetConvertSnapshot(deleteSnapshot *SSnapshot) (*SS
 	return dest, nil
 }
 
-func (self *SSnapshotManager) PerformDeleteDiskSnapshots(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
-	diskId, err := data.GetString("disk_id")
-	if err != nil {
-		return nil, err
-	}
-	disk, err := DiskManager.FetchById(diskId)
+// +onecloud:swagger-gen-ignore
+func (self *SSnapshotManager) PerformDeleteDiskSnapshots(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input api.SnapshotDeleteDiskSnapshotsInput) (jsonutils.JSONObject, error) {
+	disk, err := DiskManager.FetchById(input.DiskId)
 	if disk != nil {
-		return nil, httperrors.NewBadRequestError("Cannot Delete disk %s snapshots, disk exist", diskId)
+		return nil, httperrors.NewBadRequestError("Cannot Delete disk %s snapshots, disk exist", input.DiskId)
 	}
-	snapshots := self.GetDiskSnapshots(diskId)
+	snapshots := self.GetDiskSnapshots(input.DiskId)
 	if snapshots == nil || len(snapshots) == 0 {
-		return nil, httperrors.NewNotFoundError("Disk %s dose not have snapshot", diskId)
+		return nil, httperrors.NewNotFoundError("Disk %s dose not have snapshot", input.DiskId)
 	}
 	snapshotIds := []string{}
 	for i := 0; i < len(snapshots); i++ {
@@ -1160,6 +1159,7 @@ func (self *SSnapshot) GetISnapshotRegion(ctx context.Context) (cloudprovider.IC
 	return provider.GetIRegionById(region.GetExternalId())
 }
 
+// +onecloud:swagger-gen-ignore
 func (self *SSnapshot) PerformPurge(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
 	err := self.GetRegionDriver().ValidateSnapshotDelete(ctx, self)
 	if err != nil {

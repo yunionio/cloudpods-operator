@@ -215,6 +215,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool, isEEOr
 		BastionHostComponentType:     nHP(&obj.BastionHost.DeploymentSpec, useHyperImage),
 		ExtdbComponentType:           nHP(&obj.Extdb.DeploymentSpec, useHyperImage),
 		BillingComponentType:         nHP(&obj.Billing.DeploymentSpec, useHyperImage),
+		LLMComponentType:             nHP(&obj.LLM.DeploymentSpec, useHyperImage),
 	} {
 		SetDefaults_DeploymentSpec(spec.DeploymentSpec, getImage(
 			obj.ImageRepository, spec.Repository,
@@ -490,6 +491,7 @@ func setDefaults_Components_ServicePort(obj *OnecloudClusterSpec) {
 		newSP(&obj.VpcAgent.Service, constants.VpcAgentPort),
 		newSP(&obj.BastionHost.Service, constants.BastionHostPort),
 		newSP(&obj.Extdb.Service, constants.ExtdbPort),
+		newSP(&obj.LLM.Service, constants.LLMPort),
 	} {
 		SetDefaults_ServiceSpec(spec.spec, spec.defaultPort)
 	}
@@ -819,6 +821,7 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		&obj.AutoUpdate:                          {constants.AutoUpdateAdminUser, constants.AutoUpdatePort, constants.AutoUpdateDB, constants.AutoUpdateDBUser},
 		&obj.BastionHost:                         {constants.BastionHostAdminUser, constants.BastionHostPort, constants.BastionHostDB, constants.BastionHostDBUser},
 		&obj.Extdb:                               {constants.ExtdbAdminUser, constants.ExtdbPort, constants.ExtdbDB, constants.ExtdbDBUser},
+		&obj.LLM:                                 {constants.LLMAdminUser, constants.LLMPort, constants.LLMDB, constants.LLMDBUser},
 	} {
 		if user, ok := registryPorts[tmp.port]; ok {
 			log.Fatalf("port %d has been registered by %s", tmp.port, user)

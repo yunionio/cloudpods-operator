@@ -324,6 +324,7 @@ type ICloudHost interface {
 	GetOvnVersion() string // just for cloudpods host
 
 	GetIsolateDevices() ([]IsolateDevice, error)
+	GetIpmiInfo() jsonutils.JSONObject
 }
 
 type IsolateDevice interface {
@@ -417,6 +418,7 @@ type ICloudVM interface {
 
 	AllocatePublicIpAddress() (string, error)
 	GetPowerStates() string
+	GetHealthStatus() string
 	GetIsolateDeviceIds() ([]string, error)
 }
 
@@ -571,6 +573,7 @@ type ICloudDisk interface {
 	Rebuild(ctx context.Context) error
 
 	GetPreallocation() string
+	ChangeStorage(ctx context.Context, opts *ChangeStorageOptions) error
 }
 
 type ICloudSnapshot interface {

@@ -40,7 +40,7 @@ type SKeystoneOptions struct {
 
 	PasswordExpirationSeconds  int `help:"password expires after the duration in seconds"`
 	PasswordMinimalLength      int `help:"password minimal length" default:"6"`
-	PasswordUniqueHistoryCheck int `help:"password must be unique in last N passwords" default:"1"`
+	PasswordUniqueHistoryCheck int `help:"password must be unique in last N passwords, default is 0 means no check" default:"0"`
 	PasswordCharComplexity     int `help:"password complexity policy" default:"0"`
 
 	PasswordErrorLockCount int `help:"lock user account if given number of failed auth"`
@@ -86,6 +86,13 @@ type SKeystoneOptions struct {
 var (
 	Options SKeystoneOptions
 )
+
+func (o SKeystoneOptions) PasswordHistoryCount() int {
+	if o.PasswordUniqueHistoryCheck > 0 {
+		return o.PasswordUniqueHistoryCheck
+	}
+	return 10
+}
 
 func OnOptionsChange(oldOptions, newOptions interface{}) bool {
 	oldOpts := oldOptions.(*SKeystoneOptions)
