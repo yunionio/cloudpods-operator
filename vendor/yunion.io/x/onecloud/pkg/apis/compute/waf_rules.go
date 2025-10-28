@@ -65,7 +65,7 @@ type WafRuleCreateInput struct {
 	// enmu: and, or, not
 	StatementCondition string `json:"statement_condition"`
 
-	// swagger:ignore
+	// swagger: ignore
 	// WAF规则组Id
 	WafRuleGroupId string `json:"waf_rule_group_id"`
 

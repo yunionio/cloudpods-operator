@@ -42,9 +42,9 @@ type SnapshotPolicyDetails struct {
 
 	SSnapshotPolicy
 
-	// 绑定磁盘数量
-	BindingDiskCount int `json:"binding_disk_count"`
-	// 绑定主机数量
+	RetentionDays int `json:"retention_days"`
+
+	BindingDiskCount     int `json:"binding_disk_count"`
 	BindingResourceCount int `json:"binding_resource_count"`
 }
 
@@ -53,22 +53,13 @@ type SSnapshotPolicyCreateInput struct {
 	CloudproviderResourceInput
 	CloudregionResourceInput
 
-	// 自动快照保留时长 -1: 表示永久保留
-	RetentionDays int `json:"retention_days"`
-	// 自动快照保留数量
-	// 此配置优先级高于 RetentionDays
+	RetentionDays  int `json:"retention_days"`
 	RetentionCount int `json:"retention_count"`
 	// 快照类型, 目前支持 disk, server
-	// disk: 自动磁盘快照策略， 只能关联磁盘
-	// server: 自动主机快照策略, 只能关联主机
 	Type string `json:"type"`
-	// 创建自动快照策略的执行周期
-	// 1. 周一到周日
-	// 2. 1~7, 1: Monday, 7: Sunday
+
 	RepeatWeekdays []int `json:"repeat_weekdays"`
-	// 创建自动快照策略的执行时间
-	// 0:00~23:59 每天, 0~23 每小时
-	// 创建自动快照策略的时间必须与 RepeatWeekdays 对应的创建周期相一致
+
 	TimePoints []int `json:"time_points"`
 }
 
@@ -108,20 +99,11 @@ func (self *SSnapshotPolicyCreateInput) Validate() error {
 type SSnapshotPolicyUpdateInput struct {
 	apis.VirtualResourceBaseUpdateInput
 
-	// 自动快照保留时长, -1: 表示永久保留
-	RetentionDays *int
-	// 自动快照保留数量
-	// 此配置优先级高于 RetentionDays
-	RetentionCount *int
+	RetentionDays  *int
+	RegentionCount *int
 
-	// 自动快照执行周期
-	// 1. 周一到周日
-	// 2. 1~7, 1: Monday, 7: Sunday
 	RepeatWeekdays *[]int `json:"repeat_weekdays"`
-	// 自动快照执行时间
-	// 0:00~23:59 每天, 0~23 每小时
-	// 创建自动快照策略的时间必须与 RepeatWeekdays 对应的创建周期相一致
-	TimePoints *[]int `json:"time_points"`
+	TimePoints     *[]int `json:"time_points"`
 }
 
 func (self *SSnapshotPolicyUpdateInput) Validate() error {
@@ -154,18 +136,12 @@ func (self *SSnapshotPolicyUpdateInput) Validate() error {
 }
 
 type SnapshotPolicyDisksInput struct {
-	// 磁盘ID列表
-	// 快照策略类型需要时disk
 	Disks []string `json:"disk"`
 }
 
 type SnapshotPolicyResourcesInput struct {
-	// 绑定的资源列表
-	// 目前仅支持绑定主机
 	Resources []struct {
-		// 绑定资源ID
-		Id string `json:"id"`
-		// server: 主机, disk: 磁盘
+		Id   string `json:"id"`
 		Type string `json:"type"`
 	} `json:"resources"`
 }

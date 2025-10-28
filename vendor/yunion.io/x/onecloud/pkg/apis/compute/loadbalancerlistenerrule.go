@@ -54,7 +54,7 @@ type LoadbalancerListenerRuleListInput struct {
 type LoadbalancerListenerRuleCreateInput struct {
 	apis.StatusStandaloneResourceCreateInput
 
-	// swagger:ignore
+	// swagger: ignore
 	Listener   string `json:"listener" yunion-deprecated-by:"listener_id"`
 	ListenerId string `json:"listener_id"`
 
@@ -132,7 +132,7 @@ func (self *LoadbalancerListenerRuleCreateInput) Validate() error {
 type LoadbalancerListenerRuleUpdateInput struct {
 	apis.StatusStandaloneResourceBaseUpdateInput
 
-	// swagger:ignore
+	// swagger: ignore
 	Listener   string `json:"listener" yunion-deprecated-by:"listener_id"`
 	ListenerId string `json:"listener_id"`
 
