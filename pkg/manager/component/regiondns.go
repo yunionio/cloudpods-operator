@@ -191,7 +191,7 @@ func (m *regionDNSManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 }
 
 func (m *regionDNSManager) getDaemonSet(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.DaemonSet, error) {
-	spec := oc.Spec.RegionDNS
+	spec := &oc.Spec.RegionDNS
 	cType := v1alpha1.RegionDNSComponentType
 	configMap := controller.ComponentConfigMapName(oc, cType)
 	cf := func(volMounts []corev1.VolumeMount) []corev1.Container {
@@ -211,9 +211,9 @@ func (m *regionDNSManager) getDaemonSet(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 	if !controller.DisableNodeSelectorController {
 		spec.NodeSelector[constants.OnecloudControllerLabelKey] = "enable"
 	}
-	ds, err := m.newDaemonSet(cType, oc, cfg,
+	ds, err := m.newDaemonSetWithLimits(cType, oc, cfg,
 		NewVolumeHelper(oc, configMap, cType),
-		spec.DaemonSetSpec, "", nil, cf)
+		&spec.DaemonSetSpec, "", nil, cf, true)
 	if err != nil {
 		return nil, err
 	}
