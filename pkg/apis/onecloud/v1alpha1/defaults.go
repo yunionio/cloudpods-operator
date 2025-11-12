@@ -52,9 +52,9 @@ const (
 	// rancher local-path-provisioner: https://github.com/rancher/local-path-provisioner
 	DefaultStorageClass = "local-path"
 
-	DefaultOvnVersion   = "2.12.4"
+	DefaultOvnVersion   = "3.22.2"
 	DefaultOvnImageName = "openvswitch"
-	DefaultOvnImageTag  = DefaultOvnVersion + "-4"
+	DefaultOvnImageTag  = DefaultOvnVersion + "-1"
 
 	DefaultSdnAgentImageName = "sdnagent"
 
@@ -71,19 +71,19 @@ const (
 
 	DefaultInfluxdbImageVersion = "1.7.7"
 
-	DefaultVictoriaMetricsImageVersion = "v1.95.1"
+	DefaultVictoriaMetricsImageVersion = "v1.129.1-1"
 
 	DefaultTelegrafImageName     = "telegraf"
-	DefaultTelegrafImageTag      = "release-1.19.2-10"
+	DefaultTelegrafImageTag      = "release-1.36.4-1"
 	DefaultTelegrafInitImageName = "telegraf-init"
-	DefaultTelegrafInitImageTag  = "release-1.19.2-0"
+	DefaultTelegrafInitImageTag  = "release-1.36-1"
 	DefaultTelegrafRaidImageName = "telegraf-raid-plugin"
-	DefaultTelegrafRaidImageTag  = "release-1.6.5"
+	DefaultTelegrafRaidImageTag  = "release-1.6.6"
 
 	DefaultHostQemuVersion = "4.2.0"
 
-	DefaultEChartSSRVersion = "v0.0.1"
-	DefaultGuacdVersion     = "1.5.3"
+	DefaultEChartSSRVersion = "v0.0.3"
+	DefaultGuacdVersion     = "1.6.0"
 )
 
 var (
