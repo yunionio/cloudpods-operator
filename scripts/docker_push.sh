@@ -49,7 +49,7 @@ build_bin() {
         -v $SRC_DIR:/root/go/src/yunion.io/x/$PROJ \
         -v $SRC_DIR/_output/alpine-build:/root/go/src/yunion.io/x/$PROJ/_output \
         -v $SRC_DIR/_output/alpine-build/_cache:/root/.cache \
-        registry.cn-beijing.aliyuncs.com/yunionio/alpine-build:3.22.0-go-1.24.6-1 \
+        registry.cn-beijing.aliyuncs.com/yunionio/alpine-build:3.22.2-go-1.24.9-0 \
         /bin/sh -c "set -ex; git config --global --add safe.directory /root/go/src/yunion.io/x/$PROJ; cd /root/go/src/yunion.io/x/$PROJ;
         $BUILD_ARCH $BUILD_CC $BUILD_CGO SHELL='sh -x' GOOS=linux make $component;
         chown -R $(id -u):$(id -g) _output;
@@ -82,7 +82,7 @@ get_image_name() {
     local arch=$2
     local is_all_arch=$3
     local img_name="$REGISTRY/$component:$TAG"
-    if [[ "$is_all_arch" == "true" || "$arch" == arm64 ]]; then
+    if [[ "$is_all_arch" == "true" || "$arch" == arm64 || "$arch" == riscv64 ]]; then
         img_name="${img_name}-$arch"
     fi
     echo $img_name
@@ -132,7 +132,8 @@ make_manifest_image() {
     fi
     docker buildx imagetools create -t $img_name \
         $img_name-amd64 \
-        $img_name-arm64
+        $img_name-arm64 \
+        $img_name-riscv64
 }
 
 cd $SRC_DIR
@@ -157,12 +158,12 @@ echo COMPONENTS ${COMPONENTS[@]}
 for component in $COMPONENTS; do
     case "$ARCH" in
         all)
-            for arch in "arm64" "amd64"; do
+            for arch in "arm64" "amd64" "riscv64"; do
                 build_process_with_buildx $component $arch "true"
             done
             make_manifest_image $component
             ;;
-        arm64)
+        arm64|riscv64)
             build_process_with_buildx $component $ARCH "false"
             ;;
         *)
