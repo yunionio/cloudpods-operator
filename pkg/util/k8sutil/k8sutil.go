@@ -289,9 +289,10 @@ func newEtcdPod(m *etcdutil.Member, initialCluster []string, clusterName, state,
 				// In etcd 3.2, TLS listener will do a reverse-DNS lookup for pod IP -> hostname.
 				// If DNS entry is not warmed up, it will return empty result and peer connection will be rejected.
 				// In some cases the DNS is not created correctly so we need to time out after a given period.
+				// https://github.com/kubernetes/kubernetes/issues/66924#issuecomment-670988399
 				Command: []string{"/bin/sh", "-c", fmt.Sprintf(`
 TIMEOUT_READY=%d
-while ( ! nslookup %s )
+while ( ! ping -c 1 %s )
 do
 	# If TIMEOUT_READY is 0 we should never time out and exit
 	TIMEOUT_READY=$(( TIMEOUT_READY-1 ))
