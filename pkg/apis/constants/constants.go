@@ -378,11 +378,11 @@ const (
 	EtcdPeerPort              = 2380
 	EtcdImageName             = "etcd"
 	EtcdDefaultClusterSize    = 3
-	EtcdImageVersion          = "3.4.6"
+	EtcdImageVersion          = "3.5.12"
 	EtcdDefaultRequestTimeout = 5 * time.Second
 	EtcdDefaultDialTimeout    = 3 * time.Second
 	BusyboxImageName          = "busybox"
-	BusyboxImageVersion       = "1.28.0-glibc"
+	BusyboxImageVersion       = "1.37.0-glibc"
 	ServiceNameEtcd           = "etcd"
 	ServiceTypeEtcd           = ServiceNameEtcd
 	ServiceCertEtcdName       = ServiceNameEtcd
