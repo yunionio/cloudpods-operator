@@ -1481,6 +1481,7 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		Level:       "important",
 	}
 
+	cloudaccountBrand := []string{"Aliyun", "Qcloud", "VolcEngine", "Baidu", "Huawei"}
 	cloudaccountTem := onecloud.CommonAlertTem{
 		Database:    "meter_db",
 		Measurement: "cloudaccount_balance",
@@ -1491,7 +1492,7 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		Reduce:      "last",
 		Description: "监测云账号余额",
 		Level:       "important",
-		Filters:     genORFilter("brand", "Aliyun"),
+		Filters:     genORFilter("brand", cloudaccountBrand...),
 	}
 	noDataTem := onecloud.CommonAlertTem{
 		Database:      "telegraf",
