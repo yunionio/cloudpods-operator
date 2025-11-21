@@ -36,7 +36,7 @@ const (
     cache 30
 
     yunion . {
-        sql_connection mysql+pymysql://{{.DBUser}}:{{.DBPassword}}@{{.DBHost}}:{{.DBPort}}/{{.DBName}}?charset=utf8&parseTime=true&interpolateParams=true
+        sql_connection {{.SQLConnection}}
         {{- if .DNSDomain }}
         dns_domain {{.DNSDomain}}
         {{- end }}
@@ -66,11 +66,7 @@ const (
 type RegionDNSConfig struct {
 	options.CommonOptions
 
-	DBUser     string
-	DBPassword string
-	DBHost     string
-	DBPort     int32
-	DBName     string
+	SQLConnection string
 
 	DNSDomain string
 	// Region    string
@@ -119,8 +115,6 @@ func (m *regionDNSManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 }
 
 func (m *regionDNSManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
-	db := oc.Spec.Mysql
-	regionDB := cfg.RegionServer.DB
 	spec := oc.Spec.RegionDNS
 	cType := v1alpha1.RegionDNSComponentType
 	defaultDNSTo := []string{"114.114.114.114", "223.5.5.5"}
@@ -144,13 +138,19 @@ func (m *regionDNSManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 			To:   strings.Join(p.To, " "),
 		}
 	}
+
+	dbOptions := &options.DBOptions{}
+	switch oc.Spec.GetDbEngine(oc.Spec.RegionServer.DbEngine) {
+	case v1alpha1.DBEngineDameng:
+		option.SetDamengOptions(dbOptions, oc.Spec.Dameng, cfg.RegionServer.DB)
+	case v1alpha1.DBEngineMySQL:
+		fallthrough
+	default:
+		option.SetMysqlOptions(dbOptions, oc.Spec.Mysql, cfg.RegionServer.DB)
+	}
 	regionSpec := oc.Spec.RegionServer
 	config := RegionDNSConfig{
-		DBUser:     regionDB.Username,
-		DBPassword: regionDB.Password,
-		DBHost:     db.Host,
-		DBPort:     db.Port,
-		DBName:     regionDB.Database,
+		SQLConnection: dbOptions.SqlConnection,
 
 		DNSDomain: regionSpec.DNSDomain,
 
