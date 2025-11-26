@@ -909,9 +909,9 @@ func (m *ComponentManager) getDefaultResourceLimits() (*resource.Quantity, *reso
 	cpuCount, _ := cpu.AsInt64()
 	memBytes, _ := mem.AsInt64()
 	defCPUStr := fmt.Sprintf("%f", float64(cpuCount)/3.0)
-	defMemMB := memBytes / 1000 / 1000 / 4
-	if defMemMB < 1024 {
-		defMemMB = 1024
+	defMemMB := memBytes / 1000 / 1000 / 16
+	if defMemMB < 512 {
+		defMemMB = 512
 	}
 	defMemMBStr := fmt.Sprintf("%dMi", defMemMB)
 
