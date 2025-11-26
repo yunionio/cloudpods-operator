@@ -67,7 +67,7 @@ func (m *monitorStackManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	}
 
 	spec := &oc.Spec.MonitorStack
-	if !spec.Grafana.Disable {
+	if !spec.Grafana.Disable && (len(spec.Grafana.DbEngine) == 0 || spec.Grafana.DbEngine == "mysql") {
 		if err := component.EnsureClusterMySQLUser(oc, clustercfg.Grafana.DB); err != nil {
 			return errors.Wrap(err, "ensure grafana db config")
 		}
@@ -334,6 +334,10 @@ func (m *monitorStackManager) syncBucketPolicy(spec *v1alpha1.MonitorStackSpec) 
 	if err != nil {
 		return errors.Wrap(err, "for loki")
 	}
+	retentionDays := spec.Loki.RetentionDays
+	if retentionDays == 0 {
+		retentionDays = 7
+	}
 	if err := cli.SetBucketLifecycle(context.Background(), constants.MonitorBucketLoki, &lifecycle.Configuration{
 		Rules: []lifecycle.Rule{
 			{
@@ -342,7 +346,7 @@ func (m *monitorStackManager) syncBucketPolicy(spec *v1alpha1.MonitorStackSpec) 
 					Prefix: "fake/",
 				},
 				Expiration: lifecycle.Expiration{
-					Days: 7,
+					Days: lifecycle.ExpirationDays(retentionDays),
 				},
 				Status: "Enabled",
 			},
