@@ -753,6 +753,7 @@ type MonitorStackGrafanaSpec struct {
 	DisableSubpath bool                         `json:"disableSubpath"`
 	Subpath        string                       `json:"subpath"`
 	OAuth          MonitorStackGrafanaSpecOAuth `json:"oauth"`
+	DbEngine       string                       `json:"dbEngine"`
 }
 
 type MonitorStackGrafanaStatus struct {
@@ -770,6 +771,7 @@ type ObjectStoreConfig struct {
 type MonitorStackLokiSpec struct {
 	Disable           bool              `json:"disable"`
 	ObjectStoreConfig ObjectStoreConfig `json:"objectStoreConfig"`
+	RetentionDays     int               `json:"retentionDays"`
 }
 
 type MonitorStackLokiStatus struct {
