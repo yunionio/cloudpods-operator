@@ -489,6 +489,28 @@ func (h *VolumeHelper) addEtcdClientTLSVolumes(oc *v1alpha1.OnecloudCluster) *Vo
 	return h
 }
 
+func (h *VolumeHelper) addLibModulesVolume() *VolumeHelper {
+	volSrcType := corev1.HostPathDirectoryOrCreate
+	h.volumes = append(h.volumes,
+		corev1.Volume{
+			Name: "lib-modules",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/lib/modules",
+					Type: &volSrcType,
+				},
+			},
+		},
+	)
+	h.volumeMounts = append(h.volumeMounts,
+		corev1.VolumeMount{
+			Name:      "lib-modules",
+			MountPath: "/lib/modules",
+		},
+	)
+	return h
+}
+
 func (h *VolumeHelper) addOvsVolumes() *VolumeHelper {
 	volSrcType := corev1.HostPathDirectoryOrCreate
 	h.volumes = append(h.volumes,
@@ -510,6 +532,15 @@ func (h *VolumeHelper) addOvsVolumes() *VolumeHelper {
 				},
 			},
 		},
+		corev1.Volume{
+			Name: "etc-openvswitch",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/etc/openvswitch",
+					Type: &volSrcType,
+				},
+			},
+		},
 	)
 	h.volumeMounts = append(h.volumeMounts,
 		corev1.VolumeMount{
@@ -519,6 +550,10 @@ func (h *VolumeHelper) addOvsVolumes() *VolumeHelper {
 		corev1.VolumeMount{
 			Name:      "var-log-openvswitch",
 			MountPath: "/var/log/openvswitch",
+		},
+		corev1.VolumeMount{
+			Name:      "etc-openvswitch",
+			MountPath: "/etc/openvswitch",
 		},
 	)
 	return h
@@ -755,6 +790,7 @@ func NewOvsVolumeHelper(
 		component:    cType,
 	}
 	h.addOvsVolumes()
+	h.addLibModulesVolume()
 	return h
 }
 

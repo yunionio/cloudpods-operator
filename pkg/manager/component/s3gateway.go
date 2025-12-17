@@ -55,9 +55,6 @@ func (m *s3gatewayManager) GetServiceName() string {
 }
 
 func (m *s3gatewayManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if !oc.Spec.EnableS3Gateway && !controller.StopServices {
-		return nil
-	}
 	return syncComponent(m, oc, "")
 }
 

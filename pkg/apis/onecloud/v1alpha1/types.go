@@ -149,6 +149,11 @@ const (
 
 	HostHealthComponentType ComponentType = "host-health"
 
+	HostSdnagentComponentType      ComponentType = "host-sdnagent"
+	HostOvnControllerComponentType ComponentType = "host-ovn-controller"
+	HostOvsdbServerComponentType   ComponentType = "host-ovsdb-server"
+	HostOvsVswitchdComponentType   ComponentType = "host-ovs-vswitchd"
+
 	BastionHostComponentType ComponentType = "bastionhost"
 	CloudmuxComponentType    ComponentType = "cloudmux"
 
@@ -1004,6 +1009,9 @@ type HostAgentSpec struct {
 	SdnAgent      ContainerSpec
 	OvnController ContainerSpec
 	HostHealth    ContainerSpec
+	// share the same spec as ovn controller
+	// OvsdbServer   ContainerSpec
+	// OvsVswitchd   ContainerSpec
 
 	OvnEncapIpDetectionMethod string `json:"OvnEncapIpDetectionMethod"`
 
@@ -1011,12 +1019,16 @@ type HostAgentSpec struct {
 	ManageNtpConfiguration bool   `json:"manageNtpConfiguration"`
 	HostCpuPassthrough     *bool  `json:"hostCpuPassthrough"`
 	DefaultQemuVersion     string `json:"defaultQemuVersion"`
+
+	MaxUnavailableCount int `json:"maxUnavailableCount"`
 }
 
 type LbagentSpec struct {
 	DaemonSetSpec
 
 	OvnController ContainerSpec
+
+	MaxUnavailableCount int `json:"maxUnavailableCount"`
 }
 
 type TelegrafSpec struct {

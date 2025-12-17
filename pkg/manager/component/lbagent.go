@@ -125,23 +125,6 @@ func (m *lbagentManager) newLbagentPrivilegedDaemonSet(
 				WorkingDir: "/opt/cloud",
 			},
 		}
-		if !oc.Spec.DisableLocalVpc {
-			containers = append(containers, corev1.Container{
-				Name:            "ovn-controller",
-				Image:           dsSpec.OvnController.Image,
-				ImagePullPolicy: dsSpec.OvnController.ImagePullPolicy,
-				Command:         []string{"/start.sh", "controller"},
-				VolumeMounts:    NewOvsVolumeHelper(cType, oc, configMap).GetVolumeMounts(),
-				SecurityContext: &corev1.SecurityContext{
-					Privileged: &privileged,
-					Capabilities: &corev1.Capabilities{
-						Add: []corev1.Capability{
-							corev1.Capability("SYS_NICE"),
-						},
-					},
-				},
-			})
-		}
 		return containers
 	}
 
@@ -163,7 +146,7 @@ func (m *lbagentManager) newLbagentPrivilegedDaemonSet(
 	if ds.Spec.UpdateStrategy.RollingUpdate == nil {
 		ds.Spec.UpdateStrategy.RollingUpdate = new(apps.RollingUpdateDaemonSet)
 	}
-	var maxUnavailableCount = intstr.FromInt(3)
+	var maxUnavailableCount = intstr.FromInt(dsSpec.MaxUnavailableCount)
 	ds.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable = &maxUnavailableCount
 
 	return ds, nil
