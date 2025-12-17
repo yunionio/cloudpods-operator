@@ -108,10 +108,10 @@ func isValidProductVersion(oc *v1alpha1.OnecloudCluster) error {
 
 func syncComponent(factory cloudComponentFactory, oc *v1alpha1.OnecloudCluster, zone string) error {
 	cType := factory.GetComponentType()
-	if factory.IsDisabled(oc) {
+	/*if factory.IsDisabled(oc) {
 		klog.Infof("component %q is disable, skip sync and disable service", cType)
 		return nil
-	}
+	}*/
 	if err := isValidProductVersion(oc); err != nil {
 		return errors.Wrapf(err, "check productVersion of %q", cType)
 	}

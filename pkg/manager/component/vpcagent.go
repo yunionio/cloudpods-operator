@@ -57,9 +57,6 @@ func (m *vpcAgentManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
 }
 
 func (m *vpcAgentManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if oc.Spec.DisableLocalVpc {
-		return nil
-	}
 	return syncComponent(m, oc, "")
 }
 

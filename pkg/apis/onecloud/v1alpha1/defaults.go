@@ -52,9 +52,9 @@ const (
 	// rancher local-path-provisioner: https://github.com/rancher/local-path-provisioner
 	DefaultStorageClass = "local-path"
 
-	DefaultOvnVersion   = "3.22.2"
+	DefaultOvnVersion   = "2.12.4"
 	DefaultOvnImageName = "openvswitch"
-	DefaultOvnImageTag  = DefaultOvnVersion + "-1"
+	DefaultOvnImageTag  = DefaultOvnVersion + "-20251218"
 
 	DefaultSdnAgentImageName = "sdnagent"
 
@@ -281,6 +281,12 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool, isEEOr
 	if obj.HostAgent.DefaultQemuVersion == "" {
 		obj.HostAgent.DefaultQemuVersion = DefaultHostQemuVersion
 	}
+	if obj.HostAgent.MaxUnavailableCount == 0 {
+		obj.HostAgent.MaxUnavailableCount = 3
+	}
+	if obj.Lbagent.MaxUnavailableCount == 0 {
+		obj.Lbagent.MaxUnavailableCount = 3
+	}
 
 	for cType, spec := range map[ComponentType]*DaemonSetSpec{
 		HostComponentType:         &obj.HostAgent.DaemonSetSpec,
@@ -350,6 +356,8 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool, isEEOr
 		DefaultHostImageTag, obj.HostImage.Tag,
 		false, isEE,
 	)
+	obj.HostImage.ImagePullPolicy = corev1.PullIfNotPresent
+	clearContainerSpec(&obj.HostImage.ContainerSpec)
 	// setting host health image
 	obj.HostAgent.HostHealth.Image = getImage(
 		obj.ImageRepository, obj.HostAgent.HostHealth.Repository,
@@ -357,7 +365,8 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool, isEEOr
 		DefaultHostHealthTag, obj.HostAgent.HostHealth.Tag,
 		false, isEE,
 	)
-	clearContainerSpec(&obj.HostImage.ContainerSpec)
+	obj.HostAgent.HostHealth.ImagePullPolicy = corev1.PullIfNotPresent
+	clearContainerSpec(&obj.HostAgent.HostHealth)
 
 	// lbagent ovn-controller
 	// setting ovn image
@@ -368,6 +377,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool, isEEOr
 		false, isEE,
 	)
 	obj.Lbagent.OvnController.ImagePullPolicy = corev1.PullIfNotPresent
+	clearContainerSpec(&obj.Lbagent.OvnController)
 
 	// telegraf spec
 	obj.Telegraf.InitContainerImage = getImage(
