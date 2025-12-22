@@ -337,6 +337,7 @@ func (m *ComponentManager) syncDaemonSet(
 	}
 
 	inPV := isInProductVersion(f, oc)
+	isDisabled := f.IsDisabled(oc)
 	shouldStop := controller.StopServices && !utils.IsInStringArray(f.GetComponentType().String(), []string{
 		v1alpha1.HostComponentType.String(),
 	})
@@ -344,7 +345,7 @@ func (m *ComponentManager) syncDaemonSet(
 	oldDsTmp, err := m.dsLister.DaemonSets(ns).Get(newDs.GetName())
 	if err != nil {
 		if errors.IsNotFound(err) {
-			if !inPV || shouldStop {
+			if !inPV || shouldStop || isDisabled {
 				return nil
 			}
 			return m.dsControl.CreateDaemonSet(oc, newDs)
@@ -353,7 +354,8 @@ func (m *ComponentManager) syncDaemonSet(
 		}
 	}
 
-	if !inPV || shouldStop {
+	if !inPV || shouldStop || isDisabled {
+		log.Debugf("delete daemonset %s", oldDsTmp.Name)
 		return m.dsControl.DeleteDaemonSet(oc, oldDsTmp)
 	}
 
@@ -459,6 +461,7 @@ func (m *ComponentManager) syncDeployment(
 		return nil
 	}
 
+	isDisabled := f.IsDisabled(oc)
 	shouldStop := controller.StopServices && !utils.IsInStringArray(f.GetComponentType().String(), []string{
 		v1alpha1.OvnNorthComponentType.String(),
 		v1alpha1.InfluxdbComponentType.String(),
@@ -479,9 +482,8 @@ func (m *ComponentManager) syncDeployment(
 
 	oldDeployTmp, err := m.deployLister.Deployments(ns).Get(newDeploy.GetName())
 	if err != nil {
-		log.Errorf("get old deployment error for component %s: %s", f.GetComponentType(), err)
 		if errors.IsNotFound(err) {
-			if !inPV || shouldStop {
+			if !inPV || shouldStop || isDisabled {
 				return nil
 			}
 			if err := SetDeploymentLastAppliedConfigAnnotation(newDeploy); err != nil {
@@ -494,17 +496,17 @@ func (m *ComponentManager) syncDeployment(
 				return errorswrap.Wrapf(err, "post create deployment %s", newDeploy.GetName())
 			}
 			return controller.RequeueErrorf("OnecloudCluster: [%s/%s], waiting for %s deployment running", ns, oc.GetName(), newDeploy.GetName())
-
 		} else {
 			return err
 		}
 	}
 
-	oldDeploy := oldDeployTmp.DeepCopy()
-	if !inPV || shouldStop {
-		return m.deployControl.DeleteDeployment(oc, oldDeploy.Name)
+	if !inPV || shouldStop || isDisabled {
+		log.Debugf("delete deployment %s", oldDeployTmp.Name)
+		return m.deployControl.DeleteDeployment(oc, oldDeployTmp.Name)
 	}
 
+	oldDeploy := oldDeployTmp.DeepCopy()
 	if err = m.updateDeployment(oc, newDeploy, oldDeploy); err != nil {
 		return err
 	}
@@ -1360,7 +1362,8 @@ func (m *ComponentManager) syncPhase(
 		return nil
 	}
 	inPV := isInProductVersion(f, oc)
-	if !inPV {
+	isDisabled := f.IsDisabled(oc)
+	if !inPV || isDisabled {
 		return nil
 	}
 	if err := phase.Setup(); err != nil {
@@ -1650,6 +1653,22 @@ func (m *ComponentManager) EChartsSSR() manager.Manager {
 
 func (m *ComponentManager) HostHealth() manager.Manager {
 	return newHostHealthManager(m)
+}
+
+func (m *ComponentManager) HostSdnagent() manager.Manager {
+	return newHostSdnagentManager(m)
+}
+
+func (m *ComponentManager) HostOvnController() manager.Manager {
+	return newHostOvnControllerManager(m)
+}
+
+func (m *ComponentManager) HostOvsdbServer() manager.Manager {
+	return newHostOvsdbServerManager(m)
+}
+
+func (m *ComponentManager) HostOvsVswitchd() manager.Manager {
+	return newHostOvsVswitchdManager(m)
 }
 
 func (m *ComponentManager) BastionHost() manager.Manager {

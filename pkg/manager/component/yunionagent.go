@@ -64,9 +64,6 @@ func (m *yunionagentManager) GetServiceName() string {
 }
 
 func (m *yunionagentManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	if !IsEEOrESEEdition(oc) {
-		return nil
-	}
 	return syncComponent(m, oc, "")
 }
 
