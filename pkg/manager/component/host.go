@@ -208,7 +208,7 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 				Env: []corev1.EnvVar{
 					{
 						Name:  "HOST_OVN_ENCAP_IP_DETECTION_METHOD",
-						Value: oc.Spec.HostAgent.OvnEncapIpDetectionMethod,
+						Value: dsSpec.OvnEncapIpDetectionMethod,
 					},
 					{
 						Name: "HOST_OVN_SOUTH_DATABASE",
@@ -259,37 +259,6 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 				// LivenessProbe:  generateLivenessProbe("/ping", 8885),
 			},
 		}
-		if !oc.Spec.DisableLocalVpc {
-			containers = append(containers, corev1.Container{
-				Name:            "ovn-controller",
-				Image:           dsSpec.OvnController.Image,
-				ImagePullPolicy: dsSpec.OvnController.ImagePullPolicy,
-				Command:         []string{"/start.sh", "controller"},
-				VolumeMounts:    NewOvsVolumeHelper(cType, oc, configMap).GetVolumeMounts(),
-				SecurityContext: &corev1.SecurityContext{
-					Privileged: &privileged,
-					Capabilities: &corev1.Capabilities{
-						Add: []corev1.Capability{
-							corev1.Capability("SYS_NICE"),
-						},
-					},
-				},
-			})
-		}
-		containers = append(containers, corev1.Container{
-			Name:            "sdnagent",
-			Image:           dsSpec.SdnAgent.Image,
-			ImagePullPolicy: dsSpec.SdnAgent.ImagePullPolicy,
-			Command: []string{
-				"/opt/yunion/bin/sdnagent",
-				"--common-config-file",
-				"/etc/yunion/common/common.conf",
-			},
-			VolumeMounts: volMounts,
-			SecurityContext: &corev1.SecurityContext{
-				Privileged: &privileged,
-			},
-		})
 		return containers
 	}
 
@@ -311,103 +280,11 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 	if ds.Spec.UpdateStrategy.RollingUpdate == nil {
 		ds.Spec.UpdateStrategy.RollingUpdate = new(apps.RollingUpdateDaemonSet)
 	}
-	var maxUnavailable = 3
-	if dsSpec.DaemonSetSpec.MaxUnavailable != nil && *dsSpec.DaemonSetSpec.MaxUnavailable > 0 {
-		maxUnavailable = *dsSpec.DaemonSetSpec.MaxUnavailable
-	}
-	var maxUnavailableCount = intstr.FromInt(maxUnavailable)
-	ds.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable = &maxUnavailableCount
-
-	/* add pod label for pod affinity */
-	if ds.Spec.Template.ObjectMeta.Labels == nil {
-		ds.Spec.Template.ObjectMeta.Labels = make(map[string]string)
-	}
-	ds.Spec.Template.ObjectMeta.Labels[constants.OnecloudHostDeployerLabelKey] = ""
-	if ds.Spec.Selector == nil {
-		ds.Spec.Selector = &metav1.LabelSelector{}
-	}
-	if ds.Spec.Selector.MatchLabels == nil {
-		ds.Spec.Selector.MatchLabels = make(map[string]string)
-	}
-	ds.Spec.Selector.MatchLabels[constants.OnecloudHostDeployerLabelKey] = ""
-	return ds, nil
-}
-
-type hostHealthManager struct {
-	*ComponentManager
-}
-
-func newHostHealthManager(man *ComponentManager) manager.Manager {
-	return &hostHealthManager{ComponentManager: man}
-}
-
-func (m *hostHealthManager) getProductVersions() []v1alpha1.ProductVersion {
-	return []v1alpha1.ProductVersion{
-		v1alpha1.ProductVersionFullStack,
-		v1alpha1.ProductVersionEdge,
-		v1alpha1.ProductVersionLightEdge,
-	}
-}
-
-func (m *hostHealthManager) GetComponentType() v1alpha1.ComponentType {
-	return v1alpha1.HostHealthComponentType
-}
-
-func (m *hostHealthManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
-	return oc.Spec.HostAgent.Disable || !isInProductVersion(m, oc)
-}
-
-func (m *hostHealthManager) Sync(oc *v1alpha1.OnecloudCluster) error {
-	return syncComponent(m, oc, "")
-}
-
-func (m *hostHealthManager) getDaemonSet(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.DaemonSet, error) {
-	return m.newHostPrivilegedDaemonSet(v1alpha1.HostHealthComponentType, oc, cfg)
-}
-
-func (m *hostHealthManager) newHostPrivilegedDaemonSet(
-	cType v1alpha1.ComponentType,
-	oc *v1alpha1.OnecloudCluster,
-	cfg *v1alpha1.OnecloudClusterConfig,
-) (*apps.DaemonSet, error) {
-	var (
-		privileged = true
-		dsSpec     = oc.Spec.HostAgent
-		configMap  = controller.ComponentConfigMapName(oc, v1alpha1.HostComponentType)
-	)
-	containersF := func(volMounts []corev1.VolumeMount) []corev1.Container {
-		containers := []corev1.Container{}
-		containers = append(containers, corev1.Container{
-			Name:            "host-health",
-			Image:           dsSpec.HostHealth.Image,
-			ImagePullPolicy: dsSpec.HostHealth.ImagePullPolicy,
-			Command: []string{
-				"/opt/yunion/bin/host-health",
-				"--common-config-file",
-				"/etc/yunion/common/common.conf",
-			},
-			VolumeMounts: volMounts,
-			SecurityContext: &corev1.SecurityContext{
-				Privileged: &privileged,
-			},
-		})
-		return containers
-	}
-	if dsSpec.NodeSelector == nil {
-		dsSpec.NodeSelector = make(map[string]string)
-	}
-	dsSpec.NodeSelector[constants.OnecloudEnableHostLabelKey] = "enable"
-	ds, err := m.newDaemonSet(cType, oc, cfg,
-		NewHostVolume(cType, oc, configMap), dsSpec.DaemonSetSpec, "", nil, containersF)
-	if err != nil {
-		return nil, err
-	}
-
-	/* set host health pod max maxUnavailable count, default 1 */
-	if ds.Spec.UpdateStrategy.RollingUpdate == nil {
-		ds.Spec.UpdateStrategy.RollingUpdate = new(apps.RollingUpdateDaemonSet)
-	}
-	var maxUnavailableCount = intstr.FromInt(3)
+	// var maxUnavailable = 3
+	// if dsSpec.DaemonSetSpec.MaxUnavailable != nil && *dsSpec.DaemonSetSpec.MaxUnavailable > 0 {
+	// 	maxUnavailable = *dsSpec.DaemonSetSpec.MaxUnavailable
+	// }
+	var maxUnavailableCount = intstr.FromInt(dsSpec.MaxUnavailableCount)
 	ds.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable = &maxUnavailableCount
 
 	/* add pod label for pod affinity */

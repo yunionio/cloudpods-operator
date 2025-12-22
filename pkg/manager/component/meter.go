@@ -19,9 +19,9 @@ import (
 
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	common_options "yunion.io/x/onecloud/pkg/cloudcommon/options"
+	"yunion.io/x/pkg/errors"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -142,62 +142,10 @@ func (m *meterManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 		"/ping",
 	)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "newCloudServiceSinglePortDeploymentWithReadinessProbePath")
 	}
-	/*
-	 * if oc.Spec.Meter.StorageClassName == v1alpha1.DefaultStorageClass {
-	 * 	// if use local path storage, remove cloud affinity
-	 * 	deploy = m.removeDeploymentAffinity(deploy)
-	 * }
-	 */
-	podTemplate := &deploy.Spec.Template.Spec
-	podVols := podTemplate.Volumes
-	volMounts := podTemplate.Containers[0].VolumeMounts
-
-	if oc.Spec.Meter.StorageClassName != v1alpha1.DefaultStorageClass {
-		deploy.Spec.Strategy.Type = apps.RecreateDeploymentStrategyType
-	}
-
-	// var run
-	var hostPathDirectory = corev1.HostPathDirectory
-	podVols = append(podVols, corev1.Volume{
-		Name: "run",
-		VolumeSource: corev1.VolumeSource{
-			HostPath: &corev1.HostPathVolumeSource{
-				Path: "/var/run",
-				Type: &hostPathDirectory,
-			},
-		},
-	})
-	volMounts = append(volMounts, corev1.VolumeMount{
-		Name:      "run",
-		ReadOnly:  false,
-		MountPath: "/var/run",
-	})
-
-	podTemplate.Containers[0].VolumeMounts = volMounts
-	podTemplate.Volumes = podVols
-
-	// add pod label for pod affinity
-	if deploy.Spec.Template.ObjectMeta.Labels == nil {
-		deploy.Spec.Template.ObjectMeta.Labels = make(map[string]string)
-	}
-	deploy.Spec.Template.ObjectMeta.Labels[constants.OnecloudHostDeployerLabelKey] = ""
-	if deploy.Spec.Selector == nil {
-		deploy.Spec.Selector = &metav1.LabelSelector{}
-	}
-	if deploy.Spec.Selector.MatchLabels == nil {
-		deploy.Spec.Selector.MatchLabels = make(map[string]string)
-	}
-	deploy.Spec.Selector.MatchLabels[constants.OnecloudHostDeployerLabelKey] = ""
 	return deploy, nil
 }
-
-/*func (m *meterManager) getPodLabels() map[string]string {
-	return map[string]string{
-		constants.OnecloudHostDeployerLabelKey: "",
-	}
-}*/
 
 func (m *meterManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Meter.DeploymentStatus
