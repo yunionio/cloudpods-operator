@@ -81,3 +81,7 @@ func (m *mcpServerManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zon
 func (m *mcpServerManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return component.NewMcpServer().GetPhaseControl(man)
 }
+
+func (m *mcpServerManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
+	return &cfg.McpServer.CloudUser
+}

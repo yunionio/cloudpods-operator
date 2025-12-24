@@ -796,6 +796,7 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		&obj.VpcAgent.ServiceCommonOptions:       {constants.VpcAgentAdminUser, constants.VpcAgentPort},
 		&obj.ServiceOperator:                     {constants.ServiceOperatorAdminUser, constants.ServiceOperatorPort},
 		&obj.Lbagent.ServiceCommonOptions:        {constants.LbagentAdminUser, constants.LbagentPort},
+		&obj.McpServer.ServiceCommonOptions:      {constants.McpServerAdminUser, constants.McpServerPort},
 	} {
 		SetDefaults_ServiceCommonOptions(opt, userPort.user, userPort.port)
 	}
@@ -841,7 +842,6 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		registryPorts[tmp.port] = tmp.user
 		SetDefaults_ServiceDBCommonOptions(opt, tmp.db, tmp.dbUser, tmp.user, tmp.port)
 	}
-	SetDefaults_ServiceBaseConfig(&obj.McpServer.ServiceBaseConfig, constants.McpServerPort)
 	SetDefaults_ServiceCommonOptions(&obj.Cloudmon, constants.CloudmonAdminUser, constants.CloudmonPort)
 	setDefaults_ItsmConfig(&obj.Itsm)
 

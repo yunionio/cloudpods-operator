@@ -451,9 +451,11 @@ const (
 	LLMDB           = "llm"
 	LLMDBUser       = "llm"
 
-	ServiceNameMcpServer = "mcp-server"
-	ServiceTypeMcpServer = "mcp-server"
-	McpServerPort        = 30876
+	ServiceNameMcpServer  = "mcp-server"
+	ServiceTypeMcpServer  = "mcp-server"
+	McpServerAdminUser    = "mcp-server-admin"
+	McpServerAdminProject = SysAdminProject
+	McpServerPort         = 30876
 )
 
 var (
