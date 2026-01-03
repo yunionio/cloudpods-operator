@@ -287,34 +287,40 @@ func (m *ComponentManager) syncConfigMap(
 			}
 		}
 	}
-	cfgMap, forceUpdate, err := cfgMapFactory(oc, clustercfg, zone)
-	if err != nil {
-		return err
-	}
-	if cfgMap == nil {
-		return nil
-	}
-	if err := SetConfigMapLastAppliedConfigAnnotation(cfgMap); err != nil {
-		return err
-	}
-	if forceUpdate {
-		log.Infof("forceUpdate configMap %s", cfgMap.GetName())
+	syncCmfunc := func() error {
+		cfgMap, forceUpdate, err := cfgMapFactory(oc, clustercfg, zone)
+		if err != nil {
+			return errorswrap.Wrap(err, "get config map")
+		}
+		if cfgMap == nil {
+			return nil
+		}
+		if err := SetConfigMapLastAppliedConfigAnnotation(cfgMap); err != nil {
+			return err
+		}
+		if forceUpdate {
+			log.Infof("forceUpdate configMap %s", cfgMap.GetName())
+			return m.configer.CreateOrUpdateConfigMap(oc, cfgMap)
+		}
+		oldCfgMap, err := m.configer.Lister().ConfigMaps(oc.GetNamespace()).Get(cfgMap.GetName())
+		if err != nil && !errors.IsNotFound(err) {
+			return err
+		}
+		if oldCfgMap != nil {
+			//if equal, err := configMapEqual(cfgMap, oldCfgMap); err != nil {
+			//	return err
+			//} else if equal {
+			//	return nil
+			//}
+			// if cfgmap exist do not update
+			return nil
+		}
 		return m.configer.CreateOrUpdateConfigMap(oc, cfgMap)
 	}
-	oldCfgMap, err := m.configer.Lister().ConfigMaps(oc.GetNamespace()).Get(cfgMap.GetName())
-	if err != nil && !errors.IsNotFound(err) {
-		return err
+	if err := syncCmfunc(); err != nil {
+		return errorswrap.Wrap(err, "sync rw configmap")
 	}
-	if oldCfgMap != nil {
-		//if equal, err := configMapEqual(cfgMap, oldCfgMap); err != nil {
-		//	return err
-		//} else if equal {
-		//	return nil
-		//}
-		// if cfgmap exist do not update
-		return nil
-	}
-	return m.configer.CreateOrUpdateConfigMap(oc, cfgMap)
+	return nil
 }
 
 func (m *ComponentManager) syncDaemonSet(
@@ -444,7 +450,7 @@ func (m *ComponentManager) updateCronJob(oc *v1alpha1.OnecloudCluster, newCronJo
 func (m *ComponentManager) syncDeployment(
 	oc *v1alpha1.OnecloudCluster,
 	f cloudComponentFactory,
-	postSyncFunc func(*v1alpha1.OnecloudCluster, *apps.Deployment, string) error,
+	postSyncFunc func(*v1alpha1.OnecloudCluster, *apps.Deployment, *apps.Deployment, string) error,
 	zone string,
 ) error {
 	ns := oc.GetNamespace()
@@ -469,48 +475,79 @@ func (m *ComponentManager) syncDeployment(
 
 	inPV := isInProductVersion(f, oc)
 
-	postFunc := func(deploy *apps.Deployment) error {
+	postFunc := func() error {
 		if postSyncFunc != nil {
-			deploy, err := m.kubeCli.AppsV1().Deployments(deploy.GetNamespace()).Get(context.Background(), deploy.GetName(), metav1.GetOptions{})
-			if err != nil {
-				return errorswrap.Wrapf(err, "get deployment %s", deploy.GetName())
+			deploySets := m.kubeCli.AppsV1().Deployments(newDeploy.GetNamespace())
+			deployName := newDeploy.GetName()
+			deployInstance, err := deploySets.Get(context.Background(), deployName, metav1.GetOptions{})
+			if err != nil && !errors.IsNotFound(err) {
+				return errorswrap.Wrapf(err, "get deployment %s", deployName)
 			}
-			return postSyncFunc(oc, deploy, zone)
+			var roDeployInstance *apps.Deployment
+			if f.supportsReadOnlyService() {
+				roDeployInstance, err = deploySets.Get(context.Background(), deployName+"-slave", metav1.GetOptions{})
+				if err != nil && !errors.IsNotFound(err) {
+					return errorswrap.Wrapf(err, "get readonly deployment %s-slave", deployName)
+				}
+			}
+			return postSyncFunc(oc, deployInstance, roDeployInstance, zone)
 		}
 		return nil
 	}
 
-	oldDeployTmp, err := m.deployLister.Deployments(ns).Get(newDeploy.GetName())
-	if err != nil {
-		if errors.IsNotFound(err) {
-			if !inPV || shouldStop || isDisabled {
-				return nil
-			}
-			if err := SetDeploymentLastAppliedConfigAnnotation(newDeploy); err != nil {
+	syncFunc := func(deploy *apps.Deployment, shouldDelete bool) error {
+		oldDeployTmp, err := m.deployLister.Deployments(ns).Get(deploy.GetName())
+		if err != nil {
+			if errors.IsNotFound(err) {
+				if shouldDelete {
+					return nil
+				}
+				if err := SetDeploymentLastAppliedConfigAnnotation(deploy); err != nil {
+					return err
+				}
+				if err = m.deployControl.CreateDeployment(oc, deploy); err != nil {
+					return err
+				}
+				if err := postFunc(); err != nil {
+					return errorswrap.Wrapf(err, "post create deployment %s", deploy.GetName())
+				}
+				return controller.RequeueErrorf("OnecloudCluster: [%s/%s], waiting for %s deployment running", ns, oc.GetName(), deploy.GetName())
+			} else {
 				return err
 			}
-			if err = m.deployControl.CreateDeployment(oc, newDeploy); err != nil {
-				return err
-			}
-			if err := postFunc(newDeploy); err != nil {
-				return errorswrap.Wrapf(err, "post create deployment %s", newDeploy.GetName())
-			}
-			return controller.RequeueErrorf("OnecloudCluster: [%s/%s], waiting for %s deployment running", ns, oc.GetName(), newDeploy.GetName())
-		} else {
+		}
+
+		if shouldDelete {
+			log.Debugf("delete existing deployment %s", oldDeployTmp.Name)
+			return m.deployControl.DeleteDeployment(oc, oldDeployTmp.Name)
+		}
+
+		oldDeploy := oldDeployTmp.DeepCopy()
+		if err = m.updateDeployment(oc, deploy, oldDeploy); err != nil {
 			return err
 		}
+		if err = postFunc(); err != nil {
+			return errorswrap.Wrapf(err, "post sync deployment %s", deploy.GetName())
+		}
+		return nil
 	}
 
-	if !inPV || shouldStop || isDisabled {
-		log.Debugf("delete deployment %s", oldDeployTmp.Name)
-		return m.deployControl.DeleteDeployment(oc, oldDeployTmp.Name)
+	errs := make([]error, 0, 2)
+	errMain := syncFunc(newDeploy, !inPV || shouldStop || isDisabled)
+	if errMain != nil {
+		errs = append(errs, errorswrap.Wrapf(errMain, "sync deployment %s", newDeploy.GetName()))
 	}
-
-	oldDeploy := oldDeployTmp.DeepCopy()
-	if err = m.updateDeployment(oc, newDeploy, oldDeploy); err != nil {
-		return err
+	if f.supportsReadOnlyService() {
+		// sync read only service
+		roNewDeploy := f.getReadonlyDeployment(oc, cfg, zone, newDeploy)
+		if roNewDeploy != nil {
+			errRo := syncFunc(roNewDeploy, !inPV || shouldStop || isDisabled || roNewDeploy.Spec.Replicas == nil || *roNewDeploy.Spec.Replicas == 0)
+			if errRo != nil {
+				errs = append(errs, errorswrap.Wrapf(errRo, "sync readonly deployment %s", roNewDeploy.GetName()))
+			}
+		}
 	}
-	return postFunc(oldDeploy)
+	return errorswrap.NewAggregate(errs)
 }
 
 func (m *ComponentManager) updateDeployment(oc *v1alpha1.OnecloudCluster, newDeploy, oldDeploy *apps.Deployment) error {
@@ -535,7 +572,8 @@ func (m *ComponentManager) newDefaultDeployment(
 	oc *v1alpha1.OnecloudCluster,
 	volHelper *VolumeHelper,
 	spec *v1alpha1.DeploymentSpec,
-	initContainersFactory func([]corev1.VolumeMount) []corev1.Container, containersFactory func([]corev1.VolumeMount) []corev1.Container,
+	initContainersFactory func([]corev1.VolumeMount) []corev1.Container,
+	containersFactory func([]corev1.VolumeMount) []corev1.Container,
 ) (*apps.Deployment, error) {
 	return m.newDefaultDeploymentWithCloudAffinity(componentType, zoneComponentType, oc, volHelper, spec, initContainersFactory, containersFactory)
 }
@@ -633,14 +671,14 @@ func (m *ComponentManager) getObjectMeta(oc *v1alpha1.OnecloudCluster, name stri
 	}
 }
 
-func (m *ComponentManager) getComponentLabel(oc *v1alpha1.OnecloudCluster, componentType v1alpha1.ComponentType) label.Label {
+func (m *ComponentManager) getComponentLabel(oc *v1alpha1.OnecloudCluster, componentType v1alpha1.ComponentType, readOnly bool) label.Label {
 	instanceName := oc.GetLabels()[label.InstanceLabelKey]
-	return label.New().Instance(instanceName).Component(componentType.String())
+	return label.New().Instance(instanceName).Component(componentType.String(), readOnly)
 }
 
 func (m *ComponentManager) newConfigMap(componentType v1alpha1.ComponentType, zone string, oc *v1alpha1.OnecloudCluster, config string) *corev1.ConfigMap {
 	name := controller.ComponentConfigMapName(oc, m.getZoneComponent(componentType, zone))
-	labels := m.getComponentLabel(oc, componentType)
+	labels := m.getComponentLabel(oc, componentType, false)
 	labels = labels.Zone(zone)
 	return &corev1.ConfigMap{
 		ObjectMeta: m.getObjectMeta(oc, name, labels.Labels()),
@@ -660,20 +698,9 @@ func (m *ComponentManager) newService(
 	oc *v1alpha1.OnecloudCluster,
 	serviceType corev1.ServiceType,
 	ports []corev1.ServicePort,
+	readOnly bool,
 ) *corev1.Service {
-	ocName := oc.GetName()
-	svcName := controller.NewClusterComponentName(ocName, componentType)
-	appLabel := m.getComponentLabel(oc, componentType)
-
-	svc := &corev1.Service{
-		ObjectMeta: m.getObjectMeta(oc, svcName, appLabel),
-		Spec: corev1.ServiceSpec{
-			Type:     serviceType,
-			Selector: appLabel,
-			Ports:    ports,
-		},
-	}
-	return svc
+	return m.newServiceWithClusterIp(componentType, oc, serviceType, ports, "", readOnly)
 }
 
 func (m *ComponentManager) newServiceWithClusterIp(
@@ -682,40 +709,59 @@ func (m *ComponentManager) newServiceWithClusterIp(
 	serviceType corev1.ServiceType,
 	ports []corev1.ServicePort,
 	clusterIp string,
+	readOnly bool,
 ) *corev1.Service {
 	ocName := oc.GetName()
 	svcName := controller.NewClusterComponentName(ocName, componentType)
-	appLabel := m.getComponentLabel(oc, componentType)
+	appLabel := m.getComponentLabel(oc, componentType, readOnly)
 
+	if readOnly {
+		svcName = fmt.Sprintf("%s-slave", svcName)
+		serviceType = corev1.ServiceTypeClusterIP
+		// deepcopy ports
+		oports := ports[:]
+		ports = make([]corev1.ServicePort, len(ports))
+		copy(ports, oports)
+		for i := range ports {
+			ports[i].NodePort = 0 // disable node port for read only service
+		}
+	}
 	svc := &corev1.Service{
 		ObjectMeta: m.getObjectMeta(oc, svcName, appLabel),
 		Spec: corev1.ServiceSpec{
-			Type:      serviceType,
-			Selector:  appLabel,
-			Ports:     ports,
-			ClusterIP: clusterIp,
+			Type:     serviceType,
+			Selector: appLabel,
+			Ports:    ports,
 		},
+	}
+	if len(clusterIp) > 0 {
+		svc.Spec.ClusterIP = clusterIp
 	}
 	return svc
 }
 
-func (m *ComponentManager) newNodePortService(cType v1alpha1.ComponentType, oc *v1alpha1.OnecloudCluster, internalOnly bool, ports []corev1.ServicePort) *corev1.Service {
+func (m *ComponentManager) newNodePortService(cType v1alpha1.ComponentType, oc *v1alpha1.OnecloudCluster, internalOnly bool, ports []corev1.ServicePort, roService bool) []*corev1.Service {
 	svcType := corev1.ServiceTypeNodePort
 	if internalOnly {
 		svcType = corev1.ServiceTypeClusterIP
 	}
-	return m.newService(cType, oc, svcType, ports)
+	ret := make([]*corev1.Service, 0, 2)
+	ret = append(ret, m.newService(cType, oc, svcType, ports, false))
+	if roService {
+		ret = append(ret, m.newService(cType, oc, svcType, ports, true))
+	}
+	return ret
 }
 
-func (m *ComponentManager) newSingleNodePortService(cType v1alpha1.ComponentType, oc *v1alpha1.OnecloudCluster, nodePort, targetPort int32) *corev1.Service {
-	return m.newSinglePortService(cType, oc, false, nodePort, targetPort)
+func (m *ComponentManager) newSingleNodePortService(cType v1alpha1.ComponentType, oc *v1alpha1.OnecloudCluster, nodePort, targetPort int32, roService bool) []*corev1.Service {
+	return m.newSinglePortService(cType, oc, false, nodePort, targetPort, roService)
 }
 
-func (m *ComponentManager) newSinglePortService(cType v1alpha1.ComponentType, oc *v1alpha1.OnecloudCluster, internalOnly bool, nodePort, targetPort int32) *corev1.Service {
+func (m *ComponentManager) newSinglePortService(cType v1alpha1.ComponentType, oc *v1alpha1.OnecloudCluster, internalOnly bool, nodePort, targetPort int32, roService bool) []*corev1.Service {
 	ports := []corev1.ServicePort{
 		NewServiceNodePort("api", internalOnly, nodePort, targetPort),
 	}
-	return m.newNodePortService(cType, oc, internalOnly, ports)
+	return m.newNodePortService(cType, oc, internalOnly, ports, roService)
 }
 
 func (m *ComponentManager) newEtcdClientService(
@@ -727,7 +773,7 @@ func (m *ComponentManager) newEtcdClientService(
 		TargetPort: intstr.FromInt(constants.EtcdClientPort),
 		Protocol:   corev1.ProtocolTCP,
 	}}
-	return m.newService(cType, oc, corev1.ServiceTypeClusterIP, ports)
+	return m.newService(cType, oc, corev1.ServiceTypeClusterIP, ports, false)
 }
 
 func (m *ComponentManager) newEtcdService(
@@ -745,7 +791,24 @@ func (m *ComponentManager) newEtcdService(
 		Protocol:   corev1.ProtocolTCP,
 	}}
 	return m.newServiceWithClusterIp(
-		cType, oc, corev1.ServiceTypeClusterIP, ports, corev1.ClusterIPNone)
+		cType, oc, corev1.ServiceTypeClusterIP, ports, corev1.ClusterIPNone, false)
+}
+
+func (m *ComponentManager) genReadonlyDeployment(
+	componentType v1alpha1.ComponentType, oc *v1alpha1.OnecloudCluster,
+	deploy *apps.Deployment, spec *v1alpha1.DeploymentSpec) *apps.Deployment {
+	roDeploy := deploy.DeepCopy()
+	roDeploy.Name = deploy.Name + "-slave"
+	roDeploy.Spec.Replicas = &spec.SlaveReplicas
+	roDeploy.Spec.Template.Spec.InitContainers = nil
+	if len(roDeploy.Spec.Template.Spec.Containers) > 0 {
+		roDeploy.Spec.Template.Spec.Containers[0].Command = append(roDeploy.Spec.Template.Spec.Containers[0].Command, "--is-slave-node")
+	}
+	appLabel := m.getComponentLabel(oc, componentType, true)
+	roDeploy.ObjectMeta.Labels = appLabel.Labels()
+	roDeploy.Spec.Selector = appLabel.LabelSelector()
+	roDeploy.Spec.Template.ObjectMeta.Labels = appLabel.Labels()
+	return roDeploy
 }
 
 func (m *ComponentManager) newDeployment(
@@ -760,7 +823,7 @@ func (m *ComponentManager) newDeployment(
 	ns := oc.GetNamespace()
 	ocName := oc.GetName()
 
-	appLabel := m.getComponentLabel(oc, componentType)
+	appLabel := m.getComponentLabel(oc, componentType, false)
 
 	vols := volHelper.GetVolumes()
 	volMounts := volHelper.GetVolumeMounts()
@@ -768,7 +831,6 @@ func (m *ComponentManager) newDeployment(
 	podAnnotations := spec.Annotations
 
 	deployName := controller.NewClusterComponentName(ocName, zoneComponentType)
-
 	appDeploy := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            deployName,
@@ -786,9 +848,9 @@ func (m *ComponentManager) newDeployment(
 					Annotations: podAnnotations,
 				},
 				Spec: corev1.PodSpec{
-					Affinity:         spec.Affinity,
-					NodeSelector:     spec.NodeSelector,
-					Containers:       containersFactory(volMounts),
+					Affinity:     spec.Affinity,
+					NodeSelector: spec.NodeSelector,
+					// Containers:       containersFactory(volMounts),
 					RestartPolicy:    corev1.RestartPolicyAlways,
 					Tolerations:      spec.Tolerations,
 					Volumes:          vols,
@@ -1141,7 +1203,7 @@ func (m *ComponentManager) newDaemonSetWithLimits(
 ) (*apps.DaemonSet, error) {
 	ns := oc.GetNamespace()
 	ocName := oc.GetName()
-	appLabel := m.getComponentLabel(oc, componentType)
+	appLabel := m.getComponentLabel(oc, componentType, false)
 	vols := volHelper.GetVolumes()
 	volMounts := volHelper.GetVolumeMounts()
 	podAnnotations := spec.Annotations
@@ -1209,7 +1271,7 @@ func (m *ComponentManager) newCronJob(
 	ocName := oc.GetName()
 	vols := volHelper.GetVolumes()
 	volMounts := volHelper.GetVolumeMounts()
-	appLabel := m.getComponentLabel(oc, componentType)
+	appLabel := m.getComponentLabel(oc, componentType, false)
 	podAnnotations := spec.Annotations
 	cronJobName := controller.NewClusterComponentName(ocName, componentType)
 	var jobSpecBackoffLimit int32 = 1
@@ -1371,6 +1433,14 @@ func (m *ComponentManager) syncPhase(
 	}
 	if err := phase.SystemInit(oc); err != nil {
 		return err
+	}
+	mcclientSyncFunc := f.getMcclientSyncFunc(oc)
+	if mcclientSyncFunc != nil {
+		if err := controller.RunWithSession(oc, func(s *mcclient.ClientSession) error {
+			return mcclientSyncFunc(s)
+		}); err != nil {
+			log.Errorf("mcclientSyncFunc error: %v", err)
+		}
 	}
 	return nil
 }

@@ -19,6 +19,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
+	"yunion.io/x/onecloud/pkg/mcclient"
+
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/manager"
@@ -62,7 +64,7 @@ func (m *ovnNorthManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 		np0,
 		np1,
 	}
-	return []*corev1.Service{m.newNodePortService(v1alpha1.OvnNorthComponentType, oc, isInternalPort, ports)}
+	return m.newNodePortService(v1alpha1.OvnNorthComponentType, oc, isInternalPort, ports, false)
 }
 
 func (m *ovnNorthManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -96,4 +98,16 @@ func (m *ovnNorthManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 
 func (m *ovnNorthManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.OvnNorth
+}
+
+func (m *ovnNorthManager) supportsReadOnlyService() bool {
+	return false
+}
+
+func (m *ovnNorthManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return nil
+}
+
+func (m *ovnNorthManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return nil
 }

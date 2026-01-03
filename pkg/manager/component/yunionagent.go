@@ -21,11 +21,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"yunion.io/x/onecloud/pkg/cloudcommon/options"
+	"yunion.io/x/onecloud/pkg/mcclient"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
@@ -111,7 +113,7 @@ func (m *yunionagentManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1a
 func (m *yunionagentManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
 	// use headless service
 	svcName := controller.NewClusterComponentName(oc.GetName(), v1alpha1.YunionagentComponentType)
-	appLabel := m.getComponentLabel(oc, v1alpha1.YunionagentComponentType)
+	appLabel := m.getComponentLabel(oc, v1alpha1.YunionagentComponentType, false)
 	svc := &corev1.Service{
 		ObjectMeta: m.getObjectMeta(oc, svcName, appLabel),
 		Spec: corev1.ServiceSpec{
@@ -160,4 +162,22 @@ func (m *yunionagentManager) getDaemonSet(oc *v1alpha1.OnecloudCluster, cfg *v1a
 	}
 	ds.Spec.Template.Spec.ServiceAccountName = constants.ServiceAccountOnecloudOperator
 	return ds, nil
+}
+
+func (m *yunionagentManager) supportsReadOnlyService() bool {
+	return false
+}
+
+func (m *yunionagentManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return nil
+}
+
+func (m *yunionagentManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return func(s *mcclient.ClientSession) error {
+		if m.IsDisabled(oc) {
+			return onecloud.EnsureDisableService(s, m.GetServiceName())
+		} else {
+			return onecloud.EnsureEnableService(s, m.GetServiceName(), false)
+		}
+	}
 }

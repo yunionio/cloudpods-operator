@@ -23,6 +23,8 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
 	"yunion.io/x/onecloud-operator/pkg/service-init/component"
+	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
+	"yunion.io/x/onecloud/pkg/mcclient"
 )
 
 type yunoinconfManager struct {
@@ -84,7 +86,7 @@ func (m *yunoinconfManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 }
 
 func (m *yunoinconfManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.YunionconfComponentType, oc, oc.Spec.Yunionconf.Service.InternalOnly, int32(oc.Spec.Yunionconf.Service.NodePort), int32(cfg.Yunionconf.Port))}
+	return m.newSinglePortService(v1alpha1.YunionconfComponentType, oc, oc.Spec.Yunionconf.Service.InternalOnly, int32(oc.Spec.Yunionconf.Service.NodePort), int32(cfg.Yunionconf.Port), oc.Spec.Yunionconf.SlaveReplicas > 0)
 }
 
 func (m *yunoinconfManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -93,4 +95,22 @@ func (m *yunoinconfManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1a
 
 func (m *yunoinconfManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Yunionconf
+}
+
+func (m *yunoinconfManager) supportsReadOnlyService() bool {
+	return false
+}
+
+func (m *yunoinconfManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return nil
+}
+
+func (m *yunoinconfManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return func(s *mcclient.ClientSession) error {
+		if m.IsDisabled(oc) {
+			return onecloud.EnsureDisableService(s, m.GetServiceName())
+		} else {
+			return onecloud.EnsureEnableService(s, m.GetServiceName(), m.supportsReadOnlyService() && oc.Spec.Yunionconf.SlaveReplicas > 0)
+		}
+	}
 }

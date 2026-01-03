@@ -26,6 +26,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
 	"yunion.io/x/onecloud-operator/pkg/util/image"
+	"yunion.io/x/onecloud/pkg/mcclient"
 )
 
 type syncManager interface {
@@ -58,6 +59,9 @@ type pvcFactory interface {
 
 type deploymentFactory interface {
 	getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error)
+	supportsReadOnlyService() bool
+	getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deploy *apps.Deployment) *apps.Deployment
+	getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error
 }
 
 type daemonSetFactory interface {
@@ -181,23 +185,37 @@ func getImageStatus(deploy *apps.Deployment) *v1alpha1.ImageStatus {
 	return getImageStatusByContainer(&container)
 }
 
-func newPostSyncComponent(f cloudComponentFactory) func(*v1alpha1.OnecloudCluster, *apps.Deployment, string) error {
-	return func(oc *v1alpha1.OnecloudCluster, deploy *apps.Deployment, zone string) error {
+func newPostSyncComponent(f cloudComponentFactory) func(*v1alpha1.OnecloudCluster, *apps.Deployment, *apps.Deployment, string) error {
+	return func(oc *v1alpha1.OnecloudCluster, deploy *apps.Deployment, rodeploy *apps.Deployment, zone string) error {
 		m := f.getComponentManager()
 
 		deployStatus := f.getDeploymentStatus(oc, zone)
 		if deployStatus != nil {
-			deployStatus.Deployment = &deploy.Status
-			upgrading, err := m.deploymentIsUpgrading(deploy, oc)
-			if err != nil {
-				return err
+			if deploy != nil {
+				deployStatus.Deployment = &deploy.Status
+				upgrading, err := m.deploymentIsUpgrading(deploy, oc)
+				if err != nil {
+					return err
+				}
+				if upgrading {
+					deployStatus.Phase = v1alpha1.UpgradePhase
+				} else {
+					deployStatus.Phase = v1alpha1.NormalPhase
+				}
+				deployStatus.ImageStatus = getImageStatus(deploy)
 			}
-			if upgrading {
-				deployStatus.Phase = v1alpha1.UpgradePhase
-			} else {
-				deployStatus.Phase = v1alpha1.NormalPhase
+			if rodeploy != nil {
+				deployStatus.SlaveDeployment = &rodeploy.Status
+				upgrading, err := m.deploymentIsUpgrading(rodeploy, oc)
+				if err != nil {
+					return err
+				}
+				if upgrading {
+					deployStatus.SlavePhase = v1alpha1.UpgradePhase
+				} else {
+					deployStatus.SlavePhase = v1alpha1.NormalPhase
+				}
 			}
-			deployStatus.ImageStatus = getImageStatus(deploy)
 		}
 
 		return nil

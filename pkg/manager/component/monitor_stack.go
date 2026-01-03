@@ -21,6 +21,7 @@ import (
 	minio "github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/minio/minio-go/v7/pkg/lifecycle"
+	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -354,5 +355,17 @@ func (m *monitorStackManager) syncBucketPolicy(spec *v1alpha1.MonitorStackSpec) 
 	}); err != nil {
 		return errors.Wrap(err, "set lifecycle policy of 'loki/fake'")
 	}
+	return nil
+}
+
+func (m *monitorStackManager) supportsReadOnlyService() bool {
+	return false
+}
+
+func (m *monitorStackManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return nil
+}
+
+func (m *monitorStackManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
 	return nil
 }

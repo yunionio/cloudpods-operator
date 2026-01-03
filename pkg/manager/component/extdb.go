@@ -19,11 +19,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	common_options "yunion.io/x/onecloud/pkg/cloudcommon/options"
+	"yunion.io/x/onecloud/pkg/mcclient"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
@@ -108,7 +110,7 @@ func (m *extdbManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 }
 
 func (m *extdbManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.ExtdbComponentType, oc, oc.Spec.Extdb.Service.InternalOnly, int32(oc.Spec.Extdb.Service.NodePort), int32(cfg.Extdb.Port))}
+	return m.newSinglePortService(v1alpha1.ExtdbComponentType, oc, oc.Spec.Extdb.Service.InternalOnly, int32(oc.Spec.Extdb.Service.NodePort), int32(cfg.Extdb.Port), oc.Spec.Extdb.SlaveReplicas > 0)
 }
 
 func (m *extdbManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -128,4 +130,22 @@ func (m *extdbManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 
 func (m *extdbManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Extdb
+}
+
+func (m *extdbManager) supportsReadOnlyService() bool {
+	return false
+}
+
+func (m *extdbManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return nil
+}
+
+func (m *extdbManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return func(s *mcclient.ClientSession) error {
+		if m.IsDisabled(oc) {
+			return onecloud.EnsureDisableService(s, m.GetServiceName())
+		} else {
+			return onecloud.EnsureEnableService(s, m.GetServiceName(), m.supportsReadOnlyService() && oc.Spec.Extdb.SlaveReplicas > 0)
+		}
+	}
 }
