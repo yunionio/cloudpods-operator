@@ -15,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"yunion.io/x/onecloud/pkg/hostman/options"
+	"yunion.io/x/onecloud/pkg/mcclient"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -300,4 +301,16 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 	}
 	ds.Spec.Selector.MatchLabels[constants.OnecloudHostDeployerLabelKey] = ""
 	return ds, nil
+}
+
+func (m *hostManager) supportsReadOnlyService() bool {
+	return false
+}
+
+func (m *hostManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return nil
+}
+
+func (m *hostManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return nil
 }

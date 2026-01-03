@@ -6,6 +6,9 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+
+	"yunion.io/x/onecloud/pkg/mcclient"
+
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
@@ -117,4 +120,16 @@ func (m *hostBasedDsManager) newHostPrivilegedDaemonSet(
 	ds.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable = &maxUnavailableCount
 
 	return ds, nil
+}
+
+func (m *hostBasedDsManager) supportsReadOnlyService() bool {
+	return false
+}
+
+func (m *hostBasedDsManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return nil
+}
+
+func (m *hostBasedDsManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return nil
 }

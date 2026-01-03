@@ -7,11 +7,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"yunion.io/x/onecloud/pkg/cloudcommon/options"
+	"yunion.io/x/onecloud/pkg/mcclient"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
@@ -67,7 +69,7 @@ func (m *suggestionManager) getPhaseControl(man controller.ComponentManager, zon
 }
 
 func (m *suggestionManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.SuggestionComponentType, oc, oc.Spec.Suggestion.Service.InternalOnly, int32(oc.Spec.Suggestion.Service.NodePort), int32(constants.SuggestionPort))}
+	return m.newSinglePortService(v1alpha1.SuggestionComponentType, oc, oc.Spec.Suggestion.Service.InternalOnly, int32(oc.Spec.Suggestion.Service.NodePort), int32(constants.SuggestionPort), oc.Spec.Suggestion.SlaveReplicas > 0)
 }
 
 type suggestionOptions struct {
@@ -113,4 +115,22 @@ func (m *suggestionManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1a
 		}
 	}
 	return m.newDefaultDeploymentNoInit(v1alpha1.SuggestionComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.SuggestionComponentType), v1alpha1.SuggestionComponentType), &oc.Spec.Suggestion.DeploymentSpec, cf)
+}
+
+func (m *suggestionManager) supportsReadOnlyService() bool {
+	return false
+}
+
+func (m *suggestionManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return nil
+}
+
+func (m *suggestionManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return func(s *mcclient.ClientSession) error {
+		if m.IsDisabled(oc) {
+			return onecloud.EnsureDisableService(s, m.GetServiceName())
+		} else {
+			return onecloud.EnsureEnableService(s, m.GetServiceName(), m.supportsReadOnlyService() && oc.Spec.Suggestion.SlaveReplicas > 0)
+		}
+	}
 }

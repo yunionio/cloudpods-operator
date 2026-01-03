@@ -17,12 +17,16 @@ package component
 import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+
+	"yunion.io/x/onecloud/pkg/llm/options"
+	"yunion.io/x/onecloud/pkg/mcclient"
+
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 	"yunion.io/x/onecloud-operator/pkg/util/option"
-	"yunion.io/x/onecloud/pkg/llm/options"
 )
 
 type llmManager struct {
@@ -98,7 +102,7 @@ func (m *llmManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.On
 }
 
 func (m *llmManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.LLMComponentType, oc, oc.Spec.LLM.Service.InternalOnly, int32(oc.Spec.LLM.Service.NodePort), int32(cfg.LLM.Port))}
+	return m.newSinglePortService(v1alpha1.LLMComponentType, oc, oc.Spec.LLM.Service.InternalOnly, int32(oc.Spec.LLM.Service.NodePort), int32(cfg.LLM.Port), oc.Spec.LLM.SlaveReplicas > 0)
 }
 
 func (m *llmManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -107,4 +111,22 @@ func (m *llmManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 
 func (m *llmManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.LLM
+}
+
+func (m *llmManager) supportsReadOnlyService() bool {
+	return false
+}
+
+func (m *llmManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return nil
+}
+
+func (m *llmManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return func(s *mcclient.ClientSession) error {
+		if m.IsDisabled(oc) {
+			return onecloud.EnsureDisableService(s, m.GetServiceName())
+		} else {
+			return onecloud.EnsureEnableService(s, m.GetServiceName(), m.supportsReadOnlyService() && oc.Spec.LLM.SlaveReplicas > 0)
+		}
+	}
 }

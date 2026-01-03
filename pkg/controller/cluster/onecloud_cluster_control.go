@@ -26,7 +26,6 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/manager/component"
 	"yunion.io/x/onecloud-operator/pkg/manager/config"
 	"yunion.io/x/onecloud-operator/pkg/util/mysql"
-	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 )
 
 // ControlInterface implements the control logic for updating OnecloudClusters and their children Deployments or StatefulSets.
@@ -84,17 +83,6 @@ func (occ *defaultClusterControl) UpdateOnecloudCluster(oc *v1alpha1.OnecloudClu
 }
 
 func (occ *defaultClusterControl) reconcileComponent(oc *v1alpha1.OnecloudCluster, c manager.Manager) error {
-	if c.IsDisabled(oc) {
-		if svc, ok := c.(manager.ServiceManager); ok {
-			if err := controller.RunWithSession(oc, func(s *mcclient.ClientSession) error {
-				return onecloud.EnsureDisableService(s, svc.GetServiceName())
-			}); err != nil {
-				log.Errorf("disable service of %s error: %v", svc.GetServiceName(), err)
-			}
-		}
-		// log.Infof("component %q is disabled, skip sync it", c.GetComponentType())
-		// return nil
-	}
 	if err := c.Sync(oc); err != nil {
 		return errors.Wrapf(err, "sync %s", c.GetComponentType())
 	}

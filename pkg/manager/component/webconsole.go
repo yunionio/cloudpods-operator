@@ -20,10 +20,13 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
+	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
 	"yunion.io/x/onecloud-operator/pkg/service-init/component"
+	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
+	"yunion.io/x/onecloud/pkg/mcclient"
 )
 
 type webconsoleManager struct {
@@ -49,6 +52,10 @@ func (m *webconsoleManager) GetComponentType() v1alpha1.ComponentType {
 
 func (m *webconsoleManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
 	return oc.Spec.Webconsole.Disable || !isInProductVersion(m, oc)
+}
+
+func (m *webconsoleManager) GetServiceName() string {
+	return constants.ServiceNameWebconsole
 }
 
 func (m *webconsoleManager) Sync(oc *v1alpha1.OnecloudCluster) error {
@@ -90,7 +97,7 @@ func (m *webconsoleManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 }
 
 func (m *webconsoleManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.WebconsoleComponentType, oc, oc.Spec.Webconsole.Service.InternalOnly, int32(oc.Spec.Webconsole.Service.NodePort), int32(cfg.Webconsole.Port))}
+	return m.newSinglePortService(v1alpha1.WebconsoleComponentType, oc, oc.Spec.Webconsole.Service.InternalOnly, int32(oc.Spec.Webconsole.Service.NodePort), int32(cfg.Webconsole.Port), oc.Spec.Webconsole.SlaveReplicas > 0)
 }
 
 func (m *webconsoleManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -115,4 +122,22 @@ func (m *webconsoleManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1a
 
 func (m *webconsoleManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Webconsole
+}
+
+func (m *webconsoleManager) supportsReadOnlyService() bool {
+	return false
+}
+
+func (m *webconsoleManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return nil
+}
+
+func (m *webconsoleManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return func(s *mcclient.ClientSession) error {
+		if m.IsDisabled(oc) {
+			return onecloud.EnsureDisableService(s, m.GetServiceName())
+		} else {
+			return onecloud.EnsureEnableService(s, m.GetServiceName(), m.supportsReadOnlyService() && oc.Spec.Webconsole.SlaveReplicas > 0)
+		}
+	}
 }

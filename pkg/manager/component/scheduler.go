@@ -20,11 +20,14 @@ import (
 
 	"yunion.io/x/pkg/errors"
 
+	"yunion.io/x/onecloud/pkg/mcclient"
+
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
 	"yunion.io/x/onecloud-operator/pkg/service-init/component"
+	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 )
 
 type schedulerManager struct {
@@ -52,6 +55,10 @@ func (m *schedulerManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
 	return oc.Spec.Scheduler.Disable || !isInProductVersion(m, oc)
 }
 
+func (m *schedulerManager) GetServiceName() string {
+	return constants.ServiceNameScheduler
+}
+
 func (m *schedulerManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 	return syncComponent(m, oc, "")
 }
@@ -69,7 +76,7 @@ func (m *schedulerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 }
 
 func (m *schedulerManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.SchedulerComponentType, oc, oc.Spec.Scheduler.Service.InternalOnly, int32(oc.Spec.Scheduler.Service.NodePort), constants.SchedulerPort)}
+	return m.newSinglePortService(v1alpha1.SchedulerComponentType, oc, oc.Spec.Scheduler.Service.InternalOnly, int32(oc.Spec.Scheduler.Service.NodePort), constants.SchedulerPort, oc.Spec.Scheduler.SlaveReplicas > 0)
 }
 
 func (m *schedulerManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -78,4 +85,22 @@ func (m *schedulerManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1al
 
 func (m *schedulerManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Scheduler
+}
+
+func (m *schedulerManager) supportsReadOnlyService() bool {
+	return false
+}
+
+func (m *schedulerManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return nil
+}
+
+func (m *schedulerManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return func(s *mcclient.ClientSession) error {
+		if m.IsDisabled(oc) {
+			return onecloud.EnsureDisableService(s, m.GetServiceName())
+		} else {
+			return onecloud.EnsureEnableService(s, m.GetServiceName(), m.supportsReadOnlyService() && oc.Spec.Scheduler.SlaveReplicas > 0)
+		}
+	}
 }
