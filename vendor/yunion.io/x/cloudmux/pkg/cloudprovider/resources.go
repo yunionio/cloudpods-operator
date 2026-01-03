@@ -63,6 +63,7 @@ type IBillingResource interface {
 	GetExpiredAt() time.Time
 	SetAutoRenew(bc billing.SBillingCycle) error
 	Renew(bc billing.SBillingCycle) error
+	ChangeBillingType(billType string) error
 	IsAutoRenew() bool
 }
 
@@ -330,6 +331,7 @@ type IsolateDevice interface {
 	GetDevType() string
 	GetNumaNode() int8
 	GetVendorDeviceId() string
+	GetSharedProjectIds() ([]string, error)
 }
 
 type ICloudVM interface {
@@ -720,7 +722,7 @@ type ICloudLoadbalancer interface {
 	GetChargeType() string
 	GetEgressMbps() int
 
-	GetIEIP() (ICloudEIP, error)
+	GetIEIPs() ([]ICloudEIP, error)
 
 	Delete(ctx context.Context) error
 
@@ -840,7 +842,13 @@ type ICloudLoadbalancerBackendGroup interface {
 }
 
 type ICloudLoadbalancerBackend interface {
-	ICloudResource
+	GetId() string
+	GetName() string
+	GetGlobalId() string
+	GetCreatedAt() time.Time
+	GetDescription() string
+
+	GetStatus() string
 
 	GetWeight() int
 	GetPort() int
@@ -1248,6 +1256,12 @@ type ICloudQuota interface {
 	GetCurrentQuotaUsedCount() int
 }
 
+type SClouduserEnableOptions struct {
+	Password              string
+	EnableMfa             bool
+	PasswordResetRequired bool
+}
+
 // 公有云子账号
 type IClouduser interface {
 	GetGlobalId() string
@@ -1262,6 +1276,9 @@ type IClouduser interface {
 
 	AttachPolicy(policyName string, policyType api.TPolicyType) error
 	DetachPolicy(policyName string, policyType api.TPolicyType) error
+
+	SetEnable(opts *SClouduserEnableOptions) error
+	SetDisable() error
 
 	Delete() error
 
@@ -1327,6 +1344,7 @@ type ICloudDnsRecord interface {
 
 	GetDnsName() string
 	GetStatus() string
+	IsProxied() bool
 	GetEnabled() bool
 	GetDnsType() TDnsType
 	GetDnsValue() string
@@ -1520,9 +1538,15 @@ type ICloudWafRule interface {
 	GetDesc() string
 	GetGlobalId() string
 	GetPriority() int
+	GetType() string
 	GetAction() *DefaultAction
 	GetStatementCondition() TWafStatementCondition
+	GetExpression() string
 	GetStatements() ([]SWafStatement, error)
+	GetConfig() (jsonutils.JSONObject, error)
+	GetEnabled() bool
+	Enable() error
+	Disable() error
 
 	Update(opts *SWafRule) error
 	Delete() error
@@ -1717,6 +1741,19 @@ type ICloudCDNDomain interface {
 	// 浏览器缓存配置
 	GetMaxAge() (*SCDNMaxAge, error)
 
+	GetDNSSECEnabled() bool
+	// SSL/TLS加密模式
+	GetSSLSetting() string
+
+	GetHTTPSRewrites() bool
+	GetCacheLevel() string
+	ClearCache(opts *CacheClearOptions) error
+	GetBrowserCacheTTL() int
+	ChangeConfig(opts *CacheConfig) error
+	GetCustomHostnames() ([]CustomHostname, error)
+	AddCustomHostname(opts *CustomHostnameCreateOptions) error
+	DeleteCustomHostname(id string) error
+
 	Delete() error
 }
 
@@ -1777,7 +1814,6 @@ type ICloudSSLCertificate interface {
 	GetCommon() string
 	GetCountry() string
 	GetIssuer() string
-	GetExpired() bool
 	GetEndDate() time.Time
 	GetFingerprint() string
 	GetCity() string
@@ -1785,4 +1821,22 @@ type ICloudSSLCertificate interface {
 	GetIsUpload() bool
 	GetCert() string
 	GetKey() string
+	GetDnsZoneId() string
+
+	Delete() error
+}
+
+type IAiGateway interface {
+	IVirtualResource
+
+	IsAuthentication() bool
+	IsCacheInvalidateOnUpdate() bool
+	GetCacheTTL() int
+	IsCollectLogs() bool
+	GetRateLimitingInterval() int
+	GetRateLimitingLimit() int
+	GetRateLimitingTechnique() string
+
+	ChangeConfig(opts *AiGatewayChangeConfigOptions) error
+	Delete() error
 }

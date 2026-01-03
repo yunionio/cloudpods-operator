@@ -66,9 +66,15 @@ func (l Label) Zone(zone string) Label {
 }
 
 // Component adds component kv pair to label
-func (l Label) Component(name string) Label {
+func (l Label) Component(name string, readOnly bool) Label {
+	if readOnly {
+		name += "-slave"
+	}
 	l[ComponentLabelKey] = name
 	l[AppLabelKey] = name
+	if readOnly {
+		l["read-only"] = "true"
+	}
 	return l
 }
 

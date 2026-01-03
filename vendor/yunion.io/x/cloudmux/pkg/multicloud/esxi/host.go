@@ -390,20 +390,24 @@ func mask2len(mask string) int8 {
 }
 
 func (host *SHost) isVnicAdmin(nic types.HostVirtualNic) bool {
+	return host.isIpAdmin(nic.Spec.Ip.IpAddress)
+}
+
+func (host *SHost) isIpAdmin(ip string) bool {
 	if len(host.masterIp) > 0 {
-		if host.masterIp == nic.Spec.Ip.IpAddress {
+		if host.masterIp == ip {
 			return true
 		} else {
 			return false
 		}
 	}
-	exist, err := host.manager.IsHostIpExists(nic.Spec.Ip.IpAddress)
+	exist, err := host.manager.IsHostIpExists(ip)
 	if err != nil {
-		log.Errorf("IsHostIpExists %s fail %s", nic.Spec.Ip.IpAddress, err)
+		log.Errorf("IsHostIpExists %s fail %s", ip, err)
 		return false
 	}
 	if exist {
-		host.masterIp = nic.Spec.Ip.IpAddress
+		host.masterIp = ip
 		return true
 	}
 	return false
@@ -448,6 +452,9 @@ func (host *SHost) fetchNicInfo(debug bool) []sHostNicInfo {
 		mac := netutils.FormatMacAddr(nic.Spec.Mac)
 		pnic := findHostNicByMac(nicInfoList, mac)
 		if pnic != nil {
+			if len(pnic.IpAddr) > 0 && host.isIpAdmin(pnic.IpAddr) {
+				continue
+			}
 			// findMaster = true
 			pnic.IpAddr = nic.Spec.Ip.IpAddress
 			pnic.IpAddrPrefixLen = mask2len(nic.Spec.Ip.SubnetMask)
@@ -1332,6 +1339,11 @@ func (host *SHost) CloneVM(ctx context.Context, from *SVirtualMachine, snapshot 
 		MemoryHotAddEnabled: &True,
 
 		ExtraConfig: []types.BaseOptionValue{},
+
+		Firmware: "bios",
+	}
+	if from.GetBios() == cloudprovider.UEFI {
+		spec.Firmware = "efi"
 	}
 	if !params.EnableEsxiSwap {
 		spec.ExtraConfig = append(spec.ExtraConfig, &types.OptionValue{

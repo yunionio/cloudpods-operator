@@ -4,11 +4,14 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
+	"yunion.io/x/onecloud/pkg/mcclient"
+
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
 	"yunion.io/x/onecloud-operator/pkg/service-init/component"
+	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 )
 
 type scheduledtaskManager struct {
@@ -48,7 +51,7 @@ func (m *scheduledtaskManager) getPhaseControl(man controller.ComponentManager, 
 }
 
 func (m *scheduledtaskManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.ScheduledtaskComponentType, oc, oc.Spec.Scheduledtask.Service.InternalOnly, int32(oc.Spec.Scheduledtask.Service.NodePort), int32(constants.ScheduledtaskPort))}
+	return m.newSinglePortService(v1alpha1.ScheduledtaskComponentType, oc, oc.Spec.Scheduledtask.Service.InternalOnly, int32(oc.Spec.Scheduledtask.Service.NodePort), int32(constants.ScheduledtaskPort), oc.Spec.Scheduledtask.SlaveReplicas > 0)
 }
 
 func (m *scheduledtaskManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
@@ -65,4 +68,22 @@ func (m *scheduledtaskManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *
 
 func (m *scheduledtaskManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Scheduledtask
+}
+
+func (m *scheduledtaskManager) supportsReadOnlyService() bool {
+	return false
+}
+
+func (m *scheduledtaskManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return nil
+}
+
+func (m *scheduledtaskManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return func(s *mcclient.ClientSession) error {
+		if m.IsDisabled(oc) {
+			return onecloud.EnsureDisableService(s, m.GetServiceName())
+		} else {
+			return onecloud.EnsureEnableService(s, m.GetServiceName(), m.supportsReadOnlyService() && oc.Spec.Scheduledtask.SlaveReplicas > 0)
+		}
+	}
 }

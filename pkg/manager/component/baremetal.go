@@ -10,6 +10,7 @@ import (
 	"k8s.io/klog"
 
 	"yunion.io/x/onecloud/pkg/baremetal/options"
+	"yunion.io/x/onecloud/pkg/mcclient"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -177,4 +178,16 @@ func (m *baremetalManager) newBaremetalVolHelper(oc *v1alpha1.OnecloudCluster, o
 		},
 	})
 	return volHelper
+}
+
+func (m *baremetalManager) supportsReadOnlyService() bool {
+	return false
+}
+
+func (m *baremetalManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return nil
+}
+
+func (m *baremetalManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return nil
 }

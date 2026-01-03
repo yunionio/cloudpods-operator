@@ -272,13 +272,6 @@ func listItemQueryFiltersRaw(
 		log.Debugf("policyTagFilers: %s", query)
 	}
 
-	if !useRawQuery {
-		// Specifically for joint resource, these filters will exclude
-		// deleted resources by joining with master/slave tables
-		q = manager.FilterByOwner(ctx, q, manager, userCred, ownerId, queryScope)
-		q = manager.FilterBySystemAttributes(q, userCred, query, queryScope)
-		q = manager.FilterByHiddenSystemAttributes(q, userCred, query, queryScope)
-	}
 	if query.Contains("export_keys") {
 		exportKeys, _ := query.GetString("export_keys")
 		keys := stringutils2.NewSortedStrings(strings.Split(exportKeys, ","))
@@ -286,6 +279,11 @@ func listItemQueryFiltersRaw(
 		if err != nil {
 			return nil, errors.Wrap(err, "ListItemExportKeys")
 		}
+	}
+
+	q, err = ListItemFilter(manager, ctx, q, userCred, query)
+	if err != nil {
+		return nil, errors.Wrap(err, "ListItemFilter")
 	}
 
 	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -319,9 +317,13 @@ func listItemQueryFiltersRaw(
 			return nil, errors.Wrap(err, "applyListItemsGeneralJointFilters")
 		}
 	}
-	q, err = ListItemFilter(manager, ctx, q, userCred, query)
-	if err != nil {
-		return nil, errors.Wrap(err, "ListItemFilter")
+
+	if !useRawQuery {
+		// Specifically for joint resource, these filters will exclude
+		// deleted resources by joining with master/slave tables
+		q = manager.FilterByOwner(ctx, q, manager, userCred, ownerId, queryScope)
+		q = manager.FilterBySystemAttributes(q, userCred, query, queryScope)
+		q = manager.FilterByHiddenSystemAttributes(q, userCred, query, queryScope)
 	}
 
 	if isShowDetails(query) {
@@ -583,18 +585,9 @@ func ListItems(manager IModelManager, ctx context.Context, userCred mcclient.Tok
 		limit = exportLimit
 	}
 
-	var (
-		q           *sqlchemy.SQuery
-		useRawQuery bool
-	)
-	{
-		// query senders are responsible for clear up other constraint
-		// like setting "pendinge_delete" to "all"
-		queryDelete, _ := query.GetString("delete")
-		if queryDelete == "all" && policy.PolicyManager.Allow(rbacscope.ScopeSystem, userCred, consts.GetServiceType(), manager.KeywordPlural(), policy.PolicyActionList).Result.IsAllow() {
-			useRawQuery = true
-		}
-	}
+	var q *sqlchemy.SQuery
+
+	useRawQuery := isRawQuery(manager, userCred, query, policy.PolicyActionList)
 
 	queryDict, ok := query.(*jsonutils.JSONDict)
 	if !ok {
@@ -693,11 +686,19 @@ func ListItems(manager IModelManager, ctx context.Context, userCred mcclient.Tok
 	var totalCnt int
 	var totalJson jsonutils.JSONObject
 	if pagingConf == nil {
-		// calculate total
-		totalQ := q.CountQuery()
-		totalCnt, totalJson, err = manager.CustomizedTotalCount(ctx, userCred, query, totalQ)
-		if err != nil {
-			return nil, errors.Wrap(err, "CustomizedTotalCount")
+		summaryStats := jsonutils.QueryBoolean(query, "summary_stats", false)
+		if summaryStats {
+			// calculate total
+			totalQ := q.CountQuery()
+			totalCnt, totalJson, err = manager.CustomizedTotalCount(ctx, userCred, query, totalQ)
+			if err != nil {
+				return nil, errors.Wrap(err, "CustomizedTotalCount")
+			}
+		} else {
+			totalCnt, err = q.CountWithError()
+			if err != nil {
+				return nil, errors.Wrap(err, "CountWithError")
+			}
 		}
 		//log.Debugf("total count %d", totalCnt)
 		if totalCnt == 0 {
@@ -1284,9 +1285,9 @@ func _doCreateItem(
 	// 若manager用于name字段，确保name唯一
 	if manager.HasName() {
 		// run name validation after validate create data
-		uniqValues := manager.FetchUniqValues(ctx, dataDict)
 		name, _ := dataDict.GetString("name")
 		if len(name) > 0 {
+			uniqValues := manager.FetchUniqValues(ctx, dataDict)
 			err = NewNameValidator(ctx, manager, ownerId, name, uniqValues)
 			if err != nil {
 				return nil, err
@@ -1571,17 +1572,20 @@ func (dispatcher *DBModelDispatcher) BatchCreate(ctx context.Context, query json
 
 	results := make([]printutils.SubmitResult, count)
 	models := make([]IModel, 0)
-	for i, res := range createResults {
+	for i := range createResults {
+		res := createResults[i]
 		result := printutils.SubmitResult{}
 		if res.err != nil {
 			jsonErr := httperrors.NewGeneralError(res.err)
 			result.Status = jsonErr.Code
 			result.Data = jsonutils.Marshal(jsonErr)
 		} else {
-			lockman.LockObject(ctx, res.model)
-			defer lockman.ReleaseObject(ctx, res.model)
+			func() {
+				lockman.LockObject(ctx, res.model)
+				defer lockman.ReleaseObject(ctx, res.model)
 
-			res.model.PostCreate(ctx, userCred, ownerId, query, data)
+				res.model.PostCreate(ctx, userCred, ownerId, query, data)
+			}()
 
 			models = append(models, res.model)
 			body, err := getItemDetails(manager, res.model, ctx, userCred, query)
@@ -1596,10 +1600,12 @@ func (dispatcher *DBModelDispatcher) BatchCreate(ctx context.Context, query json
 		results[i] = result
 	}
 	if len(models) > 0 {
-		lockman.LockClass(ctx, manager, GetLockClassKey(manager, ownerId))
-		defer lockman.ReleaseClass(ctx, manager, GetLockClassKey(manager, ownerId))
+		func() {
+			lockman.LockClass(ctx, manager, GetLockClassKey(manager, ownerId))
+			defer lockman.ReleaseClass(ctx, manager, GetLockClassKey(manager, ownerId))
 
-		manager.OnCreateComplete(ctx, models, userCred, ownerId, query, multiData)
+			manager.OnCreateComplete(ctx, models, userCred, ownerId, query, multiData)
+		}()
 	}
 	return results, nil
 }
@@ -1639,14 +1645,22 @@ func (dispatcher *DBModelDispatcher) PerformAction(ctx context.Context, idStr st
 		return nil, httperrors.NewGeneralError(err)
 	}
 
-	lockman.LockObject(ctx, model)
-	defer lockman.ReleaseObject(ctx, model)
+	ret, err := func() (jsonutils.JSONObject, error) {
+		lockman.LockObject(ctx, model)
+		defer lockman.ReleaseObject(ctx, model)
 
-	if err := model.PreCheckPerformAction(ctx, userCred, action, query, data); err != nil {
-		return nil, err
+		if err := model.PreCheckPerformAction(ctx, userCred, action, query, data); err != nil {
+			return nil, errors.Wrap(err, "PreCheckPerformAction")
+		}
+		// 通过action与实例执行请求
+		return objectPerformAction(manager, model, reflect.ValueOf(model), ctx, userCred, action, query, data)
+	}()
+
+	if err != nil {
+		logclient.AddActionLogWithContext(ctx, model, action, err, userCred, false)
 	}
-	// 通过action与实例执行请求
-	return objectPerformAction(manager, model, reflect.ValueOf(model), ctx, userCred, action, query, data)
+
+	return ret, err
 }
 
 func objectPerformAction(manager IModelManager, model IModel, modelValue reflect.Value, ctx context.Context, userCred mcclient.TokenCredential, action string, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
@@ -1791,6 +1805,15 @@ func updateItem(manager IModelManager, item IModel, ctx context.Context, userCre
 	dataDict, err = ValidateUpdateData(item, ctx, userCred, query, dataDict)
 	if err != nil {
 		return nil, httperrors.NewGeneralError(errors.Wrapf(err, "ValidateUpdateData"))
+	}
+
+	if manager.HasName() && dataDict.Contains("name") {
+		// validate altername
+		nameStr, _ := dataDict.GetString("name")
+		err := alterNameValidator(ctx, item, nameStr)
+		if err != nil {
+			return nil, errors.Wrap(err, "alterNameValidator")
+		}
 	}
 
 	item.PreUpdate(ctx, userCred, query, dataDict)
@@ -1955,6 +1978,9 @@ func deleteItem(manager IModelManager, model IModel, ctx context.Context, userCr
 
 	// 删除后钩子
 	model.PostDelete(ctx, userCred)
+	if err := model.GetModelManager().GetExtraHook().AfterPostDelete(ctx, userCred, model, query); err != nil {
+		logclient.AddActionLogWithContext(ctx, model, logclient.ACT_POST_DELETE_HOOK, err, userCred, false)
+	}
 
 	// 避免设置删除状态没有正常返回
 	jsonutils.Update(details, model)

@@ -23,6 +23,8 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
 	"yunion.io/x/onecloud-operator/pkg/service-init/component"
+	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
+	"yunion.io/x/onecloud/pkg/mcclient"
 )
 
 type keystoneManager struct {
@@ -86,7 +88,7 @@ func (m *keystoneManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 		NewServiceNodePort("admin", spec.AdminService.InternalOnly, int32(spec.AdminService.NodePort), constants.KeystoneAdminPort),
 	}
 
-	return []*corev1.Service{m.newNodePortService(v1alpha1.KeystoneComponentType, oc, spec.AdminService.InternalOnly, ports)}
+	return m.newNodePortService(v1alpha1.KeystoneComponentType, oc, spec.AdminService.InternalOnly, ports, oc.Spec.Keystone.SlaveReplicas > 0)
 }
 
 func (m *keystoneManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
@@ -151,4 +153,26 @@ func (m *keystoneManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 	}
 
 	return m.newDefaultDeployment(v1alpha1.KeystoneComponentType, v1alpha1.KeystoneComponentType, oc, NewVolumeHelper(oc, ksConfigMap, v1alpha1.KeystoneComponentType), &oc.Spec.Keystone.DeploymentSpec, initContainersF, containersF)
+}
+
+func (m *keystoneManager) supportsReadOnlyService() bool {
+	return true
+}
+
+func (m *keystoneManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return m.genReadonlyDeployment(v1alpha1.KeystoneComponentType, oc, deployment, &oc.Spec.Keystone.DeploymentSpec)
+}
+
+func (m *keystoneManager) GetServiceName() string {
+	return constants.ServiceNameKeystone
+}
+
+func (m *keystoneManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return func(s *mcclient.ClientSession) error {
+		if m.IsDisabled(oc) {
+			return onecloud.EnsureDisableService(s, m.GetServiceName())
+		} else {
+			return onecloud.EnsureEnableService(s, m.GetServiceName(), m.supportsReadOnlyService() && oc.Spec.Keystone.SlaveReplicas > 0)
+		}
+	}
 }

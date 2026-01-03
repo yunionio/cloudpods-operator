@@ -150,6 +150,7 @@ func (manager *SGuestdiskManager) FetchCustomizeColumns(
 			rows[i].Status = disk.Status
 			rows[i].DiskSize = disk.DiskSize
 			rows[i].DiskType = disk.DiskType
+			rows[i].AutoReset = disk.AutoReset
 			storage, _ := disk.GetStorage()
 			if storage != nil {
 				rows[i].StorageType = storage.StorageType
@@ -231,6 +232,7 @@ func (self *SGuestdisk) GetDiskJsonDescAtHost(ctx context.Context, host *SHost, 
 	desc.Index = self.Index
 	bootIndex := self.BootIndex
 	desc.BootIndex = &bootIndex
+	desc.AutoReset = disk.AutoReset
 
 	if len(disk.SnapshotId) > 0 {
 		needMerge := disk.GetMetadata(ctx, "merge_snapshot", nil)

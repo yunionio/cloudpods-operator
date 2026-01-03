@@ -21,6 +21,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"yunion.io/x/onecloud/pkg/cloudnet/options"
+	"yunion.io/x/onecloud/pkg/mcclient"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -102,7 +103,7 @@ func (m *cloudnetManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 }
 
 func (m *cloudnetManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.CloudnetComponentType, oc, oc.Spec.Cloudnet.Service.InternalOnly, int32(oc.Spec.Cloudnet.Service.NodePort), int32(cfg.Cloudnet.Port))}
+	return m.newSinglePortService(v1alpha1.CloudnetComponentType, oc, oc.Spec.Cloudnet.Service.InternalOnly, int32(oc.Spec.Cloudnet.Service.NodePort), int32(cfg.Cloudnet.Port), oc.Spec.Cloudnet.SlaveReplicas > 0)
 }
 
 func (m *cloudnetManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -122,4 +123,16 @@ func (m *cloudnetManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 
 func (m *cloudnetManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Cloudnet
+}
+
+func (m *cloudnetManager) supportsReadOnlyService() bool {
+	return false
+}
+
+func (m *cloudnetManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return nil
+}
+
+func (m *cloudnetManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return nil
 }

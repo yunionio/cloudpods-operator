@@ -15,6 +15,7 @@ import (
 	"go.etcd.io/etcd/api/v3/etcdserverpb"
 	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
 	clientv3 "go.etcd.io/etcd/client/v3"
+	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,6 +28,8 @@ import (
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
 	"yunion.io/x/pkg/errors"
+
+	"yunion.io/x/onecloud/pkg/mcclient"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -1065,6 +1068,7 @@ func (m *etcdManager) upgradeOneMember(memberName string) error {
 	log.Infof("finished upgrading the etcd member %v", memberName)
 	return nil
 }
+
 func needUpgrade(pods []*corev1.Pod, cs v1alpha1.EtcdClusterSpec) bool {
 	return len(pods) == cs.Size && pickOneOldMember(pods, cs.Version) != nil
 }
@@ -1086,6 +1090,18 @@ func podsToMemberSet(pods []*corev1.Pod, sc bool) etcdutil.MemberSet {
 		members.Add(m)
 	}
 	return members
+}
+
+func (m *etcdManager) supportsReadOnlyService() bool {
+	return false
+}
+
+func (m *etcdManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return nil
+}
+
+func (m *etcdManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return nil
 }
 
 type fatalError struct {

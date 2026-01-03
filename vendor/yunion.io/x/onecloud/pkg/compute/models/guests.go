@@ -427,12 +427,20 @@ func (manager *SGuestManager) ListItemFilter(
 	}
 
 	if len(query.IpAddrs) > 0 {
+		// 如果只有一个ip地址，则使用正则匹配，否则使用等于匹配
+		cmpFunc := sqlchemy.Equals
+		if len(query.IpAddrs) == 1 {
+			cmpFunc = func(f sqlchemy.IQueryField, v interface{}) sqlchemy.ICondition {
+				return sqlchemy.Regexp(f, v.(string))
+			}
+		}
+
 		grpnets := GroupnetworkManager.Query().SubQuery()
 		vipq := GroupguestManager.Query("guest_id")
 		conditions := []sqlchemy.ICondition{}
 		for _, ipAddr := range query.IpAddrs {
-			conditions = append(conditions, sqlchemy.Regexp(grpnets.Field("ip_addr"), ipAddr))
-			conditions = append(conditions, sqlchemy.Regexp(grpnets.Field("ip6_addr"), ipAddr))
+			conditions = append(conditions, cmpFunc(grpnets.Field("ip_addr"), ipAddr))
+			conditions = append(conditions, cmpFunc(grpnets.Field("ip6_addr"), ipAddr))
 		}
 		vipq = vipq.Join(grpnets, sqlchemy.Equals(grpnets.Field("group_id"), vipq.Field("group_id"))).Filter(
 			sqlchemy.OR(conditions...),
@@ -441,7 +449,7 @@ func (manager *SGuestManager) ListItemFilter(
 		grpeips := ElasticipManager.Query().Equals("associate_type", api.EIP_ASSOCIATE_TYPE_INSTANCE_GROUP).SubQuery()
 		conditions = []sqlchemy.ICondition{}
 		for _, ipAddr := range query.IpAddrs {
-			conditions = append(conditions, sqlchemy.Regexp(grpeips.Field("ip_addr"), ipAddr))
+			conditions = append(conditions, cmpFunc(grpeips.Field("ip_addr"), ipAddr))
 		}
 		vipeipq := GroupguestManager.Query("guest_id")
 		vipeipq = vipeipq.Join(grpeips, sqlchemy.Equals(grpeips.Field("associate_id"), vipeipq.Field("group_id"))).Filter(
@@ -451,15 +459,15 @@ func (manager *SGuestManager) ListItemFilter(
 		gnQ := GuestnetworkManager.Query("guest_id")
 		conditions = []sqlchemy.ICondition{}
 		for _, ipAddr := range query.IpAddrs {
-			conditions = append(conditions, sqlchemy.Regexp(gnQ.Field("ip_addr"), ipAddr))
-			conditions = append(conditions, sqlchemy.Regexp(gnQ.Field("ip6_addr"), ipAddr))
+			conditions = append(conditions, cmpFunc(gnQ.Field("ip_addr"), ipAddr))
+			conditions = append(conditions, cmpFunc(gnQ.Field("ip6_addr"), ipAddr))
 		}
 		gn := gnQ.Filter(sqlchemy.OR(conditions...))
 
 		guestEipQ := ElasticipManager.Query("associate_id").Equals("associate_type", api.EIP_ASSOCIATE_TYPE_SERVER)
 		conditions = []sqlchemy.ICondition{}
 		for _, ipAddr := range query.IpAddrs {
-			conditions = append(conditions, sqlchemy.Regexp(guestEipQ.Field("ip_addr"), ipAddr))
+			conditions = append(conditions, cmpFunc(guestEipQ.Field("ip_addr"), ipAddr))
 		}
 		guestEip := guestEipQ.Filter(sqlchemy.OR(conditions...))
 
@@ -467,7 +475,7 @@ func (manager *SGuestManager) ListItemFilter(
 		conditions = []sqlchemy.ICondition{}
 		for _, ipAddr := range query.IpAddrs {
 			conditions = append(conditions, sqlchemy.AND(
-				sqlchemy.Regexp(metadataQ.Field("value"), ipAddr),
+				cmpFunc(metadataQ.Field("value"), ipAddr),
 				sqlchemy.Equals(metadataQ.Field("key"), "sync_ips"),
 				sqlchemy.Equals(metadataQ.Field("obj_type"), "server"),
 			))
@@ -874,17 +882,34 @@ func (manager *SGuestManager) clearSecgroups() error {
 }
 
 func (manager *SGuestManager) initAdminSecgroupId() error {
-	if len(options.Options.DefaultAdminSecurityGroupId) == 0 {
+	{
+		err := manager.initAdminSecgroupIdForHypervisor(api.HYPERVISOR_KVM)
+		if err != nil {
+			return errors.Wrap(err, "initAdminSecgroupIdForKvm")
+		}
+	}
+	{
+		err := manager.initAdminSecgroupIdForHypervisor(api.HYPERVISOR_POD)
+		if err != nil {
+			return errors.Wrap(err, "initAdminSecgroupIdForContainer")
+		}
+	}
+	return nil
+}
+
+func (manager *SGuestManager) initAdminSecgroupIdForHypervisor(hypervisor string) error {
+	secGrpId := options.Options.GetDefaultAdminSecurityGroupId(hypervisor)
+	if len(secGrpId) == 0 {
 		return nil
 	}
-	adminSec, _ := SecurityGroupManager.FetchSecgroupById(options.Options.DefaultAdminSecurityGroupId)
+	adminSec, _ := SecurityGroupManager.FetchSecgroupById(secGrpId)
 	if adminSec == nil {
 		return nil
 	}
 	adminSecId := adminSec.Id
 	guests := make([]SGuest, 0, 10)
 	q := manager.Query()
-	q = q.In("hypervisor", []string{api.HYPERVISOR_KVM}).IsNullOrEmpty("admin_secgrp_id")
+	q = q.Equals("hypervisor", hypervisor).IsNullOrEmpty("admin_secgrp_id")
 	err := db.FetchModelObjects(manager, q, &guests)
 	if err != nil {
 		return errors.Wrap(err, "db.FetchModelObjects")
@@ -980,13 +1005,14 @@ func (guest *SGuest) ValidateDeleteCondition(ctx context.Context, info *api.Serv
 		}
 		info.HostType = host.HostType
 		info.HostEnabled = host.Enabled.Bool()
-		info.HostStatus = host.HostStatus
+		info.HostStatus = host.Status
+		info.HostServiceStatus = host.HostStatus
 	}
 	if len(info.HostType) > 0 && guest.GetHypervisor() != api.HYPERVISOR_BAREMETAL {
 		if !info.HostEnabled {
 			return httperrors.NewInputParameterError("Cannot delete server on disabled host")
 		}
-		if info.HostStatus != api.HOST_ONLINE {
+		if info.HostServiceStatus != api.HOST_ONLINE {
 			return httperrors.NewInputParameterError("Cannot delete server on offline host")
 		}
 	}
@@ -1215,8 +1241,9 @@ func (guest *SGuest) IsNetworkAllocated() bool {
 }
 
 func (guest *SGuest) CustomizeCreate(ctx context.Context, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, query jsonutils.JSONObject, data jsonutils.JSONObject) error {
-	if len(guest.SecgrpId) > 0 && len(options.Options.DefaultAdminSecurityGroupId) > 0 {
-		adminSec, _ := SecurityGroupManager.FetchSecgroupById(options.Options.DefaultAdminSecurityGroupId)
+	optAdminSecGrpId := options.Options.GetDefaultAdminSecurityGroupId(guest.Hypervisor)
+	if len(guest.SecgrpId) > 0 && len(optAdminSecGrpId) > 0 {
+		adminSec, _ := SecurityGroupManager.FetchSecgroupById(optAdminSecGrpId)
 		if adminSec != nil {
 			guest.AdminSecgrpId = adminSec.Id
 		}
@@ -1663,6 +1690,14 @@ func (manager *SGuestManager) validateCreateData(
 		return nil, errors.Wrap(err, "checkGuestImage")
 	}
 
+	if len(input.PreferManager) > 0 && len(input.Provider) == 0 {
+		providerObj, err := CloudproviderManager.FetchById(input.PreferManager)
+		if err != nil {
+			return nil, errors.Wrapf(err, "zone fetch by id %s", input.PreferZone)
+		}
+		provider := providerObj.(*SCloudprovider)
+		input.Provider = provider.Provider
+	}
 	if len(input.PreferZone) > 0 && len(input.Provider) == 0 {
 		zoneObj, err := ZoneManager.FetchById(input.PreferZone)
 		if err != nil {
@@ -1693,6 +1728,7 @@ func (manager *SGuestManager) validateCreateData(
 		}
 		var imgProperties map[string]string
 		var imgEncryptKeyId string
+		var imageDiskFormat string
 
 		if len(input.Disks) > 0 {
 			diskConfig := input.Disks[0]
@@ -1703,6 +1739,7 @@ func (manager *SGuestManager) validateCreateData(
 			input.Disks[0] = diskConfig
 			imgEncryptKeyId = diskConfig.ImageEncryptKeyId
 			imgProperties = diskConfig.ImageProperties
+			imageDiskFormat = imgProperties[imageapi.IMAGE_DISK_FORMAT]
 			if imgProperties[imageapi.IMAGE_DISK_FORMAT] == "iso" {
 				return nil, httperrors.NewInputParameterError("System disk does not support iso image, please consider using cdrom parameter")
 			}
@@ -1714,6 +1751,7 @@ func (manager *SGuestManager) validateCreateData(
 				return nil, httperrors.NewInputParameterError("parse cdrom device info error %s", err)
 			}
 			input.Cdrom = image.Id
+			imageDiskFormat = image.DiskFormat
 			if len(imgProperties) == 0 {
 				imgProperties = image.Properties
 			}
@@ -1737,28 +1775,29 @@ func (manager *SGuestManager) validateCreateData(
 			input.OsArch = apis.OS_ARCH_AARCH64
 		}
 
-		var imgSupportUEFI *bool
-		if desc, ok := imgProperties[imageapi.IMAGE_UEFI_SUPPORT]; ok {
-			support := desc == "true"
-			imgSupportUEFI = &support
-		}
-		if input.OsArch == apis.OS_ARCH_AARCH64 {
-			// arm image supports UEFI by default
-			support := true
-			imgSupportUEFI = &support
-		}
-
-		switch {
-		case imgSupportUEFI != nil && *imgSupportUEFI:
-			if len(input.Bios) == 0 {
-				input.Bios = "UEFI"
-			} else if input.Bios != "UEFI" {
-				return nil, httperrors.NewInputParameterError("UEFI image requires UEFI boot mode")
+		if imageDiskFormat != "iso" {
+			var imgSupportUEFI *bool
+			if desc, ok := imgProperties[imageapi.IMAGE_UEFI_SUPPORT]; ok {
+				support := desc == "true"
+				imgSupportUEFI = &support
 			}
-		default:
-			// not UEFI image
-			if input.Bios == "UEFI" && len(imgProperties) != 0 {
-				return nil, httperrors.NewInputParameterError("UEFI boot mode requires UEFI image")
+			if input.OsArch == apis.OS_ARCH_AARCH64 {
+				// arm image supports UEFI by default
+				support := true
+				imgSupportUEFI = &support
+			}
+			switch {
+			case imgSupportUEFI != nil && *imgSupportUEFI:
+				if len(input.Bios) == 0 {
+					input.Bios = "UEFI"
+				} else if input.Bios != "UEFI" {
+					return nil, httperrors.NewInputParameterError("UEFI image requires UEFI boot mode")
+				}
+			default:
+				// not UEFI image
+				if input.Bios == "UEFI" && len(imgProperties) != 0 {
+					return nil, httperrors.NewInputParameterError("UEFI boot mode requires UEFI image")
+				}
 			}
 		}
 
@@ -1964,10 +2003,6 @@ func (manager *SGuestManager) validateCreateData(
 		}
 
 		if len(input.Duration) > 0 {
-			/*if !userCred.IsAllow(rbacutils.ScopeSystem, consts.GetServiceType(), manager.KeywordPlural(), policy.PolicyActionPerform, "renew") {
-				return nil, httperrors.NewForbiddenError("only admin can create prepaid resource")
-			}*/
-
 			if input.ResourceType == api.HostResourceTypePrepaidRecycle {
 				return nil, httperrors.NewConflictError("cannot create prepaid server on prepaid resource type")
 			}
@@ -1991,10 +2026,10 @@ func (manager *SGuestManager) validateCreateData(
 				input.BillingType = billing_api.BILLING_TYPE_PREPAID
 			}
 			input.BillingCycle = billingCycle.String()
-			// expired_at will be set later by callback
-			// data.Add(jsonutils.NewTimeString(billingCycle.EndAt(time.Time{})), "expired_at")
-
 			input.Duration = billingCycle.String()
+			if input.BillingType == billing_api.BILLING_TYPE_POSTPAID {
+				input.ReleaseAt = billingCycle.EndAt(time.Now())
+			}
 		}
 	}
 
@@ -2119,7 +2154,7 @@ func (manager *SGuestManager) validateCreateData(
 		}
 		input.SecgroupId = secGrpObj.GetId()
 	} else {
-		input.SecgroupId = options.Options.DefaultSecurityGroupId
+		input.SecgroupId = options.Options.GetDefaultSecurityGroupId(hypervisor)
 	}
 
 	maxSecgrpCount := driver.GetMaxSecurityGroupCount()
@@ -2518,8 +2553,39 @@ func (guest *SGuest) PostCreate(ctx context.Context, userCred mcclient.TokenCred
 		guest.setUserData(ctx, userCred, userData)
 	}
 
-	provider, _ := data.GetString("provider")
-	drv, _ := GetDriver(guest.Hypervisor, provider)
+	input := struct {
+		PreferZone      string
+		PreferRegion    string
+		PreferManagerId string
+		Provider        string
+	}{}
+	data.Unmarshal(&input)
+
+	if len(input.PreferManagerId) > 0 && len(input.Provider) == 0 {
+		manObj, err := CloudproviderManager.FetchById(input.PreferManagerId)
+		if err == nil {
+			man := manObj.(*SCloudprovider)
+			input.Provider = man.Provider
+		}
+	}
+	if len(input.PreferZone) > 0 && len(input.Provider) == 0 {
+		zoneObj, err := ZoneManager.FetchById(input.PreferZone)
+		if err == nil {
+			zone := zoneObj.(*SZone)
+			input.PreferRegion = zone.CloudregionId
+		}
+	}
+	if len(input.PreferRegion) > 0 && len(input.Provider) == 0 {
+		regionObj, err := CloudregionManager.FetchById(input.PreferRegion)
+		if err == nil {
+			region := regionObj.(*SCloudregion)
+			input.Provider = region.Provider
+		}
+	}
+	if len(input.Provider) == 0 {
+		input.Provider = api.CLOUD_PROVIDER_ONECLOUD
+	}
+	drv, _ := GetDriver(guest.Hypervisor, input.Provider)
 	if drv != nil && drv.GetMaxSecurityGroupCount() > 0 {
 		secgroups, _ := jsonutils.GetStringArray(data, "secgroups")
 		for _, secgroupId := range secgroups {
@@ -2866,9 +2932,11 @@ func (self *SGuest) GetRealIPs() []string {
 
 func (self *SGuest) IsExitOnly() bool {
 	for _, ip := range self.GetRealIPs() {
-		addr, _ := netutils.NewIPV4Addr(ip)
-		if !netutils.IsExitAddress(addr) {
-			return false
+		if regutils.MatchIP4Addr(ip) {
+			addr, _ := netutils.NewIPV4Addr(ip)
+			if !netutils.IsExitAddress(addr) {
+				return false
+			}
 		}
 	}
 	return true
@@ -2883,7 +2951,12 @@ func (self *SGuest) getVirtualIPs() []string {
 			continue
 		}
 		for _, groupnetwork := range groupnets {
-			ips = append(ips, groupnetwork.IpAddr)
+			if len(groupnetwork.IpAddr) > 0 {
+				ips = append(ips, groupnetwork.IpAddr)
+			}
+			if len(groupnetwork.Ip6Addr) > 0 {
+				ips = append(ips, groupnetwork.Ip6Addr)
+			}
 		}
 	}
 	return ips
@@ -2892,13 +2965,15 @@ func (self *SGuest) getVirtualIPs() []string {
 func (self *SGuest) GetPrivateIPs() []string {
 	ips := self.GetRealIPs()
 	for i := len(ips) - 1; i >= 0; i-- {
-		ipAddr, err := netutils.NewIPV4Addr(ips[i])
-		if err != nil {
-			log.Errorf("guest %s(%s) has bad ipv4 address (%s): %v", self.Name, self.Id, ips[i], err)
-			continue
-		}
-		if !netutils.IsPrivate(ipAddr) {
-			ips = append(ips[:i], ips[i+1:]...)
+		if regutils.MatchIP4Addr(ips[i]) {
+			ipAddr, err := netutils.NewIPV4Addr(ips[i])
+			if err != nil {
+				log.Errorf("guest %s(%s) has bad ipv4 address (%s): %v", self.Name, self.Id, ips[i], err)
+				continue
+			}
+			if !netutils.IsPrivate(ipAddr) {
+				ips = append(ips[:i], ips[i+1:]...)
+			}
 		}
 	}
 	return ips
@@ -3244,16 +3319,15 @@ func (g *SGuest) syncWithCloudVM(ctx context.Context, userCred mcclient.TokenCre
 		if len(extVM.GetDescription()) > 0 {
 			g.Description = extVM.GetDescription()
 		}
-		g.IsEmulated = extVM.IsEmulated()
 
-		if provider.GetFactory().IsSupportPrepaidResources() && !recycle {
-			g.BillingType = extVM.GetBillingType()
+		g.BillingType = extVM.GetBillingType()
+		g.ExpiredAt = time.Time{}
+		g.AutoRenew = false
+		if g.BillingType == billing_api.BILLING_TYPE_PREPAID {
 			g.ExpiredAt = extVM.GetExpiredAt()
-			drv, _ := g.GetDriver()
-			if drv != nil && drv.IsSupportSetAutoRenew() {
-				g.AutoRenew = extVM.IsAutoRenew()
-			}
+			g.AutoRenew = extVM.IsAutoRenew()
 		}
+
 		return nil
 	})
 	if err != nil {
@@ -3320,15 +3394,12 @@ func (manager *SGuestManager) newCloudVM(ctx context.Context, userCred mcclient.
 
 	guest.IsEmulated = extVM.IsEmulated()
 
-	if provider.GetFactory().IsSupportPrepaidResources() {
-		guest.BillingType = extVM.GetBillingType()
-		if expired := extVM.GetExpiredAt(); !expired.IsZero() {
-			guest.ExpiredAt = expired
-		}
-		drv, _ := guest.GetDriver()
-		if drv != nil && drv.IsSupportSetAutoRenew() {
-			guest.AutoRenew = extVM.IsAutoRenew()
-		}
+	guest.BillingType = extVM.GetBillingType()
+	guest.ExpiredAt = time.Time{}
+	guest.AutoRenew = false
+	if guest.BillingType == billing_api.BILLING_TYPE_PREPAID {
+		guest.ExpiredAt = extVM.GetExpiredAt()
+		guest.AutoRenew = extVM.IsAutoRenew()
 	}
 
 	if createdAt := extVM.GetCreatedAt(); !createdAt.IsZero() {
@@ -3338,18 +3409,6 @@ func (manager *SGuestManager) newCloudVM(ctx context.Context, userCred mcclient.
 	guest.HostId = host.Id
 
 	instanceType := extVM.GetInstanceType()
-
-	/*zoneExtId, err := metaData.GetString("zone_ext_id")
-	if err != nil {
-		log.Errorf("get zone external id fail %s", err)
-	}
-
-	isku, err := ServerSkuManager.FetchByZoneExtId(zoneExtId, instanceType)
-	if err != nil {
-		log.Errorf("get sku zone %s instance type %s fail %s", zoneExtId, instanceType, err)
-	} else {
-		guest.SkuId = isku.GetId()
-	}*/
 
 	if len(instanceType) > 0 {
 		guest.InstanceType = instanceType
@@ -7065,4 +7124,43 @@ func (guest *SGuest) SaveLastStartAt() error {
 		return nil
 	})
 	return errors.Wrap(err, "SaveLastStartAt")
+}
+
+func (guest *SGuest) finalizeFakeDeleteTask(ctx context.Context, userCred mcclient.TokenCredential, task taskman.ITask) {
+	db.OpsLog.LogEvent(guest, db.ACT_PENDING_DELETE, guest.GetShortDesc(ctx), userCred)
+	logclient.AddActionLogWithStartable(task, guest, logclient.ACT_PENDING_DELETE, guest.GetShortDesc(ctx), userCred, true)
+	if !guest.IsSystem {
+		guest.EventNotify(ctx, userCred, notifyclient.ActionPendingDelete)
+	}
+}
+
+func (guest *SGuest) finalizeRealDeleteTask(ctx context.Context, userCred mcclient.TokenCredential, task taskman.ITask) {
+	guest.RealDelete(ctx, userCred)
+	guest.RemoveAllMetadata(ctx, userCred)
+	db.OpsLog.LogEvent(guest, db.ACT_DELOCATE, guest.GetShortDesc(ctx), userCred)
+	logclient.AddActionLogWithStartable(task, guest, logclient.ACT_DELOCATE, nil, userCred, true)
+	if !guest.IsSystem {
+		guest.EventNotify(ctx, userCred, notifyclient.ActionDelete)
+	}
+	HostManager.ClearSchedDescCache(guest.HostId)
+}
+
+func (guest *SGuest) FinalizeDeleteTask(ctx context.Context, userCred mcclient.TokenCredential, task taskman.ITask, data jsonutils.JSONObject) {
+	if jsonutils.QueryBoolean(data, "real_delete", false) {
+		guest.finalizeRealDeleteTask(ctx, userCred, task)
+	} else {
+		guest.finalizeFakeDeleteTask(ctx, userCred, task)
+	}
+}
+
+func (guest *SGuest) StartBaseDeleteTask(ctx context.Context, t taskman.ITask) error {
+	task, err := taskman.TaskManager.NewTask(ctx, "BaseGuestDeleteTask", guest, t.GetUserCred(), t.GetParams(), t.GetTaskId(), "", nil)
+	if err != nil {
+		return errors.Wrap(err, "StartBaseDeleteTask")
+	}
+	err = task.ScheduleRun(nil)
+	if err != nil {
+		return errors.Wrap(err, "ScheduleRun")
+	}
+	return nil
 }

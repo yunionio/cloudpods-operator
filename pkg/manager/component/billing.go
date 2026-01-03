@@ -18,10 +18,13 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
+	"yunion.io/x/onecloud/pkg/mcclient"
+
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
@@ -85,7 +88,7 @@ func (b *billingManager) getPhaseControl(man controller.ComponentManager, zone s
 }
 
 func (b *billingManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{b.newSinglePortService(v1alpha1.BillingComponentType, oc, oc.Spec.Billing.Service.InternalOnly, int32(oc.Spec.Billing.Service.NodePort), int32(cfg.Billing.Port))}
+	return b.newSinglePortService(v1alpha1.BillingComponentType, oc, oc.Spec.Billing.Service.InternalOnly, int32(oc.Spec.Billing.Service.NodePort), int32(cfg.Billing.Port), oc.Spec.Billing.SlaveReplicas > 0)
 }
 
 func (b *billingManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
@@ -122,4 +125,22 @@ func (b *billingManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 
 func (b *billingManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.BillingStatus
+}
+
+func (b *billingManager) supportsReadOnlyService() bool {
+	return true
+}
+
+func (b *billingManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return b.genReadonlyDeployment(v1alpha1.BillingComponentType, oc, deployment, &oc.Spec.Billing.DeploymentSpec)
+}
+
+func (b *billingManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return func(s *mcclient.ClientSession) error {
+		if b.IsDisabled(oc) {
+			return onecloud.EnsureDisableService(s, b.GetServiceName())
+		} else {
+			return onecloud.EnsureEnableService(s, b.GetServiceName(), b.supportsReadOnlyService() && oc.Spec.Billing.SlaveReplicas > 0)
+		}
+	}
 }

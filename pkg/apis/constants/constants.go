@@ -226,6 +226,7 @@ const (
 	EndpointTypePublic   = "public"
 	EndpointTypeAdmin    = "admin"
 	EndpointTypeConsole  = "console"
+	EndpointTypeSlave    = "slave"
 
 	// define service constants
 	ServiceNameKeystone = "keystone"

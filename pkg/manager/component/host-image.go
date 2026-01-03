@@ -10,6 +10,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud/pkg/mcclient"
 )
 
 const YUNION_HOST_ROOT = "/yunion-host-root"
@@ -87,4 +88,16 @@ func (m *hostImageManager) newHostPrivilegedDaemonSet(
 	}
 
 	return ds, nil
+}
+
+func (m *hostImageManager) supportsReadOnlyService() bool {
+	return false
+}
+
+func (m *hostImageManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return nil
+}
+
+func (m *hostImageManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return nil
 }

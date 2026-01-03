@@ -18,6 +18,8 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
+	"yunion.io/x/onecloud/pkg/mcclient"
+
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/manager"
 )
@@ -71,4 +73,16 @@ func (m *cloudmuxManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 	}
 	oc.Spec.Cloudmux.FillBySpec(spec)
 	return deploy, nil
+}
+
+func (m *cloudmuxManager) supportsReadOnlyService() bool {
+	return false
+}
+
+func (m *cloudmuxManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return nil
+}
+
+func (m *cloudmuxManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return nil
 }

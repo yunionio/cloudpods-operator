@@ -222,6 +222,7 @@ const (
 	HYPERVISOR_SANGFOR        = compute.HYPERVISOR_SANGFOR
 	HYPERVISOR_ZETTAKIT       = compute.HYPERVISOR_ZETTAKIT
 	HYPERVISOR_UIS            = compute.HYPERVISOR_UIS
+	HYPERVISOR_CAS            = compute.HYPERVISOR_CAS
 
 	//	HYPERVISOR_DEFAULT = HYPERVISOR_KVM
 	HYPERVISOR_DEFAULT = HYPERVISOR_KVM
@@ -260,6 +261,9 @@ const (
 	VM_VIDEO_STANDARD = "std"
 	VM_VIDEO_QXL      = "qxl"
 	VM_VIDEO_VIRTIO   = "virtio"
+
+	VM_BOOT_MODE_BIOS = "BIOS"
+	VM_BOOT_MODE_UEFI = "UEFI"
 )
 
 var VM_RUNNING_STATUS = []string{VM_START_START, VM_STARTING, VM_RUNNING, VM_BLOCK_STREAM, VM_BLOCK_STREAM_FAIL}
@@ -312,26 +316,29 @@ const (
 	VM_AZURE_DEFAULT_LOGIN_USER           = compute.VM_AZURE_DEFAULT_LOGIN_USER
 	VM_ZSTACK_DEFAULT_LOGIN_USER          = compute.VM_ZSTACK_DEFAULT_LOGIN_USER
 
-	VM_METADATA_APP_TAGS            = "app_tags"
-	VM_METADATA_CREATE_PARAMS       = "create_params"
-	VM_METADATA_LOGIN_ACCOUNT       = "login_account"
-	VM_METADATA_LOGIN_KEY           = "login_key"
-	VM_METADATA_LAST_LOGIN_KEY      = "last_login_key"
-	VM_METADATA_LOGIN_KEY_TIMESTAMP = "login_key_timestamp"
-	VM_METADATA_OS_ARCH             = "os_arch"
-	VM_METADATA_OS_DISTRO           = "os_distribution"
-	VM_METADATA_OS_NAME             = "os_name"
-	VM_METADATA_OS_VERSION          = "os_version"
-	VM_METADATA_CGROUP_CPUSET       = "cgroup_cpuset"
-	VM_METADATA_ENABLE_MEMCLEAN     = "enable_memclean"
-	VM_METADATA_HOTPLUG_CPU_MEM     = "hotplug_cpu_mem"
-	VM_METADATA_HOT_REMOVE_NIC      = "hot_remove_nic"
-	VM_METADATA_START_VMEM_MB       = "start_vmem_mb"
-	VM_METADATA_START_VCPU_COUNT    = "start_vcpu_count"
+	VM_METADATA_APP_TAGS                    = "app_tags"
+	VM_METADATA_CREATE_PARAMS               = "create_params"
+	VM_METADATA_LOGIN_ACCOUNT               = "login_account"
+	VM_METADATA_LOGIN_KEY                   = "login_key"
+	VM_METADATA_LAST_LOGIN_KEY              = "last_login_key"
+	VM_METADATA_LOGIN_KEY_TIMESTAMP         = "login_key_timestamp"
+	VM_METADATA_OS_ARCH                     = "os_arch"
+	VM_METADATA_OS_DISTRO                   = "os_distribution"
+	VM_METADATA_OS_NAME                     = "os_name"
+	VM_METADATA_OS_VERSION                  = "os_version"
+	VM_METADATA_CGROUP_CPUSET               = "cgroup_cpuset"
+	VM_METADATA_ENABLE_MEMCLEAN             = "enable_memclean"
+	VM_METADATA_HOTPLUG_CPU_MEM             = "hotplug_cpu_mem"
+	VM_METADATA_HOT_REMOVE_NIC              = "hot_remove_nic"
+	VM_METADATA_START_VMEM_MB               = "start_vmem_mb"
+	VM_METADATA_START_VCPU_COUNT            = "start_vcpu_count"
+	VM_METADATA_DISABLE_AUTO_MERGE_SNAPSHOT = "disable_auto_merge_snapshot"
 
 	VM_METADATA_RELEASED_DEVICES = "released_devices"
 
 	VM_METADATA_CPU_NUMA_PIN = "__cpu_numa_pin"
+
+	VM_METADATA_VIRTUAL_ISOLATED_DEVICE_CONFIG = "__virtual_isolated_device_config"
 )
 
 // windows allow a maximal length of 15

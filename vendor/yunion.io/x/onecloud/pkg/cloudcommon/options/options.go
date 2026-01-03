@@ -71,8 +71,14 @@ type BaseOptions struct {
 	ApplicationID      string `help:"Application ID"`
 	RequestWorkerCount int    `default:"8" help:"Request worker thread count, default is 8"`
 
+	RequestWorkerQueueSize int `default:"10" help:"Request worker queue size, default is 10"`
+
 	TaskWorkerCount      int `default:"4" help:"Task manager worker thread count, default is 4"`
 	LocalTaskWorkerCount int `default:"4" help:"Worker thread count that runs local tasks, default is 4"`
+
+	TaskArchiveThresholdHours  int `default:"168" help:"The threshold in hours to migrate tasks to archive, default is 7days(168hours)"`
+	TaskArchiveIntervalMinutes int `default:"60" help:"The interval in mibutes to migrate tasks to archive, default is 1 hour"`
+	TaskArchiveBatchLimit      int `default:"10000" help:"The maximal count of tasks to archivie in a batch, default is 10000"`
 
 	DefaultProcessTimeoutSeconds int `default:"60" help:"request process timeout, default is 60 seconds"`
 
@@ -115,15 +121,19 @@ type BaseOptions struct {
 	GlobalHTTPProxy  string `help:"Global http proxy"`
 	GlobalHTTPSProxy string `help:"Global https proxy"`
 
-	IgnoreNonrunningGuests bool `default:"true" help:"Count memory for running guests only when do scheduling. Ignore memory allocation for non-running guests"`
+	IgnoreNonrunningGuests   bool `default:"true" help:"Count memory for running guests only when do scheduling. Ignore memory allocation for non-running guests"`
+	VirtualDeviceNumaBalance bool `default:"true" help:"fix virtual device numa node balance on guest start"`
 
 	PlatformName  string            `help:"identity name of this platform" default:"Cloudpods"`
 	PlatformNames map[string]string `help:"identity name of this platform by language"`
 
 	EnableAppProfiling bool `help:"enable profiling API" default:"false"`
+	AllowTLS1x         bool `help:"allow obsolete insecure TLS V1.0&1.1" default:"false" json:"allow_tls1x"`
 
 	EnableChangeOwnerAutoRename bool `help:"Allows renaming when changing names" default:"false"`
 	EnableDefaultPolicy         bool `help:"Enable defualt policies" default:"true"`
+
+	DefaultHandlersWhitelistUserAgents []string `help:"whitelist user agents, default is empty"`
 }
 
 const (
@@ -159,12 +169,15 @@ type HostCommonOptions struct {
 	ExecutorConnectTimeoutSeconds int    `help:"executor client connection timeout in seconds, default is 30" default:"30"`
 	ImageDeployDriver             string `help:"Image deploy driver" default:"qemu-kvm" choices:"qemu-kvm|nbd|libguestfs"`
 	DeployConcurrent              int    `help:"qemu-kvm deploy driver concurrent" default:"5"`
+	Qcow2Preallocation            string `help:"Qcow2 image create preallocation" default:"metadata" choices:"disable|metadata|falloc|full"`
 }
 
 type DBOptions struct {
 	SqlConnection string `help:"SQL connection string" alias:"connection"`
 
 	Clickhouse string `help:"Connection string for click house"`
+
+	DbMaxWaitTimeoutSeconds int `help:"max wait timeout for db connection, default 1 hour" default:"3600"`
 
 	OpsLogWithClickhouse   bool `help:"store operation logs with clickhouse" default:"false"`
 	EnableDBChecksumTables bool `help:"Enable DB tables with record checksum for consistency"`
@@ -399,6 +412,7 @@ func parseOptions(optStruct interface{}, args []string, configFileName string, s
 
 	consts.SetTaskWorkerCount(optionsRef.TaskWorkerCount)
 	consts.SetLocalTaskWorkerCount(optionsRef.LocalTaskWorkerCount)
+	consts.SetTaskArchiveThresholdHours(optionsRef.TaskArchiveThresholdHours)
 }
 
 func (self *BaseOptions) HttpTransportProxyFunc() httputils.TransportProxyFunc {

@@ -174,6 +174,9 @@ func (us *SUpdateSession) SaveUpdateSql(dt interface{}) (*SUpdateSQLResult, erro
 			if ofJsonStr == nfJsonStr {
 				continue
 			}
+			if EqualsGrossValue(of, nf) {
+				continue
+			}
 		}
 		if c.IsZero(nf) && c.IsText() {
 			nf = nil
@@ -198,6 +201,13 @@ func (us *SUpdateSession) SaveUpdateSql(dt interface{}) (*SUpdateSQLResult, erro
 		if gotypes.IsNil(udif.new) {
 			colsets = append(colsets, fmt.Sprintf("%s%s%s = NULL", qChar, udif.col.Name(), qChar))
 		} else {
+			// validate text length
+			if udif.col.IsString() && udif.col.GetWidth() > 0 {
+				newStr, ok := udif.new.(string)
+				if ok && len(newStr) > udif.col.GetWidth() {
+					udif.new = newStr[:udif.col.GetWidth()]
+				}
+			}
 			colsets = append(colsets, fmt.Sprintf("%s%s%s = ?", qChar, udif.col.Name(), qChar))
 			vars = append(vars, udif.col.ConvertFromValue(udif.new))
 		}

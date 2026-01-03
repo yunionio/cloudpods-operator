@@ -60,6 +60,8 @@ type SHostBaseOptions struct {
 	TelegrafKafkaOutputSaslUsername  string `json:"telegraf_kafka_output_sasl_username" help:"telegraf kafka output sasl_username"`
 	TelegrafKafkaOutputSaslPassword  string `json:"telegraf_kafka_output_sasl_password" help:"telegraf kafka output sasl_password"`
 	TelegrafKafkaOutputSaslMechanism string `json:"telegraf_kafka_output_sasl_mechanism" help:"telegraf kafka output sasl_mechanism"`
+
+	BackupTaskWorkerCount int `default:"3" help:"backup task worker count"`
 }
 
 type SHostOptions struct {
@@ -81,6 +83,7 @@ type SHostOptions struct {
 	ServersPath         string `help:"Path for virtual server configuration files" default:"/opt/cloud/workspace/servers"`
 	ImageCachePath      string `help:"Path for storing image caches" default:"/opt/cloud/workspace/disks/image_cache"`
 	MemorySnapshotsPath string `help:"Path for memory snapshot stat files" default:"/opt/cloud/workspace/memory_snapshots"`
+	HostFilesPath       string `help:"Path for host files" default:"/opt/cloud/workspace/host_files"`
 	// ImageCacheLimit int    `help:"Maximal storage space for image caching, in GB" default:"20"`
 	AgentTempPath  string `help:"Path for ESXi agent"`
 	AgentTempLimit int    `help:"Maximal storage space for ESXi agent, in GB" default:"10"`
@@ -104,8 +107,9 @@ type SHostOptions struct {
 	DnsServer       string `help:"Address of host DNS server"`
 	DnsServerLegacy string `help:"Deprecated Address of host DNS server"`
 
-	ChntpwPath string `help:"path to chntpw tool" default:"/usr/local/bin/chntpw.static"`
-	OvmfPath   string `help:"Path to OVMF.fd" default:"/opt/cloud/contrib/OVMF.fd"`
+	ChntpwPath   string `help:"path to chntpw tool" default:"/usr/local/bin/chntpw.static"`
+	OvmfPath     string `help:"Path to OVMF.fd" default:"/opt/cloud/contrib/OVMF.fd"`
+	OvmfVarsPath string `help:"Path to OVMF_VARS.fd" default:"/opt/cloud/contrib/OVMF_VARS.fd"`
 
 	LinuxDefaultRootUser    bool `help:"Default account for linux system is root"`
 	WindowsDefaultAdminUser bool `default:"true" help:"Default account for Windows system is Administrator"`
@@ -141,12 +145,12 @@ type SHostOptions struct {
 	UseBootVga             bool `default:"false" help:"Use boot VGA GPU for guest"`
 
 	EnableStrictCpuBind         bool   `default:"false" help:"Enable strict cpu bind, one vcpu bind one pcpu"`
-	EnableHostAgentNumaAllocate bool   `default:"false" help:"Enable host agent numa allocate"`
+	EnableHostAgentNumaAllocate bool   `default:"true" help:"Enable host agent numa allocate"`
 	EnableCpuBinding            bool   `default:"true" help:"Enable cpu binding and rebalance"`
 	EnableOpenflowController    bool   `default:"false"`
 	BootVgaPciAddr              string `help:"Specific boot vga pci addr incase detect wrong device"`
 
-	PingRegionInterval int      `default:"60" help:"interval to ping region, deefault is 1 minute"`
+	PingRegionInterval int      `default:"60" help:"interval to ping region, default is 1 minute"`
 	LogSystemdUnits    []string `help:"Systemd units log collected by fluent-bit"`
 	// 更改默认带宽限速为400GBps, qiujian
 	BandwidthLimit int `default:"400000" help:"Bandwidth upper bound when migrating disk image in MB/sec, default 400GBps"`
@@ -164,6 +168,7 @@ type SHostOptions struct {
 	MaxReservedMemory int `default:"10240" help:"host reserved memory"`
 
 	DefaultRequestWorkerCount int `default:"8" help:"default request worker count"`
+	ImageCacheWorkerCount     int `default:"8" help:"default request worker count"`
 	ContainerStartWorkerCount int `default:"1" help:"container start worker count"`
 	ContainerStopWorkerCount  int `default:"1" help:"container stop worker count"`
 
@@ -179,7 +184,8 @@ type SHostOptions struct {
 	SdnEnableTapMan bool   `help:"enable tap service" default:"$SDN_ENABLE_TAP_MAN|true"`
 	TapBridgeName   string `help:"bridge name for tap service" default:"brtap"`
 
-	SdnAllowConntrackInvalid bool `help:"allow packets marked by conntrack as INVALID to pass" default:"$SDN_ALLOW_CONNTRACK_INVALID|false"`
+	SdnAllowConntrackInvalid       bool `help:"allow packets marked by conntrack as INVALID to pass" default:"$SDN_ALLOW_CONNTRACK_INVALID|false"`
+	SdnFetchDataFromComputeService bool `help:"fetch network releated data from compute service" default:"$SDN_FETCH_DATA_FROM_COMPUTE_SERVICE|true"`
 
 	ovnutils.SOvnOptions
 
@@ -221,9 +227,10 @@ type SHostOptions struct {
 
 	BinaryMemcleanPath string `help:"execute binary memclean path" default:"/opt/yunion/bin/memclean"`
 
-	MaxHotplugVCpuCount int  `help:"maximal possible vCPU count that the platform kvm supports"`
-	PcieRootPortCount   int  `help:"pcie root port count" default:"2"`
-	EnableQemuDebugLog  bool `help:"enable qemu debug logs" default:"false"`
+	MaxHotplugVCpuCount int    `help:"maximal possible vCPU count that the platform kvm supports"`
+	PcieRootPortCount   int    `help:"pcie root port count" default:"2"`
+	EnableQemuDebugLog  bool   `help:"enable qemu debug logs" default:"false"`
+	ResetDiskTmpDir     string `help:"auto reset disk after guest shutdown will write disk to tmpdir"`
 
 	// container related endpoint
 	// EnableContainerRuntime   bool   `help:"enable container runtime" default:"false"`
@@ -231,11 +238,13 @@ type SHostOptions struct {
 	ContainerDeviceConfigFile                string `help:"container device configuration file path"`
 	LxcfsPath                                string `help:"lxcfs directory path" default:"/var/lib/lxcfs"`
 	ContainerSystemCpufreqSimulateConfigFile string `help:"container system cpu simulate config file path" default:"/etc/yunion/container_cpufreq_simulate.conf"`
+	EnableRealtimeCpufreqSimulate            bool   `help:"realtime cpufreq simulate" default:"true"`
+	RealtimeCpufreqSimulateInterval          int    `help:"realtime cpufreq simulate interval(second)" default:"2"`
 
 	EnableCudaMPS        bool   `help:"enable cuda mps" default:"false"`
 	CudaMPSPipeDirectory string `help:"cuda mps pipe dir" default:"/tmp/nvidia-mps/pipe"`
 	CudaMPSLogDirectory  string `help:"cuda mps log dir" default:"/tmp/nvidia-mps/log"`
-	CudaMPSReplicas      int    `help:"cuda mps replias" default:"10"`
+	CudaMPSReplicas      int    `help:"cuda mps replicas" default:"10"`
 
 	EnableContainerAscendNPU bool `help:"enable container npu" default:"false"`
 

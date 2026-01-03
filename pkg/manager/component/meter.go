@@ -22,11 +22,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	common_options "yunion.io/x/onecloud/pkg/cloudcommon/options"
+	"yunion.io/x/onecloud/pkg/mcclient"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
@@ -91,7 +93,7 @@ func (m *meterManager) getPhaseControl(man controller.ComponentManager, zone str
 }
 
 func (m *meterManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.MeterComponentType, oc, oc.Spec.Meter.Service.InternalOnly, int32(oc.Spec.Meter.Service.NodePort), int32(cfg.Meter.Port))}
+	return m.newSinglePortService(v1alpha1.MeterComponentType, oc, oc.Spec.Meter.Service.InternalOnly, int32(oc.Spec.Meter.Service.NodePort), int32(cfg.Meter.Port), oc.Spec.Meter.SlaveReplicas > 0)
 }
 
 type meterOptions struct {
@@ -204,4 +206,22 @@ func (m *meterManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 
 func (m *meterManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Meter.DeploymentStatus
+}
+
+func (m *meterManager) supportsReadOnlyService() bool {
+	return true
+}
+
+func (m *meterManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return m.genReadonlyDeployment(v1alpha1.MeterComponentType, oc, deployment, &oc.Spec.Meter.DeploymentSpec)
+}
+
+func (m *meterManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return func(s *mcclient.ClientSession) error {
+		if m.IsDisabled(oc) {
+			return onecloud.EnsureDisableService(s, m.GetServiceName())
+		} else {
+			return onecloud.EnsureEnableService(s, m.GetServiceName(), m.supportsReadOnlyService() && oc.Spec.Meter.SlaveReplicas > 0)
+		}
+	}
 }
