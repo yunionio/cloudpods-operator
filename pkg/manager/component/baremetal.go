@@ -178,3 +178,7 @@ func (m *baremetalManager) newBaremetalVolHelper(oc *v1alpha1.OnecloudCluster, o
 	})
 	return volHelper
 }
+
+func (m *baremetalManager) supportsReadOnlyService() bool {
+	return false
+}

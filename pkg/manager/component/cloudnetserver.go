@@ -102,7 +102,7 @@ func (m *cloudnetManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 }
 
 func (m *cloudnetManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.CloudnetComponentType, oc, oc.Spec.Cloudnet.Service.InternalOnly, int32(oc.Spec.Cloudnet.Service.NodePort), int32(cfg.Cloudnet.Port))}
+	return m.newSinglePortService(v1alpha1.CloudnetComponentType, oc, oc.Spec.Cloudnet.Service.InternalOnly, int32(oc.Spec.Cloudnet.Service.NodePort), int32(cfg.Cloudnet.Port), oc.Spec.Cloudnet.ROService)
 }
 
 func (m *cloudnetManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -122,4 +122,8 @@ func (m *cloudnetManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 
 func (m *cloudnetManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Cloudnet
+}
+
+func (m *cloudnetManager) supportsReadOnlyService() bool {
+	return false
 }

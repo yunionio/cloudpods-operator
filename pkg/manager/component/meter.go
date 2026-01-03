@@ -88,7 +88,7 @@ func (m *meterManager) getPhaseControl(man controller.ComponentManager, zone str
 }
 
 func (m *meterManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.MeterComponentType, oc, oc.Spec.Meter.Service.InternalOnly, int32(oc.Spec.Meter.Service.NodePort), int32(cfg.Meter.Port))}
+	return m.newSinglePortService(v1alpha1.MeterComponentType, oc, oc.Spec.Meter.Service.InternalOnly, int32(oc.Spec.Meter.Service.NodePort), int32(cfg.Meter.Port), oc.Spec.Meter.ROService)
 }
 
 type meterOptions struct {
@@ -149,4 +149,8 @@ func (m *meterManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 
 func (m *meterManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Meter.DeploymentStatus
+}
+
+func (m *meterManager) supportsReadOnlyService() bool {
+	return true
 }

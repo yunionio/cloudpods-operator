@@ -67,7 +67,7 @@ func (m *mcpServerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 }
 
 func (m *mcpServerManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.McpServerComponentType, oc, oc.Spec.McpServer.Service.InternalOnly, int32(oc.Spec.McpServer.Service.NodePort), int32(constants.McpServerPort))}
+	return m.newSinglePortService(v1alpha1.McpServerComponentType, oc, oc.Spec.McpServer.Service.InternalOnly, int32(oc.Spec.McpServer.Service.NodePort), int32(constants.McpServerPort), oc.Spec.McpServer.ROService)
 }
 
 func (m *mcpServerManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -80,4 +80,8 @@ func (m *mcpServerManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zon
 
 func (m *mcpServerManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return component.NewMcpServer().GetPhaseControl(man)
+}
+
+func (m *mcpServerManager) supportsReadOnlyService() bool {
+	return true
 }

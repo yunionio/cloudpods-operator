@@ -106,3 +106,7 @@ func (m *climcManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	deploy.Spec.Template.Spec.Volumes = append(deploy.Spec.Template.Spec.Volumes, rcadminVol)
 	return deploy, nil
 }
+
+func (m *climcManager) supportsReadOnlyService() bool {
+	return false
+}

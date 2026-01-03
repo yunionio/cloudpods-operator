@@ -201,3 +201,7 @@ func (m *esxiManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 	dm.Spec.Selector.MatchLabels[constants.OnecloudHostDeployerLabelKey] = ""
 	return setSelfAntiAffnity(dm, v1alpha1.EsxiAgentComponentType), nil
 }
+
+func (m *esxiManager) supportsReadOnlyService() bool {
+	return false
+}

@@ -87,7 +87,7 @@ func (m *monitorManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 }
 
 func (m *monitorManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.MonitorComponentType, oc, oc.Spec.Monitor.Service.InternalOnly, int32(oc.Spec.Monitor.Service.NodePort), int32(cfg.Monitor.Port))}
+	return m.newSinglePortService(v1alpha1.MonitorComponentType, oc, oc.Spec.Monitor.Service.InternalOnly, int32(oc.Spec.Monitor.Service.NodePort), int32(cfg.Monitor.Port), oc.Spec.Monitor.ROService)
 }
 
 func (m *monitorManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -107,4 +107,8 @@ func (m *monitorManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 
 func (m *monitorManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Monitor
+}
+
+func (m *monitorManager) supportsReadOnlyService() bool {
+	return true
 }

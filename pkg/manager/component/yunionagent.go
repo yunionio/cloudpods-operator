@@ -111,7 +111,7 @@ func (m *yunionagentManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1a
 func (m *yunionagentManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
 	// use headless service
 	svcName := controller.NewClusterComponentName(oc.GetName(), v1alpha1.YunionagentComponentType)
-	appLabel := m.getComponentLabel(oc, v1alpha1.YunionagentComponentType)
+	appLabel := m.getComponentLabel(oc, v1alpha1.YunionagentComponentType, false)
 	svc := &corev1.Service{
 		ObjectMeta: m.getObjectMeta(oc, svcName, appLabel),
 		Spec: corev1.ServiceSpec{
@@ -160,4 +160,8 @@ func (m *yunionagentManager) getDaemonSet(oc *v1alpha1.OnecloudCluster, cfg *v1a
 	}
 	ds.Spec.Template.Spec.ServiceAccountName = constants.ServiceAccountOnecloudOperator
 	return ds, nil
+}
+
+func (m *yunionagentManager) supportsReadOnlyService() bool {
+	return false
 }

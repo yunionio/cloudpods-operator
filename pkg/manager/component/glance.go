@@ -95,7 +95,7 @@ func (m *glanceManager) getPhaseControl(man controller.ComponentManager, zone st
 }
 
 func (m *glanceManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.GlanceComponentType, oc, oc.Spec.Glance.Service.InternalOnly, int32(oc.Spec.Glance.Service.NodePort), int32(cfg.Glance.Port))}
+	return m.newSinglePortService(v1alpha1.GlanceComponentType, oc, oc.Spec.Glance.Service.InternalOnly, int32(oc.Spec.Glance.Service.NodePort), int32(cfg.Glance.Port), oc.Spec.Glance.ROService)
 }
 
 func (m *glanceManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
@@ -372,4 +372,8 @@ func (m *glanceManager) getPodLabels() map[string]string {
 
 func (m *glanceManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Glance.DeploymentStatus
+}
+
+func (m *glanceManager) supportsReadOnlyService() bool {
+	return true
 }

@@ -69,7 +69,7 @@ func (m *schedulerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 }
 
 func (m *schedulerManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.SchedulerComponentType, oc, oc.Spec.Scheduler.Service.InternalOnly, int32(oc.Spec.Scheduler.Service.NodePort), constants.SchedulerPort)}
+	return m.newSinglePortService(v1alpha1.SchedulerComponentType, oc, oc.Spec.Scheduler.Service.InternalOnly, int32(oc.Spec.Scheduler.Service.NodePort), constants.SchedulerPort, oc.Spec.Scheduler.ROService)
 }
 
 func (m *schedulerManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -78,4 +78,8 @@ func (m *schedulerManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1al
 
 func (m *schedulerManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Scheduler
+}
+
+func (m *schedulerManager) supportsReadOnlyService() bool {
+	return false
 }

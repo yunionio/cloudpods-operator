@@ -67,7 +67,7 @@ func (m *suggestionManager) getPhaseControl(man controller.ComponentManager, zon
 }
 
 func (m *suggestionManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.SuggestionComponentType, oc, oc.Spec.Suggestion.Service.InternalOnly, int32(oc.Spec.Suggestion.Service.NodePort), int32(constants.SuggestionPort))}
+	return m.newSinglePortService(v1alpha1.SuggestionComponentType, oc, oc.Spec.Suggestion.Service.InternalOnly, int32(oc.Spec.Suggestion.Service.NodePort), int32(constants.SuggestionPort), oc.Spec.Suggestion.ROService)
 }
 
 type suggestionOptions struct {
@@ -113,4 +113,8 @@ func (m *suggestionManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1a
 		}
 	}
 	return m.newDefaultDeploymentNoInit(v1alpha1.SuggestionComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.SuggestionComponentType), v1alpha1.SuggestionComponentType), &oc.Spec.Suggestion.DeploymentSpec, cf)
+}
+
+func (m *suggestionManager) supportsReadOnlyService() bool {
+	return true
 }

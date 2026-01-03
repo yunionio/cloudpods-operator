@@ -81,7 +81,7 @@ func (m *cloudidManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 }
 
 func (m *cloudidManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.CloudIdComponentType, oc, oc.Spec.CloudId.Service.InternalOnly, int32(oc.Spec.CloudId.Service.NodePort), int32(cfg.CloudId.Port))}
+	return m.newSinglePortService(v1alpha1.CloudIdComponentType, oc, oc.Spec.CloudId.Service.InternalOnly, int32(oc.Spec.CloudId.Service.NodePort), int32(cfg.CloudId.Port), oc.Spec.CloudId.ROService)
 }
 
 func (m *cloudidManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -101,4 +101,8 @@ func (m *cloudidManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 
 func (m *cloudidManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.CloudId
+}
+
+func (m *cloudidManager) supportsReadOnlyService() bool {
+	return true
 }

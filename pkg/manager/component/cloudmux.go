@@ -72,3 +72,7 @@ func (m *cloudmuxManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 	oc.Spec.Cloudmux.FillBySpec(spec)
 	return deploy, nil
 }
+
+func (m *cloudmuxManager) supportsReadOnlyService() bool {
+	return false
+}

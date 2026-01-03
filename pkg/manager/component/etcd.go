@@ -1068,6 +1068,7 @@ func (m *etcdManager) upgradeOneMember(memberName string) error {
 	log.Infof("finished upgrading the etcd member %v", memberName)
 	return nil
 }
+
 func needUpgrade(pods []*corev1.Pod, cs v1alpha1.EtcdClusterSpec) bool {
 	return len(pods) == cs.Size && pickOneOldMember(pods, cs.Version) != nil
 }
@@ -1094,6 +1095,10 @@ func (m *etcdManager) podsToMemberSet(pods []*corev1.Pod) etcdutil.MemberSet {
 		members.Add(member)
 	}
 	return members
+}
+
+func (m *etcdManager) supportsReadOnlyService() bool {
+	return false
 }
 
 type fatalError struct {

@@ -228,3 +228,7 @@ func NewTelegrafVolume(
 	)
 	return h
 }
+
+func (m *telegrafManager) supportsReadOnlyService() bool {
+	return false
+}

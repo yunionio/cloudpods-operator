@@ -118,3 +118,7 @@ func (m *hostBasedDsManager) newHostPrivilegedDaemonSet(
 
 	return ds, nil
 }
+
+func (m *hostBasedDsManager) supportsReadOnlyService() bool {
+	return false
+}

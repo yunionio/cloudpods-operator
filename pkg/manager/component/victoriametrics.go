@@ -74,9 +74,7 @@ func (m *vmManager) getPhaseControl(man controller.ComponentManager, zone string
 }
 
 func (m *vmManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{
-		m.newSinglePortService(v1alpha1.VictoriaMetricsComponentType, oc, oc.Spec.VictoriaMetrics.Service.InternalOnly, int32(oc.Spec.VictoriaMetrics.Service.NodePort), m.getContainerPort()),
-	}
+	return m.newSinglePortService(v1alpha1.VictoriaMetricsComponentType, oc, oc.Spec.VictoriaMetrics.Service.InternalOnly, int32(oc.Spec.VictoriaMetrics.Service.NodePort), m.getContainerPort(), oc.Spec.VictoriaMetrics.ROService)
 }
 
 func (m *vmManager) getPVC(oc *v1alpha1.OnecloudCluster, zone string) (*corev1.PersistentVolumeClaim, error) {
@@ -197,4 +195,8 @@ func (m *vmManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.On
 
 func (m *vmManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.VictoriaMetrics
+}
+
+func (m *vmManager) supportsReadOnlyService() bool {
+	return false
 }

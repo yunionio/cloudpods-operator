@@ -103,7 +103,7 @@ func (m *bastionHostManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1a
 }
 
 func (m *bastionHostManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.BastionHostComponentType, oc, oc.Spec.BastionHost.Service.InternalOnly, int32(oc.Spec.BastionHost.Service.NodePort), int32(cfg.BastionHost.Port))}
+	return m.newSinglePortService(v1alpha1.BastionHostComponentType, oc, oc.Spec.BastionHost.Service.InternalOnly, int32(oc.Spec.BastionHost.Service.NodePort), int32(cfg.BastionHost.Port), oc.Spec.BastionHost.ROService)
 }
 
 func (m *bastionHostManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -112,4 +112,8 @@ func (m *bastionHostManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1
 
 func (m *bastionHostManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.BastionHost
+}
+
+func (m *bastionHostManager) supportsReadOnlyService() bool {
+	return false
 }
