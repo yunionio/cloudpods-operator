@@ -86,7 +86,7 @@ func (m *keystoneManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 		NewServiceNodePort("admin", spec.AdminService.InternalOnly, int32(spec.AdminService.NodePort), constants.KeystoneAdminPort),
 	}
 
-	return []*corev1.Service{m.newNodePortService(v1alpha1.KeystoneComponentType, oc, spec.AdminService.InternalOnly, ports)}
+	return m.newNodePortService(v1alpha1.KeystoneComponentType, oc, spec.AdminService.InternalOnly, ports, oc.Spec.Keystone.ROService)
 }
 
 func (m *keystoneManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
@@ -151,4 +151,8 @@ func (m *keystoneManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 	}
 
 	return m.newDefaultDeployment(v1alpha1.KeystoneComponentType, v1alpha1.KeystoneComponentType, oc, NewVolumeHelper(oc, ksConfigMap, v1alpha1.KeystoneComponentType), &oc.Spec.Keystone.DeploymentSpec, initContainersF, containersF)
+}
+
+func (m *keystoneManager) supportsReadOnlyService() bool {
+	return true
 }

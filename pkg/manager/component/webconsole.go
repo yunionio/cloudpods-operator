@@ -90,7 +90,7 @@ func (m *webconsoleManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 }
 
 func (m *webconsoleManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.WebconsoleComponentType, oc, oc.Spec.Webconsole.Service.InternalOnly, int32(oc.Spec.Webconsole.Service.NodePort), int32(cfg.Webconsole.Port))}
+	return m.newSinglePortService(v1alpha1.WebconsoleComponentType, oc, oc.Spec.Webconsole.Service.InternalOnly, int32(oc.Spec.Webconsole.Service.NodePort), int32(cfg.Webconsole.Port), oc.Spec.Webconsole.ROService)
 }
 
 func (m *webconsoleManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -115,4 +115,8 @@ func (m *webconsoleManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1a
 
 func (m *webconsoleManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Webconsole
+}
+
+func (m *webconsoleManager) supportsReadOnlyService() bool {
+	return false
 }

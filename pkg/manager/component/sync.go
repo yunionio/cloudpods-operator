@@ -58,6 +58,7 @@ type pvcFactory interface {
 
 type deploymentFactory interface {
 	getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error)
+	supportsReadOnlyService() bool
 }
 
 type daemonSetFactory interface {

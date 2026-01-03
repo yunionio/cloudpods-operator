@@ -356,3 +356,7 @@ func (m *monitorStackManager) syncBucketPolicy(spec *v1alpha1.MonitorStackSpec) 
 	}
 	return nil
 }
+
+func (m *monitorStackManager) supportsReadOnlyService() bool {
+	return false
+}

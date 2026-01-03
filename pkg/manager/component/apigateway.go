@@ -85,7 +85,7 @@ func (m *apiGatewayManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 		NewServiceNodePort("api", oc.Spec.APIGateway.APIService.InternalOnly, int32(oc.Spec.APIGateway.APIService.NodePort), int32(aCfg.Port)),
 		NewServiceNodePort("ws", oc.Spec.APIGateway.WSService.InternalOnly, int32(oc.Spec.APIGateway.WSService.NodePort), constants.APIWebsocketPort),
 	}
-	return []*corev1.Service{m.newNodePortService(v1alpha1.APIGatewayComponentType, oc, oc.Spec.APIGateway.APIService.InternalOnly, ports)}
+	return m.newNodePortService(v1alpha1.APIGatewayComponentType, oc, oc.Spec.APIGateway.APIService.InternalOnly, ports, oc.Spec.APIGateway.ROService)
 }
 
 func (m *apiGatewayManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -150,4 +150,8 @@ func (m *apiGatewayManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1a
 
 func (m *apiGatewayManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.APIGateway
+}
+
+func (m *apiGatewayManager) supportsReadOnlyService() bool {
+	return false
 }

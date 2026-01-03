@@ -48,7 +48,7 @@ func (m *scheduledtaskManager) getPhaseControl(man controller.ComponentManager, 
 }
 
 func (m *scheduledtaskManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.ScheduledtaskComponentType, oc, oc.Spec.Scheduledtask.Service.InternalOnly, int32(oc.Spec.Scheduledtask.Service.NodePort), int32(constants.ScheduledtaskPort))}
+	return m.newSinglePortService(v1alpha1.ScheduledtaskComponentType, oc, oc.Spec.Scheduledtask.Service.InternalOnly, int32(oc.Spec.Scheduledtask.Service.NodePort), int32(constants.ScheduledtaskPort), oc.Spec.Scheduledtask.ROService)
 }
 
 func (m *scheduledtaskManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
@@ -65,4 +65,8 @@ func (m *scheduledtaskManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *
 
 func (m *scheduledtaskManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Scheduledtask
+}
+
+func (m *scheduledtaskManager) supportsReadOnlyService() bool {
+	return true
 }

@@ -66,6 +66,7 @@ func (r logger) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudCl
 	opt.Port = config.Port
 	return opt, nil
 }
+
 func (r logger) GetPhaseControl(man controller.ComponentManager) controller.PhaseControl {
 	return controller.NewRegisterEndpointComponent(man, v1alpha1.LoggerComponentType,
 		constants.ServiceNameLogger, constants.ServiceTypeLogger,

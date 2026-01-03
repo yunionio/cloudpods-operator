@@ -237,7 +237,7 @@ func NewJavaBaseConfig(oc *v1alpha1.OnecloudCluster, port int, user, passwd stri
 }
 
 func (m *itsmManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.ItsmComponentType, oc, oc.Spec.Itsm.Service.InternalOnly, int32(oc.Spec.Itsm.Service.NodePort), int32(cfg.Itsm.Port))}
+	return m.newSinglePortService(v1alpha1.ItsmComponentType, oc, oc.Spec.Itsm.Service.InternalOnly, int32(oc.Spec.Itsm.Service.NodePort), int32(cfg.Itsm.Port), oc.Spec.Itsm.ROService)
 }
 
 func (m *itsmManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -288,4 +288,8 @@ func SetJavaConfigVolumes(vols []corev1.Volume) []corev1.Volume {
 	config.ConfigMap.Items[0].Path = "application.properties"
 	vols[len(vols)-1] = config
 	return vols
+}
+
+func (m *itsmManager) supportsReadOnlyService() bool {
+	return false
 }

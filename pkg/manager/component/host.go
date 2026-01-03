@@ -301,3 +301,7 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 	ds.Spec.Selector.MatchLabels[constants.OnecloudHostDeployerLabelKey] = ""
 	return ds, nil
 }
+
+func (m *hostManager) supportsReadOnlyService() bool {
+	return false
+}

@@ -614,6 +614,10 @@ type DeploymentSpec struct {
 	Tolerations      []corev1.Toleration           `json:"tolerations,omitempty"`
 	Annotations      map[string]string             `json:"annotations,omitempty"`
 	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
+
+	// if true, create a read only deployment for the component
+	ROService  bool  `json:"ro_service"`
+	ROReplicas int32 `json:"ro_replicas"`
 }
 
 // ServicePortSpec contains listening port definition

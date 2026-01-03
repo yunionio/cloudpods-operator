@@ -88,7 +88,7 @@ func (m *loggerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 }
 
 func (m *loggerManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.LoggerComponentType, oc, oc.Spec.Logger.Service.InternalOnly, int32(oc.Spec.Logger.Service.NodePort), int32(cfg.Logger.Port))}
+	return m.newSinglePortService(v1alpha1.LoggerComponentType, oc, oc.Spec.Logger.Service.InternalOnly, int32(oc.Spec.Logger.Service.NodePort), int32(cfg.Logger.Port), oc.Spec.Logger.ROService)
 }
 
 func (m *loggerManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -97,4 +97,8 @@ func (m *loggerManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 
 func (m *loggerManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Logger
+}
+
+func (m *loggerManager) supportsReadOnlyService() bool {
+	return true
 }

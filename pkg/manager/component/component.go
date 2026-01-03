@@ -287,34 +287,40 @@ func (m *ComponentManager) syncConfigMap(
 			}
 		}
 	}
-	cfgMap, forceUpdate, err := cfgMapFactory(oc, clustercfg, zone)
-	if err != nil {
-		return err
-	}
-	if cfgMap == nil {
-		return nil
-	}
-	if err := SetConfigMapLastAppliedConfigAnnotation(cfgMap); err != nil {
-		return err
-	}
-	if forceUpdate {
-		log.Infof("forceUpdate configMap %s", cfgMap.GetName())
+	syncCmfunc := func() error {
+		cfgMap, forceUpdate, err := cfgMapFactory(oc, clustercfg, zone)
+		if err != nil {
+			return errorswrap.Wrap(err, "get config map")
+		}
+		if cfgMap == nil {
+			return nil
+		}
+		if err := SetConfigMapLastAppliedConfigAnnotation(cfgMap); err != nil {
+			return err
+		}
+		if forceUpdate {
+			log.Infof("forceUpdate configMap %s", cfgMap.GetName())
+			return m.configer.CreateOrUpdateConfigMap(oc, cfgMap)
+		}
+		oldCfgMap, err := m.configer.Lister().ConfigMaps(oc.GetNamespace()).Get(cfgMap.GetName())
+		if err != nil && !errors.IsNotFound(err) {
+			return err
+		}
+		if oldCfgMap != nil {
+			//if equal, err := configMapEqual(cfgMap, oldCfgMap); err != nil {
+			//	return err
+			//} else if equal {
+			//	return nil
+			//}
+			// if cfgmap exist do not update
+			return nil
+		}
 		return m.configer.CreateOrUpdateConfigMap(oc, cfgMap)
 	}
-	oldCfgMap, err := m.configer.Lister().ConfigMaps(oc.GetNamespace()).Get(cfgMap.GetName())
-	if err != nil && !errors.IsNotFound(err) {
-		return err
+	if err := syncCmfunc(); err != nil {
+		return errorswrap.Wrap(err, "sync rw configmap")
 	}
-	if oldCfgMap != nil {
-		//if equal, err := configMapEqual(cfgMap, oldCfgMap); err != nil {
-		//	return err
-		//} else if equal {
-		//	return nil
-		//}
-		// if cfgmap exist do not update
-		return nil
-	}
-	return m.configer.CreateOrUpdateConfigMap(oc, cfgMap)
+	return nil
 }
 
 func (m *ComponentManager) syncDaemonSet(
@@ -535,7 +541,8 @@ func (m *ComponentManager) newDefaultDeployment(
 	oc *v1alpha1.OnecloudCluster,
 	volHelper *VolumeHelper,
 	spec *v1alpha1.DeploymentSpec,
-	initContainersFactory func([]corev1.VolumeMount) []corev1.Container, containersFactory func([]corev1.VolumeMount) []corev1.Container,
+	initContainersFactory func([]corev1.VolumeMount) []corev1.Container,
+	containersFactory func([]corev1.VolumeMount) []corev1.Container,
 ) (*apps.Deployment, error) {
 	return m.newDefaultDeploymentWithCloudAffinity(componentType, zoneComponentType, oc, volHelper, spec, initContainersFactory, containersFactory)
 }
@@ -633,14 +640,14 @@ func (m *ComponentManager) getObjectMeta(oc *v1alpha1.OnecloudCluster, name stri
 	}
 }
 
-func (m *ComponentManager) getComponentLabel(oc *v1alpha1.OnecloudCluster, componentType v1alpha1.ComponentType) label.Label {
+func (m *ComponentManager) getComponentLabel(oc *v1alpha1.OnecloudCluster, componentType v1alpha1.ComponentType, readOnly bool) label.Label {
 	instanceName := oc.GetLabels()[label.InstanceLabelKey]
-	return label.New().Instance(instanceName).Component(componentType.String())
+	return label.New().Instance(instanceName).Component(componentType.String(), readOnly)
 }
 
 func (m *ComponentManager) newConfigMap(componentType v1alpha1.ComponentType, zone string, oc *v1alpha1.OnecloudCluster, config string) *corev1.ConfigMap {
 	name := controller.ComponentConfigMapName(oc, m.getZoneComponent(componentType, zone))
-	labels := m.getComponentLabel(oc, componentType)
+	labels := m.getComponentLabel(oc, componentType, false)
 	labels = labels.Zone(zone)
 	return &corev1.ConfigMap{
 		ObjectMeta: m.getObjectMeta(oc, name, labels.Labels()),
@@ -660,20 +667,9 @@ func (m *ComponentManager) newService(
 	oc *v1alpha1.OnecloudCluster,
 	serviceType corev1.ServiceType,
 	ports []corev1.ServicePort,
+	readOnly bool,
 ) *corev1.Service {
-	ocName := oc.GetName()
-	svcName := controller.NewClusterComponentName(ocName, componentType)
-	appLabel := m.getComponentLabel(oc, componentType)
-
-	svc := &corev1.Service{
-		ObjectMeta: m.getObjectMeta(oc, svcName, appLabel),
-		Spec: corev1.ServiceSpec{
-			Type:     serviceType,
-			Selector: appLabel,
-			Ports:    ports,
-		},
-	}
-	return svc
+	return m.newServiceWithClusterIp(componentType, oc, serviceType, ports, "", readOnly)
 }
 
 func (m *ComponentManager) newServiceWithClusterIp(
@@ -682,40 +678,59 @@ func (m *ComponentManager) newServiceWithClusterIp(
 	serviceType corev1.ServiceType,
 	ports []corev1.ServicePort,
 	clusterIp string,
+	readOnly bool,
 ) *corev1.Service {
 	ocName := oc.GetName()
 	svcName := controller.NewClusterComponentName(ocName, componentType)
-	appLabel := m.getComponentLabel(oc, componentType)
+	appLabel := m.getComponentLabel(oc, componentType, readOnly)
 
+	if readOnly {
+		svcName = fmt.Sprintf("%s-ro", svcName)
+		serviceType = corev1.ServiceTypeClusterIP
+		// deepcopy ports
+		oports := ports[:]
+		ports = make([]corev1.ServicePort, len(ports))
+		copy(ports, oports)
+		for i := range ports {
+			ports[i].NodePort = 0 // disable node port for read only service
+		}
+	}
 	svc := &corev1.Service{
 		ObjectMeta: m.getObjectMeta(oc, svcName, appLabel),
 		Spec: corev1.ServiceSpec{
-			Type:      serviceType,
-			Selector:  appLabel,
-			Ports:     ports,
-			ClusterIP: clusterIp,
+			Type:     serviceType,
+			Selector: appLabel,
+			Ports:    ports,
 		},
+	}
+	if len(clusterIp) > 0 {
+		svc.Spec.ClusterIP = clusterIp
 	}
 	return svc
 }
 
-func (m *ComponentManager) newNodePortService(cType v1alpha1.ComponentType, oc *v1alpha1.OnecloudCluster, internalOnly bool, ports []corev1.ServicePort) *corev1.Service {
+func (m *ComponentManager) newNodePortService(cType v1alpha1.ComponentType, oc *v1alpha1.OnecloudCluster, internalOnly bool, ports []corev1.ServicePort, roService bool) []*corev1.Service {
 	svcType := corev1.ServiceTypeNodePort
 	if internalOnly {
 		svcType = corev1.ServiceTypeClusterIP
 	}
-	return m.newService(cType, oc, svcType, ports)
+	ret := make([]*corev1.Service, 0, 2)
+	ret = append(ret, m.newService(cType, oc, svcType, ports, false))
+	if roService {
+		ret = append(ret, m.newService(cType, oc, svcType, ports, true))
+	}
+	return ret
 }
 
-func (m *ComponentManager) newSingleNodePortService(cType v1alpha1.ComponentType, oc *v1alpha1.OnecloudCluster, nodePort, targetPort int32) *corev1.Service {
-	return m.newSinglePortService(cType, oc, false, nodePort, targetPort)
+func (m *ComponentManager) newSingleNodePortService(cType v1alpha1.ComponentType, oc *v1alpha1.OnecloudCluster, nodePort, targetPort int32, roService bool) []*corev1.Service {
+	return m.newSinglePortService(cType, oc, false, nodePort, targetPort, roService)
 }
 
-func (m *ComponentManager) newSinglePortService(cType v1alpha1.ComponentType, oc *v1alpha1.OnecloudCluster, internalOnly bool, nodePort, targetPort int32) *corev1.Service {
+func (m *ComponentManager) newSinglePortService(cType v1alpha1.ComponentType, oc *v1alpha1.OnecloudCluster, internalOnly bool, nodePort, targetPort int32, roService bool) []*corev1.Service {
 	ports := []corev1.ServicePort{
 		NewServiceNodePort("api", internalOnly, nodePort, targetPort),
 	}
-	return m.newNodePortService(cType, oc, internalOnly, ports)
+	return m.newNodePortService(cType, oc, internalOnly, ports, roService)
 }
 
 func (m *ComponentManager) newEtcdClientService(
@@ -727,7 +742,7 @@ func (m *ComponentManager) newEtcdClientService(
 		TargetPort: intstr.FromInt(constants.EtcdClientPort),
 		Protocol:   corev1.ProtocolTCP,
 	}}
-	return m.newService(cType, oc, corev1.ServiceTypeClusterIP, ports)
+	return m.newService(cType, oc, corev1.ServiceTypeClusterIP, ports, false)
 }
 
 func (m *ComponentManager) newEtcdService(
@@ -745,7 +760,7 @@ func (m *ComponentManager) newEtcdService(
 		Protocol:   corev1.ProtocolTCP,
 	}}
 	return m.newServiceWithClusterIp(
-		cType, oc, corev1.ServiceTypeClusterIP, ports, corev1.ClusterIPNone)
+		cType, oc, corev1.ServiceTypeClusterIP, ports, corev1.ClusterIPNone, false)
 }
 
 func (m *ComponentManager) newDeployment(
@@ -760,7 +775,7 @@ func (m *ComponentManager) newDeployment(
 	ns := oc.GetNamespace()
 	ocName := oc.GetName()
 
-	appLabel := m.getComponentLabel(oc, componentType)
+	appLabel := m.getComponentLabel(oc, componentType, false)
 
 	vols := volHelper.GetVolumes()
 	volMounts := volHelper.GetVolumeMounts()
@@ -768,7 +783,6 @@ func (m *ComponentManager) newDeployment(
 	podAnnotations := spec.Annotations
 
 	deployName := controller.NewClusterComponentName(ocName, zoneComponentType)
-
 	appDeploy := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            deployName,
@@ -1141,7 +1155,7 @@ func (m *ComponentManager) newDaemonSetWithLimits(
 ) (*apps.DaemonSet, error) {
 	ns := oc.GetNamespace()
 	ocName := oc.GetName()
-	appLabel := m.getComponentLabel(oc, componentType)
+	appLabel := m.getComponentLabel(oc, componentType, false)
 	vols := volHelper.GetVolumes()
 	volMounts := volHelper.GetVolumeMounts()
 	podAnnotations := spec.Annotations
@@ -1209,7 +1223,7 @@ func (m *ComponentManager) newCronJob(
 	ocName := oc.GetName()
 	vols := volHelper.GetVolumes()
 	volMounts := volHelper.GetVolumeMounts()
-	appLabel := m.getComponentLabel(oc, componentType)
+	appLabel := m.getComponentLabel(oc, componentType, false)
 	podAnnotations := spec.Annotations
 	cronJobName := controller.NewClusterComponentName(ocName, componentType)
 	var jobSpecBackoffLimit int32 = 1

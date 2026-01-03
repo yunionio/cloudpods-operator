@@ -80,7 +80,7 @@ func (m *cloudmonManager) getPhaseControl(man controller.ComponentManager, zone 
 }
 
 func (m *cloudmonManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.CloudmonComponentType, oc, oc.Spec.Cloudmon.Service.InternalOnly, int32(oc.Spec.Cloudmon.Service.NodePort), int32(cfg.Cloudmon.Port))}
+	return m.newSinglePortService(v1alpha1.CloudmonComponentType, oc, oc.Spec.Cloudmon.Service.InternalOnly, int32(oc.Spec.Cloudmon.Service.NodePort), int32(cfg.Cloudmon.Port), oc.Spec.Cloudmon.ROService)
 }
 
 func (m *cloudmonManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -108,4 +108,8 @@ func (m *cloudmonManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 
 func (m *cloudmonManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Cloudmon
+}
+
+func (m *cloudmonManager) supportsReadOnlyService() bool {
+	return false
 }

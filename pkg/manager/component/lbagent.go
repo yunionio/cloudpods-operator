@@ -151,3 +151,7 @@ func (m *lbagentManager) newLbagentPrivilegedDaemonSet(
 
 	return ds, nil
 }
+
+func (m *lbagentManager) supportsReadOnlyService() bool {
+	return false
+}

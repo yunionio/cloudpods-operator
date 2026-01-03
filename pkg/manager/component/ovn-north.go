@@ -62,7 +62,7 @@ func (m *ovnNorthManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 		np0,
 		np1,
 	}
-	return []*corev1.Service{m.newNodePortService(v1alpha1.OvnNorthComponentType, oc, isInternalPort, ports)}
+	return m.newNodePortService(v1alpha1.OvnNorthComponentType, oc, isInternalPort, ports, false)
 }
 
 func (m *ovnNorthManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -96,4 +96,8 @@ func (m *ovnNorthManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 
 func (m *ovnNorthManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.OvnNorth
+}
+
+func (m *ovnNorthManager) supportsReadOnlyService() bool {
+	return false
 }

@@ -98,7 +98,7 @@ func (m *llmManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.On
 }
 
 func (m *llmManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.LLMComponentType, oc, oc.Spec.LLM.Service.InternalOnly, int32(oc.Spec.LLM.Service.NodePort), int32(cfg.LLM.Port))}
+	return m.newSinglePortService(v1alpha1.LLMComponentType, oc, oc.Spec.LLM.Service.InternalOnly, int32(oc.Spec.LLM.Service.NodePort), int32(cfg.LLM.Port), oc.Spec.LLM.ROService)
 }
 
 func (m *llmManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -107,4 +107,8 @@ func (m *llmManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 
 func (m *llmManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.LLM
+}
+
+func (m *llmManager) supportsReadOnlyService() bool {
+	return true
 }

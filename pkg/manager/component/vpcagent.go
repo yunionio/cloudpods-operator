@@ -106,7 +106,7 @@ func (m *vpcAgentManager) getPhaseControl(man controller.ComponentManager, zone 
 }
 
 func (m *vpcAgentManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.VpcAgentComponentType, oc, oc.Spec.VpcAgent.Service.InternalOnly, int32(oc.Spec.VpcAgent.Service.NodePort), int32(cfg.VpcAgent.Port))}
+	return m.newSinglePortService(v1alpha1.VpcAgentComponentType, oc, oc.Spec.VpcAgent.Service.InternalOnly, int32(oc.Spec.VpcAgent.Service.NodePort), int32(cfg.VpcAgent.Port), oc.Spec.VpcAgent.ROService)
 }
 
 func (m *vpcAgentManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -115,4 +115,8 @@ func (m *vpcAgentManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 
 func (m *vpcAgentManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.VpcAgent
+}
+
+func (m *vpcAgentManager) supportsReadOnlyService() bool {
+	return false
 }

@@ -141,3 +141,7 @@ func (m *hostDeployerManager) newHostPrivilegedDaemonSet(
 	count := intstr.FromInt(len(nodes) + 1)
 	return &count, nil
 }*/
+
+func (m *hostDeployerManager) supportsReadOnlyService() bool {
+	return false
+}

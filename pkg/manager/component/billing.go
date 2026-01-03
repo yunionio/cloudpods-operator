@@ -82,7 +82,7 @@ func (b *billingManager) getPhaseControl(man controller.ComponentManager, zone s
 }
 
 func (b *billingManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{b.newSinglePortService(v1alpha1.BillingComponentType, oc, oc.Spec.Billing.Service.InternalOnly, int32(oc.Spec.Billing.Service.NodePort), int32(cfg.Billing.Port))}
+	return b.newSinglePortService(v1alpha1.BillingComponentType, oc, oc.Spec.Billing.Service.InternalOnly, int32(oc.Spec.Billing.Service.NodePort), int32(cfg.Billing.Port), oc.Spec.Billing.ROService)
 }
 
 func (b *billingManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
@@ -119,4 +119,8 @@ func (b *billingManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 
 func (b *billingManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.BillingStatus
+}
+
+func (b *billingManager) supportsReadOnlyService() bool {
+	return true
 }

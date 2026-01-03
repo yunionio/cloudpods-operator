@@ -91,13 +91,13 @@ func (m *webManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.Onec
 			TargetPort: intstr.FromInt(8081),
 		},
 	}
-	return []*corev1.Service{m.newService(v1alpha1.WebComponentType, oc, corev1.ServiceTypeClusterIP, ports)}
+	return []*corev1.Service{m.newService(v1alpha1.WebComponentType, oc, corev1.ServiceTypeClusterIP, ports, false)}
 }
 
 func (m *webManager) getIngress(oc *v1alpha1.OnecloudCluster, zone string) *unstructured.Unstructured {
 	ocName := oc.GetName()
 	svcName := controller.NewClusterComponentName(ocName, v1alpha1.WebComponentType)
-	appLabel := m.getComponentLabel(oc, v1alpha1.WebComponentType)
+	appLabel := m.getComponentLabel(oc, v1alpha1.WebComponentType, false)
 	secretName := controller.ClustercertSecretName(oc)
 
 	obj := new(unstructured.Unstructured)
@@ -355,4 +355,8 @@ func (m *webManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 
 func (m *webManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Web
+}
+
+func (m *webManager) supportsReadOnlyService() bool {
+	return false
 }

@@ -93,7 +93,7 @@ func (m *regionManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 	ports := []corev1.ServicePort{
 		NewServiceNodePort("api", oc.Spec.RegionServer.Service.InternalOnly, int32(oc.Spec.RegionServer.Service.NodePort), int32(cfg.RegionServer.Port)),
 	}
-	return []*corev1.Service{m.newNodePortService(v1alpha1.RegionComponentType, oc, oc.Spec.RegionServer.Service.InternalOnly, ports)}
+	return m.newNodePortService(v1alpha1.RegionComponentType, oc, oc.Spec.RegionServer.Service.InternalOnly, ports, oc.Spec.RegionServer.ROService)
 }
 
 func (m *regionManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -111,4 +111,8 @@ func (m *regionManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 
 func (m *regionManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.RegionServer.DeploymentStatus
+}
+
+func (m *regionManager) supportsReadOnlyService() bool {
+	return true
 }

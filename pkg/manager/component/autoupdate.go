@@ -136,9 +136,7 @@ func (m *autoUpdateManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 }
 
 func (m *autoUpdateManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{
-		m.newSinglePortService(v1alpha1.AutoUpdateComponentType, oc, oc.Spec.AutoUpdate.Service.InternalOnly, int32(oc.Spec.AutoUpdate.Service.NodePort), int32(cfg.AutoUpdate.Port)),
-	}
+	return m.newSinglePortService(v1alpha1.AutoUpdateComponentType, oc, oc.Spec.AutoUpdate.Service.InternalOnly, int32(oc.Spec.AutoUpdate.Service.NodePort), int32(cfg.AutoUpdate.Port), oc.Spec.AutoUpdate.ROService)
 }
 
 func (m *autoUpdateManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -154,4 +152,8 @@ func (m *autoUpdateManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1a
 
 func (m *autoUpdateManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.AutoUpdate
+}
+
+func (m *autoUpdateManager) supportsReadOnlyService() bool {
+	return false
 }

@@ -66,7 +66,7 @@ func (m *echartsSSRManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 			TargetPort: intstr.FromInt(constants.EChartsSSRPort),
 		},
 	}
-	return []*corev1.Service{m.newService(v1alpha1.EChartsSSRComponentType, oc, corev1.ServiceTypeClusterIP, ports)}
+	return []*corev1.Service{m.newService(v1alpha1.EChartsSSRComponentType, oc, corev1.ServiceTypeClusterIP, ports, false)}
 }
 
 func (m *echartsSSRManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -102,4 +102,8 @@ func (m *echartsSSRManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zo
 
 func (m *echartsSSRManager) getPhaseControl(man controller.ComponentManager, zone string) controller.PhaseControl {
 	return man.EChartsSSR()
+}
+
+func (m *echartsSSRManager) supportsReadOnlyService() bool {
+	return false
 }

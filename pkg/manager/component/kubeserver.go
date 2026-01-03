@@ -83,7 +83,7 @@ func (m *kubeManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 }
 
 func (m *kubeManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.KubeServerComponentType, oc, oc.Spec.KubeServer.Service.InternalOnly, int32(oc.Spec.KubeServer.Service.NodePort), int32(cfg.KubeServer.Port))}
+	return m.newSinglePortService(v1alpha1.KubeServerComponentType, oc, oc.Spec.KubeServer.Service.InternalOnly, int32(oc.Spec.KubeServer.Service.NodePort), int32(cfg.KubeServer.Port), oc.Spec.KubeServer.ROService)
 }
 
 func (m *kubeManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -97,4 +97,8 @@ func (m *kubeManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 
 func (m *kubeManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.KubeServer
+}
+
+func (m *kubeManager) supportsReadOnlyService() bool {
+	return true
 }

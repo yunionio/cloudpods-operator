@@ -109,7 +109,7 @@ func (m *cloudeventManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1al
 }
 
 func (m *cloudeventManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.CloudeventComponentType, oc, oc.Spec.Cloudevent.Service.InternalOnly, int32(oc.Spec.Cloudevent.Service.NodePort), int32(cfg.Cloudevent.Port))}
+	return m.newSinglePortService(v1alpha1.CloudeventComponentType, oc, oc.Spec.Cloudevent.Service.InternalOnly, int32(oc.Spec.Cloudevent.Service.NodePort), int32(cfg.Cloudevent.Port), oc.Spec.Cloudevent.ROService)
 }
 
 func (m *cloudeventManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -129,4 +129,8 @@ func (m *cloudeventManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1a
 
 func (m *cloudeventManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Cloudevent
+}
+
+func (m *cloudeventManager) supportsReadOnlyService() bool {
+	return true
 }
