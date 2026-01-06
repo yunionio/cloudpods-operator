@@ -23,11 +23,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
+	"yunion.io/x/onecloud/pkg/mcclient"
+
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
 	"yunion.io/x/onecloud-operator/pkg/service-init/component"
+	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 )
 
 type vmManager struct {
@@ -74,9 +77,7 @@ func (m *vmManager) getPhaseControl(man controller.ComponentManager, zone string
 }
 
 func (m *vmManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{
-		m.newSinglePortService(v1alpha1.VictoriaMetricsComponentType, oc, oc.Spec.VictoriaMetrics.Service.InternalOnly, int32(oc.Spec.VictoriaMetrics.Service.NodePort), m.getContainerPort()),
-	}
+	return m.newSinglePortService(v1alpha1.VictoriaMetricsComponentType, oc, oc.Spec.VictoriaMetrics.Service.InternalOnly, int32(oc.Spec.VictoriaMetrics.Service.NodePort), m.getContainerPort(), oc.Spec.VictoriaMetrics.SlaveReplicas > 0)
 }
 
 func (m *vmManager) getPVC(oc *v1alpha1.OnecloudCluster, zone string) (*corev1.PersistentVolumeClaim, error) {
@@ -191,4 +192,22 @@ func (m *vmManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.On
 
 func (m *vmManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.VictoriaMetrics
+}
+
+func (m *vmManager) supportsReadOnlyService() bool {
+	return false
+}
+
+func (m *vmManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return nil
+}
+
+func (m *vmManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return func(s *mcclient.ClientSession) error {
+		if m.IsDisabled(oc) {
+			return onecloud.EnsureDisableService(s, m.GetServiceName())
+		} else {
+			return onecloud.EnsureEnableService(s, m.GetServiceName(), m.supportsReadOnlyService() && oc.Spec.VictoriaMetrics.SlaveReplicas > 0)
+		}
+	}
 }

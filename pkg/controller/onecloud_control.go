@@ -420,6 +420,10 @@ type endpoint struct {
 	Interface string
 }
 
+func (ep endpoint) getKey() string {
+	return ep.Interface
+}
+
 func newEndpointByInterfaceType(host string, port int, path string, infType string) *endpoint {
 	return &endpoint{
 		Host:      host,
@@ -435,6 +439,10 @@ func newPublicEndpoint(host string, port int, path string) *endpoint {
 
 func newInternalEndpoint(host string, port int, path string) *endpoint {
 	return newEndpointByInterfaceType(host, port, path, constants.EndpointTypeInternal)
+}
+
+func newSlaveEndpoint(host string, port int, path string) *endpoint {
+	return newEndpointByInterfaceType(host, port, path, constants.EndpointTypeSlave)
 }
 
 func (e endpoint) GetProtocolUrl(proto string) string {
@@ -456,7 +464,7 @@ func (e endpoint) GetUrl(enableSSL bool) string {
 func (c *baseComponent) RegisterCloudServiceEndpoint(
 	cType v1alpha1.ComponentType,
 	serviceName, serviceType string,
-	port int, prefix string, enableSsl bool) error {
+	port int, prefix string, enableSsl bool, hasRoEndpoint bool) error {
 	oc := c.GetCluster()
 	internalAddress := NewClusterComponentName(oc.GetName(), cType)
 	publicAddress := oc.Spec.LoadBalancerEndpoint
@@ -467,20 +475,23 @@ func (c *baseComponent) RegisterCloudServiceEndpoint(
 		newPublicEndpoint(publicAddress, port, prefix),
 		newInternalEndpoint(internalAddress, port, prefix),
 	}
-
-	return c.RegisterServiceEndpoints(serviceName, serviceType, eps, enableSsl)
+	if hasRoEndpoint {
+		slaveAddress := internalAddress + "-slave"
+		eps = append(eps, newSlaveEndpoint(slaveAddress, port, prefix))
+	}
+	return c.registerServiceEndpoints(serviceName, serviceType, eps, enableSsl)
 }
 
 func (c *baseComponent) registerServiceEndpointsBySession(s *mcclient.ClientSession, serviceName, serviceType string, eps []*endpoint, enableSSL bool) error {
 	urls := map[string]string{}
 	for _, ep := range eps {
-		urls[ep.Interface] = ep.GetUrl(enableSSL)
+		urls[ep.getKey()] = ep.GetUrl(enableSSL)
 	}
 	region := c.GetCluster().Spec.Region
 	return onecloud.RegisterServiceEndpoints(s, region, serviceName, serviceType, "", urls)
 }
 
-func (c *baseComponent) RegisterServiceEndpoints(serviceName, serviceType string, eps []*endpoint, enableSSL bool) error {
+func (c *baseComponent) registerServiceEndpoints(serviceName, serviceType string, eps []*endpoint, enableSSL bool) error {
 	return c.RunWithSession(func(s *mcclient.ClientSession) error {
 		return c.registerServiceEndpointsBySession(s, serviceName, serviceType, eps, enableSSL)
 	})
@@ -527,7 +538,10 @@ func (c keystoneComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 			regionId, _ := res.GetString("id")
 			oc.Status.RegionServer.RegionId = regionId
 		}
-		if err := c.doRegisterIdentity(s, region, oc.Spec.LoadBalancerEndpoint, KeystoneComponentName(oc.GetName()),
+		if err := c.doRegisterIdentity(s, region,
+			oc.Spec.LoadBalancerEndpoint,
+			KeystoneComponentName(oc.GetName()),
+			KeystoneComponentName(oc.GetName())+"-slave",
 			oc.Spec.Keystone.AdminService.NodePort, oc.Spec.Keystone.PublicService.NodePort, !oc.Spec.Keystone.DisableTLS); err != nil {
 			return errors.Wrap(err, "register identity endpoint")
 		}
@@ -694,28 +708,12 @@ func doCreateRegion(s *mcclient.ClientSession, region string) (jsonutils.JSONObj
 	return onecloud.CreateRegion(s, region, "")
 }
 
-func doRegisterCloudMeta(s *mcclient.ClientSession, regionId string) error {
-	return onecloud.RegisterServicePublicInternalEndpoint(s, regionId,
-		constants.ServiceNameCloudmeta,
-		constants.ServiceTypeCloudmeta,
-		"",
-		constants.ServiceURLCloudmeta)
-}
-
-func doRegisterTracker(s *mcclient.ClientSession, regionId string) error {
-	return onecloud.RegisterServicePublicInternalEndpoint(
-		s, regionId,
-		constants.ServiceNameTorrentTracker,
-		constants.ServiceTypeTorrentTracker,
-		"",
-		constants.ServiceURLTorrentTracker)
-}
-
 func (c *keystoneComponent) doRegisterIdentity(
 	s *mcclient.ClientSession,
 	regionId string,
 	publicAddress string,
 	keystoneAddress string,
+	slaveAddress string,
 	adminPort int,
 	publicPort int,
 	enableSSL bool,
@@ -723,14 +721,12 @@ func (c *keystoneComponent) doRegisterIdentity(
 	if publicAddress == "" {
 		publicAddress = keystoneAddress
 	}
-	eps := make([]*endpoint, 0)
-	eps = append(
-		eps,
+	eps := []*endpoint{
 		newPublicEndpoint(publicAddress, publicPort, "v3"),
 		newInternalEndpoint(keystoneAddress, publicPort, "v3"),
 		newEndpointByInterfaceType(publicAddress, adminPort, "v3", constants.EndpointTypeAdmin),
-	)
-
+		newEndpointByInterfaceType(slaveAddress, publicPort, "v3", constants.EndpointTypeSlave),
+	}
 	return c.registerServiceEndpointsBySession(s, constants.ServiceNameKeystone, constants.ServiceTypeIdentity, eps, enableSSL)
 }
 
@@ -804,7 +800,7 @@ func (c *regionComponent) Setup() error {
 	return c.RegisterCloudServiceEndpoint(
 		v1alpha1.RegionComponentType,
 		constants.ServiceNameRegionV2, constants.ServiceTypeComputeV2,
-		c.GetCluster().Spec.RegionServer.Service.NodePort, "", true)
+		c.GetCluster().Spec.RegionServer.Service.NodePort, "", true, true)
 }
 
 func (c *regionComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
@@ -968,7 +964,7 @@ func (c *glanceComponent) Setup() error {
 	return c.RegisterCloudServiceEndpoint(
 		v1alpha1.GlanceComponentType,
 		constants.ServiceNameGlance, constants.ServiceTypeGlance,
-		c.GetCluster().Spec.Glance.Service.NodePort, "v1", true)
+		c.GetCluster().Spec.Glance.Service.NodePort, "v1", true, true)
 }
 
 type registerServiceComponent struct {
@@ -1021,7 +1017,7 @@ func NewRegisterEndpointComponent(
 }
 
 func (c *registerEndpointComponent) Setup() error {
-	return c.RegisterCloudServiceEndpoint(c.cType, c.serviceName, c.serviceType, c.port, c.prefix, true)
+	return c.RegisterCloudServiceEndpoint(c.cType, c.serviceName, c.serviceType, c.port, c.prefix, true, true)
 }
 
 type tsdbComponent struct {
@@ -1057,7 +1053,7 @@ func (c *tsdbComponent) Setup() error {
 	if err != nil {
 		return errors.Wrap(err, "check service exists")
 	}
-	err = c.RegisterCloudServiceEndpoint(c.cType, c.serviceName, c.serviceType, c.port, c.prefix, true)
+	err = c.RegisterCloudServiceEndpoint(c.cType, c.serviceName, c.serviceType, c.port, c.prefix, true, false)
 	if err != nil {
 		return errors.Wrap(err, "RegisterCloudServiceEndpoint")
 	}
@@ -1107,7 +1103,7 @@ func NewItsmEndpointComponent(man ComponentManager,
 }
 
 func (c *itsmComponent) Setup() error {
-	return c.RegisterCloudServiceEndpoint(c.cType, c.serviceName, c.serviceType, c.port, c.prefix, true)
+	return c.RegisterCloudServiceEndpoint(c.cType, c.serviceName, c.serviceType, c.port, c.prefix, true, false)
 }
 
 type yunionagentComponent struct {
@@ -1118,7 +1114,7 @@ func (c yunionagentComponent) Setup() error {
 	return c.RegisterCloudServiceEndpoint(
 		v1alpha1.YunionagentComponentType,
 		constants.ServiceNameYunionAgent, constants.ServiceTypeYunionAgent,
-		c.GetCluster().Spec.Yunionagent.Service.NodePort, "", true)
+		c.GetCluster().Spec.Yunionagent.Service.NodePort, "", true, false)
 }
 
 func (c yunionagentComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
@@ -1155,7 +1151,7 @@ func (c devtoolComponent) Setup() error {
 	oc := c.GetCluster()
 	return c.RegisterCloudServiceEndpoint(v1alpha1.DevtoolComponentType,
 		constants.ServiceNameDevtool, constants.ServiceTypeDevtool,
-		oc.Spec.Devtool.Service.NodePort, "", true)
+		oc.Spec.Devtool.Service.NodePort, "", true, false)
 }
 
 func (c devtoolComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
@@ -1247,7 +1243,7 @@ type monitorComponent struct {
 }
 
 func (c monitorComponent) Setup() error {
-	return c.RegisterCloudServiceEndpoint(v1alpha1.MonitorComponentType, constants.ServiceNameMonitor, constants.ServiceTypeMonitor, c.GetCluster().Spec.Monitor.Service.NodePort, "", true)
+	return c.RegisterCloudServiceEndpoint(v1alpha1.MonitorComponentType, constants.ServiceNameMonitor, constants.ServiceTypeMonitor, c.GetCluster().Spec.Monitor.Service.NodePort, "", true, false)
 }
 
 func (c monitorComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
@@ -1603,7 +1599,7 @@ func (c *cloudproxyComponent) Setup() error {
 	return c.RegisterCloudServiceEndpoint(
 		v1alpha1.CloudproxyComponentType,
 		constants.ServiceNameCloudproxy, constants.ServiceTypeCloudproxy,
-		c.GetCluster().Spec.Cloudproxy.Service.NodePort, "", true)
+		c.GetCluster().Spec.Cloudproxy.Service.NodePort, "", true, false)
 }
 
 func GetDefaultProxyAgentName() string {
@@ -1660,5 +1656,5 @@ func (c *apigatewayComponent) Setup() error {
 	return c.RegisterCloudServiceEndpoint(
 		v1alpha1.APIGatewayComponentType,
 		constants.ServiceNameAPIGateway, constants.ServiceTypeAPIGateway,
-		c.GetCluster().Spec.APIGateway.APIService.NodePort, "", true)
+		c.GetCluster().Spec.APIGateway.APIService.NodePort, "", true, false)
 }

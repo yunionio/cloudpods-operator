@@ -25,6 +25,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud/pkg/mcclient"
 )
 
 type serviceOperatorManager struct {
@@ -97,7 +98,7 @@ func (m *serviceOperatorManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg
 	ns := oc.GetNamespace()
 	ocName := oc.GetName()
 	deployName := controller.NewClusterComponentName(ocName, v1alpha1.ServiceOperatorComponentType)
-	appLable := m.getComponentLabel(oc, constants.ServiceOperatorAdminUser)
+	appLable := m.getComponentLabel(oc, constants.ServiceOperatorAdminUser, false)
 	appLable["control-plane"] = "controller-manager"
 	cfgName := controller.ComponentConfigMapName(oc, v1alpha1.ServiceOperatorComponentType)
 	configName := "oro.conf"
@@ -203,9 +204,23 @@ func (m *serviceOperatorManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg
 }
 
 func (n *serviceOperatorManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	service := n.newSinglePortService(v1alpha1.ServiceOperatorComponentType, oc, oc.Spec.ServiceOperator.Service.InternalOnly, int32(oc.Spec.ServiceOperator.Service.NodePort), int32(cfg.ServiceOperator.Port))
+	services := n.newSinglePortService(v1alpha1.ServiceOperatorComponentType, oc, oc.Spec.ServiceOperator.Service.InternalOnly, int32(oc.Spec.ServiceOperator.Service.NodePort), int32(cfg.ServiceOperator.Port), oc.Spec.ServiceOperator.SlaveReplicas > 0)
 	// diy
-	service.ObjectMeta.Labels["control-plane"] = "controller-manager"
-	service.Spec.Selector["control-plane"] = "controller-manager"
-	return []*corev1.Service{service}
+	for i := range services {
+		services[i].ObjectMeta.Labels["control-plane"] = "controller-manager"
+		services[i].Spec.Selector["control-plane"] = "controller-manager"
+	}
+	return services
+}
+
+func (n *serviceOperatorManager) supportsReadOnlyService() bool {
+	return false
+}
+
+func (n *serviceOperatorManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return nil
+}
+
+func (n *serviceOperatorManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return nil
 }

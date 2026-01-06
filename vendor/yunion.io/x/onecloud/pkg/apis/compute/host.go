@@ -96,6 +96,8 @@ type HostListInput struct {
 	AccessMac []string `json:"access_mac"`
 	// 管理口Ip地址
 	AccessIp []string `json:"access_ip"`
+	// 公网IP地址
+	PublicIp []string `json:"public_ip"`
 	// 物理机序列号信息
 	SN []string `json:"sn"`
 	// CPU大小
@@ -163,6 +165,30 @@ type HostListInput struct {
 	// 按内存分配大小排序
 	// enmu: asc,desc
 	OrderByMemCommit string `json:"order_by_mem_commit"`
+
+	// 按物理cpu使用率排序
+	// enmu: asc,desc
+	OrderByCpuUsage string `json:"order_by_cpu_usage"`
+
+	// 按物理内存使用率排序
+	// enmu: asc,desc
+	OrderByMemUsage string `json:"order_by_mem_usage"`
+
+	// 按物理存储使用率排序
+	// enmu: asc,desc
+	OrderByStorageUsage string `json:"order_by_storage_usage"`
+
+	// 按虚拟内存使用率排序
+	// enmu: asc,desc
+	OrderByVirtualMemUsage string `json:"order_by_virtual_mem_usage"`
+
+	// 按虚拟cpu使用率排序
+	// enmu: asc,desc
+	OrderByVirtualCpuUsage string `json:"order_by_virtual_cpu_usage"`
+
+	// 按虚拟存储使用率排序
+	// enmu: asc,desc
+	OrderByVirtualStorageUsage string `json:"order_by_virtual_storage_usage"`
 }
 
 type HostDetails struct {
@@ -244,11 +270,14 @@ type HostDetails struct {
 	// isolated device count
 	IsolatedDeviceCount     int
 	IsolatedDeviceTypeCount map[string]int
+	GuestPinnedCpus         []int
 
 	// host init warnning
 	SysWarn string `json:"sys_warn"`
 	// host init error info
 	SysError string `json:"sys_error"`
+
+	HostFiles []string `json:"host_files"`
 }
 
 func (self HostDetails) GetMetricTags() map[string]string {
@@ -279,6 +308,40 @@ func (self HostDetails) GetMetricTags() map[string]string {
 func (self HostDetails) GetMetricPairs() map[string]string {
 	ret := map[string]string{}
 	return ret
+}
+
+type HostInfo struct {
+	// 宿主机ID
+	Id string `json:"id"`
+	// 宿主机名称
+	Name string `json:"name"`
+
+	ResourceType string `json:"resource_type"`
+
+	// 宿主机序列号
+	SN string `json:"sn"`
+
+	// 宿主是否启用
+	Enabled bool `json:"enabled"`
+
+	// 宿主机状态
+	Status string `json:"status"`
+
+	// 宿主机计费类型
+	BillingType string `json:"billing_type"`
+
+	// 宿主机服务状态`
+	HostStatus string `json:"host_status"`
+
+	// 宿主机类型
+	HostType string `json:"host_type"`
+
+	// 宿主机管理IP
+	AccessIp string `json:"access_ip"`
+	// 宿主机公网IP（如果有）
+	PublicIp string `json:"public_ip"`
+	// 宿主机MAC
+	AccessMac string `json:"access_mac"`
 }
 
 type HostResourceInfo struct {
@@ -319,6 +382,8 @@ type HostResourceInfo struct {
 	HostAccessIp string `json:"host_access_ip"`
 	// 宿主机公网IP（如果有）
 	HostEIP string `json:"host_eip"`
+	// 宿主机MAC
+	HostAccessMac string `json:"host_access_mac"`
 }
 
 type HostFilterListInput struct {
@@ -552,7 +617,8 @@ type SHostStorageStat struct {
 type SHostPingInput struct {
 	WithData bool `json:"with_data"`
 
-	MemoryUsedMb int `json:"memory_used_mb"`
+	MemoryUsedMb    int     `json:"memory_used_mb"`
+	CpuUsagePercent float64 `json:"cpu_usage_percent"`
 
 	RootPartitionUsedCapacityMb int `json:"root_partition_used_capacity_mb"`
 
@@ -662,4 +728,41 @@ type HostLoginInfoOutput struct {
 }
 
 type HostPerformStartInput struct {
+}
+
+type HostSetCommitBoundInput struct {
+	CpuCmtbound *float32
+	MemCmtbound *float32
+}
+
+type HostUploadGuestsStatusRequest struct {
+	GuestIds []string `json:"guest_ids"`
+}
+
+type HostUploadGuestStatusInput struct {
+	apis.PerformStatusInput
+	Containers map[string]*ContainerPerformStatusInput `json:"containers"`
+}
+
+type HostUploadGuestsStatusInput struct {
+	Guests map[string]*HostUploadGuestStatusInput `json:"guests"`
+}
+
+type HostIsolatedDeviceNumaStatsInput struct {
+	DevType string
+}
+
+type GuestUploadContainerStatusResponse struct {
+	Error string `json:"error"`
+	OK    bool   `json:"ok"`
+}
+
+type GuestUploadStatusResponse struct {
+	Error      string                                         `json:"error"`
+	OK         bool                                           `json:"ok"`
+	Containers map[string]*GuestUploadContainerStatusResponse `json:"containers"`
+}
+
+type GuestUploadStatusesResponse struct {
+	Guests map[string]*GuestUploadStatusResponse `json:"guests"`
 }

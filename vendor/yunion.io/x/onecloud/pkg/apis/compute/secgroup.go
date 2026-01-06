@@ -255,6 +255,8 @@ type SecgroupResourceInput struct {
 
 type SecgroupFilterListInput struct {
 	SecgroupResourceInput
+	RegionalFilterListInput
+	ManagedResourceListInput
 
 	// 以安全组排序
 	OrderBySecgroup string `json:"order_by_secgroup"`
@@ -291,6 +293,16 @@ type SecgroupDetails struct {
 type SecurityGroupResourceInfo struct {
 	// 安全组名称
 	Secgroup string `json:"secgroup"`
+
+	// VPC归属区域ID
+	CloudregionId string `json:"cloudregion_id"`
+
+	CloudregionResourceInfo
+
+	// VPC归属云订阅ID
+	ManagerId string `json:"manager_id"`
+
+	ManagedResourceInfo
 }
 
 type GuestsecgroupListInput struct {

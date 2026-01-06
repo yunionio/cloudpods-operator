@@ -20,6 +20,8 @@ import (
 	"net/http"
 	"net/http/pprof"
 
+	"github.com/gorilla/mux"
+
 	"yunion.io/x/pkg/util/version"
 )
 
@@ -58,12 +60,12 @@ func addPProfHandler(prefix string, app *Application) {
 	} else {
 		prefix = pp
 	}
-	app.AddHandler("GET", fmt.Sprintf("%s/", prefix), profIndex).SetProcessNoTimeout()
-	app.AddHandler("GET", fmt.Sprintf("%s/cmdline", prefix), profCmdline).SetProcessNoTimeout()
-	app.AddHandler("GET", fmt.Sprintf("%s/profile", prefix), profProfile).SetProcessNoTimeout()
-	app.AddHandler("GET", fmt.Sprintf("%s/symbol", prefix), profSymbol).SetProcessNoTimeout()
-	app.AddHandler("POST", fmt.Sprintf("%s/symbol", prefix), profSymbol).SetProcessNoTimeout()
-	app.AddHandler("GET", fmt.Sprintf("%s/trace", prefix), profTrace).SetProcessNoTimeout()
+	app.AddHandler("GET", fmt.Sprintf("%s/", prefix), WhitelistFilter(profIndex)).SetProcessNoTimeout()
+	app.AddHandler("GET", fmt.Sprintf("%s/cmdline", prefix), WhitelistFilter(profCmdline)).SetProcessNoTimeout()
+	app.AddHandler("GET", fmt.Sprintf("%s/profile", prefix), WhitelistFilter(profProfile)).SetProcessNoTimeout()
+	app.AddHandler("GET", fmt.Sprintf("%s/symbol", prefix), WhitelistFilter(profSymbol)).SetProcessNoTimeout()
+	app.AddHandler("POST", fmt.Sprintf("%s/symbol", prefix), WhitelistFilter(profSymbol)).SetProcessNoTimeout()
+	app.AddHandler("GET", fmt.Sprintf("%s/trace", prefix), WhitelistFilter(profTrace)).SetProcessNoTimeout()
 }
 
 func profIndex(_ context.Context, w http.ResponseWriter, r *http.Request) {
@@ -84,4 +86,27 @@ func profSymbol(_ context.Context, w http.ResponseWriter, r *http.Request) {
 
 func profTrace(_ context.Context, w http.ResponseWriter, r *http.Request) {
 	pprof.Trace(w, r)
+}
+
+func AddMiscHandlersToMuxRouter(app *Application, root *mux.Router, enableProfiling bool) {
+	adapterF := func(appHandleFunc func(ctx context.Context, w http.ResponseWriter, r *http.Request)) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			appHandleFunc(app.GetContext(), w, r)
+		}
+	}
+	root.HandleFunc("/version", adapterF(VersionHandler))
+	root.HandleFunc("/stats", adapterF(StatisticHandler))
+	root.HandleFunc("/ping", adapterF(PingHandler))
+	root.HandleFunc("/worker_stats", adapterF(WorkerStatsHandler))
+	if enableProfiling {
+		pp := "/debug/pprof"
+		ppPath := func(sufix string) string {
+			return fmt.Sprintf("%s/%s", pp, sufix)
+		}
+		root.HandleFunc(ppPath(""), pprof.Index)
+		root.HandleFunc(ppPath("cmdline"), pprof.Cmdline)
+		root.HandleFunc(ppPath("profile"), pprof.Profile)
+		root.HandleFunc(ppPath("symbol"), pprof.Symbol)
+		root.HandleFunc(ppPath("trace"), pprof.Trace)
+	}
 }

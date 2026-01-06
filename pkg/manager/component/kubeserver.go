@@ -18,11 +18,14 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
+	"yunion.io/x/onecloud/pkg/mcclient"
+
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
 	"yunion.io/x/onecloud-operator/pkg/service-init/component"
+	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 )
 
 type kubeManager struct {
@@ -48,6 +51,10 @@ func (m *kubeManager) GetComponentType() v1alpha1.ComponentType {
 
 func (m *kubeManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
 	return oc.Spec.KubeServer.Disable
+}
+
+func (m *kubeManager) GetServiceName() string {
+	return constants.ServiceNameKubeServer
 }
 
 func (m *kubeManager) Sync(oc *v1alpha1.OnecloudCluster) error {
@@ -83,7 +90,7 @@ func (m *kubeManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 }
 
 func (m *kubeManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.KubeServerComponentType, oc, oc.Spec.KubeServer.Service.InternalOnly, int32(oc.Spec.KubeServer.Service.NodePort), int32(cfg.KubeServer.Port))}
+	return m.newSinglePortService(v1alpha1.KubeServerComponentType, oc, oc.Spec.KubeServer.Service.InternalOnly, int32(oc.Spec.KubeServer.Service.NodePort), int32(cfg.KubeServer.Port), oc.Spec.KubeServer.SlaveReplicas > 0)
 }
 
 func (m *kubeManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -97,4 +104,22 @@ func (m *kubeManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 
 func (m *kubeManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.KubeServer
+}
+
+func (m *kubeManager) supportsReadOnlyService() bool {
+	return false
+}
+
+func (m *kubeManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return nil
+}
+
+func (m *kubeManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return func(s *mcclient.ClientSession) error {
+		if m.IsDisabled(oc) {
+			return onecloud.EnsureDisableService(s, m.GetServiceName())
+		} else {
+			return onecloud.EnsureEnableService(s, m.GetServiceName(), m.supportsReadOnlyService() && oc.Spec.KubeServer.SlaveReplicas > 0)
+		}
+	}
 }

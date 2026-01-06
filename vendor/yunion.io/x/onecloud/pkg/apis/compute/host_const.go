@@ -59,6 +59,7 @@ const (
 	HOST_TYPE_SANGFOR        = compute.HOST_TYPE_SANGFOR
 	HOST_TYPE_ZETTAKIT       = compute.HOST_TYPE_ZETTAKIT
 	HOST_TYPE_UIS            = compute.HOST_TYPE_UIS
+	HOST_TYPE_CAS            = compute.HOST_TYPE_CAS
 
 	HOST_TYPE_DEFAULT = HOST_TYPE_HYPERVISOR
 
@@ -120,6 +121,11 @@ const (
 	HostResourceTypeDefault        = HostResourceTypeShared
 	HostResourceTypePrepaidRecycle = "prepaid"
 	HostResourceTypeDedicated      = "dedicated"
+)
+
+const (
+	HOST_METADATA_CPU_USAGE_PERCENT = "cpu_usage_percent"
+	HOST_METADATA_MEMORY_USED_MB    = "memory_used_mb"
 )
 
 var HOST_TYPES = []string{

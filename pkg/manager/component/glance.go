@@ -29,6 +29,7 @@ import (
 	yerr "yunion.io/x/pkg/errors"
 
 	"yunion.io/x/onecloud/pkg/image/options"
+	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/mcclient/auth"
 	identity_modules "yunion.io/x/onecloud/pkg/mcclient/modules/identity"
 
@@ -37,6 +38,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
 	"yunion.io/x/onecloud-operator/pkg/service-init/component"
+	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 )
 
 var s3ConfigSynced bool
@@ -95,7 +97,7 @@ func (m *glanceManager) getPhaseControl(man controller.ComponentManager, zone st
 }
 
 func (m *glanceManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.GlanceComponentType, oc, oc.Spec.Glance.Service.InternalOnly, int32(oc.Spec.Glance.Service.NodePort), int32(cfg.Glance.Port))}
+	return m.newSinglePortService(v1alpha1.GlanceComponentType, oc, oc.Spec.Glance.Service.InternalOnly, int32(oc.Spec.Glance.Service.NodePort), int32(cfg.Glance.Port), oc.Spec.Glance.SlaveReplicas > 0)
 }
 
 func (m *glanceManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*corev1.ConfigMap, bool, error) {
@@ -372,4 +374,22 @@ func (m *glanceManager) getPodLabels() map[string]string {
 
 func (m *glanceManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Glance.DeploymentStatus
+}
+
+func (m *glanceManager) supportsReadOnlyService() bool {
+	return true
+}
+
+func (m *glanceManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return m.genReadonlyDeployment(v1alpha1.GlanceComponentType, oc, deployment, &oc.Spec.Glance.DeploymentSpec)
+}
+
+func (m *glanceManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return func(s *mcclient.ClientSession) error {
+		if m.IsDisabled(oc) {
+			return onecloud.EnsureDisableService(s, m.GetServiceName())
+		} else {
+			return onecloud.EnsureEnableService(s, m.GetServiceName(), m.supportsReadOnlyService() && oc.Spec.Glance.SlaveReplicas > 0)
+		}
+	}
 }

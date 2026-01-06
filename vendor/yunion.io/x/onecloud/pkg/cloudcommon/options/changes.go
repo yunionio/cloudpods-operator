@@ -20,6 +20,7 @@ import (
 	"yunion.io/x/log"
 	"yunion.io/x/pkg/util/netutils"
 
+	"yunion.io/x/onecloud/pkg/appsrv"
 	"yunion.io/x/onecloud/pkg/cloudcommon/consts"
 )
 
@@ -68,8 +69,17 @@ func OnBaseOptionsChange(oOpts, nOpts interface{}) bool {
 	if oldOpts.LocalTaskWorkerCount != newOpts.LocalTaskWorkerCount {
 		consts.SetLocalTaskWorkerCount(newOpts.LocalTaskWorkerCount)
 	}
+	if oldOpts.TaskArchiveThresholdHours != newOpts.TaskArchiveThresholdHours {
+		consts.SetTaskArchiveThresholdHours(newOpts.TaskArchiveThresholdHours)
+	}
+	if oldOpts.TaskArchiveBatchLimit != newOpts.TaskArchiveBatchLimit {
+		consts.SetTaskArchiveBatchLimit(newOpts.TaskArchiveBatchLimit)
+	}
 	if oldOpts.EnableChangeOwnerAutoRename != newOpts.EnableChangeOwnerAutoRename {
 		consts.SetChangeOwnerAutoRename(newOpts.EnableChangeOwnerAutoRename)
+	}
+	if privatePrrefixesChanged(oldOpts.DefaultHandlersWhitelistUserAgents, newOpts.DefaultHandlersWhitelistUserAgents) {
+		appsrv.SetDefaultHandlersWhitelistUserAgents(newOpts.DefaultHandlersWhitelistUserAgents)
 	}
 	return changed
 }

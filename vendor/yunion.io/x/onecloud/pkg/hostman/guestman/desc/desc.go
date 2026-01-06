@@ -101,6 +101,7 @@ type SGuestHardwareDesc struct {
 	VcpuPin []SCpuPin  `json:",omitempty"`
 	// Clock   *SGuestClock `json:",omitempty"`
 
+	// memory size in MB
 	Mem        int64
 	MemDesc    *SGuestMem     `json:",omitempty"`
 	CpuNumaPin []*SCpuNumaPin `json:",omitempty"`
@@ -125,6 +126,7 @@ type SGuestHardwareDesc struct {
 
 	VirtioScsi      *SGuestVirtioScsi       `json:",omitempty"`
 	PvScsi          *SGuestPvScsi           `json:",omitempty"`
+	SataController  *SGuestAhciDevice       `json:",omitempty"`
 	Cdroms          []*SGuestCdrom          `json:"cdroms,omitempty"`
 	Floppys         []*SGuestFloppy         `json:",omitempty"`
 	Disks           []*SGuestDisk           `json:",omitempty"`
@@ -337,6 +339,10 @@ type SGuestVirtioScsi struct {
 }
 
 type SGuestPvScsi struct {
+	*PCIDevice
+}
+
+type SGuestAhciDevice struct {
 	*PCIDevice
 }
 

@@ -18,12 +18,14 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
+	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/s3gateway/options"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
@@ -85,7 +87,7 @@ func (m *s3gatewayManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 }
 
 func (m *s3gatewayManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.S3gatewayComponentType, oc, oc.Spec.S3gateway.Service.InternalOnly, int32(oc.Spec.S3gateway.Service.NodePort), int32(cfg.S3gateway.Port))}
+	return m.newSinglePortService(v1alpha1.S3gatewayComponentType, oc, oc.Spec.S3gateway.Service.InternalOnly, int32(oc.Spec.S3gateway.Service.NodePort), int32(cfg.S3gateway.Port), oc.Spec.S3gateway.SlaveReplicas > 0)
 }
 
 func (m *s3gatewayManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -94,4 +96,22 @@ func (m *s3gatewayManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1al
 
 func (m *s3gatewayManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.S3gateway
+}
+
+func (m *s3gatewayManager) supportsReadOnlyService() bool {
+	return false
+}
+
+func (m *s3gatewayManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return nil
+}
+
+func (m *s3gatewayManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return func(s *mcclient.ClientSession) error {
+		if m.IsDisabled(oc) {
+			return onecloud.EnsureDisableService(s, m.GetServiceName())
+		} else {
+			return onecloud.EnsureEnableService(s, m.GetServiceName(), m.supportsReadOnlyService() && oc.Spec.S3gateway.SlaveReplicas > 0)
+		}
+	}
 }

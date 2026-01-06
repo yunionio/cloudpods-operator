@@ -19,11 +19,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"yunion.io/x/onecloud/pkg/devtool/options"
+	"yunion.io/x/onecloud/pkg/mcclient"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
+	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 	"yunion.io/x/onecloud-operator/pkg/util/option"
 )
 
@@ -100,7 +102,7 @@ func (m *devtoolManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 }
 
 func (m *devtoolManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.DevtoolComponentType, oc, oc.Spec.Devtool.Service.InternalOnly, int32(oc.Spec.Devtool.Service.NodePort), int32(cfg.Devtool.Port))}
+	return m.newSinglePortService(v1alpha1.DevtoolComponentType, oc, oc.Spec.Devtool.Service.InternalOnly, int32(oc.Spec.Devtool.Service.NodePort), int32(cfg.Devtool.Port), oc.Spec.Devtool.SlaveReplicas > 0)
 }
 
 func (m *devtoolManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -109,4 +111,22 @@ func (m *devtoolManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 
 func (m *devtoolManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Devtool
+}
+
+func (m *devtoolManager) supportsReadOnlyService() bool {
+	return false
+}
+
+func (m *devtoolManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return nil
+}
+
+func (m *devtoolManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return func(s *mcclient.ClientSession) error {
+		if m.IsDisabled(oc) {
+			return onecloud.EnsureDisableService(s, m.GetServiceName())
+		} else {
+			return onecloud.EnsureEnableService(s, m.GetServiceName(), m.supportsReadOnlyService() && oc.Spec.Devtool.SlaveReplicas > 0)
+		}
+	}
 }

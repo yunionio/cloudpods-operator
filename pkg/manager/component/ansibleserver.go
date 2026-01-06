@@ -18,11 +18,14 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
+	"yunion.io/x/onecloud/pkg/mcclient"
+
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
 	"yunion.io/x/onecloud-operator/pkg/service-init/component"
+	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 )
 
 type ansibleManager struct {
@@ -83,9 +86,7 @@ func (m *ansibleManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 
 func (m *ansibleManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
 	aCfg := cfg.AnsibleServer
-	return []*corev1.Service{
-		m.newSinglePortService(v1alpha1.AnsibleServerComponentType, oc, oc.Spec.AnsibleServer.Service.InternalOnly, int32(oc.Spec.AnsibleServer.Service.NodePort), int32(aCfg.Port)),
-	}
+	return m.newSinglePortService(v1alpha1.AnsibleServerComponentType, oc, oc.Spec.AnsibleServer.Service.InternalOnly, int32(oc.Spec.AnsibleServer.Service.NodePort), int32(aCfg.Port), oc.Spec.AnsibleServer.SlaveReplicas > 0)
 }
 
 func (m *ansibleManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -105,4 +106,22 @@ func (m *ansibleManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 
 func (m *ansibleManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.AnsibleServer
+}
+
+func (m *ansibleManager) supportsReadOnlyService() bool {
+	return true
+}
+
+func (m *ansibleManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return m.genReadonlyDeployment(v1alpha1.AnsibleServerComponentType, oc, deployment, &oc.Spec.AnsibleServer.DeploymentSpec)
+}
+
+func (m *ansibleManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return func(s *mcclient.ClientSession) error {
+		if m.IsDisabled(oc) {
+			return onecloud.EnsureDisableService(s, m.GetServiceName())
+		} else {
+			return onecloud.EnsureEnableService(s, m.GetServiceName(), m.supportsReadOnlyService() && oc.Spec.AnsibleServer.SlaveReplicas > 0)
+		}
+	}
 }

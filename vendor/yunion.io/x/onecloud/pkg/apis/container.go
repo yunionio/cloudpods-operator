@@ -15,6 +15,8 @@
 package apis
 
 import (
+	"encoding/json"
+
 	"yunion.io/x/pkg/errors"
 	"yunion.io/x/pkg/util/sets"
 )
@@ -62,7 +64,8 @@ type ContainerSecurityContext struct {
 	RunAsGroup *int64 `json:"run_as_group,omitempty"`
 	// procMount denotes the type of proc mount to use for the containers.
 	// The default is DefaultProcMount which uses the container runtime defaults for
-	ProcMount ContainerProcMountType `json:"proc_mount"`
+	ProcMount       ContainerProcMountType `json:"proc_mount"`
+	ApparmorProfile string                 `json:"apparmor_profile"`
 }
 
 type ContainerResources struct {
@@ -78,6 +81,31 @@ type ContainerResources struct {
 	// flag is enabled in a cgroup, a new cpuset cgroup will copy its
 	// configuration fromthe parent during initialization.
 	CpusetCloneChildren bool `json:"cpuset_clone_children"`
+	// cgroup memory.high
+	MemoryHighRatio *float64 `json:"memory_high_ratio"`
+}
+
+type ContainerEnvRefValueType string
+
+const (
+	ContainerEnvRefValueTypeIsolatedDevice ContainerEnvRefValueType = "isolated_device"
+)
+
+type ContainerIsolatedDeviceOnlyEnv struct {
+	Key             string `json:"key"`
+	FromRenderPath  bool   `json:"from_render_path"`
+	FromIndex       bool   `json:"from_index"`
+	FromDeviceMinor bool   `json:"from_device_minor"`
+}
+
+type ContainerCDIKind string
+
+var (
+	CONTAINER_CDI_KIND_NVIDIA_GPU ContainerCDIKind = "nvidia.com/gpu"
+)
+
+type ContainerIsolatedDeviceCDI struct {
+	Kind ContainerCDIKind
 }
 
 type ContainerSpec struct {
@@ -113,7 +141,9 @@ type ContainerSpec struct {
 	//LivenessProbe *ContainerProbe `json:"liveness_probe,omitempty"`
 	// StartupProbe indicates that the Pod has successfully initialized.
 	// If specified, no other probes are executed until this completes successfully.
-	StartupProbe *ContainerProbe `json:"startup_probe,omitempty"`
+	StartupProbe  *ContainerProbe `json:"startup_probe,omitempty"`
+	AlwaysRestart bool            `json:"always_restart"`
+	Primary       bool            `json:"primary"`
 }
 
 func (c *ContainerSpec) NeedProbe() bool {
@@ -228,11 +258,59 @@ func (o ContainerVolumeMountDiskOverlay) IsValid() error {
 	return nil
 }
 
+type ContainerVolumeMountDiskPostImageOverlay struct {
+	Id      string            `json:"id"`
+	PathMap map[string]string `json:"path_map"`
+}
+
+type ContainerVolumeMountDiskPostImageOverlayUnpacker ContainerVolumeMountDiskPostImageOverlay
+
+func (ov *ContainerVolumeMountDiskPostImageOverlay) UnmarshalJSON(data []byte) error {
+	nov := new(ContainerVolumeMountDiskPostImageOverlayUnpacker)
+	if err := json.Unmarshal(data, nov); err != nil {
+		return err
+	}
+	ov.Id = nov.Id
+	// 防止 PathMap 被合并，总是用 Unarmshal data 里面的 path_map
+	ov.PathMap = nov.PathMap
+	return nil
+}
+
+type ContainerVolumeMountDiskPostOverlayType string
+
+const (
+	CONTAINER_VOLUME_MOUNT_DISK_POST_OVERLAY_HOSTPATH ContainerVolumeMountDiskPostOverlayType = "host_path"
+	CONTAINER_VOLUME_MOUNT_DISK_POST_OVERLAY_IMAGE    ContainerVolumeMountDiskPostOverlayType = "image"
+)
+
 type ContainerVolumeMountDiskPostOverlay struct {
 	// 宿主机底层目录
 	HostLowerDir []string `json:"host_lower_dir"`
 	// 合并后要挂载到容器的目录
-	ContainerTargetDir string `json:"container_target_dir"`
+	ContainerTargetDir string                                    `json:"container_target_dir"`
+	Image              *ContainerVolumeMountDiskPostImageOverlay `json:"image"`
+	FsUser             *int64                                    `json:"fs_user,omitempty"`
+	FsGroup            *int64                                    `json:"fs_group,omitempty"`
+}
+
+func (o ContainerVolumeMountDiskPostOverlay) IsEqual(input ContainerVolumeMountDiskPostOverlay) bool {
+	if o.GetType() != input.GetType() {
+		return false
+	}
+	switch o.GetType() {
+	case CONTAINER_VOLUME_MOUNT_DISK_POST_OVERLAY_HOSTPATH:
+		return o.ContainerTargetDir == input.ContainerTargetDir
+	case CONTAINER_VOLUME_MOUNT_DISK_POST_OVERLAY_IMAGE:
+		return o.Image.Id == input.Image.Id
+	}
+	return false
+}
+
+func (o ContainerVolumeMountDiskPostOverlay) GetType() ContainerVolumeMountDiskPostOverlayType {
+	if o.Image != nil {
+		return CONTAINER_VOLUME_MOUNT_DISK_POST_OVERLAY_IMAGE
+	}
+	return CONTAINER_VOLUME_MOUNT_DISK_POST_OVERLAY_HOSTPATH
 }
 
 type ContainerVolumeMountDisk struct {
@@ -246,6 +324,9 @@ type ContainerVolumeMountDisk struct {
 	CaseInsensitivePaths []string `json:"case_insensitive_paths"`
 	// 当 disk volume 挂载完后，需要 overlay 的目录设置
 	PostOverlay []*ContainerVolumeMountDiskPostOverlay `json:"post_overlay"`
+	// The ext2 filesystem reserves a certain percentage of the available space (by default 5%, see mke2fs(8) and tune2fs(8)). These options determine who can use the reserved blocks. (Roughly: whoever has the specified uid, or belongs to the specified group.)
+	ResGid int `json:"res_gid"`
+	ResUid int `json:"res_uid"`
 }
 
 type ContainerVolumeMountHostPathType string
@@ -255,9 +336,17 @@ const (
 	CONTAINER_VOLUME_MOUNT_HOST_PATH_TYPE_FILE      ContainerVolumeMountHostPathType = "file"
 )
 
+type ContainerVolumeMountHostPathAutoCreateConfig struct {
+	Uid         uint   `json:"uid"`
+	Gid         uint   `json:"gid"`
+	Permissions string `json:"permissions"`
+}
+
 type ContainerVolumeMountHostPath struct {
-	Type ContainerVolumeMountHostPathType `json:"type"`
-	Path string                           `json:"path"`
+	Type             ContainerVolumeMountHostPathType              `json:"type"`
+	Path             string                                        `json:"path"`
+	AutoCreate       bool                                          `json:"auto_create"`
+	AutoCreateConfig *ContainerVolumeMountHostPathAutoCreateConfig `json:"auto_create_config,omitempty"`
 }
 
 type ContainerVolumeMountText struct {
@@ -278,4 +367,13 @@ type ContainerPullImageAuthConfig struct {
 	IdentityToken string `json:"identity_token,omitempty"`
 	// RegistryToken is a bearer token to be sent to a registry
 	RegistryToken string `json:"registry_token,omitempty"`
+}
+
+type ContainerRootfs struct {
+	Type ContainerVolumeMountType  `json:"type"`
+	Disk *ContainerVolumeMountDisk `json:"disk"`
+	//CephFS *ContainerVolumeMountCephFS `json:"ceph_fs"`
+
+	// 是否持久化
+	Persistent bool `json:"persistent"`
 }
