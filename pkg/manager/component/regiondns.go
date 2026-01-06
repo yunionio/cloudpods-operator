@@ -22,6 +22,7 @@ import (
 
 	identity_api "yunion.io/x/onecloud/pkg/apis/identity"
 	"yunion.io/x/onecloud/pkg/cloudcommon/options"
+	"yunion.io/x/onecloud/pkg/mcclient"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -179,7 +180,7 @@ func (m *regionDNSManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 	// use headless service
 	cType := v1alpha1.RegionDNSComponentType
 	svcName := controller.NewClusterComponentName(oc.GetName(), cType)
-	appLabel := m.getComponentLabel(oc, cType)
+	appLabel := m.getComponentLabel(oc, cType, false)
 	svc := &corev1.Service{
 		ObjectMeta: m.getObjectMeta(oc, svcName, appLabel),
 		Spec: corev1.ServiceSpec{
@@ -218,4 +219,16 @@ func (m *regionDNSManager) getDaemonSet(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 		return nil, err
 	}
 	return ds, nil
+}
+
+func (m *regionDNSManager) supportsReadOnlyService() bool {
+	return false
+}
+
+func (m *regionDNSManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return nil
+}
+
+func (m *regionDNSManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return nil
 }

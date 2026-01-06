@@ -21,7 +21,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"yunion.io/x/jsonutils"
+
 	"yunion.io/x/onecloud/pkg/esxi/options"
+	"yunion.io/x/onecloud/pkg/mcclient"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
@@ -200,4 +202,16 @@ func (m *esxiManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 	}
 	dm.Spec.Selector.MatchLabels[constants.OnecloudHostDeployerLabelKey] = ""
 	return setSelfAntiAffnity(dm, v1alpha1.EsxiAgentComponentType), nil
+}
+
+func (m *esxiManager) supportsReadOnlyService() bool {
+	return false
+}
+
+func (m *esxiManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return nil
+}
+
+func (m *esxiManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return nil
 }

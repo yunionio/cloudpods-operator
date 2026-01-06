@@ -6,12 +6,15 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
+	"yunion.io/x/onecloud/pkg/mcclient"
+
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
 	"yunion.io/x/onecloud-operator/pkg/service-init/component"
 	"yunion.io/x/onecloud-operator/pkg/util/dbutil"
+	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 )
 
 const (
@@ -237,7 +240,7 @@ func NewJavaBaseConfig(oc *v1alpha1.OnecloudCluster, port int, user, passwd stri
 }
 
 func (m *itsmManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.ItsmComponentType, oc, oc.Spec.Itsm.Service.InternalOnly, int32(oc.Spec.Itsm.Service.NodePort), int32(cfg.Itsm.Port))}
+	return m.newSinglePortService(v1alpha1.ItsmComponentType, oc, oc.Spec.Itsm.Service.InternalOnly, int32(oc.Spec.Itsm.Service.NodePort), int32(cfg.Itsm.Port), oc.Spec.Itsm.SlaveReplicas > 0)
 }
 
 func (m *itsmManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -288,4 +291,22 @@ func SetJavaConfigVolumes(vols []corev1.Volume) []corev1.Volume {
 	config.ConfigMap.Items[0].Path = "application.properties"
 	vols[len(vols)-1] = config
 	return vols
+}
+
+func (m *itsmManager) supportsReadOnlyService() bool {
+	return false
+}
+
+func (m *itsmManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return nil
+}
+
+func (m *itsmManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return func(s *mcclient.ClientSession) error {
+		if m.IsDisabled(oc) {
+			return onecloud.EnsureDisableService(s, m.GetServiceName())
+		} else {
+			return onecloud.EnsureEnableService(s, m.GetServiceName(), m.supportsReadOnlyService() && oc.Spec.Itsm.SlaveReplicas > 0)
+		}
+	}
 }

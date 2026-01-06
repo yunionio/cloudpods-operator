@@ -20,6 +20,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
+	"yunion.io/x/onecloud/pkg/mcclient"
+
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
@@ -91,13 +93,13 @@ func (m *webManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.Onec
 			TargetPort: intstr.FromInt(8081),
 		},
 	}
-	return []*corev1.Service{m.newService(v1alpha1.WebComponentType, oc, corev1.ServiceTypeClusterIP, ports)}
+	return []*corev1.Service{m.newService(v1alpha1.WebComponentType, oc, corev1.ServiceTypeClusterIP, ports, false)}
 }
 
 func (m *webManager) getIngress(oc *v1alpha1.OnecloudCluster, zone string) *unstructured.Unstructured {
 	ocName := oc.GetName()
 	svcName := controller.NewClusterComponentName(ocName, v1alpha1.WebComponentType)
-	appLabel := m.getComponentLabel(oc, v1alpha1.WebComponentType)
+	appLabel := m.getComponentLabel(oc, v1alpha1.WebComponentType, false)
 	secretName := controller.ClustercertSecretName(oc)
 
 	obj := new(unstructured.Unstructured)
@@ -355,4 +357,16 @@ func (m *webManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 
 func (m *webManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Web
+}
+
+func (m *webManager) supportsReadOnlyService() bool {
+	return false
+}
+
+func (m *webManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return nil
+}
+
+func (m *webManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return nil
 }

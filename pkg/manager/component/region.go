@@ -23,6 +23,8 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
 	"yunion.io/x/onecloud-operator/pkg/service-init/component"
+	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
+	"yunion.io/x/onecloud/pkg/mcclient"
 )
 
 type regionManager struct {
@@ -93,7 +95,7 @@ func (m *regionManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.O
 	ports := []corev1.ServicePort{
 		NewServiceNodePort("api", oc.Spec.RegionServer.Service.InternalOnly, int32(oc.Spec.RegionServer.Service.NodePort), int32(cfg.RegionServer.Port)),
 	}
-	return []*corev1.Service{m.newNodePortService(v1alpha1.RegionComponentType, oc, oc.Spec.RegionServer.Service.InternalOnly, ports)}
+	return m.newNodePortService(v1alpha1.RegionComponentType, oc, oc.Spec.RegionServer.Service.InternalOnly, ports, oc.Spec.RegionServer.SlaveReplicas > 0)
 }
 
 func (m *regionManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -111,4 +113,22 @@ func (m *regionManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 
 func (m *regionManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.RegionServer.DeploymentStatus
+}
+
+func (m *regionManager) supportsReadOnlyService() bool {
+	return true
+}
+
+func (m *regionManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return m.genReadonlyDeployment(v1alpha1.RegionComponentType, oc, deployment, &oc.Spec.RegionServer.DeploymentSpec)
+}
+
+func (m *regionManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return func(s *mcclient.ClientSession) error {
+		if m.IsDisabled(oc) {
+			return onecloud.EnsureDisableService(s, m.GetServiceName())
+		} else {
+			return onecloud.EnsureEnableService(s, m.GetServiceName(), m.supportsReadOnlyService() && oc.Spec.RegionServer.SlaveReplicas > 0)
+		}
+	}
 }

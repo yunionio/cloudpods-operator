@@ -131,21 +131,65 @@ func EnsureService(s *mcclient.ClientSession, svcName, svcType string) (jsonutil
 	if err != nil {
 		return nil, errors.Wrap(err, "EnsureResource")
 	}
-	enabled, err := srvObj.Bool("enabled")
+	return srvObj, nil
+}
+
+func EnsureEnableService(s *mcclient.ClientSession, srvName string, enableRO bool) error {
+	srv, exists, err := IsServiceExists(s, srvName)
 	if err != nil {
-		return nil, errors.Wrap(err, "Get service enabled")
+		return errors.Wrap(err, "IsServiceExists")
 	}
+	if !exists {
+		return errors.Wrapf(errors.ErrNotFound, "Service %s not found", srvName)
+	}
+	endpoints, err := getEndpointsByService(s, srvName, nil)
+	if err != nil {
+		return errors.Wrap(err, "GetEndpointsByService")
+	}
+	for _, ep := range endpoints {
+		interfaceType, _ := ep.GetString("interface")
+		enabled, _ := ep.Bool("enabled")
+		toEnable := false
+		toDisable := false
+		if interfaceType == constants.EndpointTypeSlave {
+			if enableRO && !enabled {
+				toEnable = true
+			}
+			if !enableRO && enabled {
+				toDisable = true
+			}
+		} else {
+			if !enabled {
+				toEnable = true
+			}
+		}
+		if !toEnable && !toDisable {
+			continue
+		}
+		id, _ := ep.GetString("id")
+		if toEnable {
+			if err := enableEndpoint(s, id); err != nil {
+				return errors.Wrap(err, "EnableEndpoint")
+			}
+		} else if toDisable {
+			if err := disableEndpoint(s, id); err != nil {
+				return errors.Wrap(err, "DisableEndpoint")
+			}
+		}
+	}
+	// service exists, try to enable service
+	enabled, _ := srv.Bool("enabled")
 	if enabled {
-		return srvObj, nil
+		return nil
 	}
-	idStr, _ := srvObj.GetString("id")
+	idStr, _ := srv.GetString("id")
 	params := jsonutils.NewDict()
 	params.Set("enabled", jsonutils.JSONTrue)
-	srvObj, err = identity.ServicesV3.Patch(s, idStr, params)
+	_, err = identity.ServicesV3.Patch(s, idStr, params)
 	if err != nil {
-		return nil, errors.Wrap(err, "patch enable service")
+		return errors.Wrap(err, "patch enable service")
 	}
-	return srvObj, nil
+	return nil
 }
 
 func EnsureDisableService(s *mcclient.ClientSession, srvName string) error {
@@ -157,7 +201,7 @@ func EnsureDisableService(s *mcclient.ClientSession, srvName string) error {
 		return nil
 	}
 	// service exists, try to disable endpoints
-	endpoints, err := GetEndpointsByService(s, srvName)
+	endpoints, err := getEndpointsByService(s, srvName, nil)
 	if err != nil {
 		return errors.Wrap(err, "GetEndpointsByService")
 	}
@@ -167,7 +211,7 @@ func EnsureDisableService(s *mcclient.ClientSession, srvName string) error {
 			continue
 		}
 		id, _ := ep.GetString("id")
-		if err := DisableEndpoint(s, id); err != nil {
+		if err := disableEndpoint(s, id); err != nil {
 			return errors.Wrap(err, "DisableEndpoint")
 		}
 	}
@@ -242,7 +286,7 @@ func CreateService(s *mcclient.ClientSession, svcName, svcType string) (jsonutil
 	return identity.ServicesV3.Create(s, params)
 }
 
-func IsEndpointExists(s *mcclient.ClientSession, svcId, regionId, interfaceType string) (jsonutils.JSONObject, bool, error) {
+func isEndpointExists(s *mcclient.ClientSession, svcId, regionId, interfaceType string) (jsonutils.JSONObject, bool, error) {
 	params := jsonutils.NewDict()
 	params.Add(jsonutils.NewString(svcId), "service_id")
 	params.Add(jsonutils.NewString(regionId), "region_id")
@@ -257,10 +301,10 @@ func IsEndpointExists(s *mcclient.ClientSession, svcId, regionId, interfaceType 
 	return eps.Data[0], true, nil
 }
 
-func EnsureEndpoint(
+func ensureEndpoint(
 	s *mcclient.ClientSession, svcId, regionId, interfaceType, url, serviceCert string,
 ) (jsonutils.JSONObject, error) {
-	ep, exists, err := IsEndpointExists(s, svcId, regionId, interfaceType)
+	ep, exists, err := isEndpointExists(s, svcId, regionId, interfaceType)
 	if err != nil {
 		return nil, err
 	}
@@ -269,8 +313,14 @@ func EnsureEndpoint(
 		createParams.Add(jsonutils.NewString(svcId), "service_id")
 		createParams.Add(jsonutils.NewString(regionId), "region_id")
 		createParams.Add(jsonutils.NewString(interfaceType), "interface")
+		if interfaceType == constants.EndpointTypeSlave {
+			// diable slave endpoint by default
+			createParams.Add(jsonutils.JSONFalse, "enabled")
+		} else {
+			createParams.Add(jsonutils.JSONTrue, "enabled")
+		}
 		createParams.Add(jsonutils.NewString(url), "url")
-		createParams.Add(jsonutils.JSONTrue, "enabled")
+
 		if len(serviceCert) > 0 {
 			createParams.Add(jsonutils.NewString(serviceCert), "service_certificate")
 		}
@@ -282,13 +332,13 @@ func EnsureEndpoint(
 	}
 	epUrl, _ := ep.GetString("url")
 	enabled, _ := ep.Bool("enabled")
-	if epUrl == url && enabled {
+	if epUrl == url {
 		// same endpoint exists and already exists
 		return ep, nil
 	}
+	log.Infof("endpoint exists, but need to update interface: %s url: %s->%s enabled: %v", interfaceType, epUrl, url, enabled)
 	updateParams := jsonutils.NewDict()
 	updateParams.Add(jsonutils.NewString(url), "url")
-	updateParams.Add(jsonutils.JSONTrue, "enabled")
 	if len(serviceCert) > 0 {
 		updateParams.Add(jsonutils.NewString(serviceCert), "service_certificate")
 	}
@@ -437,7 +487,7 @@ func EnsureDynamicSchedtag(s *mcclient.ClientSession, name, schedtag, condition 
 	})
 }
 
-func GetEndpointsByService(s *mcclient.ClientSession, serviceName string) ([]jsonutils.JSONObject, error) {
+func getEndpointsByService(s *mcclient.ClientSession, serviceName string, mode *string) ([]jsonutils.JSONObject, error) {
 	obj, err := identity.ServicesV3.Get(s, serviceName, nil)
 	if err != nil {
 		return nil, err
@@ -446,6 +496,9 @@ func GetEndpointsByService(s *mcclient.ClientSession, serviceName string) ([]jso
 	searchParams := jsonutils.NewDict()
 	searchParams.Add(jsonutils.NewString(svcId), "service_id")
 	searchParams.Add(jsonutils.NewInt(0), "limit")
+	if mode != nil {
+		searchParams.Add(jsonutils.NewString(*mode), "mode")
+	}
 	ret, err := identity.EndpointsV3.List(s, searchParams)
 	if err != nil {
 		return nil, err
@@ -453,62 +506,52 @@ func GetEndpointsByService(s *mcclient.ClientSession, serviceName string) ([]jso
 	return ret.Data, nil
 }
 
-func DisableService(s *mcclient.ClientSession, id string) error {
+func disableService(s *mcclient.ClientSession, id string) error {
 	params := jsonutils.NewDict()
 	params.Add(jsonutils.JSONFalse, "enabled")
 	_, err := identity.ServicesV3.Patch(s, id, params)
 	return err
 }
 
-func DisableEndpoint(s *mcclient.ClientSession, id string) error {
+func disableEndpoint(s *mcclient.ClientSession, id string) error {
 	params := jsonutils.NewDict()
 	params.Add(jsonutils.JSONFalse, "enabled")
 	_, err := identity.EndpointsV3.Patch(s, id, params)
 	return err
 }
 
+func enableEndpoint(s *mcclient.ClientSession, id string) error {
+	params := jsonutils.NewDict()
+	params.Add(jsonutils.JSONTrue, "enabled")
+	_, err := identity.EndpointsV3.Patch(s, id, params)
+	return err
+}
+
 func DeleteServiceEndpoints(s *mcclient.ClientSession, serviceName string) error {
-	endpoints, err := GetEndpointsByService(s, serviceName)
+	endpoints, err := getEndpointsByService(s, serviceName, nil)
 	if err != nil {
 		if IsNotFoundError(err) {
 			return nil
 		}
-		return err
+		return errors.Wrap(err, "getEndpointsByService")
 	}
 	for _, ep := range endpoints {
 		id, _ := ep.GetString("id")
 		tmpId := id
-		if err := DisableEndpoint(s, tmpId); err != nil {
-			return err
+		if err := disableEndpoint(s, tmpId); err != nil {
+			return errors.Wrap(err, "disableEndpoint")
 		}
 		if _, err := identity.EndpointsV3.Delete(s, id, nil); err != nil {
-			return err
+			return errors.Wrap(err, "DeleteEndpoint")
 		}
 	}
-	if err := DisableService(s, serviceName); err != nil {
-		return err
+	if err := disableService(s, serviceName); err != nil {
+		return errors.Wrap(err, "disableService")
 	}
-	return DeleteResource(s, &identity.ServicesV3, serviceName)
-}
-
-func InitServiceAccount(s *mcclient.ClientSession, username string, password string) error {
-	obj, exists, err := IsUserExists(s, username)
-	if err != nil {
-		return err
+	if err := DeleteResource(s, &identity.ServicesV3, serviceName); err != nil {
+		return errors.Wrap(err, "DeleteService")
 	}
-	if exists {
-		id, _ := obj.GetString("id")
-		if _, err := ChangeUserPassword(s, id, password); err != nil {
-			return errors.Wrapf(err, "user %s already exists, update password", username)
-		}
-		return nil
-	}
-	obj, err = CreateUser(s, username, password)
-	if err != nil {
-		return errors.Wrapf(err, "create user %s", username)
-	}
-	userId, _ := obj.GetString("id")
-	return ProjectAddUser(s, constants.SysAdminProject, userId, constants.RoleAdmin)
+	return nil
 }
 
 func RegisterServiceEndpoints(
@@ -528,11 +571,10 @@ func RegisterServiceEndpoints(
 		return err
 	}
 	errgrp := &errgroup.Group{}
-	for inf, endpointUrl := range interfaceUrls {
-		tmpInf := inf
-		tmpUrl := endpointUrl
+	for inf := range interfaceUrls {
+		tmpUrl := interfaceUrls[inf]
 		errgrp.Go(func() error {
-			_, err = EnsureEndpoint(s, svcId, regionId, tmpInf, tmpUrl, serviceCert)
+			_, err = ensureEndpoint(s, svcId, regionId, inf, tmpUrl, serviceCert)
 			if err != nil {
 				return err
 			}

@@ -614,6 +614,9 @@ type DeploymentSpec struct {
 	Tolerations      []corev1.Toleration           `json:"tolerations,omitempty"`
 	Annotations      map[string]string             `json:"annotations,omitempty"`
 	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
+
+	// if more than 0, create a read only deployment for the component
+	SlaveReplicas int32 `json:"slave_replicas"`
 }
 
 // ServicePortSpec contains listening port definition
@@ -848,6 +851,9 @@ type DeploymentStatus struct {
 	Phase       ComponentPhase         `json:"phase,omitempty"`
 	Deployment  *apps.DeploymentStatus `json:"deployment,omitempty"`
 	ImageStatus *ImageStatus           `json:"imageStatus,omitempty"`
+
+	SlavePhase      ComponentPhase         `json:"slave_phase,omitempty"`
+	SlaveDeployment *apps.DeploymentStatus `json:"slave_deployment,omitempty"`
 }
 
 // KeystoneStatus is Keystone status
