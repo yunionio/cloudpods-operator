@@ -15,6 +15,8 @@
 package identity
 
 import (
+	"time"
+
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/pkg/errors"
 	"yunion.io/x/pkg/util/rbacscope"
@@ -233,7 +235,7 @@ type SJoinProjectsInput struct {
 	Projects []string `json:"projects"`
 	Roles    []string `json:"roles"`
 	// 启用用户, 仅用户禁用时生效
-	Enabled bool
+	Enabled bool `json:"enabled"`
 }
 
 func (input SJoinProjectsInput) Validate() error {
@@ -271,10 +273,10 @@ func (input SLeaveProjectsInput) Validate() error {
 }
 
 type SProjectAddUserGroupInput struct {
-	Users          []string
-	Groups         []string
-	Roles          []string
-	EnableAllUsers bool
+	Users          []string `json:"users"`
+	Groups         []string `json:"groups"`
+	Roles          []string `json:"roles"`
+	EnableAllUsers bool     `json:"enable_all_users"`
 }
 
 func (input SProjectAddUserGroupInput) Validate() error {
@@ -288,17 +290,17 @@ func (input SProjectAddUserGroupInput) Validate() error {
 }
 
 type SUserRole struct {
-	User string
-	Role string
+	User string `json:"user"`
+	Role string `json:"role"`
 }
 type SGroupRole struct {
-	Group string
-	Role  string
+	Group string `json:"group"`
+	Role  string `json:"role"`
 }
 
 type SProjectRemoveUserGroupInput struct {
-	UserRoles  []SUserRole
-	GroupRoles []SGroupRole
+	UserRoles  []SUserRole  `json:"user_roles"`
+	GroupRoles []SGroupRole `json:"group_roles"`
 }
 
 func (input SProjectRemoveUserGroupInput) Validate() error {
@@ -369,7 +371,7 @@ type PolicyListInput struct {
 
 	// filter policies by role id
 	RoleId string `json:"role_id"`
-	// swagger: ignore
+	// swagger:ignore
 	// Deprecated
 	Role string `json:"role" yunion-deprecated-by:"role_id"`
 }
@@ -501,6 +503,12 @@ type UserUpdateInput struct {
 	SkipPasswordComplexityCheck *bool `json:"skip_password_complexity_check"`
 
 	Lang string `json:"lang"`
+
+	// 过期时间
+	ExpiredAt *time.Time `json:"expired_at"`
+
+	// 清除过期时间
+	ClearExpire *bool `json:"clear_expire"`
 }
 
 type UserCreateInput struct {
@@ -527,6 +535,8 @@ type UserCreateInput struct {
 	IdpEntityId string `json:"idp_entity_id"`
 
 	Lang string `json:"lang"`
+
+	ExpiredAt *time.Time `json:"expired_at"`
 }
 
 type ProjectCreateInput struct {
@@ -593,5 +603,5 @@ type UserLinkIdpInput struct {
 type UserUnlinkIdpInput UserLinkIdpInput
 
 type SProjectSetAdminInput struct {
-	UserId string
+	UserId string `json:"user_id"`
 }

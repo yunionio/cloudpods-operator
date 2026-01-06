@@ -19,7 +19,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/http"
+	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -197,6 +200,9 @@ type SGuest struct {
 
 	// 上次开机时间
 	LastStartAt time.Time `json:"last_start_at" list:"user"`
+
+	// 资源池,仅vmware指定调度标签时内部使用
+	ResourcePool string `width:"64" charset:"utf8" nullable:"true" create:"optional"`
 }
 
 func (manager *SGuestManager) GetPropertyStatistics(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject) (*apis.StatusStatistic, error) {
@@ -1388,9 +1394,13 @@ func (guest *SGuest) SetCpuNumaPin(
 		}
 	}
 
+	var cpuNumaPinType string
 	var schedCpuNumaPinJ jsonutils.JSONObject
 	if schedCpuNumaPin != nil {
 		schedCpuNumaPinJ = jsonutils.Marshal(schedCpuNumaPin)
+		cpuNumaPinType = api.VM_CPU_NUMA_PIN_SCHEDULER
+	} else if cpuNumaPin != nil {
+		schedCpuNumaPinJ = jsonutils.Marshal(cpuNumaPin)
 	}
 	diff, err := db.Update(guest, func() error {
 		guest.CpuNumaPin = schedCpuNumaPinJ
@@ -1404,7 +1414,11 @@ func (guest *SGuest) SetCpuNumaPin(
 	if cpuNumaPin != nil {
 		jcpuNumaPin = jsonutils.Marshal(cpuNumaPin)
 	}
-	err = guest.SetMetadata(ctx, api.VM_METADATA_CPU_NUMA_PIN, jcpuNumaPin, userCred)
+	metadataMap := map[string]interface{}{
+		api.VM_METADATA_CPU_NUMA_PIN:      jcpuNumaPin,
+		api.VM_METADATA_CPU_NUMA_PIN_TYPE: cpuNumaPinType,
+	}
+	err = guest.SetAllMetadata(ctx, metadataMap, userCred)
 	if err != nil {
 		return err
 	}
@@ -1796,6 +1810,17 @@ func (manager *SGuestManager) validateCreateData(
 
 		if arch := imgProperties["os_arch"]; strings.Contains(arch, "aarch") || strings.Contains(arch, "arm") {
 			input.OsArch = apis.OS_ARCH_AARCH64
+		}
+
+		// enable tpm on windows 11 image
+		if osDist := imgProperties["os_distribution"]; strings.Contains(osDist, "Windows 11") {
+			input.EnableTpm = true
+		}
+
+		// use uefi boot and q35 machine type on enable tpm
+		if input.EnableTpm {
+			input.Bios = "UEFI"
+			input.Machine = api.VM_MACHINE_TYPE_Q35
 		}
 
 		if imageDiskFormat != "iso" {
@@ -2239,6 +2264,13 @@ func (manager *SGuestManager) validateCreateData(
 		return nil, httperrors.NewInputParameterError("Invalid userdata: %v", err)
 	}
 
+	// validate KickstartConfig
+	if input.KickstartConfig != nil {
+		if err := validateKickstartConfig(input.KickstartConfig); err != nil {
+			return nil, httperrors.NewInputParameterError("Invalid kickstart config: %v", err)
+		}
+	}
+
 	err = manager.ValidatePolicyDefinitions(ctx, userCred, ownerId, query, input)
 	if err != nil {
 		return nil, err
@@ -2337,6 +2369,125 @@ func (manager *SGuestManager) ValidateCreateData(ctx context.Context, userCred m
 	}
 
 	return input.JSON(input), nil
+}
+
+func validateKickstartConfig(config *api.KickstartConfig) error {
+	if config.OSType == "" {
+		return httperrors.NewMissingParameterError("os_type")
+	}
+
+	if !utils.IsInStringArray(config.OSType, api.KICKSTART_VALID_OS_TYPES) {
+		return httperrors.NewInputParameterError("unsupported os_type: %s, supported types: %v", config.OSType, api.KICKSTART_VALID_OS_TYPES)
+	}
+
+	// 验证配置内容和URL二选一
+	if config.Config == "" && config.ConfigURL == "" {
+		return httperrors.NewInputParameterError("either config or config_url must be provided")
+	}
+
+	if config.Config != "" && config.ConfigURL != "" {
+		return httperrors.NewInputParameterError("config and config_url cannot be both provided, choose one")
+	}
+
+	if config.Config != "" {
+		const maxConfigSize = 64 * 1024
+		if len(config.Config) > maxConfigSize {
+			return httperrors.NewInputParameterError("config content too large: %d bytes, maximum allowed: %d bytes", len(config.Config), maxConfigSize)
+		}
+		if len(strings.TrimSpace(config.Config)) == 0 {
+			return httperrors.NewInputParameterError("config content cannot be empty")
+		}
+	}
+
+	if config.ConfigURL != "" {
+		if len(config.ConfigURL) > 2048 {
+			return httperrors.NewInputParameterError("config URL too long: %d characters, maximum allowed: 2048", len(config.ConfigURL))
+		}
+		if strings.TrimSpace(config.ConfigURL) == "" {
+			return httperrors.NewInputParameterError("config URL cannot be empty")
+		}
+
+		parsedURL, err := url.Parse(config.ConfigURL)
+		if err != nil {
+			return httperrors.NewInputParameterError("invalid URL format: %v", err)
+		}
+		if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+			return httperrors.NewInputParameterError("invalid URL scheme: %s, only http and https are allowed", parsedURL.Scheme)
+		}
+		if parsedURL.Host == "" {
+			return httperrors.NewInputParameterError("URL must specify a host")
+		}
+
+		if err := checkKickstartURLContentSize(config.ConfigURL); err != nil {
+			return httperrors.NewInputParameterError("URL content validation failed: %v", err)
+		}
+	}
+
+	// 设置默认值
+	if config.Enabled == nil {
+		enabled := true
+		config.Enabled = &enabled
+	}
+
+	if config.MaxRetries <= 0 {
+		config.MaxRetries = 3
+	}
+
+	if config.TimeoutMinutes <= 0 {
+		config.TimeoutMinutes = 60
+	}
+
+	return nil
+}
+
+// determineKickstartType determines kickstart type based on config content
+func determineKickstartType(config *api.KickstartConfig) string {
+	if config.Config != "" {
+		return api.KICKSTART_TYPE_CONTENT
+	}
+	return api.KICKSTART_TYPE_URL
+}
+
+func checkKickstartURLContentSize(configURL string) error {
+	const maxURLContentSize = 64 * 1024
+	const requestTimeout = 10 * time.Second
+
+	client := &http.Client{Timeout: requestTimeout}
+
+	req, err := http.NewRequest("HEAD", configURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %v", err)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Warningf("Failed to check URL content size for %s: %v", configURL, err)
+		return nil
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("URL returned status code: %d", resp.StatusCode)
+	}
+
+	contentLengthStr := resp.Header.Get("Content-Length")
+	if contentLengthStr != "" {
+		contentLength, err := strconv.ParseInt(contentLengthStr, 10, 64)
+		if err != nil {
+			log.Warningf("Failed to parse Content-Length header: %v", err)
+			return nil
+		}
+
+		if contentLength > maxURLContentSize {
+			return fmt.Errorf("URL content too large: %d bytes, maximum allowed: %d bytes", contentLength, maxURLContentSize)
+		}
+
+		log.Infof("URL content size validated: %d bytes", contentLength)
+	} else {
+		log.Warningf("URL %s does not provide Content-Length header, size validation skipped", configURL)
+	}
+
+	return nil
 }
 
 func (manager *SGuestManager) validateEip(ctx context.Context, userCred mcclient.TokenCredential, input *api.ServerCreateInput,
@@ -2577,6 +2728,9 @@ func (guest *SGuest) PostCreate(ctx context.Context, userCred mcclient.TokenCred
 	if jsonutils.QueryBoolean(data, api.VM_METADATA_ENABLE_MEMCLEAN, false) {
 		guest.SetMetadata(ctx, api.VM_METADATA_ENABLE_MEMCLEAN, "true", userCred)
 	}
+	if jsonutils.QueryBoolean(data, api.VM_METADATA_ENABLE_TPM, false) {
+		guest.SetMetadata(ctx, api.VM_METADATA_ENABLE_TPM, "true", userCred)
+	}
 	if jsonutils.QueryBoolean(data, imageapi.IMAGE_DISABLE_USB_KBD, false) {
 		guest.SetMetadata(ctx, imageapi.IMAGE_DISABLE_USB_KBD, "true", userCred)
 	}
@@ -2588,6 +2742,57 @@ func (guest *SGuest) PostCreate(ctx context.Context, userCred mcclient.TokenCred
 	userData, _ := data.GetString("user_data")
 	if len(userData) > 0 {
 		guest.setUserData(ctx, userCred, userData)
+	}
+
+	if guest.Hypervisor == api.HYPERVISOR_ESXI {
+		schedtags := []api.SchedtagConfig{}
+		data.Unmarshal(&schedtags, "schedtags")
+
+		for _, tag := range schedtags {
+			if tag.ResourceType != HostManager.KeywordPlural() {
+				continue
+			}
+			meta := db.SMetadata{}
+			db.Metadata.Query().
+				Equals("obj_type", SchedtagManager.Keyword()).
+				Equals("obj_id", tag.Id).
+				Equals("key", cloudprovider.METADATA_POOL_ID).First(&meta)
+			if len(meta.Value) > 0 {
+				db.Update(guest, func() error {
+					guest.ResourcePool = meta.Value
+					return nil
+				})
+			}
+		}
+	}
+
+	// set kickstart metadata
+	kickstartConfigJson, _ := data.Get("kickstart_config")
+	if kickstartConfigJson != nil {
+		kickstartConfig := &api.KickstartConfig{}
+		if err := kickstartConfigJson.Unmarshal(kickstartConfig); err != nil {
+			log.Errorf("unmarshal kickstart config fail: %s", err)
+		} else {
+			if err := guest.SetKickstartConfig(ctx, kickstartConfig, userCred); err != nil {
+				log.Errorf("Failed to set kickstart config for guest %s: %v", guest.Name, err)
+			} else {
+				//if err := guest.SetKickstartStatus(ctx, api.VM_KICKSTART_PENDING, userCred); err != nil {
+				//	log.Errorf("Failed to set kickstart status for guest %s: %v", guest.Name, err)
+				//}
+				if err := guest.SetMetadata(ctx, api.VM_METADATA_KICKSTART_COMPLETED_FLAG, "false", userCred); err != nil {
+					log.Errorf("Failed to set kickstart completed flag for guest %s: %v", guest.Name, err)
+				}
+
+				// Determine and set kickstart type based on config
+				kickstartType := determineKickstartType(kickstartConfig)
+
+				if err := guest.SetKickstartType(ctx, kickstartType, userCred); err != nil {
+					log.Errorf("Failed to set kickstart type for guest %s: %v", guest.Name, err)
+				}
+
+				log.Debugf("Successfully set kickstart config for guest %s with OS type %s", guest.Name, kickstartConfig.OSType)
+			}
+		}
 	}
 
 	input := struct {
@@ -3525,8 +3730,8 @@ func (manager *SGuestManager) TotalCount(
 	hostTypes []string, resourceTypes []string, providers []string, brands []string, cloudEnv string,
 	since *time.Time,
 	policyResult rbacutils.SPolicyResult,
-) SGuestCountStat {
-	return usageTotalGuestResouceCount(ctx, scope, ownerId, rangeObjs, status, hypervisors, includeSystem, pendingDelete, hostTypes, resourceTypes, providers, brands, cloudEnv, since, policyResult)
+) map[string]SGuestCountStat {
+	return usageTotalGuestResourceCount(ctx, scope, ownerId, rangeObjs, status, hypervisors, includeSystem, pendingDelete, hostTypes, resourceTypes, providers, brands, cloudEnv, since, policyResult)
 }
 
 func (self *SGuest) detachNetworks(ctx context.Context, userCred mcclient.TokenCredential, gns []SGuestnetwork, reserve bool) error {
@@ -3620,6 +3825,8 @@ type Attach2NetworkArgs struct {
 	IsDefault    bool
 	PortMappings api.GuestPortMappings
 
+	ChargeType string
+
 	PendingUsage quotas.IQuota
 }
 
@@ -3652,6 +3859,8 @@ func (args *Attach2NetworkArgs) onceArgs(i int) attach2NetworkOnceArgs {
 
 		pendingUsage: args.PendingUsage,
 		portMappings: args.PortMappings,
+
+		chargeType: args.ChargeType,
 	}
 	if i > 0 {
 		r.ipAddr = ""
@@ -3696,6 +3905,8 @@ type attach2NetworkOnceArgs struct {
 
 	pendingUsage quotas.IQuota
 	portMappings api.GuestPortMappings
+
+	chargeType string
 }
 
 func (self *SGuest) Attach2Network(
@@ -3774,6 +3985,8 @@ func (self *SGuest) attach2NetworkOnce(
 
 		isDefault:    args.isDefault,
 		portMappings: args.portMappings,
+
+		chargeType: args.chargeType,
 	}
 	lockman.LockClass(ctx, QuotaManager, self.ProjectId)
 	defer lockman.ReleaseClass(ctx, QuotaManager, self.ProjectId)
@@ -3806,18 +4019,6 @@ func (self *SGuest) attach2NetworkOnce(
 	}
 	db.OpsLog.LogAttachEvent(ctx, self, network, userCred, guestnic.GetShortDesc(ctx))
 	return guestnic, nil
-}
-
-type sRemoveGuestnic struct {
-	nic     *SGuestnetwork
-	reserve bool
-}
-
-type sAddGuestnic struct {
-	index   int
-	nic     cloudprovider.ICloudNic
-	net     *SNetwork
-	reserve bool
 }
 
 func getCloudNicNetwork(ctx context.Context, vnic cloudprovider.ICloudNic, host *SHost, ipList []string, index int) (*SNetwork, error) {
@@ -4231,7 +4432,7 @@ type SGuestCountStat struct {
 	TotalBackupDiskSize   int
 }
 
-func usageTotalGuestResouceCount(
+func usageTotalGuestResourceCount(
 	ctx context.Context,
 	scope rbacscope.TRbacScope,
 	ownerId mcclient.IIdentityProvider,
@@ -4245,12 +4446,41 @@ func usageTotalGuestResouceCount(
 	providers []string, brands []string, cloudEnv string,
 	since *time.Time,
 	policyResult rbacutils.SPolicyResult,
+) map[string]SGuestCountStat {
+	countStat := make(map[string]SGuestCountStat)
+	for _, arch := range []string{apis.OS_ARCH_ALL, apis.OS_ARCH_X86_64, apis.OS_ARCH_AARCH64} {
+		allStat := usageTotalGuestResourceCountByArch(
+			ctx, scope, ownerId, rangeObjs, status,
+			hypervisors, includeSystem, pendingDelete,
+			hostTypes, resourceTypes, providers, brands,
+			cloudEnv, since, policyResult, arch,
+		)
+		countStat[arch] = allStat
+	}
+	return countStat
+}
+
+func usageTotalGuestResourceCountByArch(
+	ctx context.Context,
+	scope rbacscope.TRbacScope,
+	ownerId mcclient.IIdentityProvider,
+	rangeObjs []db.IStandaloneModel,
+	status []string,
+	hypervisors []string,
+	includeSystem bool,
+	pendingDelete bool,
+	hostTypes []string,
+	resourceTypes []string,
+	providers []string, brands []string, cloudEnv string,
+	since *time.Time,
+	policyResult rbacutils.SPolicyResult,
+	osArch string,
 ) SGuestCountStat {
 	q, guests := _guestResourceCountQuery(
 		ctx,
 		scope, ownerId, rangeObjs, status, hypervisors,
 		pendingDelete, hostTypes, resourceTypes, providers, brands, cloudEnv, since,
-		policyResult,
+		policyResult, osArch,
 	)
 	if !includeSystem {
 		q = q.Filter(sqlchemy.OR(
@@ -4282,9 +4512,11 @@ func _guestResourceCountQuery(
 	providers []string, brands []string, cloudEnv string,
 	since *time.Time,
 	policyResult rbacutils.SPolicyResult,
+	osArch string,
 ) (*sqlchemy.SQuery, *sqlchemy.SSubQuery) {
 
 	guestdisks := GuestdiskManager.Query().SubQuery()
+
 	disks := DiskManager.Query().SubQuery()
 
 	diskQuery := guestdisks.Query(guestdisks.Field("guest_id"), sqlchemy.SUM("guest_disk_size", disks.Field("disk_size")))
@@ -4314,6 +4546,10 @@ func _guestResourceCountQuery(
 	} else {
 		gq = GuestManager.Query()
 	}
+	if osArch != "" && osArch != apis.OS_ARCH_ALL {
+		gq = gq.Equals("os_arch", osArch)
+	}
+
 	if len(rangeObjs) > 0 || len(hostTypes) > 0 || len(resourceTypes) > 0 || len(providers) > 0 || len(brands) > 0 || len(cloudEnv) > 0 {
 		gq = filterGuestByRange(gq, rangeObjs, hostTypes, resourceTypes, providers, brands, cloudEnv)
 	}
@@ -4563,6 +4799,8 @@ func (self *SGuest) attach2NamedNetworkDesc(ctx context.Context, userCred mcclie
 
 			IsDefault:    netConfig.IsDefault,
 			PortMappings: netConfig.PortMappings,
+
+			ChargeType: netConfig.ChargeType,
 		})
 		if err != nil {
 			return nil, errors.Wrap(err, "Attach2Network fail")
@@ -4787,7 +5025,7 @@ func (self *SGuest) createDiskOnHost(
 
 func (self *SGuest) CreateIsolatedDeviceOnHost(ctx context.Context, userCred mcclient.TokenCredential, host *SHost, devs []*api.IsolatedDeviceConfig, pendingUsage quotas.IQuota) error {
 	var numaNodes []int
-	if self.CpuNumaPin != nil {
+	if self.IsSchedulerNumaAllocate() {
 		numaNodes = make([]int, 0)
 		cpuNumaPin := make([]schedapi.SCpuNumaPin, 0)
 		self.CpuNumaPin.Unmarshal(&cpuNumaPin)
@@ -4797,6 +5035,8 @@ func (self *SGuest) CreateIsolatedDeviceOnHost(ctx context.Context, userCred mcc
 		}
 	}
 
+	lockman.LockObject(ctx, host)
+	defer lockman.ReleaseObject(ctx, host)
 	usedDeviceMap := map[string]*SIsolatedDevice{}
 	for _, devConfig := range devs {
 		if devConfig.DevType == api.NIC_TYPE || devConfig.DevType == api.NVME_PT_TYPE {
@@ -5080,6 +5320,11 @@ func (self *SGuest) isNeedDoResetPasswd() bool {
 	return true
 }
 
+func (self *SGuest) IsSchedulerNumaAllocate() bool {
+	cpuNumaPinType := self.GetMetadata(context.Background(), api.VM_METADATA_CPU_NUMA_PIN_TYPE, nil)
+	return cpuNumaPinType == api.VM_CPU_NUMA_PIN_SCHEDULER && self.CpuNumaPin != nil
+}
+
 func (self *SGuest) GetDeployConfigOnHost(ctx context.Context, userCred mcclient.TokenCredential, host *SHost, params *jsonutils.JSONDict) (*jsonutils.JSONDict, error) {
 	config := jsonutils.NewDict()
 
@@ -5347,7 +5592,7 @@ func (self *SGuest) GetJsonDescAtHypervisor(ctx context.Context, host *SHost) *a
 		desc.IsolatedDevices = append(desc.IsolatedDevices, dev.getDesc())
 	}
 
-	if self.CpuNumaPin != nil {
+	if self.IsSchedulerNumaAllocate() {
 		cpuNumaPin := make([]api.SCpuNumaPin, 0)
 		cpuNumaPinStr := self.GetMetadata(ctx, api.VM_METADATA_CPU_NUMA_PIN, nil)
 		cpuNumaPinJson, err := jsonutils.ParseString(cpuNumaPinStr)
@@ -7074,6 +7319,79 @@ func (guest *SGuest) SetGuestBackupMirrorJobInProgress(ctx context.Context, user
 	return guest.SetMetadata(ctx, api.MIRROR_JOB, api.MIRROR_JOB_INPROGRESS, userCred)
 }
 
+func (guest *SGuest) SetKickstartConfig(ctx context.Context, config *api.KickstartConfig, userCred mcclient.TokenCredential) error {
+	if config == nil {
+		return guest.RemoveMetadata(ctx, api.VM_METADATA_KICKSTART_CONFIG, userCred)
+	}
+
+	if err := validateKickstartConfig(config); err != nil {
+		return errors.Wrap(err, "validate kickstart config")
+	}
+
+	configJson := jsonutils.Marshal(config)
+	return guest.SetMetadata(ctx, api.VM_METADATA_KICKSTART_CONFIG, configJson, userCred)
+}
+
+func (guest *SGuest) GetKickstartConfig(ctx context.Context, userCred mcclient.TokenCredential) (*api.KickstartConfig, error) {
+	configJson := guest.GetMetadataJson(ctx, api.VM_METADATA_KICKSTART_CONFIG, userCred)
+	if configJson == nil {
+		return nil, nil
+	}
+
+	config := &api.KickstartConfig{}
+	if err := configJson.Unmarshal(config); err != nil {
+		return nil, errors.Wrap(err, "unmarshal kickstart config")
+	}
+
+	return config, nil
+}
+
+func (guest *SGuest) SetKickstartStatus(ctx context.Context, status string, userCred mcclient.TokenCredential) error {
+	if !utils.IsInStringArray(status, api.VM_KICKSTART_STATUS) {
+		return errors.Errorf("invalid kickstart status: %s", status)
+	}
+	return guest.SetStatus(ctx, userCred, status, "")
+}
+
+func (guest *SGuest) GetKickstartStatus(ctx context.Context, userCred mcclient.TokenCredential) string {
+	if utils.IsInStringArray(guest.Status, api.VM_KICKSTART_STATUS) {
+		return guest.Status
+	}
+	return ""
+}
+
+func (guest *SGuest) IsInKickstartStatus() bool {
+	return utils.IsInStringArray(guest.Status, api.VM_KICKSTART_STATUS)
+}
+
+func (guest *SGuest) SetKickstartType(ctx context.Context, kickstartType string, userCred mcclient.TokenCredential) error {
+	if !utils.IsInStringArray(kickstartType, api.KICKSTART_VALID_TYPES) {
+		return errors.Errorf("invalid kickstart type: %s", kickstartType)
+	}
+	return guest.SetMetadata(ctx, api.VM_METADATA_KICKSTART_TYPE, kickstartType, userCred)
+}
+
+func (guest *SGuest) GetKickstartType(ctx context.Context, userCred mcclient.TokenCredential) string {
+	kickstartType := guest.GetMetadata(ctx, api.VM_METADATA_KICKSTART_TYPE, userCred)
+	if kickstartType == "" {
+		return api.KICKSTART_TYPE_URL
+	}
+	return kickstartType
+}
+
+func (guest *SGuest) IsKickstartEnabled(ctx context.Context, userCred mcclient.TokenCredential) bool {
+	config, err := guest.GetKickstartConfig(ctx, userCred)
+	if err != nil || config == nil {
+		return false
+	}
+
+	if config.Enabled == nil {
+		return true
+	}
+
+	return *config.Enabled
+}
+
 func (guest *SGuest) SetGuestBackupMirrorJobNotReady(ctx context.Context, userCred mcclient.TokenCredential) error {
 	return guest.SetMetadata(ctx, api.MIRROR_JOB, "", userCred)
 }
@@ -7192,4 +7510,43 @@ func (guest *SGuest) SaveLastStartAt() error {
 		return nil
 	})
 	return errors.Wrap(err, "SaveLastStartAt")
+}
+
+func (guest *SGuest) finalizeFakeDeleteTask(ctx context.Context, userCred mcclient.TokenCredential, task taskman.ITask) {
+	db.OpsLog.LogEvent(guest, db.ACT_PENDING_DELETE, guest.GetShortDesc(ctx), userCred)
+	logclient.AddActionLogWithStartable(task, guest, logclient.ACT_PENDING_DELETE, guest.GetShortDesc(ctx), userCred, true)
+	if !guest.IsSystem {
+		guest.EventNotify(ctx, userCred, notifyclient.ActionPendingDelete)
+	}
+}
+
+func (guest *SGuest) finalizeRealDeleteTask(ctx context.Context, userCred mcclient.TokenCredential, task taskman.ITask) {
+	guest.RealDelete(ctx, userCred)
+	guest.RemoveAllMetadata(ctx, userCred)
+	db.OpsLog.LogEvent(guest, db.ACT_DELOCATE, guest.GetShortDesc(ctx), userCred)
+	logclient.AddActionLogWithStartable(task, guest, logclient.ACT_DELOCATE, nil, userCred, true)
+	if !guest.IsSystem {
+		guest.EventNotify(ctx, userCred, notifyclient.ActionDelete)
+	}
+	HostManager.ClearSchedDescCache(guest.HostId)
+}
+
+func (guest *SGuest) FinalizeDeleteTask(ctx context.Context, userCred mcclient.TokenCredential, task taskman.ITask, data jsonutils.JSONObject) {
+	if jsonutils.QueryBoolean(data, "real_delete", false) {
+		guest.finalizeRealDeleteTask(ctx, userCred, task)
+	} else {
+		guest.finalizeFakeDeleteTask(ctx, userCred, task)
+	}
+}
+
+func (guest *SGuest) StartBaseDeleteTask(ctx context.Context, t taskman.ITask) error {
+	task, err := taskman.TaskManager.NewTask(ctx, "BaseGuestDeleteTask", guest, t.GetUserCred(), t.GetParams(), t.GetTaskId(), "", nil)
+	if err != nil {
+		return errors.Wrap(err, "StartBaseDeleteTask")
+	}
+	err = task.ScheduleRun(nil)
+	if err != nil {
+		return errors.Wrap(err, "ScheduleRun")
+	}
+	return nil
 }

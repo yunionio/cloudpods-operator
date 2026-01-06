@@ -17,6 +17,8 @@ package procutils
 import (
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -24,44 +26,62 @@ import (
 	"yunion.io/x/pkg/errors"
 )
 
-func FilePutContents(filename string, content string) error {
-	cmd := NewRemoteCommandAsFarAsPossible("cp", "/dev/stdin", filename)
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return errors.Wrap(err, "StdinPipe")
-	}
-	exitSignal := make(chan error)
-	go func() {
-		defer stdin.Close()
-		_, err := stdin.Write([]byte(content))
-		if err != nil {
-			exitSignal <- err
+var (
+	remoteTmpDir = "/var/run/onecloud/files"
+)
+
+func GetRemoteTempDir() string {
+	return remoteTmpDir
+}
+
+func SetRemoteTempDir(dir string) {
+	remoteTmpDir = dir
+}
+
+func EnsureDir(dir string) error {
+	if dir != "" && dir != "." {
+		mkdirCmd := NewRemoteCommandAsFarAsPossible("mkdir", "-p", dir)
+		if err := mkdirCmd.Run(); err != nil {
+			return errors.Wrapf(err, "mkdir -p %s", dir)
 		}
-		log.Debugf("write content %d to %s", len(content), filename)
-		exitSignal <- nil
-	}()
-	err = cmd.Start()
-	if err != nil {
-		return errors.Wrap(err, "Run")
 	}
-	err = <-exitSignal
-	if err != nil {
-		return errors.Wrap(err, "Write")
+	return nil
+}
+
+func FilePutContents(filename string, content string) error {
+	// Generate temp filename: replace / with _ and add timestamp
+	// Example: /etc/abc.txt -> etc_abc.txt.1234567890
+	tempName := strings.TrimPrefix(filename, "/")
+	tempName = strings.ReplaceAll(tempName, "/", "_")
+	timestamp := time.Now().Unix()
+	tempPath := fmt.Sprintf("%s/%s.%d", GetRemoteTempDir(), tempName, timestamp)
+
+	// Ensure tempPath dir
+	if err := EnsureDir(filepath.Dir(tempPath)); err != nil {
+		return errors.Wrapf(err, "EnsureDir %s", filepath.Dir(tempPath))
 	}
-	killTimer := time.NewTimer(time.Second)
-	go func() {
-		<-killTimer.C
-		fmt.Println("killTimer fired")
-		cmd.Kill()
-	}()
-	err = cmd.Wait()
-	if err != nil && !strings.Contains(err.Error(), "killed") {
-		// ignore killed signal error
-		return errors.Wrap(err, "Wait")
+
+	// Write temp file using Go native function
+	if err := os.WriteFile(tempPath, []byte(content), 0644); err != nil {
+		return errors.Wrapf(err, "write file %s", tempPath)
 	}
-	if !killTimer.Stop() {
-		log.Debugf("killTimer has been expired")
+
+	// Ensure target directory exists
+	targetDir := filepath.Dir(filename)
+	if err := EnsureDir(targetDir); err != nil {
+		// Clean up temp file
+		os.Remove(tempPath)
+		return errors.Wrapf(err, "EnsureDir targetDir %s", targetDir)
 	}
+
+	// Move temp file to target location
+	mvCmd := NewRemoteCommandAsFarAsPossible("mv", tempPath, filename)
+	if err := mvCmd.Run(); err != nil {
+		// Clean up temp file
+		os.Remove(tempPath)
+		return errors.Wrapf(err, "mv %s %s", tempPath, filename)
+	}
+
 	return nil
 }
 
@@ -86,4 +106,16 @@ func FileGetContents(filename string) ([]byte, error) {
 	}()
 	content := <-contentChan
 	return content, nil
+}
+
+// IsEmptyFile 使用 shell 命令判断文件是否为空
+// 返回 true 表示文件存在且为空（大小为 0），false 表示文件不存在或不为空
+func IsEmptyFile(filename string) bool {
+	// 使用 test -f 检查文件是否存在且为普通文件
+	// 使用 test ! -s 检查文件是否为空（大小为 0）
+	// test -f file && test ! -s file 表示文件存在且为空
+	checkCmd := fmt.Sprintf("test -f '%s' && test ! -s '%s'", filename, filename)
+	cmd := NewRemoteCommandAsFarAsPossible("sh", "-c", checkCmd)
+	err := cmd.Run()
+	return err == nil
 }

@@ -193,11 +193,6 @@ func sliceToJsonObject(items []int) jsonutils.JSONObject {
 	return ret
 }
 
-func inWhiteList(provider string) bool {
-	// 私有云套餐也允许更新删除
-	return provider == api.CLOUD_PROVIDER_ONECLOUD || utils.IsInStringArray(provider, api.PRIVATE_CLOUD_PROVIDERS)
-}
-
 func genInstanceType(family string, cpu, memMb int64) (string, error) {
 	if cpu <= 0 {
 		return "", fmt.Errorf("cpu_core_count should great than zero")
@@ -391,7 +386,7 @@ func (self *SServerSkuManager) ValidateCreateData(ctx context.Context, userCred 
 
 func (self *SServerSku) PostCreate(ctx context.Context, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, query jsonutils.JSONObject, data jsonutils.JSONObject) {
 	self.SEnabledStatusStandaloneResourceBase.PostCreate(ctx, userCred, ownerId, query, data)
-	if self.Provider != api.CLOUD_PROVIDER_ONECLOUD {
+	if utils.IsInStringArray(self.Provider, api.PRIVATE_CLOUD_PROVIDERS) {
 		self.StartSkuCreateTask(ctx, userCred)
 	}
 }
@@ -401,8 +396,7 @@ func (self *SServerSku) StartSkuCreateTask(ctx context.Context, userCred mcclien
 	if err != nil {
 		return errors.Wrapf(err, "NewTask")
 	}
-	task.ScheduleRun(nil)
-	return nil
+	return task.ScheduleRun(nil)
 }
 
 func (self *SServerSku) GetPrivateCloudproviders() ([]SCloudprovider, error) {
@@ -679,9 +673,10 @@ func (self *SServerSku) ValidateDeleteCondition(ctx context.Context, info *api.S
 		return httperrors.NewNotEmptyError("now allow to delete inuse instance_type.please remove related servers first: %s", self.Name)
 	}
 
-	if !inWhiteList(self.Provider) {
+	if !options.Options.EnableDeletePublicCloudSku && utils.IsInStringArray(self.Provider, api.PUBLIC_CLOUD_PROVIDERS) {
 		return httperrors.NewForbiddenError("not allow to delete public cloud instance_type: %s", self.Name)
 	}
+
 	return nil
 }
 
@@ -818,24 +813,24 @@ func (manager *SServerSkuManager) ListItemFilter(
 
 	zoneStr := query.ZoneId
 	if len(zoneStr) > 0 {
-		_zone, err := ZoneManager.FetchByIdOrName(ctx, userCred, zoneStr)
+		zoneObj, err := validators.ValidateModel(ctx, userCred, ZoneManager, &zoneStr)
 		if err != nil {
-			if err == sql.ErrNoRows {
-				return nil, httperrors.NewResourceNotFoundError2("zone", zoneStr)
-			}
-			return nil, httperrors.NewGeneralError(err)
+			return nil, err
 		}
-		zone := _zone.(*SZone)
-		region, _ := zone.GetRegion()
-		if region == nil {
-			return nil, httperrors.NewResourceNotFoundError("failed to find cloudregion for zone %s(%s)", zone.Name, zone.Id)
+		zone := zoneObj.(*SZone)
+		region, err := zone.GetRegion()
+		if err != nil {
+			return nil, errors.Wrapf(err, "GetRegion %s", zone.Name)
 		}
-		//OneCloud忽略zone参数
-		if region.Provider == api.CLOUD_PROVIDER_ONECLOUD {
-			q = q.Equals("cloudregion_id", region.Id)
-		} else {
-			q = q.Equals("zone_id", zone.Id)
-		}
+		q = q.Filter(
+			sqlchemy.OR(
+				sqlchemy.AND(
+					sqlchemy.Equals(q.Field("cloudregion_id"), region.Id),
+					sqlchemy.IsNullOrEmpty(q.Field("zone_id")),
+				),
+				sqlchemy.Equals(q.Field("zone_id"), zone.Id),
+			),
+		)
 	}
 
 	q, err = managedResourceFilterByRegion(ctx, q, query.RegionalFilterListInput, "", nil)
@@ -1260,6 +1255,8 @@ func (self *SServerSku) syncWithCloudSku(ctx context.Context, userCred mcclient.
 		self.GpuAttachable = sku.GpuAttachable
 		self.GpuSpec = sku.GpuSpec
 		self.GpuCount = sku.GpuCount
+		self.CpuCoreCount = sku.CpuCoreCount
+		self.MemorySizeMB = sku.MemorySizeMB
 		self.Md5 = sku.Md5
 		return nil
 	})
@@ -1276,22 +1273,41 @@ func (self *SServerSku) MarkAsSoldout(ctx context.Context) error {
 	return errors.Wrap(err, "SServerSku.MarkAsSoldout")
 }
 
-func (manager *SServerSkuManager) FetchSkusByRegion(regionID string) ([]SServerSku, error) {
-	q := manager.Query()
-	q = q.Equals("cloudregion_id", regionID)
+func (region *SCloudregion) FetchSkusByRegion() ([]SServerSku, error) {
+	q := ServerSkuManager.Query().Equals("cloudregion_id", region.Id)
 
 	skus := make([]SServerSku, 0)
-	err := db.FetchModelObjects(manager, q, &skus)
+	err := db.FetchModelObjects(ServerSkuManager, q, &skus)
 	if err != nil {
-		return nil, errors.Wrap(err, "SServerSkuManager.FetchSkusByRegion")
+		return nil, errors.Wrapf(err, "FetchSkusByRegion %s", region.ExternalId)
 	}
 
 	return skus, nil
 }
 
-func (manager *SServerSkuManager) SyncServerSkus(ctx context.Context, userCred mcclient.TokenCredential, region *SCloudregion, xor bool) compare.SyncResult {
-	lockman.LockRawObject(ctx, manager.Keyword(), region.Id)
-	defer lockman.ReleaseRawObject(ctx, manager.Keyword(), region.Id)
+func (region *SCloudregion) GetUsedSkus() (map[string]bool, error) {
+	hosts := HostManager.Query().SubQuery()
+	zones := ZoneManager.Query().Equals("cloudregion_id", region.Id).SubQuery()
+	q := GuestManager.Query("instance_type").Distinct()
+	q = q.Join(hosts, sqlchemy.Equals(q.Field("host_id"), hosts.Field("id")))
+	q = q.Join(zones, sqlchemy.Equals(hosts.Field("zone_id"), zones.Field("id")))
+	ret := []struct {
+		InstanceType string `json:"instance_type"`
+	}{}
+	err := q.All(&ret)
+	if err != nil {
+		return nil, errors.Wrapf(err, "GetUsedSkus %s", region.ExternalId)
+	}
+	usedSkus := make(map[string]bool, 0)
+	for _, item := range ret {
+		usedSkus[item.InstanceType] = true
+	}
+	return usedSkus, nil
+}
+
+func (region *SCloudregion) SyncServerSkus(ctx context.Context, userCred mcclient.TokenCredential, xor bool) compare.SyncResult {
+	lockman.LockRawObject(ctx, ServerSkuManager.Keyword(), region.Id)
+	defer lockman.ReleaseRawObject(ctx, ServerSkuManager.Keyword(), region.Id)
 
 	result := compare.SyncResult{}
 
@@ -1302,15 +1318,15 @@ func (manager *SServerSkuManager) SyncServerSkus(ctx context.Context, userCred m
 	}
 
 	extSkus := []SServerSku{}
-	err = meta.List(manager.Keyword(), region.ExternalId, &extSkus)
+	err = meta.List(ServerSkuManager.Keyword(), region.ExternalId, &extSkus)
 	if err != nil {
 		result.Error(errors.Wrapf(err, "List"))
 		return result
 	}
 
-	dbSkus, err := manager.FetchSkusByRegion(region.GetId())
+	dbSkus, err := region.FetchSkusByRegion()
 	if err != nil {
-		result.Error(err)
+		result.Error(errors.Wrapf(err, "FetchSkusByRegion %s", region.ExternalId))
 		return result
 	}
 
@@ -1321,23 +1337,38 @@ func (manager *SServerSkuManager) SyncServerSkus(ctx context.Context, userCred m
 
 	err = compare.CompareSets(dbSkus, extSkus, &removed, &commondb, &commonext, &added)
 	if err != nil {
-		result.Error(err)
+		result.Error(errors.Wrapf(err, "CompareSets %s", region.ExternalId))
 		return result
 	}
 
+	usedSkus, err := region.GetUsedSkus()
+	if err != nil {
+		result.Error(errors.Wrapf(err, "GetUsedSkus %s", region.ExternalId))
+		return result
+	}
+
+	purgeIds := []string{}
 	for i := 0; i < len(removed); i += 1 {
-		cnt, err := removed[i].GetGuestCount()
-		if err != nil || cnt > 0 {
+		var err error
+		if usedSkus[removed[i].Name] {
 			err = removed[i].MarkAsSoldout(ctx)
-		} else {
-			err = removed[i].RealDelete(ctx, userCred)
+			if err != nil {
+				result.DeleteError(err)
+			}
+			continue
 		}
+		purgeIds = append(purgeIds, removed[i].Id)
+	}
+
+	if len(purgeIds) > 0 {
+		err = db.Purge(ServerSkuManager, "id", purgeIds, true)
 		if err != nil {
-			result.DeleteError(err)
+			result.Error(errors.Wrapf(err, "Purge %s", region.ExternalId))
 		} else {
-			result.Delete()
+			result.DelCnt += len(purgeIds)
 		}
 	}
+
 	if !xor {
 		for i := 0; i < len(commondb); i += 1 {
 			err = commondb[i].syncWithCloudSku(ctx, userCred, region, commonext[i])
@@ -1510,19 +1541,8 @@ func fetchSkuSyncCloudregions() []SCloudregion {
 func SyncServerSkus(ctx context.Context, userCred mcclient.TokenCredential, isStart bool) {
 	// 清理无效的sku
 	log.Debugf("DeleteInvalidSkus in processing...")
-	err := ServerSkuManager.DeleteInvalidSkus()
+	ServerSkuManager.DeleteInvalidSkus()
 
-	if isStart {
-		cnt, err := ServerSkuManager.GetPublicCloudSkuCount()
-		if err != nil {
-			log.Errorf("GetPublicCloudSkuCount fail %s", err)
-			return
-		}
-		if cnt > 0 {
-			log.Debugf("GetPublicCloudSkuCount synced skus, skip...")
-			return
-		}
-	}
 	cloudregions := fetchSkuSyncCloudregions()
 	if len(cloudregions) == 0 {
 		return
@@ -1555,7 +1575,7 @@ func SyncServerSkus(ctx context.Context, userCred mcclient.TokenCredential, isSt
 
 		db.Metadata.SetValue(ctx, skuMeta, db.SKU_METADAT_KEY, newMd5, userCred)
 
-		result := ServerSkuManager.SyncServerSkus(ctx, userCred, region, false)
+		result := region.SyncServerSkus(ctx, userCred, false)
 		notes := fmt.Sprintf("SyncServerSkusByRegion %s result: %v", region.Name, result.Result())
 		log.Debugf("%s", notes)
 	}
@@ -1565,7 +1585,7 @@ func SyncServerSkus(ctx context.Context, userCred mcclient.TokenCredential, isSt
 // 同步指定region sku列表
 func SyncServerSkusByRegion(ctx context.Context, userCred mcclient.TokenCredential, region *SCloudregion, xor bool) compare.SyncResult {
 	result := compare.SyncResult{}
-	result = ServerSkuManager.SyncServerSkus(ctx, userCred, region, xor)
+	result = region.SyncServerSkus(ctx, userCred, xor)
 	notes := fmt.Sprintf("SyncServerSkusByRegion %s result: %v", region.Name, result.Result())
 	log.Infof("%s", notes)
 	return result

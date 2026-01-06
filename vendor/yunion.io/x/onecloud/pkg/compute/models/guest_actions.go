@@ -560,7 +560,7 @@ func (self *SGuest) GetSchedMigrateParams(
 			schedDesc.SkipKernelCheck = &input.SkipKernelCheck
 			schedDesc.HostMemPageSizeKB = host.PageSizeKB
 		}
-		if self.CpuNumaPin != nil {
+		if self.IsSchedulerNumaAllocate() {
 			cpuNumaPin := make([]schedapi.SCpuNumaPin, 0)
 			self.CpuNumaPin.Unmarshal(&cpuNumaPin)
 			schedDesc.CpuNumaPin = cpuNumaPin
@@ -1202,7 +1202,8 @@ func (self *SGuest) PerformStart(
 	query jsonutils.JSONObject,
 	input api.GuestPerformStartInput,
 ) (jsonutils.JSONObject, error) {
-	if utils.IsInStringArray(self.Status, []string{api.VM_READY, api.VM_START_FAILED, api.VM_SAVE_DISK_FAILED, api.VM_SUSPEND}) {
+	validStartStatuses := []string{api.VM_READY, api.VM_START_FAILED, api.VM_SAVE_DISK_FAILED, api.VM_SUSPEND, api.VM_KICKSTART_PENDING, api.VM_KICKSTART_FAILED}
+	if utils.IsInStringArray(self.Status, validStartStatuses) {
 		if err := self.ValidateEncryption(ctx, userCred); err != nil {
 			return nil, errors.Wrap(httperrors.ErrForbidden, "encryption key not accessible")
 		}
@@ -1427,6 +1428,38 @@ func (self *SGuest) GetDetailsIso(ctx context.Context, userCred mcclient.TokenCr
 		desc.Set("status", jsonutils.NewString("ready"))
 	}
 	return desc, nil
+}
+
+// 获取Kickstart信息
+func (self *SGuest) GetDetailsKickstart(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject) (jsonutils.JSONObject, error) {
+	result := jsonutils.NewDict()
+
+	kickstartConfig, err := self.GetKickstartConfig(ctx, userCred)
+	if err != nil {
+		return nil, httperrors.NewInternalServerError("Failed to get kickstart config: %v", err)
+	}
+
+	status := self.GetKickstartStatus(ctx, userCred)
+
+	attempt := self.GetMetadata(ctx, api.VM_METADATA_KICKSTART_ATTEMPT, userCred)
+	if attempt == "" {
+		attempt = "0"
+	}
+
+	kickstartType := self.GetKickstartType(ctx, userCred)
+
+	if kickstartConfig != nil {
+		configDict := jsonutils.Marshal(kickstartConfig)
+		result.Set("config", configDict)
+	} else {
+		result.Set("config", jsonutils.NewDict())
+	}
+
+	result.Set("status", jsonutils.NewString(status))
+	result.Set("attempt", jsonutils.NewString(attempt))
+	result.Set("type", jsonutils.NewString(kickstartType))
+
+	return result, nil
 }
 
 // 挂载ISO镜像
@@ -1705,7 +1738,7 @@ func (self *SGuest) StartGueststartTask(
 		}
 	}
 
-	if !startFromCreate && self.CpuNumaPin != nil {
+	if !startFromCreate && self.IsSchedulerNumaAllocate() {
 		// clean cpu numa pin
 		err := self.SetCpuNumaPin(ctx, userCred, nil, nil)
 		if err != nil {
@@ -1750,7 +1783,7 @@ func (self *SGuest) GuestNonSchedStartTask(
 	if self.BackupHostId != "" {
 		taskName = "HAGuestStartTask"
 	}
-	if self.CpuNumaPin != nil {
+	if self.IsSchedulerNumaAllocate() {
 		srcSchedCpuNumaPin := make([]schedapi.SCpuNumaPin, 0)
 		err := self.CpuNumaPin.Unmarshal(&srcSchedCpuNumaPin)
 		if err != nil {
@@ -2909,11 +2942,14 @@ func (self *SGuest) PerformChangeIpaddr(
 
 	notes := gn.GetShortDesc(ctx)
 	if gn != nil {
-		notes.Add(jsonutils.NewString(gn.IpAddr), "prev_ip")
+		if gn.IpAddr != ngn.IpAddr {
+			notes.Add(jsonutils.NewString(gn.IpAddr), "prev_ip")
+		}
+		if gn.Ip6Addr != ngn.Ip6Addr {
+			notes.Add(jsonutils.NewString(gn.Ip6Addr), "prev_ip6")
+		}
 	}
-	if ngn != nil {
-		notes.Add(jsonutils.NewString(ngn.IpAddr), "ip")
-	}
+	db.OpsLog.LogEvent(self, db.ACT_CHANGE_IPADDR, notes, userCred)
 	logclient.AddActionLogWithContext(ctx, self, logclient.ACT_VM_CHANGE_NIC, notes, userCred, true)
 
 	restartNetwork := (input.RestartNetwork != nil && *input.RestartNetwork)
@@ -3295,15 +3331,18 @@ func (guest *SGuest) PerformChangeBandwidth(
 	}
 
 	if guestnic.BwLimit != int(bandwidth) {
-		diff, err := db.Update(guestnic, func() error {
+		oldBw := guestnic.BwLimit
+		_, err := db.Update(guestnic, func() error {
 			guestnic.BwLimit = int(bandwidth)
 			return nil
 		})
 		if err != nil {
 			return nil, err
 		}
-		db.OpsLog.LogEvent(guest, db.ACT_CHANGE_BANDWIDTH, diff, userCred)
-		logclient.AddActionLogWithContext(ctx, guest, logclient.ACT_VM_CHANGE_BANDWIDTH, diff, userCred, true)
+		eventDesc := guestnic.GetShortDesc(ctx)
+		eventDesc.Add(jsonutils.NewInt(int64(oldBw)), "old_bw_limit_mbps")
+		db.OpsLog.LogEvent(guest, db.ACT_CHANGE_BANDWIDTH, eventDesc, userCred)
+		logclient.AddActionLogWithContext(ctx, guest, logclient.ACT_VM_CHANGE_BANDWIDTH, eventDesc, userCred, true)
 		if guest.Status == api.VM_READY || (input.NoSync != nil && *input.NoSync) {
 			// if no sync, just update db
 			return nil, nil
@@ -3564,7 +3603,7 @@ func (self *SGuest) PerformReset(ctx context.Context, userCred mcclient.TokenCre
 		return nil, err
 	}
 	isHard := jsonutils.QueryBoolean(data, "is_hard", false)
-	if self.Status == api.VM_RUNNING || self.Status == api.VM_STOP_FAILED {
+	if utils.IsInStringArray(self.Status, []string{api.VM_RUNNING, api.VM_STOP_FAILED, api.VM_KICKSTART_INSTALLING, api.VM_KICKSTART_FAILED, api.VM_KICKSTART_COMPLETED}) {
 		drv.StartGuestResetTask(self, ctx, userCred, isHard, "")
 		return nil, nil
 	}
@@ -3595,11 +3634,11 @@ func (self *SGuest) isNotRunningStatus(status string) bool {
 func (self *SGuest) SetStatus(ctx context.Context, userCred mcclient.TokenCredential, status, reason string) error {
 	if status == api.VM_RUNNING {
 		if err := self.SetPowerStates(api.VM_POWER_STATES_ON); err != nil {
-			return err
+			return errors.Wrap(err, "input status is running")
 		}
 	} else if status == api.VM_READY {
 		if err := self.SetPowerStates(api.VM_POWER_STATES_OFF); err != nil {
-			return err
+			return errors.Wrap(err, "input status is ready")
 		}
 	}
 
@@ -3618,7 +3657,7 @@ func (self *SGuest) SetPowerStates(powerStates string) error {
 		self.PowerStates = powerStates
 		return nil
 	})
-	return errors.Wrap(err, "Update power states")
+	return errors.Wrapf(err, "Update power states to %s", powerStates)
 }
 
 func (self *SGuest) SetBackupGuestStatus(userCred mcclient.TokenCredential, status string, reason string) error {
@@ -3659,6 +3698,11 @@ func (g *SGuest) SetStatusFromHost(ctx context.Context, userCred mcclient.TokenC
 		if g.GetHypervisor() != api.HYPERVISOR_POD {
 			statusStr = api.VM_UNKNOWN
 		}
+	}
+	// Do not override kickstart_installing with running
+	if statusStr == api.VM_RUNNING && g.Status == api.VM_KICKSTART_INSTALLING {
+		statusStr = g.Status
+		log.Infof("guest %s is installing, skip set running status", g.Name)
 	}
 	if !hasParentTask {
 		// migrating status hack
@@ -3750,6 +3794,12 @@ func (self *SGuest) PerformStatus(ctx context.Context, userCred mcclient.TokenCr
 		}
 	}
 
+	// Do not override kickstart_installing with running
+	if input.Status == api.VM_RUNNING && self.Status == api.VM_KICKSTART_INSTALLING {
+		log.Debugf("guest %s is in kickstart_installing state, skip set running status", self.Name)
+		return nil, nil
+	}
+
 	preStatus := self.Status
 	_, err := self.SVirtualResourceBase.PerformStatus(ctx, userCred, query, input.PerformStatusInput)
 	if err != nil {
@@ -3808,7 +3858,7 @@ func (self *SGuest) PerformStatus(ctx context.Context, userCred mcclient.TokenCr
 func (self *SGuest) PerformStop(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject,
 	input api.ServerStopInput) (jsonutils.JSONObject, error) {
 	// XXX if is force, force stop guest
-	if input.IsForce || utils.IsInStringArray(self.Status, []string{api.VM_RUNNING, api.VM_STOP_FAILED, api.POD_STATUS_CRASH_LOOP_BACK_OFF, api.POD_STATUS_CONTAINER_EXITED}) {
+	if input.IsForce || utils.IsInStringArray(self.Status, []string{api.VM_RUNNING, api.VM_STOP_FAILED, api.POD_STATUS_CRASH_LOOP_BACK_OFF, api.POD_STATUS_CONTAINER_EXITED, api.VM_KICKSTART_INSTALLING, api.VM_KICKSTART_FAILED, api.VM_KICKSTART_COMPLETED}) {
 		if err := self.ValidateEncryption(ctx, userCred); err != nil {
 			return nil, errors.Wrap(httperrors.ErrForbidden, "encryption key not accessible")
 		}
@@ -3842,7 +3892,7 @@ func (self *SGuest) StartGuestStopAndFreezeTask(ctx context.Context, userCred mc
 // 重启
 func (self *SGuest) PerformRestart(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
 	isForce := jsonutils.QueryBoolean(data, "is_force", false)
-	if utils.IsInStringArray(self.Status, []string{api.VM_RUNNING, api.VM_STOP_FAILED}) || (isForce && self.Status == api.VM_STOPPING) {
+	if utils.IsInStringArray(self.Status, []string{api.VM_RUNNING, api.VM_STOP_FAILED, api.VM_KICKSTART_INSTALLING, api.VM_KICKSTART_FAILED, api.VM_KICKSTART_COMPLETED}) || (isForce && self.Status == api.VM_STOPPING) {
 		driver, err := self.GetDriver()
 		if err != nil {
 			return nil, err
@@ -5506,6 +5556,18 @@ func (self *SGuest) validateCreateInstanceSnapshot(
 		return nil, input, httperrors.NewBadRequestError("guest hypervisor %s can't create instance snapshot", self.Hypervisor)
 	}
 
+	disks, err := self.GetDisks()
+	if err != nil {
+		return nil, input, err
+	}
+	for i := range disks {
+		if len(disks[i].SnapshotId) > 0 {
+			if disks[i].GetMetadata(ctx, "merge_snapshot", userCred) == "true" {
+				return nil, input, httperrors.NewBadRequestError("disk %s backing snapshot not merged", disks[i].Id)
+			}
+		}
+	}
+
 	if len(self.BackupHostId) > 0 {
 		return nil, input, httperrors.NewBadRequestError("Can't do instance snapshot with backup guest")
 	}
@@ -5527,7 +5589,7 @@ func (self *SGuest) validateCreateInstanceSnapshot(
 		return nil, input, httperrors.NewMissingParameterError("name")
 	}
 
-	err := db.NewNameValidator(ctx, InstanceSnapshotManager, ownerId, input.Name, nil)
+	err = db.NewNameValidator(ctx, InstanceSnapshotManager, ownerId, input.Name, nil)
 	if err != nil {
 		return nil, input, errors.Wrap(err, "NewNameValidator")
 	}
@@ -6726,6 +6788,22 @@ func (self *SGuest) GetDetailsCpusetCores(ctx context.Context, userCred mcclient
 	return resp, nil
 }
 
+func (self *SGuest) GetDetailsNumaInfo(ctx context.Context, userCred mcclient.TokenCredential, _ *api.ServerGetNumaInfoInput) (*api.ServerGetNumaInfoResp, error) {
+	ret := new(api.ServerGetNumaInfoResp)
+	devs, _ := self.GetIsolatedDevices()
+	if len(devs) > 0 {
+		ret.IsolatedDevicesNumaNode = make([]int8, 0)
+		for i := range devs {
+			if devs[i].NumaNode > 0 {
+				ret.IsolatedDevicesNumaNode = append(ret.IsolatedDevicesNumaNode, devs[i].NumaNode)
+			}
+		}
+	}
+
+	ret.CpuNumaPin = self.CpuNumaPin
+	return ret, nil
+}
+
 func (self *SGuest) GetDetailsHardwareInfo(ctx context.Context, userCred mcclient.TokenCredential, _ *api.ServerGetHardwareInfoInput) (*api.ServerGetHardwareInfoResp, error) {
 	host, err := self.GetHost()
 	if err != nil {
@@ -6834,6 +6912,15 @@ func (self *SGuest) PerformEnableMemclean(ctx context.Context, userCred mcclient
 	return nil, self.SetMetadata(ctx, api.VM_METADATA_ENABLE_MEMCLEAN, "true", userCred)
 }
 
+func (self *SGuest) PerformSetTpm(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
+	enableTpm := jsonutils.QueryBoolean(data, api.VM_METADATA_ENABLE_TPM, false)
+	if enableTpm {
+		return nil, self.SetMetadata(ctx, api.VM_METADATA_ENABLE_TPM, enableTpm, userCred)
+	} else {
+		return nil, self.RemoveMetadata(ctx, api.VM_METADATA_ENABLE_TPM, userCred)
+	}
+}
+
 // 设置操作系统信息
 func (self *SGuest) PerformSetOsInfo(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input api.ServerSetOSInfoInput) (jsonutils.JSONObject, error) {
 	drv, err := self.GetDriver()
@@ -6933,4 +7020,170 @@ func (self *SGuest) StartChangeBillingTypeTask(ctx context.Context, userCred mcc
 func (self *SGuest) PerformDisableAutoMergeSnapshots(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
 	disableAutoMergeSnapshot := jsonutils.QueryBoolean(data, "disable_auto_merge_snapshot", false)
 	return nil, self.SetMetadata(ctx, api.VM_METADATA_DISABLE_AUTO_MERGE_SNAPSHOT, disableAutoMergeSnapshot, userCred)
+}
+
+func (self *SGuest) PerformSetKickstart(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input api.KickstartConfig) (jsonutils.JSONObject, error) {
+	// Check if kickstart has already been completed
+	currentFlag := self.GetMetadata(ctx, api.VM_METADATA_KICKSTART_COMPLETED_FLAG, userCred)
+	if currentFlag == "true" {
+		return jsonutils.Marshal(map[string]string{
+			"message": "Kickstart has already been completed for this VM",
+			"status":  "failed",
+		}), nil
+	}
+
+	if err := self.SetKickstartConfig(ctx, &input, userCred); err != nil {
+		return nil, errors.Wrap(err, "set kickstart config")
+	}
+
+	// Determine and set kickstart type based on input
+	kickstartType := determineKickstartType(&input)
+
+	if err := self.SetKickstartType(ctx, kickstartType, userCred); err != nil {
+		return nil, errors.Wrap(err, "set kickstart type")
+	}
+
+	if err := self.SetMetadata(ctx, api.VM_METADATA_KICKSTART_ATTEMPT, "0", userCred); err != nil {
+		return nil, errors.Wrap(err, "set kickstart attempt")
+	}
+
+	db.OpsLog.LogEvent(self, db.ACT_UPDATE, "set kickstart config", userCred)
+
+	// Check if VM needs to be restarted
+	needRestart := false
+	if utils.IsInStringArray(self.Status, []string{
+		api.VM_RUNNING,
+		api.VM_KICKSTART_INSTALLING,
+		api.VM_KICKSTART_COMPLETED,
+		api.VM_KICKSTART_FAILED,
+		api.VM_BLOCK_STREAM,
+		api.VM_MIGRATING,
+	}) {
+		needRestart = true
+	}
+
+	if err := self.SetKickstartStatus(ctx, api.VM_KICKSTART_PENDING, userCred); err != nil {
+		return nil, errors.Wrap(err, "set kickstart status")
+	}
+
+	// If VM is running, restart it to apply kickstart config
+	if needRestart {
+		driver, err := self.GetDriver()
+		if err != nil {
+			return nil, errors.Wrap(err, "get driver for restart")
+		}
+
+		if err := driver.StartGuestRestartTask(self, ctx, userCred, false, "kickstart config updated"); err != nil {
+			return nil, errors.Wrap(err, "start restart task")
+		}
+
+		return jsonutils.Marshal(map[string]string{
+			"status":  "success",
+			"message": "kickstart config updated, restarting VM",
+		}), nil
+	}
+
+	return jsonutils.Marshal(map[string]string{
+		"status": "success",
+	}), nil
+}
+
+func (self *SGuest) PerformKickstartComplete(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input jsonutils.JSONObject) (jsonutils.JSONObject, error) {
+	// Check if kickstart_completed_flag is already set to true
+	currentFlag := self.GetMetadata(ctx, api.VM_METADATA_KICKSTART_COMPLETED_FLAG, userCred)
+	if currentFlag == "true" {
+		return jsonutils.Marshal(map[string]string{
+			"status":  "success",
+			"message": "kickstart is already marked as completed",
+		}), nil
+	}
+
+	// Set the kickstart_completed_flag metadata to true
+	if err := self.SetMetadata(ctx, api.VM_METADATA_KICKSTART_COMPLETED_FLAG, "true", userCred); err != nil {
+		return nil, errors.Wrap(err, "set kickstart completed flag")
+	}
+
+	// Update status to VM_KICKSTART_COMPLETED if in kickstart status
+	if self.IsInKickstartStatus() && self.Status != api.VM_KICKSTART_COMPLETED {
+		if err := self.SetStatus(ctx, userCred, api.VM_KICKSTART_COMPLETED, "kickstart manually marked as completed"); err != nil {
+			return nil, errors.Wrap(err, "update kickstart status")
+		}
+	}
+
+	// Check if restart is requested (default is true)
+	restart := jsonutils.QueryBoolean(input, "restart", true)
+	if restart {
+		// Trigger VM restart to complete the kickstart process
+		if utils.IsInStringArray(self.Status, []string{api.VM_RUNNING, api.VM_KICKSTART_INSTALLING, api.VM_KICKSTART_COMPLETED, api.VM_KICKSTART_FAILED}) {
+			driver, err := self.GetDriver()
+			if err != nil {
+				return nil, errors.Wrap(err, "get driver")
+			}
+			driver.StartGuestRestartTask(self, ctx, userCred, false, "")
+			return jsonutils.Marshal(map[string]string{
+				"status":  "success",
+				"message": "kickstart marked as completed, restarting VM",
+			}), nil
+		}
+	}
+
+	db.OpsLog.LogEvent(self, db.ACT_UPDATE, "kickstart manually marked as completed", userCred)
+
+	return jsonutils.Marshal(map[string]string{
+		"status":  "success",
+		"message": "kickstart marked as completed",
+	}), nil
+}
+
+func (self *SGuest) PerformDeleteKickstart(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
+	if self.Status == api.VM_KICKSTART_INSTALLING {
+		return nil, httperrors.NewInvalidStatusError("cannot delete kickstart config while installation is in progress")
+	}
+
+	if err := self.SetKickstartConfig(ctx, nil, userCred); err != nil {
+		return nil, errors.Wrap(err, "delete kickstart config")
+	}
+
+	// 如果当前是kickstart状态，需要转换回适当的状态
+	if self.IsInKickstartStatus() {
+		if self.Status == api.VM_KICKSTART_PENDING {
+			self.SetStatus(ctx, userCred, api.VM_READY, "kickstart config deleted")
+		} else if self.Status == api.VM_KICKSTART_COMPLETED {
+			self.SetStatus(ctx, userCred, api.VM_RUNNING, "kickstart config deleted")
+		} else if self.Status == api.VM_KICKSTART_FAILED {
+			self.SetStatus(ctx, userCred, api.VM_READY, "kickstart config deleted")
+		}
+	}
+
+	// 清理kickstart相关metadata
+	self.RemoveMetadata(ctx, api.VM_METADATA_KICKSTART_ATTEMPT, userCred)
+	self.RemoveMetadata(ctx, api.VM_METADATA_KICKSTART_COMPLETED_FLAG, userCred)
+
+	db.OpsLog.LogEvent(self, db.ACT_DELETE, "delete kickstart config", userCred)
+
+	return jsonutils.Marshal(map[string]string{
+		"status": "success",
+	}), nil
+}
+
+func (self *SGuest) PerformUpdateKickstartStatus(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input api.ServerUpdateKickstartStatusInput) (jsonutils.JSONObject, error) {
+	if err := self.SetKickstartStatus(ctx, input.Status, userCred); err != nil {
+		return nil, errors.Wrap(err, "update kickstart status")
+	}
+
+	if input.Status == api.VM_KICKSTART_COMPLETED {
+		if err := self.SetMetadata(ctx, api.VM_METADATA_KICKSTART_COMPLETED_FLAG, "true", userCred); err != nil {
+			log.Errorf("Failed to set kickstart completed flag for VM %s: %v", self.Name, err)
+		}
+	}
+
+	if input.ErrorMessage != "" {
+		db.OpsLog.LogEvent(self, db.ACT_UPDATE, fmt.Sprintf("kickstart status: %s, error: %s", input.Status, input.ErrorMessage), userCred)
+	} else {
+		db.OpsLog.LogEvent(self, db.ACT_UPDATE, fmt.Sprintf("kickstart status: %s", input.Status), userCred)
+	}
+
+	return jsonutils.Marshal(map[string]string{
+		"status": input.Status,
+	}), nil
 }

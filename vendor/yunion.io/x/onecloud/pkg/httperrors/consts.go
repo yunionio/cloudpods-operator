@@ -91,6 +91,7 @@ const (
 	ErrUserNotFound                = errors.Error("UserNotFound")
 	ErrUserLocked                  = errors.Error("UserLocked")
 	ErrUserDisabled                = errors.Error("UserDisabled")
+	ErrUserExpired                 = errors.Error("UserExpired")
 	ErrWrongPassword               = errors.Error("WrongPassword")
 	ErrIncorrectUsernameOrPassword = errors.Error("IncorrectUsernameOrPassword")
 
@@ -133,7 +134,7 @@ var (
 		ErrMissingParameter: 400,
 
 		ErrInsufficientResource: 400,
-		ErrOutOfResource:        500,
+		ErrOutOfResource:        507,
 		ErrOutOfQuota:           400,
 		ErrOutOfRange:           400,
 		ErrOutOfLimit:           400,

@@ -84,9 +84,6 @@ type SSnapshot struct {
 	// create disk from snapshot, snapshot as disk backing file
 	RefCount int `nullable:"false" default:"0" list:"user"`
 
-	// 区域Id
-	// CloudregionId string    `width:"36" charset:"ascii" nullable:"true" list:"user" create:"optional"`
-
 	BackingDiskId string    `width:"36" charset:"ascii" nullable:"true" default:""`
 	DiskBackupId  string    `width:"36" charset:"ascii" nullable:"true" default:""`
 	ExpiredAt     time.Time `nullable:"true" list:"user" create:"optional"`
@@ -450,6 +447,7 @@ func (self *SSnapshot) GetShortDesc(ctx context.Context) *jsonutils.JSONDict {
 	return res
 }
 
+// 创建快照
 func (manager *SSnapshotManager) ValidateCreateData(
 	ctx context.Context,
 	userCred mcclient.TokenCredential,
@@ -472,6 +470,12 @@ func (manager *SSnapshotManager) ValidateCreateData(
 	disk := _disk.(*SDisk)
 	if disk.Status != api.DISK_READY {
 		return input, httperrors.NewInvalidStatusError("disk %s status is not %s", disk.Name, api.DISK_READY)
+	}
+
+	if len(disk.SnapshotId) > 0 {
+		if disk.GetMetadata(ctx, "merge_snapshot", userCred) == "true" {
+			return input, httperrors.NewBadRequestError("disk %s backing snapshot not merged", disk.Id)
+		}
 	}
 
 	if len(disk.EncryptKeyId) > 0 {
@@ -810,6 +814,7 @@ func (self *SSnapshot) CustomizeDelete(ctx context.Context, userCred mcclient.To
 	return self.StartSnapshotDeleteTask(ctx, userCred, false, "", 0, 0)
 }
 
+// +onecloud:swagger-gen-ignore
 func (self *SSnapshot) PerformDeleted(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
 	_, err := db.Update(self, func() error {
 		self.OutOfChain = true
@@ -850,18 +855,15 @@ func (self *SSnapshotManager) GetConvertSnapshot(deleteSnapshot *SSnapshot) (*SS
 	return dest, nil
 }
 
-func (self *SSnapshotManager) PerformDeleteDiskSnapshots(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
-	diskId, err := data.GetString("disk_id")
-	if err != nil {
-		return nil, err
-	}
-	disk, err := DiskManager.FetchById(diskId)
+// +onecloud:swagger-gen-ignore
+func (self *SSnapshotManager) PerformDeleteDiskSnapshots(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input api.SnapshotDeleteDiskSnapshotsInput) (jsonutils.JSONObject, error) {
+	disk, err := DiskManager.FetchById(input.DiskId)
 	if disk != nil {
-		return nil, httperrors.NewBadRequestError("Cannot Delete disk %s snapshots, disk exist", diskId)
+		return nil, httperrors.NewBadRequestError("Cannot Delete disk %s snapshots, disk exist", input.DiskId)
 	}
-	snapshots := self.GetDiskSnapshots(diskId)
+	snapshots := self.GetDiskSnapshots(input.DiskId)
 	if snapshots == nil || len(snapshots) == 0 {
-		return nil, httperrors.NewNotFoundError("Disk %s dose not have snapshot", diskId)
+		return nil, httperrors.NewNotFoundError("Disk %s dose not have snapshot", input.DiskId)
 	}
 	snapshotIds := []string{}
 	for i := 0; i < len(snapshots); i++ {
@@ -1163,6 +1165,7 @@ func (self *SSnapshot) GetISnapshotRegion(ctx context.Context) (cloudprovider.IC
 	return provider.GetIRegionById(region.GetExternalId())
 }
 
+// +onecloud:swagger-gen-ignore
 func (self *SSnapshot) PerformPurge(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
 	err := self.GetRegionDriver().ValidateSnapshotDelete(ctx, self)
 	if err != nil {
@@ -1244,10 +1247,10 @@ func (manager *SSnapshotManager) CleanupSnapshots(ctx context.Context, userCred 
 
 	{
 		sq = SnapshotPolicyManager.Query().Equals("type", api.SNAPSHOT_POLICY_TYPE_DISK).GT("retention_count", 0).SubQuery()
-		spd := SnapshotPolicyDiskManager.Query().SubQuery()
+		spd := SnapshotPolicyResourceManager.Query().Equals("resource_type", api.SNAPSHOT_POLICY_TYPE_DISK).SubQuery()
 		q = sq.Query(
 			sq.Field("retention_count"),
-			spd.Field("disk_id"),
+			spd.Field("resource_id").Label("disk_id"),
 		)
 		q = q.Join(spd, sqlchemy.Equals(q.Field("id"), spd.Field("snapshotpolicy_id")))
 

@@ -1289,9 +1289,9 @@ func _doCreateItem(
 	// 若manager用于name字段，确保name唯一
 	if manager.HasName() {
 		// run name validation after validate create data
-		uniqValues := manager.FetchUniqValues(ctx, dataDict)
 		name, _ := dataDict.GetString("name")
 		if len(name) > 0 {
+			uniqValues := manager.FetchUniqValues(ctx, dataDict)
 			err = NewNameValidator(ctx, manager, ownerId, name, uniqValues)
 			if err != nil {
 				return nil, err
@@ -1843,6 +1843,10 @@ func updateItem(manager IModelManager, item IModel, ctx context.Context, userCre
 	}
 
 	item.PostUpdate(ctx, userCred, query, data)
+
+	if err := manager.GetExtraHook().AfterPostUpdate(ctx, userCred, item, query, data); err != nil {
+		logclient.AddActionLogWithContext(ctx, item, logclient.ACT_POST_UPDATE_HOOK, err, userCred, false)
+	}
 
 	return getItemDetails(manager, item, ctx, userCred, query)
 }

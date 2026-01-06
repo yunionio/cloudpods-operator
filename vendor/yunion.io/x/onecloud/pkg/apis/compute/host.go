@@ -268,9 +268,9 @@ type HostDetails struct {
 	// reserved resource for isolated device
 	ReservedResourceForGpu *IsolatedDeviceReservedResourceInput `json:"reserved_resource_for_gpu"`
 	// isolated device count
-	IsolatedDeviceCount     int
-	IsolatedDeviceTypeCount map[string]int
-	GuestPinnedCpus         []int
+	IsolatedDeviceCount     int            `json:"isolated_device_count"`
+	IsolatedDeviceTypeCount map[string]int `json:"isolated_device_type_count"`
+	GuestPinnedCpus         []int          `json:"guest_pinned_cpus"`
 
 	// host init warnning
 	SysWarn string `json:"sys_warn"`
@@ -605,8 +605,8 @@ type HostUpdateInput struct {
 }
 
 type HostOfflineInput struct {
-	UpdateHealthStatus *bool `json:"update_health_status"`
-	Reason             string
+	UpdateHealthStatus *bool  `json:"update_health_status"`
+	Reason             string `json:"reason"`
 }
 
 type SHostStorageStat struct {
@@ -629,9 +629,20 @@ type SHostPingInput struct {
 	QgaRunningGuestIds []string `json:"qga_running_guests"`
 }
 
+type SKmsgEntry struct {
+	Level   int       `json:"level"`
+	Seq     int       `json:"sql"`
+	Message string    `json:"message"`
+	Time    time.Time `json:"time"`
+}
+
+type SHostReportDmesgInput struct {
+	Entries []SKmsgEntry `json:"entries"`
+}
+
 type HostReserveCpusInput struct {
-	Cpus                    string
-	Mems                    string
+	Cpus                    string   `json:"cpus"`
+	Mems                    string   `json:"mems"`
 	DisableSchedLoadBalance *bool    `json:"disable_sched_load_balance"`
 	ProcessesPrefix         []string `json:"processes_prefix"`
 }
@@ -688,6 +699,7 @@ type HostEnableNetifInput struct {
 	HostNetifInput
 
 	// Deprecated
+	// swagger:ignore
 	Network   string `json:"network" yunion-deprecated-by:"network_id"`
 	NetworkId string `json:"network_id"`
 
@@ -721,15 +733,15 @@ type HostRemoveNetifInput struct {
 }
 
 type HostError struct {
-	Type    string
-	Id      string
-	Name    string
-	Content string
-	Time    time.Time
+	Type    string    `json:"type"`
+	Id      string    `json:"id"`
+	Name    string    `json:"name"`
+	Content string    `json:"content"`
+	Time    time.Time `json:"time"`
 }
 
 type HostSyncErrorsInput struct {
-	HostErrors []HostError
+	HostErrors []HostError `json:"host_errors"`
 }
 
 type HostLoginInfoInput struct {
@@ -763,7 +775,7 @@ type HostUploadGuestsStatusInput struct {
 }
 
 type HostIsolatedDeviceNumaStatsInput struct {
-	DevType string
+	DevType string `json:"dev_type"`
 }
 
 type GuestUploadContainerStatusResponse struct {

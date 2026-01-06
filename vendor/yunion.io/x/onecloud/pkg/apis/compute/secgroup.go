@@ -57,9 +57,9 @@ type SSecgroupRuleResource struct {
 	Ports string `json:"ports"`
 
 	// swagger:ignore
-	PortStart int
+	PortStart int `json:"port_start"`
 	// swagger:ignore
-	PortEnd int
+	PortEnd int `json:"port_end"`
 
 	// 方向
 	// enum: ["in", "out"]
@@ -92,7 +92,7 @@ type SSecgroupRuleCreateInput struct {
 	// swagger:ignore
 	Secgroup string `json:"secgroup"  yunion-deprecated-by:"secgroup_id"`
 
-	// swagger: ignore
+	// swagger:ignore
 	Status string `json:"status"`
 
 	// 安全组ID
@@ -176,12 +176,12 @@ type SSecgroupCreateInput struct {
 	// vpc id
 	// defualt: default
 	VpcResourceInput
-	// swagger: ignore
+	// swagger:ignore
 	CloudproviderResourceInput
-	// swagger: ignore
+	// swagger:ignore
 	CloudregionResourceInput
 
-	// swagger: ignore
+	// swagger:ignore
 	GlobalvpcId string `json:"globalvpc_id"`
 
 	// 规则列表
@@ -334,8 +334,8 @@ type ElasticcachesecgroupDetails struct {
 }
 
 type SecurityGroupCloneInput struct {
-	Name        string
-	Description string
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }
 
 type SecgroupImportRulesInput struct {
