@@ -102,3 +102,7 @@ func (m *mcpServerManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) fun
 		}
 	}
 }
+
+func (m *mcpServerManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
+	return &cfg.McpServer.CloudUser
+}
