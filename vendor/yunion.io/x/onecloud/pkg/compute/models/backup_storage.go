@@ -28,6 +28,9 @@ import (
 	api "yunion.io/x/onecloud/pkg/apis/compute"
 	"yunion.io/x/onecloud/pkg/cloudcommon/db"
 	"yunion.io/x/onecloud/pkg/cloudcommon/db/taskman"
+	"yunion.io/x/onecloud/pkg/hostman/storageman/backupstorage"
+	_ "yunion.io/x/onecloud/pkg/hostman/storageman/backupstorage/nfs"
+	_ "yunion.io/x/onecloud/pkg/hostman/storageman/backupstorage/object"
 	"yunion.io/x/onecloud/pkg/httperrors"
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/util/stringutils2"
@@ -93,6 +96,12 @@ func (bs *SBackupStorageManager) ValidateCreateData(ctx context.Context, userCre
 		if input.ObjectSecret == "" {
 			return input, httperrors.NewInputParameterError("object_secret is required when storage type is object")
 		}
+		if len(input.ObjectBucketUrlExt) > 0 {
+			_, err := url.Parse(input.ObjectBucketUrlExt)
+			if err != nil {
+				return input, httperrors.NewInputParameterError("invalid object_bucket_url_ext %s: %s", input.ObjectBucketUrlExt, err)
+			}
+		}
 	}
 	return input, nil
 }
@@ -114,6 +123,9 @@ func (bs *SBackupStorage) CustomizeCreate(ctx context.Context, userCred mcclient
 		ObjectBucketUrl: input.ObjectBucketUrl,
 		ObjectAccessKey: input.ObjectAccessKey,
 		ObjectSecret:    input.ObjectSecret,
+
+		ObjectSignVer:      input.ObjectSignVer,
+		ObjectBucketUrlExt: input.ObjectBucketUrlExt,
 	}
 	return bs.SEnabledStatusInfrasResourceBase.CustomizeCreate(ctx, userCred, ownerId, query, data)
 }
@@ -172,6 +184,7 @@ func (bs *SBackupStorage) getMoreDetails(ctx context.Context, out api.BackupStor
 	out.ObjectBucketUrl = bs.AccessInfo.ObjectBucketUrl
 	out.ObjectAccessKey = bs.AccessInfo.ObjectAccessKey
 	out.ObjectSignVer = bs.AccessInfo.ObjectSignVer
+	out.ObjectBucketUrlExt = bs.AccessInfo.ObjectBucketUrlExt
 	// should not return secret
 	out.ObjectSecret = "" // bs.AccessInfo.ObjectSecret
 	return out
@@ -323,6 +336,10 @@ func (bs *SBackupStorage) PostUpdate(ctx context.Context, userCred mcclient.Toke
 			accessInfo.ObjectSignVer = input.ObjectSignVer
 			accessInfoChanged = true
 		}
+		if len(input.ObjectBucketUrlExt) > 0 {
+			accessInfo.ObjectBucketUrlExt = input.ObjectBucketUrlExt
+			accessInfoChanged = true
+		}
 	}
 	if accessInfoChanged {
 		_, err = db.Update(bs, func() error {
@@ -371,4 +388,17 @@ func (bs *SBackupStorage) Delete(ctx context.Context, userCred mcclient.TokenCre
 		return errors.NewAggregate(errs)
 	}
 	return bs.SEnabledStatusInfrasResourceBase.Delete(ctx, userCred)
+}
+
+func (bs *SBackupStorage) GetIBackupStorage() (backupstorage.IBackupStorage, error) {
+	accessInfo, err := bs.GetAccessInfo()
+	if err != nil {
+		return nil, errors.Wrap(err, "GetAccessInfo")
+	}
+	log.Infof("GetIBackupStorage %s %s", bs.Id, accessInfo.String())
+	ibs, err := backupstorage.GetBackupStorage(bs.Id, jsonutils.Marshal(accessInfo).(*jsonutils.JSONDict))
+	if err != nil {
+		return nil, errors.Wrap(err, "GetBackupStorage")
+	}
+	return ibs, nil
 }

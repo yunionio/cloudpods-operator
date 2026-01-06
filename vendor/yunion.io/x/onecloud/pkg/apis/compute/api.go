@@ -25,7 +25,7 @@ import (
 type SchedtagConfig struct {
 	apis.Meta
 
-	// swagger: ignore
+	// swagger:ignore
 	Id string `json:"id"`
 	// 调度策略
 	// required: 必须使用
@@ -34,7 +34,7 @@ type SchedtagConfig struct {
 	// exclude: 禁止使用
 	// enmu: required, prefer, avoid, exclude
 	Strategy string `json:"strategy"`
-	// swagger: ignore
+	// swagger:ignore
 	Weight int `json:"weight"`
 	// 资源类型
 	// hosts: 宿主机
@@ -120,6 +120,8 @@ type NetworkConfig struct {
 	StandbyAddrCount int `json:"standby_addr_count"`
 
 	PortMappings GuestPortMappings `json:"port_mappings"`
+
+	ChargeType string `json:"charge_type"`
 
 	// swagger:ignore
 	Project string `json:"project_id"`
@@ -323,6 +325,7 @@ type BaremetalDiskConfig struct {
 	RA           *bool   `json:"ra,omitempty"`
 	WT           *bool   `json:"wt,omitempty"`
 	Direct       *bool   `json:"direct,omitempty"`
+	SoftRaidIdx  *int    `json:"soft_raid_idx"`
 }
 
 type RootDiskMatcherSizeMBRange struct {
@@ -338,6 +341,7 @@ type BaremetalRootDiskMatcher struct {
 	Device      string                      `json:"device"`
 	SizeMB      int64                       `json:"size_mb"`
 	SizeMBRange *RootDiskMatcherSizeMBRange `json:"size_mb_range"`
+	PCIPath     string                      `json:"pci_path"`
 }
 
 type ServerConfigs struct {
@@ -381,7 +385,7 @@ type ServerConfigs struct {
 	// default: kvm
 	Hypervisor string `json:"hypervisor"`
 
-	// swagger: ignore
+	// swagger:ignore
 	Provider string `json:"provider"`
 
 	// 包年包月资源池
@@ -462,6 +466,37 @@ type DeployConfig struct {
 	Content string `json:"content"`
 }
 
+// KickstartConfig Kickstart/Autoinstall自动化安装配置
+type KickstartConfig struct {
+	// 配置文件内容 (当用户直接提供配置时使用)
+	// required: false
+	Config string `json:"config,omitempty"`
+
+	// 配置文件 URL (当配置文件位于外部服务器时使用)
+	// required: false
+	ConfigURL string `json:"config_url,omitempty"`
+
+	// 操作系统类型 (用于确定内核参数和文件路径)
+	// enum: centos,rhel,fedora,openeuler,ubuntu
+	// required: true
+	OSType string `json:"os_type" validate:"required,oneof=centos rhel fedora openeuler ubuntu"`
+
+	// 是否启用 (用于临时禁用而不删除配置)
+	// default: true
+	// required: false
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// 最大重试次数
+	// default: 3
+	// required: false
+	MaxRetries int `json:"max_retries,omitempty"`
+
+	// 安装超时时间 (分钟)
+	// default: 60
+	// required: false
+	TimeoutMinutes int `json:"timeout_minutes,omitempty"`
+}
+
 type ServerCreateInput struct {
 	apis.VirtualResourceCreateInput
 	DeletePreventableCreateInput
@@ -494,7 +529,7 @@ type ServerCreateInput struct {
 	// required: false
 	UserData string `json:"user_data"`
 
-	// swagger: ignore
+	// swagger:ignore
 	// 创建测试数据，不实际创建资源
 	FakeCreate bool `json:"fake_create"`
 
@@ -531,7 +566,8 @@ type ServerCreateInput struct {
 
 	// BIOS类型, 若镜像是Windows，并且支持UEFI,则自动会设置为UEFI
 	// emulate: BIOS, UEFI
-	Bios string `json:"bios"`
+	Bios      string `json:"bios"`
+	EnableTpm bool   `json:"enable_tpm"`
 
 	// Machine类型
 	// emulate: pc, q35
@@ -672,7 +708,23 @@ type ServerCreateInput struct {
 	// 指定用于新建主机的主机镜像ID
 	GuestImageID string `json:"guest_image_id"`
 
+	// Kickstart/Autoinstall自动化安装配置
+	// required: false
+	KickstartConfig *KickstartConfig `json:"kickstart_config,omitempty"`
+
 	Pod *PodCreateInput `json:"pod"`
+}
+
+// ServerUpdateKickstartStatusInput 更新虚拟机 kickstart 状态的输入
+type ServerUpdateKickstartStatusInput struct {
+	// kickstart 状态
+	// enum: kickstart_pending,kickstart_installing,kickstart_completed,kickstart_failed
+	// required: true
+	Status string `json:"status" validate:"required,oneof=kickstart_pending kickstart_installing kickstart_completed kickstart_failed"`
+
+	// 错误信息（可选）
+	// required: false
+	ErrorMessage string `json:"error_message,omitempty"`
 }
 
 func (input *ServerCreateInput) AfterUnmarshal() {
@@ -711,15 +763,15 @@ type GuestBatchMigrateRequest struct {
 }
 
 type GuestBatchMigrateParams struct {
-	Id              string
-	LiveMigrate     bool
-	SkipCpuCheck    bool
-	SkipKernelCheck bool
-	EnableTLS       *bool
-	RescueMode      bool
-	OldStatus       string
-	MaxBandwidthMb  *int64
-	QuciklyFinish   *bool
+	Id              string `json:"id"`
+	LiveMigrate     bool   `json:"live_migrate"`
+	SkipCpuCheck    bool   `json:"skip_cpu_check"`
+	SkipKernelCheck bool   `json:"skip_kernel_check"`
+	EnableTLS       *bool  `json:"enable_tls"`
+	RescueMode      bool   `json:"rescue_mode"`
+	OldStatus       string `json:"old_status"`
+	MaxBandwidthMb  *int64 `json:"max_bandwidth_mb"`
+	QuciklyFinish   *bool  `json:"quickly_finish"`
 }
 
 type HostLoginInfo struct {

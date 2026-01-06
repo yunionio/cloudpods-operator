@@ -21,6 +21,7 @@ import (
 
 	"yunion.io/x/cloudmux/pkg/cloudprovider"
 	"yunion.io/x/jsonutils"
+	"yunion.io/x/log"
 	"yunion.io/x/pkg/errors"
 	"yunion.io/x/pkg/util/compare"
 	"yunion.io/x/pkg/utils"
@@ -56,17 +57,20 @@ type SSnapshotPolicy struct {
 
 	SCloudregionResourceBase `width:"36" charset:"ascii" nullable:"false" list:"domain" create:"domain_required" default:"default"`
 
-	// 快照保留天数
+	// 快照保留天数, -1: 表示永久保留
 	RetentionDays int `nullable:"false" list:"user" get:"user" update:"user" create:"required"`
 	// 快照保留数量, 优先级高于 RetentionDays, 且仅对本地IDC资源有效
 	RetentionCount int `nullable:"true" list:"user" get:"user" update:"user" create:"optional"`
 
 	// 快照类型, 目前支持 disk, server
+	// disk: 自动磁盘快照策略， 只能关联磁盘
+	// server: 自动主机快照策略, 只能关联主机
 	Type string `width:"36" charset:"ascii" default:"disk" list:"user" create:"required"`
 
-	// 1~7, 1 is Monday
+	// 1~7, 1 is Monday, 7 is Sunday
 	RepeatWeekdays api.RepeatWeekdays `charset:"utf8" create:"required" list:"user" get:"user" update:"user"`
-	// 0~23
+	// 0~23, 每小时
+	// 创建自动快照策略的时间必须与 RepeatWeekdays 对应的创建周期相一致
 	TimePoints api.TimePoints `charset:"utf8" create:"required" list:"user" get:"user" update:"user"`
 }
 
@@ -84,6 +88,7 @@ func init() {
 	SnapshotPolicyManager.SetVirtualObject(SnapshotPolicyManager)
 }
 
+// 创建自动快照策略
 func (manager *SSnapshotPolicyManager) ValidateCreateData(
 	ctx context.Context,
 	userCred mcclient.TokenCredential,
@@ -144,6 +149,7 @@ func (sp *SSnapshotPolicy) StartCreateTask(ctx context.Context, userCred mcclien
 	return task.ScheduleRun(nil)
 }
 
+// 更新自动快照策略
 func (self *SSnapshotPolicy) ValidateUpdateData(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input *api.SSnapshotPolicyUpdateInput) (*api.SSnapshotPolicyUpdateInput, error) {
 	var err error
 	input.VirtualResourceBaseUpdateInput, err = self.SVirtualResourceBase.ValidateUpdateData(ctx, userCred, query, input.VirtualResourceBaseUpdateInput)
@@ -156,8 +162,8 @@ func (self *SSnapshotPolicy) ValidateUpdateData(ctx context.Context, userCred mc
 			return nil, httperrors.NewInputParameterError("Retention days must in 1~%d or -1", options.Options.RetentionDaysLimit)
 		}
 	}
-	if input.RegentionCount != nil {
-		if *input.RegentionCount > options.Options.RetentionCountLimit {
+	if input.RetentionCount != nil {
+		if *input.RetentionCount > options.Options.RetentionCountLimit {
 			return nil, httperrors.NewInputParameterError("Retention count must less than %d", options.Options.RetentionCountLimit)
 		}
 	}
@@ -208,24 +214,12 @@ func (manager *SSnapshotPolicyManager) FetchCustomizeColumns(
 		policyIds[i] = policy.Id
 	}
 
-	q := SnapshotPolicyDiskManager.Query().In("snapshotpolicy_id", policyIds)
-	pds := []SSnapshotPolicyDisk{}
-	err := q.All(&pds)
-	if err != nil {
-		return rows
-	}
-	pdMap := map[string][]SSnapshotPolicyDisk{}
-	for _, pd := range pds {
-		_, ok := pdMap[pd.SnapshotpolicyId]
-		if !ok {
-			pdMap[pd.SnapshotpolicyId] = []SSnapshotPolicyDisk{}
-		}
-		pdMap[pd.SnapshotpolicyId] = append(pdMap[pd.SnapshotpolicyId], pd)
-	}
-	q = SnapshotPolicyResourceManager.Query().In("snapshotpolicy_id", policyIds)
+	diskIds := []string{}
+	q := SnapshotPolicyResourceManager.Query().In("snapshotpolicy_id", policyIds)
 	sprs := []SSnapshotPolicyResource{}
-	err = q.All(&sprs)
+	err := q.All(&sprs)
 	if err != nil {
+		log.Errorf("query snapshot policy resources error: %v", err)
 		return rows
 	}
 	sprmap := map[string][]SSnapshotPolicyResource{}
@@ -234,13 +228,47 @@ func (manager *SSnapshotPolicyManager) FetchCustomizeColumns(
 		if !ok {
 			sprmap[sp.SnapshotpolicyId] = []SSnapshotPolicyResource{}
 		}
+		if sp.ResourceType == api.SNAPSHOT_POLICY_TYPE_DISK {
+			diskIds = append(diskIds, sp.ResourceId)
+		}
 		sprmap[sp.SnapshotpolicyId] = append(sprmap[sp.SnapshotpolicyId], sp)
 	}
+
+	sq := SnapshotManager.Query().In("disk_id", diskIds).SubQuery()
+	q = sq.Query(
+		sq.Field("disk_id"),
+		sqlchemy.COUNT("count", sq.Field("id")),
+	).GroupBy(sq.Field("disk_id"))
+
+	snapshotCounts := []struct {
+		DiskId string
+		Count  int
+	}{}
+	err = q.All(&snapshotCounts)
+	if err != nil {
+		log.Errorf("query snapshot counts error: %v", err)
+		return rows
+	}
+	snapshotCountMap := map[string]int{}
+	for _, snapshotCount := range snapshotCounts {
+		snapshotCountMap[snapshotCount.DiskId] = snapshotCount.Count
+	}
+
 	for i := range rows {
-		disks := pdMap[policyIds[i]]
-		rows[i].BindingDiskCount = len(disks)
 		resources := sprmap[policyIds[i]]
 		rows[i].BindingResourceCount = len(resources)
+		for _, resource := range resources {
+			if resource.ResourceType == api.SNAPSHOT_POLICY_TYPE_DISK {
+				cnt, ok := snapshotCountMap[resource.ResourceId]
+				if ok {
+					rows[i].SnapshotCount += cnt
+				}
+			}
+		}
+		sp := objs[i].(*SSnapshotPolicy)
+		if sp.Type == api.SNAPSHOT_POLICY_TYPE_DISK {
+			rows[i].BindingDiskCount = len(resources)
+		}
 	}
 
 	return rows
@@ -430,15 +458,11 @@ func (sp *SSnapshotPolicy) Delete(ctx context.Context, userCred mcclient.TokenCr
 }
 
 func (sp *SSnapshotPolicy) RealDelete(ctx context.Context, userCred mcclient.TokenCredential) error {
-	err := SnapshotPolicyDiskManager.RemoveBySnapshotpolicy(sp.Id)
+	err := SnapshotPolicyResourceManager.RemoveBySnapshotpolicy(sp.Id)
 	if err != nil {
-		return errors.Wrapf(err, "delete snapshot policy disks for policy %s", sp.Name)
+		return errors.Wrapf(err, "RemoveBySnapshotpolicy for policy %s", sp.Name)
 	}
-	err = SnapshotPolicyResourceManager.RemoveBySnapshotpolicy(sp.Id)
-	if err != nil {
-		return errors.Wrapf(err, "delete snapshot policy resources for policy %s", sp.Name)
-	}
-	return db.DeleteModel(ctx, userCred, sp)
+	return sp.SVirtualResourceBase.Delete(ctx, userCred)
 }
 
 func (sp *SSnapshotPolicy) StartBindDisksTask(ctx context.Context, userCred mcclient.TokenCredential, diskIds []string) error {
@@ -451,6 +475,7 @@ func (sp *SSnapshotPolicy) StartBindDisksTask(ctx context.Context, userCred mccl
 	return task.ScheduleRun(nil)
 }
 
+// 绑定磁盘
 func (sp *SSnapshotPolicy) PerformBindDisks(
 	ctx context.Context,
 	userCred mcclient.TokenCredential,
@@ -493,6 +518,7 @@ func (sp *SSnapshotPolicy) PerformBindDisks(
 	return nil, sp.StartBindDisksTask(ctx, userCred, diskIds)
 }
 
+// 绑定主机
 func (sp *SSnapshotPolicy) PerformBindResources(
 	ctx context.Context,
 	userCred mcclient.TokenCredential,
@@ -533,6 +559,7 @@ func (sp *SSnapshotPolicy) PerformBindResources(
 	return nil, nil
 }
 
+// 解绑主机
 func (sp *SSnapshotPolicy) PerformUnbindResources(
 	ctx context.Context,
 	userCred mcclient.TokenCredential,
@@ -575,6 +602,7 @@ func (sp *SSnapshotPolicy) StartUnbindDisksTask(ctx context.Context, userCred mc
 	return task.ScheduleRun(nil)
 }
 
+// 解绑磁盘
 func (sp *SSnapshotPolicy) PerformUnbindDisks(
 	ctx context.Context,
 	userCred mcclient.TokenCredential,
@@ -601,6 +629,7 @@ func (sp *SSnapshotPolicy) PerformUnbindDisks(
 	return nil, sp.StartUnbindDisksTask(ctx, userCred, diskIds)
 }
 
+// 同步快照策略状态
 func (self *SSnapshotPolicy) PerformSyncstatus(
 	ctx context.Context,
 	userCred mcclient.TokenCredential,
@@ -672,8 +701,8 @@ func (manager *SSnapshotPolicyManager) OrderByExtraFields(
 	}
 
 	if db.NeedOrderQuery([]string{input.OrderByBindDiskCount}) {
-		sdQ := SnapshotPolicyDiskManager.Query()
-		sdSQ := sdQ.AppendField(sdQ.Field("snapshotpolicy_id"), sqlchemy.COUNT("disk_count")).GroupBy("snapshotpolicy_id").SubQuery()
+		sdQ := SnapshotPolicyResourceManager.Query().Equals("resource_type", api.SNAPSHOT_POLICY_TYPE_DISK)
+		sdSQ := sdQ.AppendField(sdQ.Field("snapshotpolicy_id"), sqlchemy.COUNT("disk_count")).GroupBy(sdQ.Field("snapshotpolicy_id")).SubQuery()
 		q = q.LeftJoin(sdSQ, sqlchemy.Equals(sdSQ.Field("snapshotpolicy_id"), q.Field("id")))
 		q = q.AppendField(q.QueryFields()...)
 		q = q.AppendField(sdSQ.Field("disk_count"))
@@ -779,7 +808,7 @@ func (self *SSnapshotPolicy) GetProvider(ctx context.Context) (cloudprovider.ICl
 }
 
 func (self *SSnapshotPolicy) GetUnbindDisks(diskIds []string) ([]SDisk, error) {
-	sq := SnapshotPolicyDiskManager.Query("disk_id").Equals("snapshotpolicy_id", self.Id).SubQuery()
+	sq := SnapshotPolicyResourceManager.Query("resource_id").Equals("resource_type", api.SNAPSHOT_POLICY_TYPE_DISK).Equals("snapshotpolicy_id", self.Id).SubQuery()
 	q := DiskManager.Query().In("id", diskIds)
 	q = q.Filter(sqlchemy.NotIn(q.Field("id"), sq))
 	ret := []SDisk{}
@@ -791,7 +820,7 @@ func (self *SSnapshotPolicy) GetUnbindDisks(diskIds []string) ([]SDisk, error) {
 }
 
 func (self *SSnapshotPolicy) GetBindDisks(diskIds []string) ([]SDisk, error) {
-	sq := SnapshotPolicyDiskManager.Query("disk_id").Equals("snapshotpolicy_id", self.Id).SubQuery()
+	sq := SnapshotPolicyResourceManager.Query("resource_id").Equals("resource_type", api.SNAPSHOT_POLICY_TYPE_DISK).Equals("snapshotpolicy_id", self.Id).SubQuery()
 	q := DiskManager.Query().In("id", diskIds)
 	q = q.Filter(sqlchemy.In(q.Field("id"), sq))
 	ret := []SDisk{}
@@ -803,9 +832,9 @@ func (self *SSnapshotPolicy) GetBindDisks(diskIds []string) ([]SDisk, error) {
 }
 
 func (self *SSnapshotPolicy) GetDisks() ([]SDisk, error) {
-	sq := SnapshotPolicyDiskManager.Query().Equals("snapshotpolicy_id", self.Id).SubQuery()
+	sq := SnapshotPolicyResourceManager.Query().Equals("resource_type", api.SNAPSHOT_POLICY_TYPE_DISK).Equals("snapshotpolicy_id", self.Id).SubQuery()
 	q := DiskManager.Query()
-	q = q.Join(sq, sqlchemy.Equals(q.Field("id"), sq.Field("disk_id")))
+	q = q.Join(sq, sqlchemy.Equals(q.Field("id"), sq.Field("resource_id")))
 	ret := []SDisk{}
 	err := db.FetchModelObjects(DiskManager, q, &ret)
 	if err != nil {
@@ -816,11 +845,12 @@ func (self *SSnapshotPolicy) GetDisks() ([]SDisk, error) {
 
 func (sp *SSnapshotPolicy) BindDisks(ctx context.Context, disks []SDisk) error {
 	for i := range disks {
-		spd := &SSnapshotPolicyDisk{}
-		spd.SetModelManager(SnapshotPolicyDiskManager, spd)
-		spd.DiskId = disks[i].Id
+		spd := &SSnapshotPolicyResource{}
+		spd.SetModelManager(SnapshotPolicyResourceManager, spd)
+		spd.ResourceId = disks[i].Id
+		spd.ResourceType = api.SNAPSHOT_POLICY_TYPE_DISK
 		spd.SnapshotpolicyId = sp.Id
-		err := SnapshotPolicyDiskManager.TableSpec().Insert(ctx, spd)
+		err := SnapshotPolicyResourceManager.TableSpec().Insert(ctx, spd)
 		if err != nil {
 			return err
 		}
@@ -837,8 +867,8 @@ func (sp *SSnapshotPolicy) UnbindDisks(diskIds []string) error {
 	}
 	_, err := sqlchemy.GetDB().Exec(
 		fmt.Sprintf(
-			"delete from %s where snapshotpolicy_id = ? and disk_id in (%s)",
-			SnapshotPolicyDiskManager.TableSpec().Name(), strings.Join(placeholders, ","),
+			"delete from %s where snapshotpolicy_id = ? and resource_id in (%s)",
+			SnapshotPolicyResourceManager.TableSpec().Name(), strings.Join(placeholders, ","),
 		), vars...,
 	)
 	return err
@@ -853,26 +883,22 @@ func (sp *SSnapshotPolicy) SyncDisks(ctx context.Context, userCred mcclient.Toke
 		return errors.Wrapf(err, "GetApplyDiskIds")
 	}
 	{
-		sq := SnapshotPolicyDiskManager.Query("disk_id").Equals("snapshotpolicy_id", sp.Id).SubQuery()
+		sq := SnapshotPolicyResourceManager.Query("resource_id").Equals("resource_type", api.SNAPSHOT_POLICY_TYPE_DISK).Equals("snapshotpolicy_id", sp.Id).SubQuery()
 		q := DiskManager.Query().In("id", sq).NotIn("external_id", extIds)
 		needCancel := []SDisk{}
 		err = db.FetchModelObjects(DiskManager, q, &needCancel)
 		if err != nil {
 			return errors.Wrapf(err, "db.FetchModelObjects")
 		}
-		diskIds := []string{}
 		for _, disk := range needCancel {
-			diskIds = append(diskIds, disk.Id)
-		}
-		if len(diskIds) > 0 {
-			err = sp.UnbindDisks(diskIds)
+			err = SnapshotPolicyResourceManager.RemoveByResource(disk.Id, api.SNAPSHOT_POLICY_TYPE_DISK)
 			if err != nil {
-				return errors.Wrapf(err, "UnbindDisks")
+				return errors.Wrapf(err, "RemoveByResource")
 			}
 		}
 	}
 	{
-		sq := SnapshotPolicyDiskManager.Query("disk_id").Equals("snapshotpolicy_id", sp.Id).SubQuery()
+		sq := SnapshotPolicyResourceManager.Query("resource_id").Equals("resource_type", api.SNAPSHOT_POLICY_TYPE_DISK).Equals("snapshotpolicy_id", sp.Id).SubQuery()
 		storages := StorageManager.Query().Equals("manager_id", sp.ManagerId).SubQuery()
 		q := DiskManager.Query()
 		q = q.Join(storages, sqlchemy.Equals(q.Field("storage_id"), storages.Field("id")))
@@ -887,9 +913,16 @@ func (sp *SSnapshotPolicy) SyncDisks(ctx context.Context, userCred mcclient.Toke
 		if err != nil {
 			return errors.Wrapf(err, "db.FetchModelObjects")
 		}
-		err = sp.BindDisks(ctx, needApply)
-		if err != nil {
-			return errors.Wrapf(err, "BindDisks")
+		for _, disk := range needApply {
+			spd := &SSnapshotPolicyResource{}
+			spd.SetModelManager(SnapshotPolicyResourceManager, spd)
+			spd.SnapshotpolicyId = sp.Id
+			spd.ResourceId = disk.Id
+			spd.ResourceType = api.SNAPSHOT_POLICY_TYPE_DISK
+			err := SnapshotPolicyResourceManager.TableSpec().Insert(ctx, spd)
+			if err != nil {
+				return errors.Wrapf(err, "Insert")
+			}
 		}
 	}
 	return nil

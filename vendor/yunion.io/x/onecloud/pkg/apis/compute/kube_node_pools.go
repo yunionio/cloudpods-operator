@@ -47,14 +47,14 @@ type KubeNodePoolCreateInput struct {
 	// 秘钥id，若不传，则使用系统级秘钥
 	KeypairId string `json:"keypair_id"`
 
-	// swagger: ignore
+	// swagger:ignore
 	PublicKey string `json:"public_key"`
 }
 
 type KubeNodePoolDetails struct {
 	apis.StatusStandaloneResourceDetails
 	apis.InfrasResourceBaseDetails
-	DomainId string
+	DomainId string `json:"domain_id"`
 }
 
 type KubeNodePoolUpdateInput struct {

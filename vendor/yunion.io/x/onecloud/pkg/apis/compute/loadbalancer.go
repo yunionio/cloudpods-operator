@@ -25,8 +25,8 @@ import (
 type LoadbalancerAgentDeployInput struct {
 	apis.Meta
 
-	Host         ansible.Host
-	DeployMethod string
+	Host         ansible.Host `json:"host"`
+	DeployMethod string       `json:"deploy_method"`
 }
 
 const (
@@ -185,7 +185,7 @@ type LoadbalancerCreateInput struct {
 	// 是否跟随主机删除而自动释放
 	EipAutoDellocate bool `json:"eip_auto_dellocate,omitempty"`
 
-	// swagger: ignore
+	// swagger:ignore
 	Eip string `json:"eip" yunion-deprecated-by:"eip_id"`
 	// EIP Id
 	EipId string `json:"eip_id"`
@@ -212,8 +212,8 @@ type LoadbalancerCreateInput struct {
 	// Cloudregion string `json:"cloudregion"`
 	NetworkResourceInput
 	// 多子网
-	// swagger: ignore
-	Networks []string
+	// swagger:ignore
+	Networks []string `json:"networks"`
 	// Network     string `json:"network"`
 	CloudproviderResourceInput
 	// Manager     string `json:"manager"`

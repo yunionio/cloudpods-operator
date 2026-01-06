@@ -183,7 +183,7 @@ type ElasticcacheCreateInput struct {
 	// 主可用区名称或Id
 	ZoneId string `json:"zone_id"`
 
-	// swagger: ignore
+	// swagger:ignore
 	Zone string `json:"zone" yunion-deprecated-by:"zone_id"`
 
 	// 备可用区名称或Id列表, split by: ,
@@ -196,7 +196,7 @@ type ElasticcacheCreateInput struct {
 	// required: true
 	NetworkId string `json:"network_id"`
 
-	// swagger: ignore
+	// swagger:ignore
 	Network string `json:"network" yunion-deprecated-by:"network_id"`
 
 	// 网络类型
@@ -219,7 +219,7 @@ type ElasticcacheCreateInput struct {
 
 	NodeType string `json:"node_type"`
 
-	// swagger: ignore
+	// swagger:ignore
 	MemorySizeMb int `json:"memory_size_mb" yunion-deprecated-by:"capacity_mb"`
 
 	// 初始密码
@@ -238,10 +238,10 @@ type ElasticcacheCreateInput struct {
 	PrivateIp string `json:"private_ip"`
 
 	// swagger:ignore
-	VpcId string
+	VpcId string `json:"vpc_id"`
 
 	// swagger:ignore
-	ManagerId string
+	ManagerId string `json:"manager_id"`
 
 	// 包年包月时间周期
 	Duration string `json:"duration"`
@@ -255,9 +255,9 @@ type ElasticcacheCreateInput struct {
 
 	// 计费方式
 	// enum: ["postpaid", "prepaid"]
-	BillingType string
+	BillingType string `json:"billing_type"`
 	// swagger:ignore
-	BillingCycle string
+	BillingCycle string `json:"billing_cycle"`
 
 	// 弹性缓存维护时间段
 	// 华为云此参数可选,其它云该参数无效

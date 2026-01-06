@@ -144,9 +144,9 @@ type AlertCreateInput struct {
 }
 
 type MeterCustomizeConfig struct {
-	UnitDesc string
-	Name     string
-	Currency string
+	UnitDesc string `json:"unit_desc"`
+	Name     string `json:"name"`
+	Currency string `json:"currency"`
 }
 
 type AlertUpdateInput struct {
@@ -238,3 +238,13 @@ func init() {
 		return &AlertSetting{}
 	})
 }
+
+type EvaluatorType string
+
+const (
+	EvaluatorTypeGT           EvaluatorType = "gt"
+	EvaluatorTypeLT           EvaluatorType = "lt"
+	EvaluatorTypeEQ           EvaluatorType = "eq"
+	EvaluatorTypeWithinRange  EvaluatorType = "within_range"
+	EvaluatorTypeOutsideRange EvaluatorType = "outside_range"
+)

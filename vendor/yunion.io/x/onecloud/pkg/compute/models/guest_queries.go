@@ -560,15 +560,13 @@ func fetchGuestNICs(ctx context.Context, guestIds []string, virtual tristate.Tri
 	netq := NetworkManager.Query().SubQuery()
 	wirq := WireManager.Query().SubQuery()
 
-	subIPQ := NetworkAddressManager.Query("parent_id").Equals("parent_type", api.NetworkAddressParentTypeGuestnetwork)
-	subIPQ = subIPQ.AppendField(sqlchemy.GROUP_CONCAT("sub_ips", subIPQ.Field("ip_addr")))
-	subIPQ = subIPQ.GroupBy(subIPQ.Field("parent_id"))
+	subIPQ := NetworkAddressManager.fetchSubIpsQuery(api.NetworkAddressParentTypeGuestnetwork)
 	subIP := subIPQ.SubQuery()
 
 	gnwq := GuestnetworkManager.Query()
 	q := gnwq.AppendField(
 		gnwq.Field("guest_id"),
-
+		gnwq.Field("index"),
 		gnwq.Field("ip_addr"),
 		gnwq.Field("ip6_addr"),
 		gnwq.Field("mac_addr").Label("mac"),
