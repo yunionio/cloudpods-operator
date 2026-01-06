@@ -123,6 +123,10 @@ type SGuestnetwork struct {
 
 	// 端口映射
 	PortMappings api.GuestPortMappings `length:"long" list:"user" update:"user"`
+
+	// 计费类型: 流量、带宽
+	// example: bandwidth
+	ChargeType string `width:"64" name:"charge_type" default:"bandwidth" list:"user" create:"optional"`
 }
 
 func (gn SGuestnetwork) GetIP() string {
@@ -275,6 +279,8 @@ type newGuestNetworkArgs struct {
 
 	virtual      bool
 	portMappings api.GuestPortMappings
+
+	chargeType string
 }
 
 func (manager *SGuestnetworkManager) newGuestNetwork(
@@ -323,6 +329,7 @@ func (manager *SGuestnetworkManager) newGuestNetwork(
 		gn.BwLimit = bwLimit
 	}
 	gn.PortMappings = args.portMappings
+	gn.ChargeType = args.chargeType
 
 	lockman.LockObject(ctx, network)
 	defer lockman.ReleaseObject(ctx, network)
@@ -978,7 +985,7 @@ func (gn *SGuestnetwork) LogDetachEvent(ctx context.Context, userCred mcclient.T
 		}
 		network = netTmp.(*SNetwork)
 	}
-	db.OpsLog.LogDetachEvent(ctx, guest, network, userCred, nil)
+	db.OpsLog.LogDetachEvent(ctx, guest, network, userCred, gn.GetShortDesc(ctx))
 }
 
 func (gn *SGuestnetwork) Delete(ctx context.Context, userCred mcclient.TokenCredential) error {
@@ -1268,6 +1275,13 @@ func (gn *SGuestnetwork) GetShortDesc(ctx context.Context) *jsonutils.JSONDict {
 	if len(gn.IpAddr) > 0 {
 		desc.IpAddr = gn.IpAddr
 		desc.IsExit = gn.IsExit()
+		if desc.IsExit {
+			desc.NicType = "exit"
+		} else {
+			desc.NicType = "internal"
+		}
+	} else {
+		desc.NicType = "unused"
 	}
 	if len(gn.Ip6Addr) > 0 {
 		desc.Ip6Addr = gn.Ip6Addr
@@ -1276,7 +1290,35 @@ func (gn *SGuestnetwork) GetShortDesc(ctx context.Context) *jsonutils.JSONDict {
 	if len(gn.TeamWith) > 0 {
 		desc.TeamWith = gn.TeamWith
 	}
+	desc.BwLimitMbps = gn.getBandwidth()
+	desc.Ifname = gn.Ifname
+	desc.IsDefault = gn.IsDefault
+	desc.ChargeType = gn.ChargeType
+	desc.GuestId = gn.GuestId
+	desc.NetworkId = gn.NetworkId
+	wire, _ := gn.GetWire()
+	if wire != nil {
+		desc.VpcId = wire.VpcId
+	}
+	desc.PortMappings = gn.PortMappings
+	desc.SubIps = gn.GetSubIps()
 	return jsonutils.Marshal(desc).(*jsonutils.JSONDict)
+}
+
+func (gn *SGuestnetwork) GetWire() (*SWire, error) {
+	net, err := gn.GetNetwork()
+	if err != nil {
+		return nil, errors.Wrap(err, "GetNetwork")
+	}
+	return net.GetWire()
+}
+
+func (gn *SGuestnetwork) GetVpc() (*SVpc, error) {
+	net, err := gn.GetNetwork()
+	if err != nil {
+		return nil, errors.Wrap(err, "GetNetwork")
+	}
+	return net.GetVpc()
 }
 
 func (gn *SGuestnetwork) ToNetworkConfig() *api.NetworkConfig {
@@ -1452,4 +1494,18 @@ func (guest *SGuest) IsStrictIpv6() (bool, error) {
 		return false, errors.Wrap(err, "CountWithError")
 	}
 	return cnt > 0, nil
+}
+
+func (gn *SGuestnetwork) GetSubIps() string {
+	subIPQ := NetworkAddressManager.fetchSubIpsQuery(api.NetworkAddressParentTypeGuestnetwork)
+	subIPQ = subIPQ.Equals("parent_id", gn.RowId)
+	result := struct {
+		SubIps string `json:"sub_ips"`
+	}{}
+	err := subIPQ.First(&result)
+	if err != nil {
+		log.Errorf("Guestnetwork %s/%s/%s GetSubIps fail %s", gn.GuestId, gn.NetworkId, gn.MacAddr, err)
+		return ""
+	}
+	return result.SubIps
 }

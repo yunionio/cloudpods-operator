@@ -474,6 +474,12 @@ func (manager *SSnapshotManager) ValidateCreateData(
 		return input, httperrors.NewInvalidStatusError("disk %s status is not %s", disk.Name, api.DISK_READY)
 	}
 
+	if len(disk.SnapshotId) > 0 {
+		if disk.GetMetadata(ctx, "merge_snapshot", userCred) == "true" {
+			return input, httperrors.NewBadRequestError("disk %s backing snapshot not merged", disk.Id)
+		}
+	}
+
 	if len(disk.EncryptKeyId) > 0 {
 		input.EncryptKeyId = &disk.EncryptKeyId
 		input.EncryptedResourceCreateInput, err = manager.SEncryptedResourceManager.ValidateCreateData(ctx, userCred, ownerId, query, input.EncryptedResourceCreateInput)
@@ -1244,10 +1250,10 @@ func (manager *SSnapshotManager) CleanupSnapshots(ctx context.Context, userCred 
 
 	{
 		sq = SnapshotPolicyManager.Query().Equals("type", api.SNAPSHOT_POLICY_TYPE_DISK).GT("retention_count", 0).SubQuery()
-		spd := SnapshotPolicyDiskManager.Query().SubQuery()
+		spd := SnapshotPolicyResourceManager.Query().Equals("resource_type", api.SNAPSHOT_POLICY_TYPE_DISK).SubQuery()
 		q = sq.Query(
 			sq.Field("retention_count"),
-			spd.Field("disk_id"),
+			spd.Field("resource_id").Label("disk_id"),
 		)
 		q = q.Join(spd, sqlchemy.Equals(q.Field("id"), spd.Field("snapshotpolicy_id")))
 

@@ -18,8 +18,6 @@ import (
 	"net/http"
 	"strings"
 
-	"golang.org/x/sync/errgroup"
-
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
 	"yunion.io/x/pkg/errors"
@@ -570,18 +568,13 @@ func RegisterServiceEndpoints(
 	if err != nil {
 		return err
 	}
-	errgrp := &errgroup.Group{}
 	for inf := range interfaceUrls {
-		tmpUrl := interfaceUrls[inf]
-		errgrp.Go(func() error {
-			_, err = ensureEndpoint(s, svcId, regionId, inf, tmpUrl, serviceCert)
-			if err != nil {
-				return err
-			}
-			return nil
-		})
+		_, err := ensureEndpoint(s, svcId, regionId, inf, interfaceUrls[inf], serviceCert)
+		if err != nil {
+			return err
+		}
 	}
-	return errgrp.Wait()
+	return nil
 }
 
 func RegisterServiceEndpointByInterfaces(
@@ -961,7 +954,7 @@ func newCommonalertQuery(tem CommonAlertTem) monitorapi.CommonAlertQuery {
 		Threshold:  tem.Threshold,
 	}
 	if tem.FieldOpt != "" {
-		commonAlert.FieldOpt = monitorapi.CommonAlertFieldOpt_Division
+		commonAlert.FieldOpt = monitorapi.CommonAlertFieldOptDivision
 	}
 	if len(tem.ConditionType) != 0 {
 		commonAlert.ConditionType = tem.ConditionType

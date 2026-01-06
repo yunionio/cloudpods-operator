@@ -187,7 +187,7 @@ func (self *SSkuResourcesMeta) List(resType string, regionId string, retVal inte
 	case "dbinstance_sku":
 		url = fmt.Sprintf("%s/%s.status.json", self.DBInstanceBase, regionId)
 	case "serversku":
-		url = fmt.Sprintf("%s/%s.status.json", self.ServerBase, regionId)
+		url = fmt.Sprintf("%s/%s.status.new.json", self.ServerBase, regionId)
 	case "elasticcachesku":
 		url = fmt.Sprintf("%s/%s.status.json", self.ElasticCacheBase, regionId)
 	case "cloudimage":

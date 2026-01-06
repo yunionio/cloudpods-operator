@@ -14,6 +14,10 @@
 
 package monitor
 
+import (
+	time "time"
+)
+
 const (
 	ALERT_STATUS_READY       = "ready"
 	ALERT_STATUS_DELETE      = "start_delete"
@@ -34,9 +38,6 @@ const (
 
 	CommonAlertDefaultRecipient = "commonalert-default"
 
-	//metirc fields 之间的运算
-	CommonAlertFieldOpt_Division = "/"
-
 	DEFAULT_SEND_NOTIFY_CHANNEL = "users"
 
 	METRIC_QUERY_TYPE_NO_DATA     = "nodata_query"
@@ -45,6 +46,13 @@ const (
 	CommonAlertLevelNormal    = "normal"
 	CommonAlertLevelImportant = "important"
 	CommonAlertLevelFatal     = "fatal"
+)
+
+type CommonAlertFieldOpt string
+
+const (
+	//metirc fields 之间的运算
+	CommonAlertFieldOptDivision CommonAlertFieldOpt = "/"
 )
 
 var CommonAlertLevels = []string{CommonAlertLevelNormal, CommonAlertLevelImportant, CommonAlertLevelFatal}
@@ -96,15 +104,27 @@ type CommonAlertQuery struct {
 	*AlertQuery
 	// metric points'value的运算方式
 	Reduce string `json:"reduce"`
-	// 比较运算符, 比如: >, <, >=, <=
+	// 比较运算符, 比如: >, <, >=, <=, within_range, outside_range
 	Comparator string `json:"comparator"`
-	// 报警阀值
+	// 报警阀值 (用于 gt, lt, eq)
 	Threshold float64 `json:"threshold"`
-	//field yunsuan
-	FieldOpt      string `json:"field_opt"`
-	ConditionType string `json:"condition_type"`
+	// 范围参数 (用于 within_range, outside_range)
+	ThresholdRange []float64 `json:"threshold_range"`
+	// field 运算
+	FieldOpt      CommonAlertFieldOpt `json:"field_opt"`
+	ConditionType string              `json:"condition_type"`
 	// Operator should be chosen from 'and | or'
 	Operator string `json:"operator"`
+}
+
+// TopQueryInput 用于 top 查询的通用时间段和 top 参数
+type TopQueryInput struct {
+	// 查询时间段开始时间
+	StartTime time.Time `json:"start_time"`
+	// 查询时间段结束时间
+	EndTime time.Time `json:"end_time"`
+	// 返回 top N（默认 5）
+	Top *int `json:"top"`
 }
 
 type CommonAlertListInput struct {
@@ -119,6 +139,8 @@ type CommonAlertListInput struct {
 	ResType []string `json:"res_type"`
 	UsedBy  string   `json:"used_by"`
 	Name    string   `json:"name"`
+	// Top 查询参数（用于统计报警资源最多的监控策略）
+	TopQueryInput
 }
 
 type CommonAlertUpdateInput struct {
@@ -161,12 +183,12 @@ type CommonAlertDetails struct {
 }
 
 type CommonAlertMetricDetails struct {
-	Operator      string    `json:"operator"`
-	Comparator    string    `json:"comparator"`
-	Threshold     float64   `json:"threshold"`
-	WithinRange   []float64 `json:"within_range"`
-	ConditionType string    `json:"condition_type"`
-	ThresholdStr  string    `json:"threshold_str"`
+	Operator       string    `json:"operator"`
+	Comparator     string    `json:"comparator"`
+	Threshold      float64   `json:"threshold"`
+	ThresholdRange []float64 `json:"threshold_range"`
+	ConditionType  string    `json:"condition_type"`
+	ThresholdStr   string    `json:"threshold_str"`
 	// metric points'value的运算方式
 	Reduce                 string           `json:"reduce"`
 	DB                     string           `json:"db"`
