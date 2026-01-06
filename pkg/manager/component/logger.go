@@ -23,6 +23,8 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
 	"yunion.io/x/onecloud-operator/pkg/service-init/component"
+	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
+	"yunion.io/x/onecloud/pkg/mcclient"
 )
 
 type loggerManager struct {
@@ -88,7 +90,7 @@ func (m *loggerManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 }
 
 func (m *loggerManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.LoggerComponentType, oc, oc.Spec.Logger.Service.InternalOnly, int32(oc.Spec.Logger.Service.NodePort), int32(cfg.Logger.Port))}
+	return m.newSinglePortService(v1alpha1.LoggerComponentType, oc, oc.Spec.Logger.Service.InternalOnly, int32(oc.Spec.Logger.Service.NodePort), int32(cfg.Logger.Port), oc.Spec.Logger.SlaveReplicas > 0)
 }
 
 func (m *loggerManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -97,4 +99,22 @@ func (m *loggerManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 
 func (m *loggerManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.Logger
+}
+
+func (m *loggerManager) supportsReadOnlyService() bool {
+	return false
+}
+
+func (m *loggerManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return nil
+}
+
+func (m *loggerManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return func(s *mcclient.ClientSession) error {
+		if m.IsDisabled(oc) {
+			return onecloud.EnsureDisableService(s, m.GetServiceName())
+		} else {
+			return onecloud.EnsureEnableService(s, m.GetServiceName(), m.supportsReadOnlyService() && oc.Spec.Logger.SlaveReplicas > 0)
+		}
+	}
 }

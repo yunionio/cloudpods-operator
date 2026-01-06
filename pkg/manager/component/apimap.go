@@ -20,11 +20,14 @@ import (
 
 	"yunion.io/x/pkg/errors"
 
+	"yunion.io/x/onecloud/pkg/mcclient"
+
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
 	"yunion.io/x/onecloud-operator/pkg/manager"
 	"yunion.io/x/onecloud-operator/pkg/service-init/component"
+	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
 )
 
 type apiMapManager struct {
@@ -70,7 +73,7 @@ func (m *apiMapManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	return m.newServiceConfigMap(v1alpha1.APIMapComponentType, "", oc, opt), false, nil
 }
 func (m *apiMapManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return []*corev1.Service{m.newSinglePortService(v1alpha1.APIMapComponentType, oc, oc.Spec.APIMap.Service.InternalOnly, int32(oc.Spec.APIMap.Service.NodePort), constants.APIMapPort)}
+	return m.newSinglePortService(v1alpha1.APIMapComponentType, oc, oc.Spec.APIMap.Service.InternalOnly, int32(oc.Spec.APIMap.Service.NodePort), constants.APIMapPort, oc.Spec.APIMap.SlaveReplicas > 0)
 }
 
 func (m *apiMapManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
@@ -79,4 +82,22 @@ func (m *apiMapManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 
 func (m *apiMapManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
 	return &oc.Status.APIMap
+}
+
+func (m *apiMapManager) supportsReadOnlyService() bool {
+	return false
+}
+
+func (m *apiMapManager) getReadonlyDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string, deployment *apps.Deployment) *apps.Deployment {
+	return nil
+}
+
+func (m *apiMapManager) getMcclientSyncFunc(oc *v1alpha1.OnecloudCluster) func(*mcclient.ClientSession) error {
+	return func(s *mcclient.ClientSession) error {
+		if m.IsDisabled(oc) {
+			return onecloud.EnsureDisableService(s, m.GetServiceName())
+		} else {
+			return onecloud.EnsureEnableService(s, m.GetServiceName(), m.supportsReadOnlyService() && oc.Spec.APIMap.SlaveReplicas > 0)
+		}
+	}
 }
