@@ -121,6 +121,8 @@ type NetworkConfig struct {
 
 	PortMappings GuestPortMappings `json:"port_mappings"`
 
+	ChargeType string `json:"charge_type"`
+
 	// swagger:ignore
 	Project string `json:"project_id"`
 
@@ -323,6 +325,7 @@ type BaremetalDiskConfig struct {
 	RA           *bool   `json:"ra,omitempty"`
 	WT           *bool   `json:"wt,omitempty"`
 	Direct       *bool   `json:"direct,omitempty"`
+	SoftRaidIdx  *int    `json:"soft_raid_idx"`
 }
 
 type RootDiskMatcherSizeMBRange struct {
@@ -338,6 +341,7 @@ type BaremetalRootDiskMatcher struct {
 	Device      string                      `json:"device"`
 	SizeMB      int64                       `json:"size_mb"`
 	SizeMBRange *RootDiskMatcherSizeMBRange `json:"size_mb_range"`
+	PCIPath     string                      `json:"pci_path"`
 }
 
 type ServerConfigs struct {
@@ -531,7 +535,8 @@ type ServerCreateInput struct {
 
 	// BIOS类型, 若镜像是Windows，并且支持UEFI,则自动会设置为UEFI
 	// emulate: BIOS, UEFI
-	Bios string `json:"bios"`
+	Bios      string `json:"bios"`
+	EnableTpm bool   `json:"enable_tpm"`
 
 	// Machine类型
 	// emulate: pc, q35

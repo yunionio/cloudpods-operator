@@ -1,4 +1,4 @@
-// Minio Cloud Storage, (C) 2016 Minio, Inc.
+// Copyright 2019 Yunion
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,14 +11,15 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-//
 
-package sha256
+package compute
 
-func cpuid(op uint32) (eax, ebx, ecx, edx uint32)
-func cpuidex(op, op2 uint32) (eax, ebx, ecx, edx uint32)
-func xgetbv(index uint32) (eax, edx uint32)
+import (
+	"yunion.io/x/onecloud/pkg/apis"
+)
 
-func haveArmSha() bool {
-	return false
+type BillingResourceCheckListInput struct {
+	apis.VirtualResourceListInput
+
+	ResourceType []string `json:"resource_type"`
 }

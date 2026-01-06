@@ -50,8 +50,10 @@ type GuestnetworkShortDesc struct {
 	// IP地址
 	IpAddr string `json:"ip_addr"`
 	// 是否为外网网卡
-	// Deprecated
 	IsExit bool `json:"is_exit"`
+	// 网卡类型
+	// 可能值：exit | internal | unused
+	NicType string `json:"nic_type"`
 	// IPv6地址
 	Ip6Addr string `json:"ip6_addr"`
 	// Mac地址
@@ -60,14 +62,24 @@ type GuestnetworkShortDesc struct {
 	TeamWith string `json:"team_with"`
 	// 所属Vpc
 	VpcId string `json:"vpc_id"`
+	// 所属主机
+	GuestId string `json:"guest_id"`
 	// 所属Network
 	NetworkId string `json:"network_id"`
 	// 附属IP
 	SubIps string `json:"sub_ips"`
 	// 端口映射
 	PortMappings GuestPortMappings `json:"port_mappings"`
-
+	// Bandwidth
+	BwLimitMbps int `json:"bw_limit_mbps"`
+	// 网卡名称
+	Ifname string `json:"ifname"`
+	// 是否为缺省路由网关
 	IsDefault bool `json:"is_default"`
+	// 计费模式
+	ChargeType string `json:"charge_type"`
+	// 网卡序号
+	Index int `json:"index"`
 }
 
 type GuestnetworkListInput struct {
@@ -97,8 +109,11 @@ type GuestnetworkUpdateInput struct {
 
 	Index *int8 `json:"index"`
 
-	IsDefault    *bool             `json:"is_default"`
+	IsDefault *bool `json:"is_default"`
+
 	PortMappings GuestPortMappings `json:"port_mappings"`
+
+	ChargeType string `json:"charge_type"`
 }
 
 type GuestnetworkBaseDesc struct {

@@ -117,6 +117,7 @@ type ComputeOptions struct {
 	ServerSkuSyncIntervalMinutes int `default:"60" help:"Interval to sync public cloud server skus, defualt is 1 hour"`
 	SkuBatchSync                 int `default:"5" help:"How many skus can be sync in a batch"`
 
+	EnableDeletePublicCloudSku bool `help:"Enable delete public cloud sku" default:"true"`
 	// sku sync
 	SyncSkusDay  int `default:"1" help:"Days auto sync skus data, default 1 day"`
 	SyncSkusHour int `default:"3" help:"What hour start sync skus, default 03:00"`
@@ -175,6 +176,8 @@ type ComputeOptions struct {
 
 	AutoReconcileBackupServers   bool `help:"auto reconcile backup servers" default:"false"`
 	SetKVMServerAsDaemonOnCreate bool `help:"set kvm guest as daemon server on create" default:"false"`
+
+	DisableSyncSchedtags bool `help:"disable sync schedtags" default:"false"`
 
 	SCapabilityOptions
 	SASControllerOptions
@@ -236,6 +239,8 @@ type ComputeOptions struct {
 
 	SkipSyncHostConfigInfoProviders    string `help:"Skip sync host cpu and mem config by provider"`
 	SkipSyncStorageConfigInfoProviders string `help:"Skip sync storage capacity and media type config by provider"`
+
+	KsyunPostpaidChargeType string `help:"Ksyun server postpaid charge type" choices:"Daily|HourlyInstantSettlement"`
 
 	esxi.EsxiOptions
 

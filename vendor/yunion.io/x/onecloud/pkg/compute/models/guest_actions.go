@@ -560,7 +560,7 @@ func (self *SGuest) GetSchedMigrateParams(
 			schedDesc.SkipKernelCheck = &input.SkipKernelCheck
 			schedDesc.HostMemPageSizeKB = host.PageSizeKB
 		}
-		if self.CpuNumaPin != nil {
+		if self.IsSchedulerNumaAllocate() {
 			cpuNumaPin := make([]schedapi.SCpuNumaPin, 0)
 			self.CpuNumaPin.Unmarshal(&cpuNumaPin)
 			schedDesc.CpuNumaPin = cpuNumaPin
@@ -1705,7 +1705,7 @@ func (self *SGuest) StartGueststartTask(
 		}
 	}
 
-	if !startFromCreate && self.CpuNumaPin != nil {
+	if !startFromCreate && self.IsSchedulerNumaAllocate() {
 		// clean cpu numa pin
 		err := self.SetCpuNumaPin(ctx, userCred, nil, nil)
 		if err != nil {
@@ -1750,7 +1750,7 @@ func (self *SGuest) GuestNonSchedStartTask(
 	if self.BackupHostId != "" {
 		taskName = "HAGuestStartTask"
 	}
-	if self.CpuNumaPin != nil {
+	if self.IsSchedulerNumaAllocate() {
 		srcSchedCpuNumaPin := make([]schedapi.SCpuNumaPin, 0)
 		err := self.CpuNumaPin.Unmarshal(&srcSchedCpuNumaPin)
 		if err != nil {
@@ -2909,11 +2909,14 @@ func (self *SGuest) PerformChangeIpaddr(
 
 	notes := gn.GetShortDesc(ctx)
 	if gn != nil {
-		notes.Add(jsonutils.NewString(gn.IpAddr), "prev_ip")
+		if gn.IpAddr != ngn.IpAddr {
+			notes.Add(jsonutils.NewString(gn.IpAddr), "prev_ip")
+		}
+		if gn.Ip6Addr != ngn.Ip6Addr {
+			notes.Add(jsonutils.NewString(gn.Ip6Addr), "prev_ip6")
+		}
 	}
-	if ngn != nil {
-		notes.Add(jsonutils.NewString(ngn.IpAddr), "ip")
-	}
+	db.OpsLog.LogEvent(self, db.ACT_CHANGE_IPADDR, notes, userCred)
 	logclient.AddActionLogWithContext(ctx, self, logclient.ACT_VM_CHANGE_NIC, notes, userCred, true)
 
 	restartNetwork := (input.RestartNetwork != nil && *input.RestartNetwork)
@@ -3295,15 +3298,18 @@ func (guest *SGuest) PerformChangeBandwidth(
 	}
 
 	if guestnic.BwLimit != int(bandwidth) {
-		diff, err := db.Update(guestnic, func() error {
+		oldBw := guestnic.BwLimit
+		_, err := db.Update(guestnic, func() error {
 			guestnic.BwLimit = int(bandwidth)
 			return nil
 		})
 		if err != nil {
 			return nil, err
 		}
-		db.OpsLog.LogEvent(guest, db.ACT_CHANGE_BANDWIDTH, diff, userCred)
-		logclient.AddActionLogWithContext(ctx, guest, logclient.ACT_VM_CHANGE_BANDWIDTH, diff, userCred, true)
+		eventDesc := guestnic.GetShortDesc(ctx)
+		eventDesc.Add(jsonutils.NewInt(int64(oldBw)), "old_bw_limit_mbps")
+		db.OpsLog.LogEvent(guest, db.ACT_CHANGE_BANDWIDTH, eventDesc, userCred)
+		logclient.AddActionLogWithContext(ctx, guest, logclient.ACT_VM_CHANGE_BANDWIDTH, eventDesc, userCred, true)
 		if guest.Status == api.VM_READY || (input.NoSync != nil && *input.NoSync) {
 			// if no sync, just update db
 			return nil, nil
@@ -3595,11 +3601,11 @@ func (self *SGuest) isNotRunningStatus(status string) bool {
 func (self *SGuest) SetStatus(ctx context.Context, userCred mcclient.TokenCredential, status, reason string) error {
 	if status == api.VM_RUNNING {
 		if err := self.SetPowerStates(api.VM_POWER_STATES_ON); err != nil {
-			return err
+			return errors.Wrap(err, "input status is running")
 		}
 	} else if status == api.VM_READY {
 		if err := self.SetPowerStates(api.VM_POWER_STATES_OFF); err != nil {
-			return err
+			return errors.Wrap(err, "input status is ready")
 		}
 	}
 
@@ -3618,7 +3624,7 @@ func (self *SGuest) SetPowerStates(powerStates string) error {
 		self.PowerStates = powerStates
 		return nil
 	})
-	return errors.Wrap(err, "Update power states")
+	return errors.Wrapf(err, "Update power states to %s", powerStates)
 }
 
 func (self *SGuest) SetBackupGuestStatus(userCred mcclient.TokenCredential, status string, reason string) error {
@@ -5506,6 +5512,18 @@ func (self *SGuest) validateCreateInstanceSnapshot(
 		return nil, input, httperrors.NewBadRequestError("guest hypervisor %s can't create instance snapshot", self.Hypervisor)
 	}
 
+	disks, err := self.GetDisks()
+	if err != nil {
+		return nil, input, err
+	}
+	for i := range disks {
+		if len(disks[i].SnapshotId) > 0 {
+			if disks[i].GetMetadata(ctx, "merge_snapshot", userCred) == "true" {
+				return nil, input, httperrors.NewBadRequestError("disk %s backing snapshot not merged", disks[i].Id)
+			}
+		}
+	}
+
 	if len(self.BackupHostId) > 0 {
 		return nil, input, httperrors.NewBadRequestError("Can't do instance snapshot with backup guest")
 	}
@@ -5527,7 +5545,7 @@ func (self *SGuest) validateCreateInstanceSnapshot(
 		return nil, input, httperrors.NewMissingParameterError("name")
 	}
 
-	err := db.NewNameValidator(ctx, InstanceSnapshotManager, ownerId, input.Name, nil)
+	err = db.NewNameValidator(ctx, InstanceSnapshotManager, ownerId, input.Name, nil)
 	if err != nil {
 		return nil, input, errors.Wrap(err, "NewNameValidator")
 	}
@@ -6726,6 +6744,22 @@ func (self *SGuest) GetDetailsCpusetCores(ctx context.Context, userCred mcclient
 	return resp, nil
 }
 
+func (self *SGuest) GetDetailsNumaInfo(ctx context.Context, userCred mcclient.TokenCredential, _ *api.ServerGetNumaInfoInput) (*api.ServerGetNumaInfoResp, error) {
+	ret := new(api.ServerGetNumaInfoResp)
+	devs, _ := self.GetIsolatedDevices()
+	if len(devs) > 0 {
+		ret.IsolatedDevicesNumaNode = make([]int8, 0)
+		for i := range devs {
+			if devs[i].NumaNode > 0 {
+				ret.IsolatedDevicesNumaNode = append(ret.IsolatedDevicesNumaNode, devs[i].NumaNode)
+			}
+		}
+	}
+
+	ret.CpuNumaPin = self.CpuNumaPin
+	return ret, nil
+}
+
 func (self *SGuest) GetDetailsHardwareInfo(ctx context.Context, userCred mcclient.TokenCredential, _ *api.ServerGetHardwareInfoInput) (*api.ServerGetHardwareInfoResp, error) {
 	host, err := self.GetHost()
 	if err != nil {
@@ -6832,6 +6866,15 @@ func (self *SGuest) PerformCalculateRecordChecksum(ctx context.Context, userCred
 
 func (self *SGuest) PerformEnableMemclean(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
 	return nil, self.SetMetadata(ctx, api.VM_METADATA_ENABLE_MEMCLEAN, "true", userCred)
+}
+
+func (self *SGuest) PerformSetTpm(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
+	enableTpm := jsonutils.QueryBoolean(data, api.VM_METADATA_ENABLE_TPM, false)
+	if enableTpm {
+		return nil, self.SetMetadata(ctx, api.VM_METADATA_ENABLE_TPM, enableTpm, userCred)
+	} else {
+		return nil, self.RemoveMetadata(ctx, api.VM_METADATA_ENABLE_TPM, userCred)
+	}
 }
 
 // 设置操作系统信息
