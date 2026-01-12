@@ -1551,6 +1551,22 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		Level:       "important",
 	}
 
+	hostRebootTem := onecloud.CommonAlertTem{
+		Database:    "telegraf",
+		Measurement: "system",
+		Operator:    "",
+		Field:       []string{"uptime"},
+		GroupBy:     "host_id",
+		Comparator:  "<",
+		Threshold:   0,
+		Name:        "system.host_reboot",
+		Reduce:      "delta", // 使用 delta reducer 计算最新值和最旧值的差值
+		From:        "10m",
+		Description: "监测宿主机重启（通过uptime差值检测）",
+		Level:       "important",
+		Filters:     genORFilter("brand", "OneCloud"),
+	}
+
 	speAlert := map[string]onecloud.CommonAlertTem{
 		cpuTem.Name:            cpuTem,
 		memTem.Name:            memTem,
@@ -1564,6 +1580,7 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		defunctProcessTem.Name: defunctProcessTem,
 		totalProcessTem.Name:   totalProcessTem,
 		systemLoad1Pcore.Name:  systemLoad1Pcore,
+		hostRebootTem.Name:     hostRebootTem,
 	}
 	return speAlert
 }
