@@ -84,6 +84,20 @@ const (
 
 	DefaultEChartSSRVersion = "v0.0.3"
 	DefaultGuacdVersion     = "1.6.0"
+
+	DefaultLLMImages = `[
+	{"name": "ollama-latest", "image_name": "registry.cn-beijing.aliyuncs.com/cloudpods/ollama", "image_label": "latest"},
+	{"name": "nginx-latest", "image_name": "registry.cn-beijing.aliyuncs.com/cloudpods/nginx", "image_label": "latest"},
+	{"name": "redis-6-alpine", "image_name": "registry.cn-beijing.aliyuncs.com/cloudpods/redis", "image_label": "6-alpine"},
+	{"name": "postgres-15-alpine", "image_name": "registry.cn-beijing.aliyuncs.com/cloudpods/postgres", "image_label": "15-alpine"},
+	{"name": "dify-api-1.7.2", "image_name": "registry.cn-beijing.aliyuncs.com/cloudpods/dify-api", "image_label": "1.7.2"},
+	{"name": "dify-sandbox-0.2.12", "image_name": "registry.cn-beijing.aliyuncs.com/cloudpods/dify-sandbox", "image_label": "0.2.12"},
+	{"name": "dify-plugin-daemon-0.2.0-local", "image_name": "registry.cn-beijing.aliyuncs.com/cloudpods/dify-plugin-daemon", "image_label": "0.2.0-local"},
+	{"name": "dify-web-1.7.2", "image_name": "registry.cn-beijing.aliyuncs.com/cloudpods/dify-web", "image_label": "1.7.2"},
+	{"name": "squid-latest", "image_name": "registry.cn-beijing.aliyuncs.com/cloudpods/squid", "image_label": "latest"},
+	{"name": "weaviate-1.19.0", "image_name": "registry.cn-beijing.aliyuncs.com/cloudpods/weaviate", "image_label": "1.19.0"}
+	]`
+	DefaultLLMSku = `[{"name": "llm-4c4g", "cpu": 4, "memory": 4096, "bandwidth": 1000, "llm_image_id": "ollama-latest", "llm_type": "ollama", "llm_model_name": "qwen2:0.5b"}]`
 )
 
 var (
