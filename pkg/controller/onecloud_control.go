@@ -1446,7 +1446,7 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 	hostRaidTem := onecloud.CommonAlertTem{
 		Database:    "telegraf",
 		Measurement: "host_raid",
-		Field:       []string{"adapter", "status", "slot"},
+		Field:       []string{"adapter", "slot"},
 		FieldFunc:   "last",
 		Comparator:  ">=",
 		Threshold:   0,
