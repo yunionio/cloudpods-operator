@@ -78,7 +78,7 @@ const (
 	DefaultTelegrafInitImageName = "telegraf-init"
 	DefaultTelegrafInitImageTag  = "release-1.19.2-0"
 	DefaultTelegrafRaidImageName = "telegraf-raid-plugin"
-	DefaultTelegrafRaidImageTag  = "release-1.6.5"
+	DefaultTelegrafRaidImageTag  = "v4.0-20260115.0"
 
 	DefaultHostQemuVersion = "4.2.0"
 
