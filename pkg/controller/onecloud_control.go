@@ -1715,3 +1715,32 @@ func (c *llmComponent) Setup() error {
 		constants.ServiceNameLLM, constants.ServiceTypeLLM,
 		c.GetCluster().Spec.LLM.Service.NodePort, "", true, false)
 }
+
+func (c *llmComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
+	return c.RunWithSession(func(s *mcclient.ClientSession) error {
+		{
+			// ensure llm-images created
+			if err := ensureLLMImages(s, v1alpha1.DefaultLLMImages); err != nil {
+				return errors.Wrap(err, "ensure llm-images")
+			}
+		}
+		{
+			// ensure llm-sku created
+			if err := ensureLLMSku(s, v1alpha1.DefaultLLMSku); err != nil {
+				return errors.Wrap(err, "ensure llm-sku")
+			}
+		}
+		if err := initScheduleData(s); err != nil {
+			return errors.Wrap(err, "init sched data")
+		}
+		return nil
+	})
+}
+
+func ensureLLMImages(s *mcclient.ClientSession, defaultImages string) error {
+	return onecloud.InitLLMImages(s, defaultImages)
+}
+
+func ensureLLMSku(s *mcclient.ClientSession, defaultSku string) error {
+	return onecloud.InitLLMSku(s, defaultSku)
+}
