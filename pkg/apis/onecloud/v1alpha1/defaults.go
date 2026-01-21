@@ -27,6 +27,8 @@ import (
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/util/passwd"
+	"yunion.io/x/onecloud/pkg/apis"
+	llmapi "yunion.io/x/onecloud/pkg/apis/llm"
 )
 
 var (
@@ -84,20 +86,24 @@ const (
 
 	DefaultEChartSSRVersion = "v0.0.3"
 	DefaultGuacdVersion     = "1.6.0"
+)
 
-	DefaultLLMImages = `[
-	{"name": "ollama-latest", "image_name": "registry.cn-beijing.aliyuncs.com/cloudpods/ollama", "image_label": "latest"},
-	{"name": "nginx-latest", "image_name": "registry.cn-beijing.aliyuncs.com/cloudpods/nginx", "image_label": "latest"},
-	{"name": "redis-6-alpine", "image_name": "registry.cn-beijing.aliyuncs.com/cloudpods/redis", "image_label": "6-alpine"},
-	{"name": "postgres-15-alpine", "image_name": "registry.cn-beijing.aliyuncs.com/cloudpods/postgres", "image_label": "15-alpine"},
-	{"name": "dify-api-1.7.2", "image_name": "registry.cn-beijing.aliyuncs.com/cloudpods/dify-api", "image_label": "1.7.2"},
-	{"name": "dify-sandbox-0.2.12", "image_name": "registry.cn-beijing.aliyuncs.com/cloudpods/dify-sandbox", "image_label": "0.2.12"},
-	{"name": "dify-plugin-daemon-0.2.0-local", "image_name": "registry.cn-beijing.aliyuncs.com/cloudpods/dify-plugin-daemon", "image_label": "0.2.0-local"},
-	{"name": "dify-web-1.7.2", "image_name": "registry.cn-beijing.aliyuncs.com/cloudpods/dify-web", "image_label": "1.7.2"},
-	{"name": "squid-latest", "image_name": "registry.cn-beijing.aliyuncs.com/cloudpods/squid", "image_label": "latest"},
-	{"name": "weaviate-1.19.0", "image_name": "registry.cn-beijing.aliyuncs.com/cloudpods/weaviate", "image_label": "1.19.0"}
-	]`
-	DefaultLLMSku = `[{"name": "llm-4c4g", "cpu": 4, "memory": 4096, "bandwidth": 1000, "llm_image_id": "ollama-latest", "llm_type": "ollama", "llm_model_name": "qwen2:0.5b"}]`
+var (
+	DefaultLLMImages = []llmapi.LLMImageCreateInput{
+		newLLMImage("ollama-latest", "registry.cn-beijing.aliyuncs.com/cloudpods/ollama", "latest", "ollama"),
+		newLLMImage("nginx-latest", "registry.cn-beijing.aliyuncs.com/cloudpods/nginx", "latest", "dify"),
+		newLLMImage("redis-6-alpine", "registry.cn-beijing.aliyuncs.com/cloudpods/redis", "6-alpine", "dify"),
+		newLLMImage("postgres-15-alpine", "registry.cn-beijing.aliyuncs.com/cloudpods/postgres", "15-alpine", "dify"),
+		newLLMImage("dify-api-1.7.2", "registry.cn-beijing.aliyuncs.com/cloudpods/dify-api", "1.7.2", "dify"),
+		newLLMImage("dify-sandbox-0.2.12", "registry.cn-beijing.aliyuncs.com/cloudpods/dify-sandbox", "0.2.12", "dify"),
+		newLLMImage("dify-plugin-daemon-0.2.0-local", "registry.cn-beijing.aliyuncs.com/cloudpods/dify-plugin-daemon", "0.2.0-local", "dify"),
+		newLLMImage("dify-web-1.7.2", "registry.cn-beijing.aliyuncs.com/cloudpods/dify-web", "1.7.2", "dify"),
+		newLLMImage("squid-latest", "registry.cn-beijing.aliyuncs.com/cloudpods/squid", "latest", "dify"),
+		newLLMImage("weaviate-1.19.0", "registry.cn-beijing.aliyuncs.com/cloudpods/weaviate", "1.19.0", "dify"),
+	}
+	DefaultLLMSku = []llmapi.LLMSkuCreateInput{
+		newLLMSku("llm-4c4g", 4, 4096, 1000, "ollama-latest", "ollama", "qwen2:0.5b"),
+	}
 )
 
 var (
@@ -952,4 +958,43 @@ func setDefaults_Cloudmux(spec *OnecloudClusterSpec, obj *CloudmuxSpec) {
 		spec.Version, dSpec.Tag,
 		false, false))
 	obj.FillBySpec(dSpec)
+}
+
+func newLLMImage(name, imageName, imageLabel, llmType string) llmapi.LLMImageCreateInput {
+	return llmapi.LLMImageCreateInput{
+		SharableVirtualResourceCreateInput: apis.SharableVirtualResourceCreateInput{
+			VirtualResourceCreateInput: apis.VirtualResourceCreateInput{
+				StatusStandaloneResourceCreateInput: apis.StatusStandaloneResourceCreateInput{
+					StandaloneResourceCreateInput: apis.StandaloneResourceCreateInput{
+						Name: name,
+					},
+				},
+			},
+		},
+		ImageName:  imageName,
+		ImageLabel: imageLabel,
+		LLMType:    llmType,
+	}
+}
+
+func newLLMSku(name string, cpu, memory, bandwidth int, imageId, llmType, modelName string) llmapi.LLMSkuCreateInput {
+	return llmapi.LLMSkuCreateInput{
+		LLMSKuBaseCreateInput: llmapi.LLMSKuBaseCreateInput{
+			SharableVirtualResourceCreateInput: apis.SharableVirtualResourceCreateInput{
+				VirtualResourceCreateInput: apis.VirtualResourceCreateInput{
+					StatusStandaloneResourceCreateInput: apis.StatusStandaloneResourceCreateInput{
+						StandaloneResourceCreateInput: apis.StandaloneResourceCreateInput{
+							Name: name,
+						},
+					},
+				},
+			},
+			Cpu:       cpu,
+			Memory:    memory,
+			Bandwidth: bandwidth,
+		},
+		LLMImageId:   imageId,
+		LLMType:      llmType,
+		LLMModelName: modelName,
+	}
 }

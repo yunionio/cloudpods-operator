@@ -1048,42 +1048,15 @@ func EnsureLLMSku(s *mcclient.ClientSession, input llmapi.LLMSkuCreateInput) (js
 	})
 }
 
-// InitLLMImages initializes default llm-images by parsing JSON and creating resources
-func InitLLMImages(s *mcclient.ClientSession, defaultImages string) error {
-	if defaultImages == "" || defaultImages == "[]" {
+// InitLLMImages initializes default llm-images by creating resources
+func InitLLMImages(s *mcclient.ClientSession, images []llmapi.LLMImageCreateInput) error {
+	if len(images) == 0 {
 		log.Infof("No default llm-images to initialize")
 		return nil
 	}
 
-	// Parse JSON array
-	imagesJson, err := jsonutils.ParseString(defaultImages)
-	if err != nil {
-		return errors.Wrapf(err, "parse default llm-images JSON")
-	}
-
-	imagesArray, ok := imagesJson.(*jsonutils.JSONArray)
-	if !ok {
-		return errors.Errorf("default llm-images must be a JSON array")
-	}
-
 	// Create each image
-	for i := 0; i < imagesArray.Size(); i++ {
-		imgObj, err := imagesArray.GetAt(i)
-		if err != nil {
-			return errors.Wrapf(err, "get image at index %d", i)
-		}
-
-		imgDict, ok := imgObj.(*jsonutils.JSONDict)
-		if !ok {
-			return errors.Errorf("image at index %d is not a JSON object", i)
-		}
-
-		// Unmarshal JSON to LLMImageCreateInput
-		var input llmapi.LLMImageCreateInput
-		if err := imgDict.Unmarshal(&input); err != nil {
-			return errors.Wrapf(err, "unmarshal image at index %d", i)
-		}
-
+	for i, input := range images {
 		// Validate required fields
 		if input.Name == "" {
 			return errors.Errorf("name is required for image at index %d", i)
@@ -1091,55 +1064,31 @@ func InitLLMImages(s *mcclient.ClientSession, defaultImages string) error {
 		if input.ImageName == "" {
 			return errors.Errorf("image_name is required for image at index %d", i)
 		}
+		if input.LLMType == "" {
+			return errors.Errorf("llm_type is required for image at index %d", i)
+		}
 
 		// Ensure image exists
-		_, err = EnsureLLMImage(s, input)
+		_, err := EnsureLLMImage(s, input)
 		if err != nil {
 			return errors.Wrapf(err, "ensure llm-image %s", input.Name)
 		}
 		log.Infof("Ensured llm-image: %s", input.Name)
 	}
 
-	log.Infof("Initialized %d llm-images", imagesArray.Size())
+	log.Infof("Initialized %d llm-images", len(images))
 	return nil
 }
 
-// InitLLMSku initializes default llm-sku by parsing JSON and creating resources
-func InitLLMSku(s *mcclient.ClientSession, defaultSku string) error {
-	if defaultSku == "" || defaultSku == "[]" {
+// InitLLMSku initializes default llm-sku by creating resources
+func InitLLMSku(s *mcclient.ClientSession, skus []llmapi.LLMSkuCreateInput) error {
+	if len(skus) == 0 {
 		log.Infof("No default llm-sku to initialize")
 		return nil
 	}
 
-	// Parse JSON array
-	skuJson, err := jsonutils.ParseString(defaultSku)
-	if err != nil {
-		return errors.Wrapf(err, "parse default llm-sku JSON")
-	}
-
-	skuArray, ok := skuJson.(*jsonutils.JSONArray)
-	if !ok {
-		return errors.Errorf("default llm-sku must be a JSON array")
-	}
-
 	// Create each SKU
-	for i := 0; i < skuArray.Size(); i++ {
-		skuObj, err := skuArray.GetAt(i)
-		if err != nil {
-			return errors.Wrapf(err, "get sku at index %d", i)
-		}
-
-		skuDict, ok := skuObj.(*jsonutils.JSONDict)
-		if !ok {
-			return errors.Errorf("sku at index %d is not a JSON object", i)
-		}
-
-		// Unmarshal JSON to LLMSkuCreateInput
-		var input llmapi.LLMSkuCreateInput
-		if err := skuDict.Unmarshal(&input); err != nil {
-			return errors.Wrapf(err, "unmarshal sku at index %d", i)
-		}
-
+	for i, input := range skus {
 		// Validate required fields
 		if input.Name == "" {
 			return errors.Errorf("name is required for sku at index %d", i)
@@ -1152,13 +1101,13 @@ func InitLLMSku(s *mcclient.ClientSession, defaultSku string) error {
 		}
 
 		// Ensure SKU exists
-		_, err = EnsureLLMSku(s, input)
+		_, err := EnsureLLMSku(s, input)
 		if err != nil {
 			return errors.Wrapf(err, "ensure llm-sku %s", input.Name)
 		}
 		log.Infof("Ensured llm-sku: %s", input.Name)
 	}
 
-	log.Infof("Initialized %d llm-skus", skuArray.Size())
+	log.Infof("Initialized %d llm-skus", len(skus))
 	return nil
 }
