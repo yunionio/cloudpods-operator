@@ -33,6 +33,7 @@ import (
 	"yunion.io/x/pkg/errors"
 
 	"yunion.io/x/onecloud/pkg/apis/monitor"
+	llmapi "yunion.io/x/onecloud/pkg/apis/llm"
 	"yunion.io/x/onecloud/pkg/httperrors"
 	"yunion.io/x/onecloud/pkg/keystone/locale"
 	"yunion.io/x/onecloud/pkg/mcclient"
@@ -1737,10 +1738,10 @@ func (c *llmComponent) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 	})
 }
 
-func ensureLLMImages(s *mcclient.ClientSession, defaultImages string) error {
-	return onecloud.InitLLMImages(s, defaultImages)
+func ensureLLMImages(s *mcclient.ClientSession, images []llmapi.LLMImageCreateInput) error {
+	return onecloud.InitLLMImages(s, images)
 }
 
-func ensureLLMSku(s *mcclient.ClientSession, defaultSku string) error {
-	return onecloud.InitLLMSku(s, defaultSku)
+func ensureLLMSku(s *mcclient.ClientSession, skus []llmapi.LLMSkuCreateInput) error {
+	return onecloud.InitLLMSku(s, skus)
 }
