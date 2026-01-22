@@ -12,25 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package compute
+package llm
 
 import (
-	"yunion.io/x/onecloud/pkg/mcclient/modulebase"
 	"yunion.io/x/onecloud/pkg/mcclient/modules"
+	"yunion.io/x/onecloud/pkg/mcclient/modules/tasks"
 )
 
-type BillingResourceChecksManager struct {
-	modulebase.ResourceManager
-}
-
-var (
-	BillingResourceChecks BillingResourceChecksManager
-)
+var LLMTasks tasks.TasksManager
+var ArchivedLLMTasks tasks.TasksManager
 
 func init() {
-	BillingResourceChecks = BillingResourceChecksManager{modules.NewComputeManager("billing_resource_check", "billing_resource_checks",
-		[]string{},
-		[]string{})}
-
-	modules.RegisterCompute(&BillingResourceChecks)
+	LLMTasks, ArchivedLLMTasks = tasks.NewTaskManagers(modules.NewLLMManager)
 }

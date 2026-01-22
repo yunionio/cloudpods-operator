@@ -25,6 +25,7 @@ import (
 
 	ansibleapi "yunion.io/x/onecloud/pkg/apis/ansible"
 	devtoolapi "yunion.io/x/onecloud/pkg/apis/devtool"
+	llmapi "yunion.io/x/onecloud/pkg/apis/llm"
 	monitorapi "yunion.io/x/onecloud/pkg/apis/monitor"
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/mcclient/modulebase"
@@ -32,6 +33,7 @@ import (
 	"yunion.io/x/onecloud/pkg/mcclient/modules/compute"
 	"yunion.io/x/onecloud/pkg/mcclient/modules/devtool"
 	"yunion.io/x/onecloud/pkg/mcclient/modules/identity"
+	"yunion.io/x/onecloud/pkg/mcclient/modules/llm"
 	"yunion.io/x/onecloud/pkg/mcclient/modules/monitor"
 	"yunion.io/x/onecloud/pkg/util/ansible"
 
@@ -1017,5 +1019,95 @@ func EnsureAgentAnsiblePlaybookRef(s *mcclient.ClientSession) error {
 			return errors.Wrapf(err, "unable to create devtool script %q", agentName)
 		}
 	}
+	return nil
+}
+
+// CreateLLMImage creates an LLM image
+func CreateLLMImage(s *mcclient.ClientSession, input llmapi.LLMImageCreateInput) (jsonutils.JSONObject, error) {
+	params := jsonutils.Marshal(input).(*jsonutils.JSONDict)
+	return llm.LLMImage.Create(s, params)
+}
+
+// EnsureLLMImage ensures an LLM image exists, creates it if it doesn't
+func EnsureLLMImage(s *mcclient.ClientSession, input llmapi.LLMImageCreateInput) (jsonutils.JSONObject, error) {
+	return EnsureResource(s, &llm.LLMImage, input.Name, func() (jsonutils.JSONObject, error) {
+		return CreateLLMImage(s, input)
+	})
+}
+
+// CreateLLMSku creates an LLM SKU
+func CreateLLMSku(s *mcclient.ClientSession, input llmapi.LLMSkuCreateInput) (jsonutils.JSONObject, error) {
+	params := jsonutils.Marshal(input).(*jsonutils.JSONDict)
+	return llm.LLMSku.Create(s, params)
+}
+
+// EnsureLLMSku ensures an LLM SKU exists, creates it if it doesn't
+func EnsureLLMSku(s *mcclient.ClientSession, input llmapi.LLMSkuCreateInput) (jsonutils.JSONObject, error) {
+	return EnsureResource(s, &llm.LLMSku, input.Name, func() (jsonutils.JSONObject, error) {
+		return CreateLLMSku(s, input)
+	})
+}
+
+// InitLLMImages initializes default llm-images by creating resources
+func InitLLMImages(s *mcclient.ClientSession, images []llmapi.LLMImageCreateInput) error {
+	if len(images) == 0 {
+		log.Infof("No default llm-images to initialize")
+		return nil
+	}
+
+	// Create each image
+	for i, input := range images {
+		// Validate required fields
+		if input.Name == "" {
+			return errors.Errorf("name is required for image at index %d", i)
+		}
+		if input.ImageName == "" {
+			return errors.Errorf("image_name is required for image at index %d", i)
+		}
+		if input.LLMType == "" {
+			return errors.Errorf("llm_type is required for image at index %d", i)
+		}
+
+		// Ensure image exists
+		_, err := EnsureLLMImage(s, input)
+		if err != nil {
+			return errors.Wrapf(err, "ensure llm-image %s", input.Name)
+		}
+		log.Infof("Ensured llm-image: %s", input.Name)
+	}
+
+	log.Infof("Initialized %d llm-images", len(images))
+	return nil
+}
+
+// InitLLMSku initializes default llm-sku by creating resources
+func InitLLMSku(s *mcclient.ClientSession, skus []llmapi.LLMSkuCreateInput) error {
+	if len(skus) == 0 {
+		log.Infof("No default llm-sku to initialize")
+		return nil
+	}
+
+	// Create each SKU
+	for i, input := range skus {
+		// Validate required fields
+		if input.Name == "" {
+			return errors.Errorf("name is required for sku at index %d", i)
+		}
+		if input.Cpu == 0 {
+			return errors.Errorf("cpu is required for sku at index %d", i)
+		}
+		if input.Memory == 0 {
+			return errors.Errorf("memory is required for sku at index %d", i)
+		}
+
+		// Ensure SKU exists
+		_, err := EnsureLLMSku(s, input)
+		if err != nil {
+			return errors.Wrapf(err, "ensure llm-sku %s", input.Name)
+		}
+		log.Infof("Ensured llm-sku: %s", input.Name)
+	}
+
+	log.Infof("Initialized %d llm-skus", len(skus))
 	return nil
 }
