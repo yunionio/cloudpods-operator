@@ -12,30 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package compute
-
-import (
-	"yunion.io/x/jsonutils"
-
-	"yunion.io/x/onecloud/pkg/mcclient/options"
-)
-
-type BillingResourceCheckListOptions struct {
-	options.BaseListOptions
-	ResourceType []string `json:"resource_type"`
-}
-
-func (opts *BillingResourceCheckListOptions) Params() (jsonutils.JSONObject, error) {
-	params, err := options.ListStructToParams(opts)
-	if err != nil {
-		return nil, err
-	}
-	return params, nil
-}
-
-type BillingResourceCheckCheckOptions struct {
-}
-
-func (opts *BillingResourceCheckCheckOptions) Params() (jsonutils.JSONObject, error) {
-	return nil, nil
-}
+package llm // import "yunion.io/x/onecloud/pkg/mcclient/modules/llm"
