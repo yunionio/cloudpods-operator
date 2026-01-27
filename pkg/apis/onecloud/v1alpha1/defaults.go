@@ -102,7 +102,7 @@ var (
 		newLLMImage("weaviate-1.19.0", "registry.cn-beijing.aliyuncs.com/cloudpods/weaviate", "1.19.0", "dify"),
 	}
 	DefaultLLMSku = []llmapi.LLMSkuCreateInput{
-		newLLMSku("llm-4c4g", 4, 4096, 1000, "ollama-latest", "ollama", "qwen2:0.5b"),
+		newLLMSku("llm-4c4g", 4, 4096, 10240, 1000, "ollama-latest", "ollama"),
 	}
 )
 
@@ -977,7 +977,15 @@ func newLLMImage(name, imageName, imageLabel, llmType string) llmapi.LLMImageCre
 	}
 }
 
-func newLLMSku(name string, cpu, memory, bandwidth int, imageId, llmType, modelName string) llmapi.LLMSkuCreateInput {
+func newLLMSku(name string, cpu, memory, diskSize int, bandwidth int, imageId, llmType string) llmapi.LLMSkuCreateInput {
+	// 初始化 Volume
+	vol := llmapi.Volume{
+		SizeMB:      diskSize,
+		TemplateId:  "",
+		StorageType: "",
+	}
+	vols := llmapi.Volumes{vol}
+
 	return llmapi.LLMSkuCreateInput{
 		LLMSKuBaseCreateInput: llmapi.LLMSKuBaseCreateInput{
 			SharableVirtualResourceCreateInput: apis.SharableVirtualResourceCreateInput{
@@ -992,9 +1000,9 @@ func newLLMSku(name string, cpu, memory, bandwidth int, imageId, llmType, modelN
 			Cpu:       cpu,
 			Memory:    memory,
 			Bandwidth: bandwidth,
+			Volumes:   &vols,
 		},
-		LLMImageId:   imageId,
-		LLMType:      llmType,
-		LLMModelName: modelName,
+		LLMImageId: imageId,
+		LLMType:    llmType,
 	}
 }
