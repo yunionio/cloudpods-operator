@@ -90,19 +90,19 @@ const (
 
 var (
 	DefaultLLMImages = []llmapi.LLMImageCreateInput{
-		newLLMImage("ollama-latest", "registry.cn-beijing.aliyuncs.com/cloudpods/ollama", "latest", "ollama"),
-		newLLMImage("nginx-latest", "registry.cn-beijing.aliyuncs.com/cloudpods/nginx", "latest", "dify"),
+		newLLMImage("ollama-1.15.1", "registry.cn-beijing.aliyuncs.com/cloudpods/ollama", "1.15.1", "ollama"),
+		newLLMImage("nginx-stable-alpine", "registry.cn-beijing.aliyuncs.com/cloudpods/nginx", "stable-alpine", "dify"),
 		newLLMImage("redis-6-alpine", "registry.cn-beijing.aliyuncs.com/cloudpods/redis", "6-alpine", "dify"),
 		newLLMImage("postgres-15-alpine", "registry.cn-beijing.aliyuncs.com/cloudpods/postgres", "15-alpine", "dify"),
 		newLLMImage("dify-api-1.7.2", "registry.cn-beijing.aliyuncs.com/cloudpods/dify-api", "1.7.2", "dify"),
 		newLLMImage("dify-sandbox-0.2.12", "registry.cn-beijing.aliyuncs.com/cloudpods/dify-sandbox", "0.2.12", "dify"),
 		newLLMImage("dify-plugin-daemon-0.2.0-local", "registry.cn-beijing.aliyuncs.com/cloudpods/dify-plugin-daemon", "0.2.0-local", "dify"),
 		newLLMImage("dify-web-1.7.2", "registry.cn-beijing.aliyuncs.com/cloudpods/dify-web", "1.7.2", "dify"),
-		newLLMImage("squid-latest", "registry.cn-beijing.aliyuncs.com/cloudpods/squid", "latest", "dify"),
+		newLLMImage("squid-5.2-22.04_beta", "registry.cn-beijing.aliyuncs.com/cloudpods/squid", "5.2-22.04_beta", "dify"),
 		newLLMImage("weaviate-1.19.0", "registry.cn-beijing.aliyuncs.com/cloudpods/weaviate", "1.19.0", "dify"),
 	}
 	DefaultLLMSku = []llmapi.LLMSkuCreateInput{
-		newLLMSku("llm-4c4g", 4, 4096, 1000, "ollama-latest", "ollama", "qwen2:0.5b"),
+		newLLMSku("llm-4c4g", 4, 4096, 10240, 1000, "ollama-1.15.1", "ollama"),
 	}
 )
 
@@ -977,7 +977,15 @@ func newLLMImage(name, imageName, imageLabel, llmType string) llmapi.LLMImageCre
 	}
 }
 
-func newLLMSku(name string, cpu, memory, bandwidth int, imageId, llmType, modelName string) llmapi.LLMSkuCreateInput {
+func newLLMSku(name string, cpu, memory, diskSize int, bandwidth int, imageId, llmType string) llmapi.LLMSkuCreateInput {
+	// 初始化 Volume
+	vol := llmapi.Volume{
+		SizeMB:      diskSize,
+		TemplateId:  "",
+		StorageType: "",
+	}
+	vols := llmapi.Volumes{vol}
+
 	return llmapi.LLMSkuCreateInput{
 		LLMSKuBaseCreateInput: llmapi.LLMSKuBaseCreateInput{
 			SharableVirtualResourceCreateInput: apis.SharableVirtualResourceCreateInput{
@@ -992,9 +1000,9 @@ func newLLMSku(name string, cpu, memory, bandwidth int, imageId, llmType, modelN
 			Cpu:       cpu,
 			Memory:    memory,
 			Bandwidth: bandwidth,
+			Volumes:   &vols,
 		},
-		LLMImageId:   imageId,
-		LLMType:      llmType,
-		LLMModelName: modelName,
+		LLMImageId: imageId,
+		LLMType:    llmType,
 	}
 }
