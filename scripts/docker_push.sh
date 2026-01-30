@@ -25,6 +25,22 @@ readlink_mac() {
   REAL_PATH=$PHYS_DIR/$TARGET_FILE
 }
 
+get_current_arch() {
+    local current_arch
+    case $(uname -m) in
+    x86_64)
+        current_arch=amd64
+        ;;
+    aarch64)
+        current_arch=arm64
+        ;;
+    riscv64)
+        current_arch=riscv64
+        ;;
+    esac
+    echo $current_arch
+}
+
 pushd $(cd "$(dirname "$0")"; pwd) > /dev/null
 readlink_mac $(basename "$0")
 cd "$(dirname "$REAL_PATH")"
@@ -36,6 +52,8 @@ DOCKER_DIR="${DOCKER_DIR}"
 
 REGISTRY=${REGISTRY:-docker.io/yunion}
 TAG=${TAG:-latest}
+CURRENT_ARCH=$(get_current_arch)
+ARCH=${ARCH:-$CURRENT_ARCH}
 PROJ=onecloud-operator
 image_keyword=${IMAGE_KEYWORD}
 
@@ -56,13 +74,6 @@ build_bin() {
         find _output/bin -type f |xargs ls -lah"
 }
 
-build_image() {
-    local tag=$1
-    local file=$2
-    local path=$3
-    docker build -t "$tag" -f "$2" "$3"
-}
-
 buildx_and_push() {
     local tag=$1
     local file=$2
@@ -72,37 +83,17 @@ buildx_and_push() {
     docker pull --platform "linux/$arch" "$tag"
 }
 
-push_image() {
-    local tag=$1
-    docker push "$tag"
-}
-
 get_image_name() {
     local component=$1
     local arch=$2
     local is_all_arch=$3
     local img_name="$REGISTRY/$component:$TAG"
-    if [[ "$is_all_arch" == "true" || "$arch" == arm64 || "$arch" == riscv64 ]]; then
-        img_name="${img_name}-$arch"
+    if [[ -n "$arch" ]]; then
+        if [[ "$is_all_arch" == "true" || "$arch" != "$CURRENT_ARCH" ]]; then
+            img_name="${img_name}-$arch"
+        fi
     fi
     echo $img_name
-}
-
-build_process() {
-    local component=$1
-    local arch=$2
-    local is_all_arch=$3
-    local img_name=$(get_image_name $component $arch $is_all_arch)
-
-    build_bin $component
-    if [[ "$DRY_RUN" == "true" ]]; then
-        echo "[$(readlink -f ${BASH_SOURCE}):${LINENO} ${FUNCNAME[0]}] return for DRY_RUN"
-        return
-    fi
-    build_image $img_name $DOCKER_DIR/Dockerfile $SRC_DIR
-    if [[ "$PUSH" == "true" ]]; then
-        push_image "$img_name"
-    fi
 }
 
 build_process_with_buildx() {
@@ -163,11 +154,8 @@ for component in $COMPONENTS; do
             done
             make_manifest_image $component
             ;;
-        arm64|riscv64)
-            build_process_with_buildx $component $ARCH "false"
-            ;;
         *)
-            build_process $component $ARCH "false"
+            build_process_with_buildx $component $ARCH "false"
             ;;
     esac
 done
@@ -180,10 +168,12 @@ show_update_cmd() {
         is_all_arch="true"
     fi
 
-    local img_name=$(get_image_name $component $arch $is_all_arch)
+    if [[ "$arch" == "all" ]]; then
+        arch=
+    fi
+    local img_name=$(get_image_name "$component" "$arch" "$is_all_arch")
     echo "kubectl patch deployments -n onecloud onecloud-operator --type='json' -p='[{op: replace, path: /spec/template/spec/containers/0/image, value: ${img_name}}]'"
 }
-
 
 for component in $COMPONENTS; do
     show_update_cmd $component $ARCH
