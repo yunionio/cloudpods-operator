@@ -24,6 +24,7 @@ import (
 	"yunion.io/x/pkg/util/httputils"
 
 	ansibleapi "yunion.io/x/onecloud/pkg/apis/ansible"
+	computeapi "yunion.io/x/onecloud/pkg/apis/compute"
 	devtoolapi "yunion.io/x/onecloud/pkg/apis/devtool"
 	llmapi "yunion.io/x/onecloud/pkg/apis/llm"
 	monitorapi "yunion.io/x/onecloud/pkg/apis/monitor"
@@ -1080,11 +1081,65 @@ func InitLLMImages(s *mcclient.ClientSession, images []llmapi.LLMImageCreateInpu
 	return nil
 }
 
+func findAvailableGPU(s *mcclient.ClientSession) (*llmapi.Device, error) {
+	var podGPU *llmapi.Device
+	capabilities, err := compute.Capabilities.List(s, nil)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to get capabilities, devices will not be set")
+	} else if len(capabilities.Data) > 0 {
+		capDict, ok := capabilities.Data[0].(*jsonutils.JSONDict)
+		if ok {
+			pciModelTypes, err := capDict.GetArray("pci_model_types")
+			if err == nil && len(pciModelTypes) > 0 {
+				// Define local struct to parse PCIDevModelTypes
+				type PCIDevModelTypes struct {
+					Model      string `json:"model"`
+					DevType    string `json:"dev_type"`
+					SizeMB     int    `json:"size_mb"`
+					VirtualDev bool   `json:"virtual_dev"`
+					Hypervisor string `json:"hypervisor"`
+				}
+				// Find first GPU with hypervisor == "pod"
+				for _, pciModelType := range pciModelTypes {
+					var pciDev PCIDevModelTypes
+					if err := pciModelType.Unmarshal(&pciDev); err == nil {
+						if pciDev.Hypervisor == computeapi.HYPERVISOR_POD && pciDev.Model != "" {
+							// Found pod GPU, create device
+							podGPU = &llmapi.Device{
+								Model:      pciDev.Model,
+								DevType:    pciDev.DevType,
+								DevicePath: "",
+							}
+							log.Infof("Found pod GPU: model=%s, dev_type=%s", pciDev.Model, pciDev.DevType)
+							break
+						}
+					}
+				}
+			}
+		}
+		if podGPU == nil {
+			return nil, errors.Errorf("No pod GPU found in capabilities, devices will not be set")
+		}
+	}
+	return podGPU, nil
+}
+
 // InitLLMSku initializes default llm-sku by creating resources
 func InitLLMSku(s *mcclient.ClientSession, skus []llmapi.LLMSkuCreateInput) error {
 	if len(skus) == 0 {
 		log.Infof("No default llm-sku to initialize")
 		return nil
+	}
+
+	// find available gpu & set devices
+	podGPU, err := findAvailableGPU(s)
+
+	// Set devices for all SKUs if pod GPU is found
+	var devices llmapi.Devices
+	if podGPU != nil {
+		devices = llmapi.Devices{*podGPU}
+	} else {
+		log.Warningf("Failed to find available gpu: %v, devices will not be set", err)
 	}
 
 	// Create each SKU
@@ -1099,6 +1154,8 @@ func InitLLMSku(s *mcclient.ClientSession, skus []llmapi.LLMSkuCreateInput) erro
 		if input.Memory == 0 {
 			return errors.Errorf("memory is required for sku at index %d", i)
 		}
+
+		input.Devices = &devices
 
 		// Ensure SKU exists
 		_, err := EnsureLLMSku(s, input)
