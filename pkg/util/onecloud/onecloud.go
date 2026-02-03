@@ -919,7 +919,7 @@ func newCommonalertQuery(tem CommonAlertTem) monitorapi.CommonAlertQuery {
 		Threshold:  tem.Threshold,
 	}
 	if tem.FieldOpt != "" {
-		commonAlert.FieldOpt = monitorapi.CommonAlertFieldOpt_Division
+		commonAlert.FieldOpt = monitorapi.CommonAlertFieldOptDivision
 	}
 	if len(tem.ConditionType) != 0 {
 		commonAlert.ConditionType = tem.ConditionType

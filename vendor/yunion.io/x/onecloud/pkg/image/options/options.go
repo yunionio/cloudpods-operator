@@ -46,15 +46,12 @@ type SImageOptions struct {
 
 	StorageDriver string `help:"image backend storage" default:"local" choices:"s3|local"`
 
-	S3AccessKey        string `help:"s3 access key"`
-	S3SecretKey        string `help:"s3 secret key"`
-	S3Endpoint         string `help:"s3 endpoint"`
-	S3UseSSL           bool   `help:"s3 access use ssl"`
-	S3BucketName       string `help:"s3 bucket name" default:"onecloud-images"`
 	S3MountPoint       string `help:"s3fs mount point" default:"/opt/cloud/workspace/data/glance/s3images"`
 	S3CheckImageStatus bool   `help:"Enable s3 check image status"`
 
 	ImageStreamWorkerCount int `help:"Image stream worker count" default:"10"`
+
+	VerifyImageStatusIntervalMinutes int `help:"verify image status periodically, default 15 minutes" default:"15"`
 }
 
 var (

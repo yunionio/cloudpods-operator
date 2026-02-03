@@ -78,7 +78,7 @@ func (m *sBaseAndroidRootFs) DeployPublicKey(rootfs IDiskPartition, uname string
 	return nil
 }
 
-func (m *sBaseAndroidRootFs) ChangeUserPasswd(part IDiskPartition, account, gid, publicKey, password string) (string, error) {
+func (m *sBaseAndroidRootFs) ChangeUserPasswd(part IDiskPartition, account, gid, publicKey, password string, isRandomPassword bool) (string, error) {
 	return "", nil
 }
 
@@ -113,6 +113,10 @@ func (m *sBaseAndroidRootFs) PrepareFsForTemplate(IDiskPartition) error {
 }
 
 func (m *sBaseAndroidRootFs) DeployNetworkingScripts(rootfs IDiskPartition, nics []*types.SServerNic) error {
+	return nil
+}
+
+func (m *sBaseAndroidRootFs) ConfigSshd(loginAccount, loginPassword string, sshPort int) error {
 	return nil
 }
 

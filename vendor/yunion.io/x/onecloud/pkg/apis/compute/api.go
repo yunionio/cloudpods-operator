@@ -312,6 +312,7 @@ type BaremetalDiskConfig struct {
 	RA           *bool   `json:"ra,omitempty"`
 	WT           *bool   `json:"wt,omitempty"`
 	Direct       *bool   `json:"direct,omitempty"`
+	SoftRaidIdx  *int    `json:"soft_raid_idx"`
 }
 
 type RootDiskMatcherSizeMBRange struct {
@@ -327,6 +328,7 @@ type BaremetalRootDiskMatcher struct {
 	Device      string                      `json:"device"`
 	SizeMB      int64                       `json:"size_mb"`
 	SizeMBRange *RootDiskMatcherSizeMBRange `json:"size_mb_range"`
+	PCIPath     string                      `json:"pci_path"`
 }
 
 type ServerConfigs struct {

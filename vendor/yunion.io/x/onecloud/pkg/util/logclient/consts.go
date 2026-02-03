@@ -30,6 +30,7 @@ const (
 	ACT_CREATE                       = "create"
 	ACT_POST_CREATE_HOOK             = "post_create_hook"
 	ACT_POST_DELETE_HOOK             = "post_delete_hook"
+	ACT_POST_UPDATE_HOOK             = "post_update_hook"
 	ACT_DELETE                       = "delete"
 	ACT_PENDING_DELETE               = "pending_delete"
 	ACT_DISABLE                      = "disable"
@@ -144,6 +145,7 @@ const (
 	ACT_HOST_IMPORT_LIBVIRT_SERVERS = "host_import_libvirt_servers"
 	ACT_GUEST_CREATE_FROM_IMPORT    = "guest_create_from_import"
 	ACT_GUEST_PANICKED              = "guest_panicked"
+	ACT_GUEST_SCREEN_DUMP           = "guest_screen_dump"
 	ACT_HOST_MAINTAINING            = "host_maintaining"
 	ACT_HOST_UNMAINTENANCE          = "host_unmaintenance"
 
