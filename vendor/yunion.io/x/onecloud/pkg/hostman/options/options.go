@@ -32,8 +32,10 @@ type SHostBaseOptions struct {
 
 	DisableSecurityGroup bool `help:"disable security group" default:"false"`
 
-	HostCpuPassthrough        bool  `default:"true" help:"if it is true, set qemu cpu type as -cpu host, otherwise, qemu64. default is true"`
-	LiveMigrateCpuThrottleMax int64 `default:"99" help:"live migrate auto converge cpu throttle max"`
+	HostCpuPassthrough              bool  `default:"true" help:"if it is true, set qemu cpu type as -cpu host, otherwise, qemu64. default is true"`
+	LiveMigrateCpuThrottleMax       int64 `default:"99" help:"live migrate auto converge cpu throttle max"`
+	LiveMigrateCpuThrottleInitial   int64 `default:"60" help:"live migrate auto convert cpu throttle initial"`
+	LiveMigrateCpuThrottleIncrement int64 `default:"20" help:"live migrate auto convert cpu throttle increment"`
 
 	DefaultQemuVersion string `help:"Default qemu version" default:"4.2.0"`
 	NoHpet             bool   `help:"Disable qemu hpet timer" default:"true"`
@@ -42,6 +44,8 @@ type SHostBaseOptions struct {
 	FloppyCount int `help:"floppy count" default:"1"`
 
 	DisableLocalVpc bool `help:"disable local VPC support" default:"false"`
+
+	EnableDmesgCollect bool `default:"true" help:"Enable dmesg collect or not, default true"`
 
 	DhcpLeaseTime   int `default:"100663296" help:"DHCP lease time in seconds"`
 	DhcpRenewalTime int `default:"67108864" help:"DHCP renewal time in seconds"`
@@ -143,7 +147,7 @@ type SHostOptions struct {
 	EnableOpenflowController    bool   `default:"false"`
 	BootVgaPciAddr              string `help:"Specific boot vga pci addr incase detect wrong device"`
 
-	PingRegionInterval int      `default:"60" help:"interval to ping region, deefault is 1 minute"`
+	PingRegionInterval int      `default:"60" help:"interval to ping region, default is 1 minute"`
 	LogSystemdUnits    []string `help:"Systemd units log collected by fluent-bit"`
 	// 更改默认带宽限速为400GBps, qiujian
 	BandwidthLimit int `default:"400000" help:"Bandwidth upper bound when migrating disk image in MB/sec, default 400GBps"`
@@ -174,7 +178,8 @@ type SHostOptions struct {
 	SdnEnableTapMan bool   `help:"enable tap service" default:"$SDN_ENABLE_TAP_MAN|true"`
 	TapBridgeName   string `help:"bridge name for tap service" default:"brtap"`
 
-	SdnAllowConntrackInvalid bool `help:"allow packets marked by conntrack as INVALID to pass" default:"$SDN_ALLOW_CONNTRACK_INVALID|false"`
+	SdnAllowConntrackInvalid       bool `help:"allow packets marked by conntrack as INVALID to pass" default:"$SDN_ALLOW_CONNTRACK_INVALID|false"`
+	SdnFetchDataFromComputeService bool `help:"fetch network releated data from compute service" default:"$SDN_FETCH_DATA_FROM_COMPUTE_SERVICE|true"`
 
 	ovnutils.SOvnOptions
 

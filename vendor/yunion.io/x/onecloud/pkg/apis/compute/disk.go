@@ -117,7 +117,10 @@ type DiskListInput struct {
 	StorageFilterListInput
 
 	SnapshotPolicyFilterListInput
-	ServerFilterListInput
+	// 虚拟机（ID或Name）列表
+	ServerId []string `json:"server_id"`
+	// swagger:ignore
+	Server []string `json:"server" yunion-deprecated-by:"server_id"`
 
 	// filter disk by whether it is being used
 	Unused *bool `json:"unused"`
@@ -340,6 +343,11 @@ type DiskResetInput struct {
 
 type DiskMigrateInput struct {
 	TargetStorageId string `json:"target_storage_id"`
+}
+
+type DiskChagneStorageTypeInput struct {
+	// 目标存储类型
+	StorageType string `json:"storage_type"`
 }
 
 type DiskSnapshotpolicyInput struct {

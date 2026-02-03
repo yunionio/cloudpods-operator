@@ -33,13 +33,14 @@ type AlertRecordListInput struct {
 	apis.EnabledResourceBaseListInput
 	apis.StatusStandaloneResourceListInput
 
-	AlertId  string `json:"alert_id"`
-	Level    string `json:"level"`
-	State    string `json:"state"`
-	ResType  string `json:"res_type"`
-	Alerting bool   `json:"alerting"`
-	ResName  string `json:"res_name"`
-	ResId    string `json:"res_id"`
+	AlertId   string `json:"alert_id"`
+	AlertName string `json:"alert_name"`
+	Level     string `json:"level"`
+	State     string `json:"state"`
+	ResType   string `json:"res_type"`
+	Alerting  bool   `json:"alerting"`
+	ResName   string `json:"res_name"`
+	ResId     string `json:"res_id"`
 }
 
 type AlertRecordDetails struct {
@@ -51,20 +52,6 @@ type AlertRecordDetails struct {
 	ResNum      int64  `json:"res_num"`
 	AlertName   string `json:"alert_name"`
 	TriggerTime time.Time
-}
-
-func (self AlertRecordDetails) GetMetricTags() map[string]string {
-	ret := map[string]string{
-		"id":             self.Id,
-		"alert_id":       self.AlertId,
-		"alert_name":     self.AlertName,
-		"domain_id":      self.DomainId,
-		"project_domain": self.ProjectDomain,
-		"res_type":       self.ResType,
-		"tenant":         self.Tenant,
-		"tenant_id":      self.TenantId,
-	}
-	return ret
 }
 
 type AlertRecordCreateInput struct {
@@ -91,11 +78,36 @@ type AlertRecordRule struct {
 	// 比较运算符, 比如: >, <, >=, <=
 	Comparator string `json:"comparator"`
 	// 报警阀值
-	Threshold     string `json:"threshold"`
-	Period        string `json:"period"`
-	AlertDuration int64  `json:"alert_duration"`
-	ConditionType string `json:"condition_type"`
+	Threshold      string    `json:"threshold"`
+	ThresholdRange []float64 `json:"threshold_range"`
+	Unit           string    `json:"unit"`
+	Period         string    `json:"period"`
+	AlertDuration  int64     `json:"alert_duration"`
+	ConditionType  string    `json:"condition_type"`
 	// 静默期
 	SilentPeriod string `json:"silent_period"`
 	Reducer      string `json:"reducer"`
+}
+
+type AlertRecordHistoryAlertData struct {
+	ProjectId string `json:"project_id"`
+	Project   string `json:"project"`
+	DomainId  string `json:"domain_id"`
+	Domain    string `json:"domain"`
+	ResType   string `json:"res_type"`
+	ResNum    int64  `json:"res_num"`
+}
+
+func (self AlertRecordHistoryAlertData) GetMetricTags() map[string]string {
+	return map[string]string{
+		"tenant_id": self.ProjectId,
+		"domain_id": self.DomainId,
+		"domain":    self.Domain,
+		"tenant":    self.Project,
+		"res_type":  self.ResType,
+	}
+}
+
+type AlertRecordHistoryAlert struct {
+	Data []AlertRecordHistoryAlertData `json:"data"`
 }

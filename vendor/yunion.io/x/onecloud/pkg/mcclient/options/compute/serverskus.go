@@ -61,17 +61,19 @@ type ServerSkusCreateOptions struct {
 	Name         string `help:"ServerSku name"`
 	CpuCoreCount int    `help:"Cpu Count" required:"true" positional:"true"`
 	MemorySizeMB int    `help:"Memory MB" required:"true" positional:"true"`
+	CpuArch      string `help:"CPU architecture" choices:"x86|aarch64"`
 
 	OsName               *string `help:"OS name/type" choices:"Linux|Windows|Any" default:"Any"`
 	InstanceTypeCategory *string `help:"instance type category" choices:"general_purpose|compute_optimized|memory_optimized|storage_optimized|hardware_accelerated|high_memory|high_storage"`
 
 	SysDiskResizable *bool   `help:"system disk is resizable"`
-	SysDiskType      *string `help:"system disk type" choices:"local"`
+	SysDiskType      *string `help:"system disk type"`
 	SysDiskMaxSizeGB *int    `help:"system disk maximal size in gb"`
 
 	AttachedDiskType   *string `help:"attached data disk type"`
 	AttachedDiskSizeGB *int    `help:"attached data disk size in GB"`
 	AttachedDiskCount  *int    `help:"attached data disk count"`
+	DataDiskTypes      string  `help:"data disk type"`
 
 	MaxDataDiskCount *int `help:"maximal allowed data disk count"`
 

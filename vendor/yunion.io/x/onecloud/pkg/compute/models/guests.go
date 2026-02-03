@@ -188,8 +188,13 @@ type SGuest struct {
 	QgaStatus string `width:"36" charset:"ascii" nullable:"false" default:"unknown" list:"user" create:"optional"`
 	// power_states limit in [on, off, unknown]
 	PowerStates string `width:"36" charset:"ascii" nullable:"false" default:"unknown" list:"user" create:"optional"`
+	// 健康状态, 仅开机中火运行中有效， 目前只支持阿里云
+	HealthStatus string `width:"36" charset:"ascii" nullable:"true" default:"ok" list:"user"`
 	// Used for guest rescue
 	RescueMode bool `nullable:"false" default:"false" list:"user" create:"optional"`
+
+	// 资源池,仅vmware指定调度标签时内部使用
+	ResourcePool string `width:"64" charset:"utf8" nullable:"true" create:"optional"`
 }
 
 func (manager *SGuestManager) GetPropertyStatistics(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject) (*apis.StatusStatistic, error) {
@@ -1695,26 +1700,40 @@ func (manager *SGuestManager) validateCreateData(
 
 		if imageDiskFormat != "iso" {
 			var imgSupportUEFI *bool
+			var imgSupportBIOS *bool
 			if desc, ok := imgProperties[imageapi.IMAGE_UEFI_SUPPORT]; ok {
 				support := desc == "true"
 				imgSupportUEFI = &support
 			}
+			if biosDesc, ok := imgProperties[imageapi.IMAGE_BIOS_SUPPORT]; ok {
+				supportBIOS := biosDesc == "true"
+				imgSupportBIOS = &supportBIOS
+			}
+			// uefi is not support set default support bios
+			if imgSupportUEFI == nil || !*imgSupportUEFI {
+				supportBIOS := true
+				imgSupportBIOS = &supportBIOS
+			}
+
 			if input.OsArch == apis.OS_ARCH_AARCH64 {
 				// arm image supports UEFI by default
 				support := true
 				imgSupportUEFI = &support
 			}
-			switch {
-			case imgSupportUEFI != nil && *imgSupportUEFI:
-				if len(input.Bios) == 0 {
-					input.Bios = "UEFI"
-				} else if input.Bios != "UEFI" {
-					return nil, httperrors.NewInputParameterError("UEFI image requires UEFI boot mode")
+			switch input.Bios {
+			case "UEFI":
+				if imgSupportUEFI == nil || !*imgSupportUEFI {
+					return nil, httperrors.NewInputParameterError("UEFI boot mode requires UEFI image")
+				}
+			case "BIOS":
+				if imgSupportBIOS == nil || !*imgSupportBIOS {
+					return nil, httperrors.NewInputParameterError("BIOS boot mode requires BIOS image")
 				}
 			default:
-				// not UEFI image
-				if input.Bios == "UEFI" && len(imgProperties) != 0 {
-					return nil, httperrors.NewInputParameterError("UEFI boot mode requires UEFI image")
+				if imgSupportUEFI != nil && *imgSupportUEFI {
+					input.Bios = "UEFI"
+				} else {
+					input.Bios = "BIOS"
 				}
 			}
 		}
@@ -2463,6 +2482,28 @@ func (guest *SGuest) PostCreate(ctx context.Context, userCred mcclient.TokenCred
 		guest.setUserData(ctx, userCred, userData)
 	}
 
+	if guest.Hypervisor == api.HYPERVISOR_ESXI {
+		schedtags := []api.SchedtagConfig{}
+		data.Unmarshal(&schedtags, "schedtags")
+
+		for _, tag := range schedtags {
+			if tag.ResourceType != HostManager.KeywordPlural() {
+				continue
+			}
+			meta := db.SMetadata{}
+			db.Metadata.Query().
+				Equals("obj_type", SchedtagManager.Keyword()).
+				Equals("obj_id", tag.Id).
+				Equals("key", cloudprovider.METADATA_POOL_ID).First(&meta)
+			if len(meta.Value) > 0 {
+				db.Update(guest, func() error {
+					guest.ResourcePool = meta.Value
+					return nil
+				})
+			}
+		}
+	}
+
 	if guest.GetDriver().GetMaxSecurityGroupCount() > 0 {
 		secgroups, _ := jsonutils.GetStringArray(data, "secgroups")
 		for _, secgroupId := range secgroups {
@@ -2809,9 +2850,11 @@ func (self *SGuest) GetRealIPs() []string {
 
 func (self *SGuest) IsExitOnly() bool {
 	for _, ip := range self.GetRealIPs() {
-		addr, _ := netutils.NewIPV4Addr(ip)
-		if !netutils.IsExitAddress(addr) {
-			return false
+		if regutils.MatchIP4Addr(ip) {
+			addr, _ := netutils.NewIPV4Addr(ip)
+			if !netutils.IsExitAddress(addr) {
+				return false
+			}
 		}
 	}
 	return true
@@ -2826,7 +2869,12 @@ func (self *SGuest) getVirtualIPs() []string {
 			continue
 		}
 		for _, groupnetwork := range groupnets {
-			ips = append(ips, groupnetwork.IpAddr)
+			if len(groupnetwork.IpAddr) > 0 {
+				ips = append(ips, groupnetwork.IpAddr)
+			}
+			if len(groupnetwork.Ip6Addr) > 0 {
+				ips = append(ips, groupnetwork.Ip6Addr)
+			}
 		}
 	}
 	return ips
@@ -2835,13 +2883,15 @@ func (self *SGuest) getVirtualIPs() []string {
 func (self *SGuest) GetPrivateIPs() []string {
 	ips := self.GetRealIPs()
 	for i := len(ips) - 1; i >= 0; i-- {
-		ipAddr, err := netutils.NewIPV4Addr(ips[i])
-		if err != nil {
-			log.Errorf("guest %s(%s) has bad ipv4 address (%s): %v", self.Name, self.Id, ips[i], err)
-			continue
-		}
-		if !netutils.IsPrivate(ipAddr) {
-			ips = append(ips[:i], ips[i+1:]...)
+		if regutils.MatchIP4Addr(ips[i]) {
+			ipAddr, err := netutils.NewIPV4Addr(ips[i])
+			if err != nil {
+				log.Errorf("guest %s(%s) has bad ipv4 address (%s): %v", self.Name, self.Id, ips[i], err)
+				continue
+			}
+			if !netutils.IsPrivate(ipAddr) {
+				ips = append(ips[:i], ips[i+1:]...)
+			}
 		}
 	}
 	return ips
@@ -3135,6 +3185,9 @@ func (g *SGuest) syncWithCloudVM(ctx context.Context, userCred mcclient.TokenCre
 
 		if !g.IsFailureStatus() && syncStatus {
 			g.Status = extVM.GetStatus()
+			if g.Status == api.VM_RUNNING || g.Status == api.VM_STARTING {
+				g.HealthStatus = extVM.GetHealthStatus()
+			}
 			g.PowerStates = extVM.GetPowerStates()
 			g.InferPowerStates()
 		}
@@ -3348,8 +3401,8 @@ func (manager *SGuestManager) TotalCount(
 	hostTypes []string, resourceTypes []string, providers []string, brands []string, cloudEnv string,
 	since *time.Time,
 	policyResult rbacutils.SPolicyResult,
-) SGuestCountStat {
-	return usageTotalGuestResouceCount(ctx, scope, ownerId, rangeObjs, status, hypervisors, includeSystem, pendingDelete, hostTypes, resourceTypes, providers, brands, cloudEnv, since, policyResult)
+) map[string]SGuestCountStat {
+	return usageTotalGuestResourceCount(ctx, scope, ownerId, rangeObjs, status, hypervisors, includeSystem, pendingDelete, hostTypes, resourceTypes, providers, brands, cloudEnv, since, policyResult)
 }
 
 func (self *SGuest) detachNetworks(ctx context.Context, userCred mcclient.TokenCredential, gns []SGuestnetwork, reserve bool) error {
@@ -3971,6 +4024,22 @@ func (self *SGuest) SyncVMDisks(
 	return result
 }
 
+func (self *SGuest) setSystemDisk() error {
+	sq := GuestdiskManager.Query("disk_id").Equals("guest_id", self.Id).Equals("index", 0).SubQuery()
+	disks := DiskManager.Query().In("id", sq)
+	disk := &SDisk{}
+	disk.SetModelManager(DiskManager, disk)
+	err := disks.First(disk)
+	if err != nil {
+		return err
+	}
+	_, err = db.Update(disk, func() error {
+		disk.DiskType = api.DISK_TYPE_SYS
+		return nil
+	})
+	return err
+}
+
 func (self *SGuest) fixSysDiskIndex() error {
 	disks := DiskManager.Query().SubQuery()
 	sysQ := GuestdiskManager.Query().Equals("guest_id", self.Id)
@@ -3980,7 +4049,7 @@ func (self *SGuest) fixSysDiskIndex() error {
 	err := sysQ.First(sysDisk)
 	if err != nil {
 		if errors.Cause(err) == sql.ErrNoRows {
-			return nil
+			return self.setSystemDisk()
 		}
 		return err
 	}
@@ -4031,7 +4100,7 @@ type SGuestCountStat struct {
 	TotalBackupDiskSize   int
 }
 
-func usageTotalGuestResouceCount(
+func usageTotalGuestResourceCount(
 	ctx context.Context,
 	scope rbacscope.TRbacScope,
 	ownerId mcclient.IIdentityProvider,
@@ -4045,12 +4114,41 @@ func usageTotalGuestResouceCount(
 	providers []string, brands []string, cloudEnv string,
 	since *time.Time,
 	policyResult rbacutils.SPolicyResult,
+) map[string]SGuestCountStat {
+	countStat := make(map[string]SGuestCountStat)
+	for _, arch := range []string{apis.OS_ARCH_ALL, apis.OS_ARCH_X86_64, apis.OS_ARCH_AARCH64} {
+		allStat := usageTotalGuestResourceCountByArch(
+			ctx, scope, ownerId, rangeObjs, status,
+			hypervisors, includeSystem, pendingDelete,
+			hostTypes, resourceTypes, providers, brands,
+			cloudEnv, since, policyResult, arch,
+		)
+		countStat[arch] = allStat
+	}
+	return countStat
+}
+
+func usageTotalGuestResourceCountByArch(
+	ctx context.Context,
+	scope rbacscope.TRbacScope,
+	ownerId mcclient.IIdentityProvider,
+	rangeObjs []db.IStandaloneModel,
+	status []string,
+	hypervisors []string,
+	includeSystem bool,
+	pendingDelete bool,
+	hostTypes []string,
+	resourceTypes []string,
+	providers []string, brands []string, cloudEnv string,
+	since *time.Time,
+	policyResult rbacutils.SPolicyResult,
+	osArch string,
 ) SGuestCountStat {
 	q, guests := _guestResourceCountQuery(
 		ctx,
 		scope, ownerId, rangeObjs, status, hypervisors,
 		pendingDelete, hostTypes, resourceTypes, providers, brands, cloudEnv, since,
-		policyResult,
+		policyResult, osArch,
 	)
 	if !includeSystem {
 		q = q.Filter(sqlchemy.OR(
@@ -4082,9 +4180,11 @@ func _guestResourceCountQuery(
 	providers []string, brands []string, cloudEnv string,
 	since *time.Time,
 	policyResult rbacutils.SPolicyResult,
+	osArch string,
 ) (*sqlchemy.SQuery, *sqlchemy.SSubQuery) {
 
 	guestdisks := GuestdiskManager.Query().SubQuery()
+
 	disks := DiskManager.Query().SubQuery()
 
 	diskQuery := guestdisks.Query(guestdisks.Field("guest_id"), sqlchemy.SUM("guest_disk_size", disks.Field("disk_size")))
@@ -4114,6 +4214,10 @@ func _guestResourceCountQuery(
 	} else {
 		gq = GuestManager.Query()
 	}
+	if osArch != "" && osArch != apis.OS_ARCH_ALL {
+		gq = gq.Equals("os_arch", osArch)
+	}
+
 	if len(rangeObjs) > 0 || len(hostTypes) > 0 || len(resourceTypes) > 0 || len(providers) > 0 || len(brands) > 0 || len(cloudEnv) > 0 {
 		gq = filterGuestByRange(gq, rangeObjs, hostTypes, resourceTypes, providers, brands, cloudEnv)
 	}
@@ -4893,6 +4997,7 @@ func (self *SGuest) GetDeployConfigOnHost(ctx context.Context, userCred mcclient
 		keypair := self.getKeypair()
 		if keypair != nil {
 			config.Add(jsonutils.NewString(keypair.PublicKey), "public_key")
+			config.Add(jsonutils.NewString(keypair.Name), "keypair_name")
 		}
 		deletePubKey, _ := params.GetString("delete_public_key")
 		if len(deletePubKey) > 0 {
@@ -5627,6 +5732,10 @@ func (self *SGuest) GetKeypairPublicKey() string {
 		return keypair.PublicKey
 	}
 	return ""
+}
+
+func (self *SGuest) GetKeypair() *SKeypair {
+	return self.getKeypair()
 }
 
 func (manager *SGuestManager) GetIpsInProjectWithName(projectId, name string, isExitOnly bool, addrType api.TAddressType) []string {

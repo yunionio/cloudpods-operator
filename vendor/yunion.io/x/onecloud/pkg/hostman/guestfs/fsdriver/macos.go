@@ -86,7 +86,7 @@ func (m *SMacOSRootFs) addScripts(lines []string) {
 	m.scripts = append(m.scripts, "")
 }
 
-func (m *SMacOSRootFs) ChangeUserPasswd(part IDiskPartition, account, gid, publicKey, password string) (string, error) {
+func (m *SMacOSRootFs) ChangeUserPasswd(part IDiskPartition, account, gid, publicKey, password string, isRandomPassword bool) (string, error) {
 	lines := []string{
 		fmt.Sprintf("dscl . -passwd /Users/%s %s", account, password),
 		fmt.Sprintf("rm -fr /Users/%s/Library/Keychains/*", account),
@@ -205,4 +205,8 @@ func (m *SMacOSRootFs) CommitChanges(part IDiskPartition) error {
 	m.addScripts([]string{fmt.Sprintf("echo > %s", spath)})
 	cont = strings.Join(m.scripts, "\n") + "\n"
 	return m.rootFs.FilePutContents(spath, cont, false, false)
+}
+
+func (d *SMacOSRootFs) ConfigSshd(loginAccount, loginPassword string, sshPort int) error {
+	return nil
 }
