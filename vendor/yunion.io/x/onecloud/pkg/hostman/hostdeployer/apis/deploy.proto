@@ -85,14 +85,15 @@ message DeployInfo {
   SSHKeys public_key = 1;
   repeated DeployContent deploys = 2;
   string password = 3;
-  bool is_init = 4;
-  bool enable_tty = 5;
-  bool default_root_user = 6;
-  bool windows_default_admin_user = 7;
-  bool enable_cloud_init = 8;
-  string login_account = 9;
-  Telegraf telegraf = 10;
-  string user_data = 11;
+  bool is_random_password =4;
+  bool is_init = 5;
+  bool enable_tty = 6;
+  bool default_root_user = 7;
+  bool windows_default_admin_user = 8;
+  bool enable_cloud_init = 9;
+  string login_account = 10;
+  Telegraf telegraf = 11;
+  string user_data = 12;
 }
 
 message Telegraf {
@@ -131,6 +132,7 @@ message DiskInfo {
   string encrypt_password = 2;
   string encrypt_format = 3;
   string encrypt_alg = 4;
+  string disk_id = 5;
 }
 
 message DeployParams {
@@ -144,6 +146,7 @@ message ResizeFsParams {
   DiskInfo disk_info = 1;
   string hypervisor = 2;
   VDDKConInfo vddk_info = 3;
+  GuestDesc guest_desc = 4;
 }
 
 message FormatFsParams {
@@ -181,6 +184,7 @@ message ImageInfo {
   bool is_readonly = 5;
   string physical_partition_type = 6;
   bool is_installed_cloud_init = 7;
+  bool is_bios_support = 8;
 }
 
 message EsxiDiskInfo {

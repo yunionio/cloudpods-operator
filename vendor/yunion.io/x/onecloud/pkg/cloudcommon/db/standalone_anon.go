@@ -16,7 +16,11 @@ package db
 
 import (
 	"context"
+	"crypto/md5"
+	"database/sql"
+	"fmt"
 	"strings"
+	"time"
 
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
@@ -27,6 +31,7 @@ import (
 
 	"yunion.io/x/onecloud/pkg/apis"
 	"yunion.io/x/onecloud/pkg/cloudcommon/consts"
+	"yunion.io/x/onecloud/pkg/cloudcommon/db/lockman"
 	"yunion.io/x/onecloud/pkg/cloudcommon/policy"
 	"yunion.io/x/onecloud/pkg/httperrors"
 	"yunion.io/x/onecloud/pkg/mcclient"
@@ -52,6 +57,9 @@ type SStandaloneAnonResourceBase struct {
 	// 是否是模拟资源, 部分从公有云上同步的资源并不真实存在, 例如宿主机
 	// list 接口默认不会返回这类资源，除非显示指定 is_emulate=true 过滤参数
 	IsEmulated bool `nullable:"false" default:"false" list:"admin" create:"admin_optional" json:"is_emulated"`
+
+	// 用以组织架构变更通知其他服务权限变更
+	OrgNodeMd5 string `width:"32" charset:"ascii" nullable:"true"`
 }
 
 func (model *SStandaloneAnonResourceBase) BeforeInsert() {
@@ -365,6 +373,11 @@ func (model *SStandaloneAnonResourceBase) SetOrganizationMetadataAll(ctx context
 			return errors.Wrap(err, "SetAllOrganization")
 		}
 	}
+	Update(model, func() error {
+		model.OrgNodeMd5 = fmt.Sprintf("%x", md5.Sum([]byte(jsonutils.Marshal(meta).String())))
+		return nil
+	})
+
 	// 避免加入组织架构后，项目所在的层级会移除此项目
 	//{
 	//	userTags := make(map[string]interface{})
@@ -1013,7 +1026,7 @@ func GetTagValueCountMap(
 	}
 	objSubQ = objSubQ.AppendField(sumFieldQ)
 
-	objSubQ.DebugQuery2("GetTagValueCountMap objSubQ")
+	// objSubQ.DebugQuery2("GetTagValueCountMap objSubQ")
 
 	q := objSubQ.SubQuery().Query()
 	q = q.AppendField(sqlchemy.SUM(tagValueCountKey, q.Field("_sub_count_")))
@@ -1036,11 +1049,75 @@ func GetTagValueCountMap(
 	}
 	q = q.GroupBy(groupBy...)
 
-	q.DebugQuery2("GetTagValueCountMap")
+	// q.DebugQuery2("GetTagValueCountMap")
 
 	valueMap, err := q.AllStringMap()
 	if err != nil {
 		return nil, errors.Wrap(err, "AllStringAmp")
 	}
 	return valueMap, nil
+}
+
+func (manager *SStandaloneAnonResourceBaseManager) HistoryDataClean(ctx context.Context, timeBefor time.Time) (int, error) {
+	q := manager.RawQuery("id").IsTrue("deleted").LE("deleted_at", timeBefor)
+	rows, err := q.Rows()
+	if err != nil {
+		if errors.Cause(err) == sql.ErrNoRows {
+			return 0, nil
+		}
+		return 0, errors.Wrap(err, "Query")
+	}
+	defer rows.Close()
+	ids := []string{}
+	for rows.Next() {
+		var id string
+		err := rows.Scan(&id)
+		if err != nil {
+			return 0, errors.Wrap(err, "rows.Scan")
+		}
+		ids = append(ids, id)
+	}
+	var purge = func(ids []string) error {
+		vars := []interface{}{}
+		placeholders := make([]string, len(ids))
+		for i := range placeholders {
+			placeholders[i] = "?"
+			vars = append(vars, ids[i])
+		}
+		placeholder := strings.Join(placeholders, ",")
+		sql := fmt.Sprintf(
+			"delete from %s where id in (%s)",
+			manager.TableSpec().Name(), placeholder,
+		)
+		lockman.LockRawObject(ctx, manager.Keyword(), "purge")
+		defer lockman.ReleaseRawObject(ctx, manager.Keyword(), "purge")
+
+		_, err = sqlchemy.GetDB().Exec(
+			sql, vars...,
+		)
+		if err != nil {
+			return errors.Wrapf(err, strings.ReplaceAll(sql, "?", "%s"), vars...)
+		}
+		return nil
+	}
+
+	var splitByLen = func(data []string, splitLen int) [][]string {
+		var result [][]string
+		for i := 0; i < len(data); i += splitLen {
+			end := i + splitLen
+			if end > len(data) {
+				end = len(data)
+			}
+			result = append(result, data[i:end])
+		}
+		return result
+	}
+	idsArr := splitByLen(ids, 100)
+	for i := range idsArr {
+		err = purge(idsArr[i])
+		if err != nil {
+			return 0, err
+		}
+	}
+	return len(ids), nil
 }

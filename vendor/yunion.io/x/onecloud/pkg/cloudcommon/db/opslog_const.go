@@ -267,6 +267,7 @@ const (
 	ACT_GUEST_CREATE_FROM_IMPORT_SUCC    = "guest_create_from_import_succ"
 	ACT_GUEST_CREATE_FROM_IMPORT_FAIL    = "guest_create_from_import_fail"
 	ACT_GUEST_PANICKED                   = "guest_panicked"
+	ACT_GUEST_SCREEN_DUMP                = "guest_screen_dump"
 	ACT_HOST_MAINTENANCE                 = "host_maintenance"
 	ACT_HOST_DOWN                        = "host_down"
 
@@ -338,3 +339,40 @@ const (
 
 	ACT_SET_COMMIT_BOUND = "set_commit_bound"
 )
+
+const (
+	ACT_HOST_DMESG = "host_dmesg"
+
+	LOGLEVEL_EMERG   = "emerg"
+	LOGLEVEL_ALERT   = "alert"
+	LOGLEVEL_CRIT    = "crit"
+	LOGLEVEL_ERR     = "err"
+	LOGLEVEL_WARNING = "warning"
+	LOGLEVEL_NOTICE  = "notice"
+	LOGLEVEL_INFO    = "info"
+	LOGLEVEL_DEBUG   = "debug"
+	LOGLEVEL_UNKNOWN = "unknown"
+)
+
+func LogLevelToString(logLevel int) string {
+	switch logLevel {
+	case 0:
+		return LOGLEVEL_EMERG
+	case 1:
+		return LOGLEVEL_ALERT
+	case 2:
+		return LOGLEVEL_CRIT
+	case 3:
+		return LOGLEVEL_ERR
+	case 4:
+		return LOGLEVEL_WARNING
+	case 5:
+		return LOGLEVEL_NOTICE
+	case 6:
+		return LOGLEVEL_INFO
+	case 7:
+		return LOGLEVEL_DEBUG
+	default:
+		return LOGLEVEL_UNKNOWN
+	}
+}

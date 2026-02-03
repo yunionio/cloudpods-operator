@@ -14,7 +14,10 @@
 
 package multicloud
 
-import "yunion.io/x/cloudmux/pkg/apis"
+import (
+	"yunion.io/x/cloudmux/pkg/apis"
+	"yunion.io/x/cloudmux/pkg/cloudprovider"
+)
 
 type SHostBase struct {
 	SResourceBase
@@ -33,7 +36,7 @@ func (host *SHostBase) GetReservedMemoryMb() int {
 	return 0
 }
 
-func (host *SHostBase) GetSchedtags() ([]string, error) {
+func (host *SHostBase) GetSchedtags() ([]cloudprovider.Schedtag, error) {
 	return nil, nil
 }
 

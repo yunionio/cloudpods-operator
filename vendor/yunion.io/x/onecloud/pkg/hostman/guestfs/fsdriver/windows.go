@@ -332,13 +332,22 @@ func (w *SWindowsRootFs) DeployNetworkingScripts(rootfs IDiskPartition, nics []*
 			for _, r := range routes {
 				lines = append(lines, fmt.Sprintf(`      netsh interface ip add route %s "%%%%b" %s`, r[0], r[1]))
 			}
-			dnslist := netutils2.GetNicDns(snic)
-			if len(dnslist) > 0 {
+			dns4list, dns6list := netutils2.GetNicDns(snic)
+			if len(dns4list) > 0 {
 				lines = append(lines, fmt.Sprintf(
-					`      netsh interface ip set dns name="%%%%b" source=static addr=%s`, dnslist[0]))
-				if len(dnslist) > 1 {
-					for i := 1; i < len(dnslist); i++ {
-						lines = append(lines, fmt.Sprintf(`      netsh interface ip add dns "%%%%b" %s index=%d`, dnslist[i], i+1))
+					`      netsh interface ip set dns name="%%%%b" source=static addr=%s`, dns4list[0]))
+				if len(dns4list) > 1 {
+					for i := 1; i < len(dns4list); i++ {
+						lines = append(lines, fmt.Sprintf(`      netsh interface ip add dns "%%%%b" %s index=%d`, dns4list[i], i+1))
+					}
+				}
+			}
+			if len(dns6list) > 0 {
+				lines = append(lines, fmt.Sprintf(
+					`      netsh interface ipv6 set dns name="%%%%b" source=static addr=%s`, dns6list[0]))
+				if len(dns6list) > 1 {
+					for i := 1; i < len(dns6list); i++ {
+						lines = append(lines, fmt.Sprintf(`      netsh interface ip add dns "%%%%b" %s index=%d`, dns6list[i], i+1))
 					}
 				}
 			}
@@ -416,7 +425,7 @@ func (w *SWindowsRootFs) CommitChanges(part IDiskPartition) error {
 	return nil
 }
 
-func (w *SWindowsRootFs) ChangeUserPasswd(part IDiskPartition, account, gid, publicKey, password string) (string, error) {
+func (w *SWindowsRootFs) ChangeUserPasswd(part IDiskPartition, account, gid, publicKey, password string, isRandomPassword bool) (string, error) {
 	rinfo := w.GetReleaseInfo(part)
 	confPath := part.GetLocalPath("/windows/system32/config", true)
 	tool := winutils.NewWinRegTool(confPath)
@@ -646,4 +655,8 @@ func (w *SWindowsRootFs) DeployTelegraf(config string) (bool, error) {
 		return false, errors.Wrap(err, "put setup ps1 script")
 	}
 	return true, nil
+}
+
+func (w *SWindowsRootFs) ConfigSshd(loginAccount, loginPassword string, sshPort int) error {
+	return nil
 }

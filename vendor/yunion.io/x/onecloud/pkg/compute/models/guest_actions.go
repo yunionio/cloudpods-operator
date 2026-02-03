@@ -141,15 +141,27 @@ func (self *SGuest) PerformEvent(ctx context.Context, userCred mcclient.TokenCre
 	}
 	if event == "GUEST_PANICKED" {
 		kwargs := jsonutils.NewDict()
-		kwargs.Set("reason", data)
+		kwargs.Set("reason", jsonutils.NewString(event))
+		if data.Contains("screen_dump_info") {
+			screenDumpInfo := api.SGuestScreenDump{}
+			if err := data.Unmarshal(&screenDumpInfo, "screen_dump_info"); err != nil {
+				log.Errorf("failed unmarshal screen_dump_info %s", err)
+			} else {
+				kwargs.Set("screen_dump_name", jsonutils.NewString(screenDumpInfo.S3ObjectName))
+				if _, err := self.SaveGuestScreenDump(ctx, userCred, &screenDumpInfo); err != nil {
+					log.Errorf("SaveGuestScreenDump failed %s", err)
+				}
+			}
+		}
 
-		db.OpsLog.LogEvent(self, db.ACT_GUEST_PANICKED, data.String(), userCred)
-		logclient.AddSimpleActionLog(self, logclient.ACT_GUEST_PANICKED, data.String(), userCred, true)
+		db.OpsLog.LogEvent(self, db.ACT_GUEST_PANICKED, kwargs.String(), userCred)
+		logclient.AddSimpleActionLog(self, logclient.ACT_GUEST_PANICKED, kwargs.String(), userCred, true)
 		notifyclient.EventNotify(ctx, userCred, notifyclient.SEventNotifyParam{
 			Obj:    self,
 			Action: notifyclient.ActionServerPanicked,
 			IsFail: true,
 		})
+
 	}
 	return nil, nil
 }
@@ -1660,10 +1672,12 @@ func (self *SGuest) PerformRebuildRoot(
 		}
 
 		// compare os arch
-		if len(self.InstanceType) > 0 {
+		if len(img.Properties["os_arch"]) > 0 && len(self.OsArch) > 0 && !apis.IsSameArch(self.OsArch, img.Properties["os_arch"]) {
+			return nil, httperrors.NewConflictError("root disk image(%s) and guest(%s) OsArch mismatch", img.Properties["os_arch"], self.OsArch)
+		} else if len(self.InstanceType) > 0 {
 			provider := GetDriver(self.Hypervisor).GetProvider()
 			sku, _ := ServerSkuManager.FetchSkuByNameAndProvider(self.InstanceType, provider, true)
-			if sku != nil && len(sku.CpuArch) > 0 && len(img.Properties["os_arch"]) > 0 && !strings.Contains(img.Properties["os_arch"], sku.CpuArch) {
+			if sku != nil && len(sku.CpuArch) > 0 && len(img.Properties["os_arch"]) > 0 && !apis.IsSameArch(img.Properties["os_arch"], sku.CpuArch) {
 				return nil, httperrors.NewConflictError("root disk image(%s) and sku(%s) architecture mismatch", img.Properties["os_arch"], sku.CpuArch)
 			}
 		}
@@ -3176,11 +3190,11 @@ func (self *SGuest) isNotRunningStatus(status string) bool {
 func (self *SGuest) SetStatus(ctx context.Context, userCred mcclient.TokenCredential, status, reason string) error {
 	if status == api.VM_RUNNING {
 		if err := self.SetPowerStates(api.VM_POWER_STATES_ON); err != nil {
-			return err
+			return errors.Wrap(err, "input status is running")
 		}
 	} else if status == api.VM_READY {
 		if err := self.SetPowerStates(api.VM_POWER_STATES_OFF); err != nil {
-			return err
+			return errors.Wrap(err, "input status is ready")
 		}
 	}
 
@@ -3199,7 +3213,7 @@ func (self *SGuest) SetPowerStates(powerStates string) error {
 		self.PowerStates = powerStates
 		return nil
 	})
-	return errors.Wrap(err, "Update power states")
+	return errors.Wrapf(err, "Update power states to %s", powerStates)
 }
 
 func (self *SGuest) SetBackupGuestStatus(userCred mcclient.TokenCredential, status string, reason string) error {
@@ -4241,6 +4255,29 @@ func (self *SGuest) SaveRenewInfo(
 	return nil
 }
 
+func (self *SGuest) PerformSetNetworkNumQueues(
+	ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input api.ServerSetNetworkNumQueuesInput,
+) (jsonutils.JSONObject, error) {
+	if self.Status != api.VM_READY {
+		return nil, httperrors.NewInvalidStatusError("can't set network num_queues on vm %s", self.Status)
+	}
+	if input.NumQueues < 1 {
+		return nil, httperrors.NewInputParameterError("invalid num_queues %d", input.NumQueues)
+	}
+	gn, err := self.GetGuestnetworkByMac(input.MacAddr)
+	if err != nil {
+		if errors.Cause(err) == sql.ErrNoRows {
+			return nil, httperrors.NewNotFoundError("guest network mac %s not found", input.MacAddr)
+		}
+	}
+	_, err = db.Update(gn, func() error {
+		gn.NumQueues = input.NumQueues
+		return nil
+	})
+
+	return nil, err
+}
+
 func (self *SGuest) PerformStreamDisksComplete(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
 	disks, err := self.GetDisks()
 	if err != nil {
@@ -4928,6 +4965,18 @@ func (self *SGuest) validateCreateInstanceSnapshot(
 		return nil, input, httperrors.NewBadRequestError("guest hypervisor %s can't create instance snapshot", self.Hypervisor)
 	}
 
+	disks, err := self.GetDisks()
+	if err != nil {
+		return nil, input, err
+	}
+	for i := range disks {
+		if len(disks[i].SnapshotId) > 0 {
+			if disks[i].GetMetadata(ctx, "merge_snapshot", userCred) == "true" {
+				return nil, input, httperrors.NewBadRequestError("disk %s backing snapshot not merged", disks[i].Id)
+			}
+		}
+	}
+
 	if len(self.BackupHostId) > 0 {
 		return nil, input, httperrors.NewBadRequestError("Can't do instance snapshot with backup guest")
 	}
@@ -4949,7 +4998,7 @@ func (self *SGuest) validateCreateInstanceSnapshot(
 		return nil, input, httperrors.NewMissingParameterError("name")
 	}
 
-	err := db.NewNameValidator(ctx, InstanceSnapshotManager, ownerId, input.Name, nil)
+	err = db.NewNameValidator(ctx, InstanceSnapshotManager, ownerId, input.Name, nil)
 	if err != nil {
 		return nil, input, errors.Wrap(err, "NewNameValidator")
 	}
