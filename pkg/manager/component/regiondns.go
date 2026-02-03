@@ -33,7 +33,7 @@ import (
 
 const (
 	RegionDNSConfigTemplate = `.:53 {
-    cache 30
+    cache {{.CacheTtl}}
 
     yunion . {
         sql_connection {{.SQLConnection}}
@@ -65,6 +65,8 @@ const (
 
 type RegionDNSConfig struct {
 	options.CommonOptions
+
+	CacheTtl int
 
 	SQLConnection string
 
@@ -118,6 +120,9 @@ func (m *regionDNSManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 	spec := oc.Spec.RegionDNS
 	cType := v1alpha1.RegionDNSComponentType
 	defaultDNSTo := []string{"114.114.114.114", "223.5.5.5"}
+	if spec.CacheTtl == 0 {
+		spec.CacheTtl = 300
+	}
 	if len(spec.Proxies) == 0 {
 		spec.Proxies = append(spec.Proxies, v1alpha1.RegionDNSProxy{
 			From: ".",
@@ -150,6 +155,8 @@ func (m *regionDNSManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alp
 	}
 	regionSpec := oc.Spec.RegionServer
 	config := RegionDNSConfig{
+		CacheTtl: spec.CacheTtl,
+
 		SQLConnection: dbOptions.SqlConnection,
 
 		DNSDomain: regionSpec.DNSDomain,
