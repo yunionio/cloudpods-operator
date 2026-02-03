@@ -947,8 +947,8 @@ sigs.k8s.io/structured-merge-diff/v4 v4.1.2/go.mod h1:j/nl6xW8vLS49O8YvXW1ocPhZa
 sigs.k8s.io/yaml v1.1.0/go.mod h1:UJmg0vDUVViEyp3mgSv9WPwZCDxu4rQW1olrI1uml+o=
 sigs.k8s.io/yaml v1.2.0 h1:kr/MCeFWJWTwyaHoR9c8EjH9OumOmoF9YGiZd7lFm/Q=
 sigs.k8s.io/yaml v1.2.0/go.mod h1:yfXDCHCao9+ENCvLSE62v9VSji2MKu5jeNfTrofGhJc=
-yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20260123023409-47156fd15e3c h1:qdYyX1oRno8Bt8FxHp98Fg3iGGc2iqJAwM6UjH7ybY0=
-yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20260123023409-47156fd15e3c/go.mod h1:GdAwZ78fiqj13i2r1zNuE/D6YOlhh2q4jZjuyHiZTq8=
+yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20260123023413-f5d35910430c h1:x+vf8gAXmf1CYfMTKO7BAdXa1a8iMpffNUW0B3P3wNg=
+yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20260123023413-f5d35910430c/go.mod h1:GdAwZ78fiqj13i2r1zNuE/D6YOlhh2q4jZjuyHiZTq8=
 yunion.io/x/executor v0.0.0-20250518005516-5402e9e0bed0 h1:msG4SiDSVU7CrXH06WuHlNEZXIooTcmNbfrIGHuIHBU=
 yunion.io/x/executor v0.0.0-20250518005516-5402e9e0bed0/go.mod h1:Uxuou9WQIeJXNpy7t2fPLL0BYLvLiMvGQwY7Qc6aSws=
 yunion.io/x/jsonutils v0.0.0-20190625054549-a964e1e8a051/go.mod h1:4N0/RVzsYL3kH3WE/H1BjUQdFiWu50JGCFQuuy+Z634=
@@ -958,8 +958,8 @@ yunion.io/x/log v0.0.0-20190514041436-04ce53b17c6b/go.mod h1:+gauLs73omeJAPlsXce
 yunion.io/x/log v0.0.0-20190629062853-9f6483a7103d/go.mod h1:LC6f/4FozL0iaAbnFt2eDX9jlsyo3WiOUPm03d7+U4U=
 yunion.io/x/log v1.0.1-0.20240305175729-7cf2d6cd5a91 h1:inY5o3LDa/zgsIZuPN0HmpzKIsu/lLgsBmMttuDPGj4=
 yunion.io/x/log v1.0.1-0.20240305175729-7cf2d6cd5a91/go.mod h1:LC6f/4FozL0iaAbnFt2eDX9jlsyo3WiOUPm03d7+U4U=
-yunion.io/x/onecloud v0.0.0-20260202123821-b07b85f6aea2 h1:QAYSKbhj3w0fWDrA0PRQGgzF6UxlSCD7Q7fazVjfozg=
-yunion.io/x/onecloud v0.0.0-20260202123821-b07b85f6aea2/go.mod h1:ULzw9RI9GVJ/iXKv8/2IwATVcfNUpJkAssJN+gHhJvc=
+yunion.io/x/onecloud v0.0.0-20260202123808-55c139f4ab2c h1:bqHnCqrXt2LWUCMgh+PMHHtyHtCBdWFzHguAydXEXJU=
+yunion.io/x/onecloud v0.0.0-20260202123808-55c139f4ab2c/go.mod h1:UidCXBrsbT0agBxA4fely/hbZcRGAwO9I9Z9x0wqLoQ=
 yunion.io/x/pkg v0.0.0-20190620104149-945c25821dbf/go.mod h1:t6rEGG2sQ4J7DhFxSZVOTjNd0YO/KlfWQyK1W4tog+E=
 yunion.io/x/pkg v0.0.0-20190628082551-f4033ba2ea30/go.mod h1:t6rEGG2sQ4J7DhFxSZVOTjNd0YO/KlfWQyK1W4tog+E=
 yunion.io/x/pkg v1.10.4-0.20260127060125-8939521ef75e h1:py5Kd6cgP6pxB9pSc4ry/gnmA6rJZwMVOnAjra4sb2g=
