@@ -51,6 +51,7 @@ func InitDB() error {
 		NetworkIpMacManager,
 		GuestManager,
 		HostManager,
+		HostDmesgLogManager,
 		LoadbalancerCertificateManager,
 		LoadbalancerAclManager,
 		LoadbalancerManager,
@@ -85,10 +86,10 @@ func InitDB() error {
 		now := time.Now()
 		err := manager.InitializeData()
 		if err != nil {
-			return errors.Wrapf(err, "%s InitializeData", manager.Keyword())
+			return errors.Wrapf(err, "%s initializeData", manager.Keyword())
 		}
 		if cost := time.Now().Sub(now); cost > time.Duration(time.Second)*15 {
-			log.Infof("%s InitializeData cost %s", manager.Keyword(), cost.Round(time.Second))
+			log.Infof("%s initializeData cost %s", manager.Keyword(), cost.Round(time.Second))
 		}
 	}
 	return nil

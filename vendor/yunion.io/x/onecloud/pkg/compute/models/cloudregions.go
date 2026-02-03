@@ -37,6 +37,7 @@ import (
 	"yunion.io/x/onecloud/pkg/compute/options"
 	"yunion.io/x/onecloud/pkg/httperrors"
 	"yunion.io/x/onecloud/pkg/mcclient"
+	"yunion.io/x/onecloud/pkg/mcclient/auth"
 	"yunion.io/x/onecloud/pkg/util/stringutils2"
 	"yunion.io/x/onecloud/pkg/util/yunionmeta"
 )
@@ -709,6 +710,7 @@ func (manager *SCloudregionManager) InitializeData() error {
 			defRegion.Description = "Default Region"
 			defRegion.Status = api.CLOUD_REGION_STATUS_INSERVER
 			defRegion.Provider = api.CLOUD_PROVIDER_ONECLOUD
+			defRegion.SetModelManager(manager, &defRegion)
 			err := manager.TableSpec().Insert(context.TODO(), &defRegion)
 			if err != nil {
 				return errors.Wrap(err, "insert default region")
@@ -1264,7 +1266,8 @@ func (self *SCloudregion) newCloudimage(ctx context.Context, userCred mcclient.T
 		}
 
 		image.IsPublic = true
-		image.ProjectId = "system"
+		s := auth.GetAdminSession(ctx, options.Options.Region)
+		image.ProjectId = s.GetProjectId()
 		err = CachedimageManager.TableSpec().Insert(ctx, image)
 		if err != nil {
 			return errors.Wrapf(err, "Insert cachedimage")

@@ -493,11 +493,12 @@ func fetchGuestIPs(guestIds []string, virtual tristate.TriState) map[string][]st
 func fetchGuestVips(guestIds []string) map[string][]string {
 	groupguests := GroupguestManager.Query().SubQuery()
 	groupnetworks := GroupnetworkManager.Query().SubQuery()
-	q := groupnetworks.Query(groupnetworks.Field("ip_addr"), groupguests.Field("guest_id"))
+	q := groupnetworks.Query(groupnetworks.Field("ip_addr"), groupnetworks.Field("ip6_addr"), groupguests.Field("guest_id"))
 	q = q.Join(groupguests, sqlchemy.Equals(q.Field("group_id"), groupguests.Field("group_id")))
 	q = q.In("guest_id", guestIds)
 	type sGuestVip struct {
 		IpAddr  string
+		Ip6Addr string
 		GuestId string
 	}
 	gvips := make([]sGuestVip, 0)
@@ -510,7 +511,12 @@ func fetchGuestVips(guestIds []string) map[string][]string {
 		if _, ok := ret[gvips[i].GuestId]; !ok {
 			ret[gvips[i].GuestId] = make([]string, 0)
 		}
-		ret[gvips[i].GuestId] = append(ret[gvips[i].GuestId], gvips[i].IpAddr)
+		if len(gvips[i].IpAddr) > 0 {
+			ret[gvips[i].GuestId] = append(ret[gvips[i].GuestId], gvips[i].IpAddr)
+		}
+		if len(gvips[i].Ip6Addr) > 0 {
+			ret[gvips[i].GuestId] = append(ret[gvips[i].GuestId], gvips[i].Ip6Addr)
+		}
 	}
 	return ret
 }
@@ -553,13 +559,14 @@ func fetchGuestNICs(ctx context.Context, guestIds []string, virtual tristate.Tri
 	gnwq := GuestnetworkManager.Query()
 	q := gnwq.AppendField(
 		gnwq.Field("guest_id"),
-
+		gnwq.Field("index"),
 		gnwq.Field("ip_addr"),
 		gnwq.Field("ip6_addr"),
 		gnwq.Field("mac_addr").Label("mac"),
 		gnwq.Field("team_with"),
 		gnwq.Field("network_id"), // caution: do not alias netq.id as network_id
 		wirq.Field("vpc_id"),
+		gnwq.Field("ifname"),
 		subIP.Field("sub_ips"),
 	)
 	q = q.Join(netq, sqlchemy.Equals(netq.Field("id"), gnwq.Field("network_id")))
