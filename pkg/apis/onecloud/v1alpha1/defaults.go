@@ -88,9 +88,13 @@ const (
 	DefaultGuacdVersion     = "1.6.0"
 )
 
+const (
+	DefaultOllamaImageName = "ollama-0.15.1"
+)
+
 var (
 	DefaultLLMImages = []llmapi.LLMImageCreateInput{
-		newLLMImage("ollama-1.15.1", "registry.cn-beijing.aliyuncs.com/cloudpods/ollama", "1.15.1", "ollama"),
+		newLLMImage(DefaultOllamaImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/ollama", "0.15.1", "ollama"),
 		newLLMImage("nginx-stable-alpine", "registry.cn-beijing.aliyuncs.com/cloudpods/nginx", "stable-alpine", "dify"),
 		newLLMImage("redis-6-alpine", "registry.cn-beijing.aliyuncs.com/cloudpods/redis", "6-alpine", "dify"),
 		newLLMImage("postgres-15-alpine", "registry.cn-beijing.aliyuncs.com/cloudpods/postgres", "15-alpine", "dify"),
@@ -102,7 +106,7 @@ var (
 		newLLMImage("weaviate-1.19.0", "registry.cn-beijing.aliyuncs.com/cloudpods/weaviate", "1.19.0", "dify"),
 	}
 	DefaultLLMSku = []llmapi.LLMSkuCreateInput{
-		newLLMSku("llm-4c4g", 4, 4096, 10240, 1000, "ollama-1.15.1", "ollama"),
+		newLLMSku("llm-4c4g", 4, 4096, 10240, 1000, DefaultOllamaImageName, "ollama"),
 	}
 )
 
