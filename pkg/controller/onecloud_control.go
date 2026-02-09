@@ -32,8 +32,8 @@ import (
 	"yunion.io/x/pkg/appctx"
 	"yunion.io/x/pkg/errors"
 
-	"yunion.io/x/onecloud/pkg/apis/monitor"
 	llmapi "yunion.io/x/onecloud/pkg/apis/llm"
+	"yunion.io/x/onecloud/pkg/apis/monitor"
 	"yunion.io/x/onecloud/pkg/httperrors"
 	"yunion.io/x/onecloud/pkg/keystone/locale"
 	"yunion.io/x/onecloud/pkg/mcclient"
@@ -1562,7 +1562,7 @@ func (c monitorComponent) getInitInfo() map[string]onecloud.CommonAlertTem {
 		Threshold:   0,
 		Name:        "system.host_reboot",
 		Reduce:      "delta", // 使用 delta reducer 计算最新值和最旧值的差值
-		From:        "10m",
+		From:        "30m",
 		Description: "监测宿主机重启（通过uptime差值检测）",
 		Level:       "important",
 		Filters:     genORFilter("brand", "OneCloud"),
