@@ -965,8 +965,12 @@ func setDefaults_Cloudmux(spec *OnecloudClusterSpec, obj *CloudmuxSpec) {
 }
 
 func newLLMImage(name, imageName, imageLabel, llmType string) llmapi.LLMImageCreateInput {
+	isPublic := true
 	return llmapi.LLMImageCreateInput{
 		SharableVirtualResourceCreateInput: apis.SharableVirtualResourceCreateInput{
+			SharableResourceBaseCreateInput: apis.SharableResourceBaseCreateInput{
+				IsPublic: &isPublic,
+			},
 			VirtualResourceCreateInput: apis.VirtualResourceCreateInput{
 				StatusStandaloneResourceCreateInput: apis.StatusStandaloneResourceCreateInput{
 					StandaloneResourceCreateInput: apis.StandaloneResourceCreateInput{
@@ -990,9 +994,14 @@ func newLLMSku(name string, cpu, memory, diskSize int, bandwidth int, imageId, l
 	}
 	vols := llmapi.Volumes{vol}
 
+	isPublic := true
+
 	return llmapi.LLMSkuCreateInput{
 		LLMSKuBaseCreateInput: llmapi.LLMSKuBaseCreateInput{
 			SharableVirtualResourceCreateInput: apis.SharableVirtualResourceCreateInput{
+				SharableResourceBaseCreateInput: apis.SharableResourceBaseCreateInput{
+					IsPublic: &isPublic,
+				},
 				VirtualResourceCreateInput: apis.VirtualResourceCreateInput{
 					StatusStandaloneResourceCreateInput: apis.StatusStandaloneResourceCreateInput{
 						StandaloneResourceCreateInput: apis.StandaloneResourceCreateInput{
