@@ -53,12 +53,16 @@ func (m *hostOvnControllerManager) getVolumeHelper(cType v1alpha1.ComponentType,
 	return NewOvsVolumeHelper(cType, oc, configMap)
 }
 
-func (m *hostOvnControllerManager) getNodeSelector(oc *v1alpha1.OnecloudCluster) map[string]string {
-	selector := map[string]string{
-		constants.OnecloudEnableHostLabelKey: "enable",
+func (m *hostOvnControllerManager) getNodeSelector(oc *v1alpha1.OnecloudCluster) []string {
+	// selector := map[string]string{
+	// 	constants.OnecloudEnableHostLabelKey: "enable",
+	// }
+	selector := []string{
+		constants.OnecloudEnableHostLabelKey,
 	}
 	if !oc.Spec.DisableLocalVpc {
-		selector[constants.OnecloudEnableLbagentLabelKey] = "enable"
+		// selector[constants.OnecloudEnableLbagentLabelKey] = "enable"
+		selector = append(selector, constants.OnecloudEnableLbagentLabelKey)
 	}
 	return selector
 }

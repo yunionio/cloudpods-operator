@@ -47,9 +47,12 @@ func (m *hostSdnagentManager) getVolumeHelper(cType v1alpha1.ComponentType, oc *
 	return NewHostVolume(cType, oc, configMap)
 }
 
-func (m *hostSdnagentManager) getNodeSelector(oc *v1alpha1.OnecloudCluster) map[string]string {
-	return map[string]string{
-		constants.OnecloudEnableHostLabelKey: "enable",
+func (m *hostSdnagentManager) getNodeSelector(oc *v1alpha1.OnecloudCluster) []string {
+	// return map[string]string{
+	// 	constants.OnecloudEnableHostLabelKey: "enable",
+	// }
+	return []string{
+		constants.OnecloudEnableHostLabelKey,
 	}
 }
 
