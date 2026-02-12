@@ -54,9 +54,9 @@ func (m *hostImageManager) getVolumeHelper(cType v1alpha1.ComponentType, oc *v1a
 	return NewHostImageVolumeHelper(cType, oc, configMap)
 }
 
-func (m *hostImageManager) getNodeSelector(oc *v1alpha1.OnecloudCluster) map[string]string {
-	return map[string]string{
-		constants.OnecloudEnableHostLabelKey: "enable",
+func (m *hostImageManager) getNodeSelector(oc *v1alpha1.OnecloudCluster) []string {
+	return []string{
+		constants.OnecloudEnableHostLabelKey,
 	}
 }
 
