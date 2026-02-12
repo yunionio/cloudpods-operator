@@ -1,8 +1,6 @@
 package component
 
 import (
-	"maps"
-
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -20,7 +18,7 @@ type hostBasedService interface {
 	getContainers(oc *v1alpha1.OnecloudCluster, volMounts []corev1.VolumeMount) []corev1.Container
 	getVolumeHelper(cType v1alpha1.ComponentType, oc *v1alpha1.OnecloudCluster, configMap string) *VolumeHelper
 	shouldSync(factory cloudComponentFactory, oc *v1alpha1.OnecloudCluster) bool
-	getNodeSelector(oc *v1alpha1.OnecloudCluster) map[string]string
+	getNodeSelector(oc *v1alpha1.OnecloudCluster) []string
 }
 
 type hostBasedDsManager struct {
@@ -79,7 +77,9 @@ func (m *hostBasedDsManager) newHostPrivilegedDaemonSet(
 		if dsSpec.NodeSelector == nil {
 			dsSpec.NodeSelector = make(map[string]string)
 		}
-		maps.Copy(dsSpec.NodeSelector, nodeSelector)
+		for _, v := range nodeSelector {
+			dsSpec.NodeSelector[v] = "enable"
+		}
 	} else if len(nodeSelector) > 1 {
 		// use node affinity - any of the key-value pairs should match (OR logic)
 		if dsSpec.Affinity == nil {
@@ -90,13 +90,13 @@ func (m *hostBasedDsManager) newHostPrivilegedDaemonSet(
 		}
 		// Create one NodeSelectorTerm per key-value pair for OR logic
 		terms := make([]corev1.NodeSelectorTerm, 0, len(nodeSelector))
-		for k, v := range nodeSelector {
+		for k := range nodeSelector {
 			terms = append(terms, corev1.NodeSelectorTerm{
 				MatchExpressions: []corev1.NodeSelectorRequirement{
 					{
-						Key:      k,
+						Key:      nodeSelector[k],
 						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{v},
+						Values:   []string{"enable"},
 					},
 				},
 			})
