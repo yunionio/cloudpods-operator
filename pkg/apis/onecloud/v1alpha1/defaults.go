@@ -84,7 +84,7 @@ const (
 
 	DefaultHostQemuVersion = "10.0.7"
 
-	DefaultEChartSSRVersion = "v0.0.3"
+	DefaultEChartSSRVersion = "v0.0.6"
 	DefaultGuacdVersion     = "1.6.0"
 )
 
