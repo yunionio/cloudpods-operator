@@ -67,6 +67,10 @@ func (m *extdbManager) getDBEngine(oc *v1alpha1.OnecloudCluster) v1alpha1.TDBEng
 	return oc.Spec.GetDbEngine(oc.Spec.Extdb.DbEngine)
 }
 
+func (m *extdbManager) getClickhouseConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
+	return &cfg.Extdb.ClickhouseConf
+}
+
 func (m *extdbManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
 	return &cfg.Extdb.CloudUser
 }
