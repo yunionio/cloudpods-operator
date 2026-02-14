@@ -23,6 +23,7 @@ import (
 
 	"yunion.io/x/onecloud/pkg/apis"
 	"yunion.io/x/onecloud/pkg/apis/billing"
+	billing_api "yunion.io/x/onecloud/pkg/apis/billing"
 	"yunion.io/x/onecloud/pkg/apis/host"
 	imageapi "yunion.io/x/onecloud/pkg/apis/image"
 	"yunion.io/x/onecloud/pkg/httperrors"
@@ -137,6 +138,14 @@ type ServerListInput struct {
 
 	// 根据是否绑定快照策略过滤
 	BindingSnapshotpolicy *bool `json:"binding_snapshotpolicy"`
+	// 根据虚机关联的磁盘是否绑定快照策略过滤
+	BindingDisksSnapshotpolicy *bool `json:"binding_disks_snapshotpolicy"`
+}
+
+// 主机快照策略绑定/设置接口入参
+type ServerSnapshotpolicyInput struct {
+	// 快照策略ID
+	SnapshotpolicyId string `json:"snapshotpolicy_id"`
 }
 
 func (input *ServerListInput) AfterUnmarshal() {
@@ -185,6 +194,11 @@ type ServerDetails struct {
 	Networks string `json:"networks"`
 	// 磁盘概要
 	Disks string `json:"disks"`
+
+	// 主机快照策略数量
+	SnapshotpolicyCount int `json:"snapshotpolicy_count"`
+	// 磁盘快照策略数量
+	DisksSnapshotpolicyCount int `json:"disks_snapshotpolicy_count"`
 
 	// 磁盘详情
 	DisksInfo []GuestDiskInfo `json:"disks_info"`
@@ -244,6 +258,9 @@ type ServerDetails struct {
 	Secgroups []apis.StandaloneShortDesc `json:"secgroups"`
 	// 关联主安全组
 	Secgroup string `json:"secgroup"`
+
+	// 网卡级别安全组
+	NetworkSecgroups []GuestnetworkSecgroupShortDesc `json:"network_secgroups"`
 
 	// 浮动IP
 	Eip string `json:"eip"`
@@ -560,10 +577,30 @@ type GuestSetSecgroupInput struct {
 	SecgroupIds []string `json:"secgroup_ids"`
 }
 
+type GuestSetNetworkSecgroupInput struct {
+	// 安全组Id列表
+	// 实例必须处于运行,休眠或者关机状态
+	SecgroupIds []string `json:"secgroup_ids"`
+
+	// 虚机网卡 index 或者 mac 地址
+	NetworkIndex *int   `json:"network_index"`
+	MacAddr      string `json:"mac_addr"`
+}
+
 type GuestRevokeSecgroupInput struct {
 	// 安全组Id列表
 	// 实例必须处于运行,休眠或者关机状态
 	SecgroupIds []string `json:"secgroup_ids"`
+}
+
+type GuestRevokeNetworkSecgroupInput struct {
+	// 安全组Id列表
+	// 实例必须处于运行,休眠或者关机状态
+	SecgroupIds []string `json:"secgroup_ids"`
+
+	// 虚机网卡 index 或者 mac 地址
+	NetworkIndex *int   `json:"network_index"`
+	MacAddr      string `json:"mac_addr"`
 }
 
 type GuestAssignSecgroupInput struct {
@@ -595,6 +632,12 @@ type GuestAddSecgroupInput struct {
 	SecgroupIds []string `json:"secgroup_ids"`
 }
 
+type GuestNetworkAddSecgroupInput struct {
+	SecgroupIds []string `json:"secgroup_ids"`
+
+	NetworkIndex *int `json:"network_index"`
+}
+
 type ServerRemoteUpdateInput struct {
 	// 是否覆盖替换所有标签
 	ReplaceTags *bool `json:"replace_tags" help:"replace all remote tags"`
@@ -613,7 +656,7 @@ type ServerAssociateEipInput struct {
 
 type ServerCreateEipInput struct {
 	// 计费方式，traffic or bandwidth
-	ChargeType string `json:"charge_type"`
+	ChargeType billing_api.TNetChargeType `json:"charge_type"`
 
 	// Bandwidth
 	Bandwidth int64 `json:"bandwidth"`
@@ -728,6 +771,13 @@ type ServerDetachnetworkInput struct {
 
 func (input ServerDetachnetworkInput) IsForce() bool {
 	return input.Force != nil && *input.Force
+}
+
+type ServerSetNetworkNumQueuesInput struct {
+	// 虚机网卡 mac addr
+	MacAddr string `json:"mac_addr"`
+	// 网卡队列数
+	NumQueues int `json:"num_queues"`
 }
 
 type ServerMigrateForecastInput struct {
@@ -924,9 +974,10 @@ type GuestJsonDesc struct {
 
 	NetworkRoles []string `json:"network_roles"`
 
-	Secgroups          []*SecgroupJsonDesc `json:"secgroups"`
-	SecurityRules      string              `json:"security_rules"`
-	AdminSecurityRules string              `json:"admin_security_rules"`
+	Secgroups          []*SecgroupJsonDesc         `json:"secgroups"`
+	SecurityRules      string                      `json:"security_rules"`
+	AdminSecurityRules string                      `json:"admin_security_rules"`
+	NicSecgroups       []*GuestnetworkSecgroupDesc `json:"nic_secgroups"`
 
 	ExtraOptions jsonutils.JSONObject `json:"extra_options"`
 
@@ -1257,9 +1308,80 @@ type ServerSetLiveMigrateParamsInput struct {
 }
 
 type ServerNicTrafficLimit struct {
-	Mac            string `json:"mac"`
+	Mac string `json:"mac"`
+
 	RxTrafficLimit *int64 `json:"rx_traffic_limit"`
 	TxTrafficLimit *int64 `json:"tx_traffic_limit"`
+
+	BillingType billing_api.TBillingType   `json:"billing_type"`
+	ChargeType  billing_api.TNetChargeType `json:"charge_type"`
+}
+
+func (input ServerNicTrafficLimit) Validate(billingType billing_api.TBillingType, chargeType billing_api.TNetChargeType, txLimit, rxLimit int64) (ServerNicTrafficLimit, bool, error) {
+	var billingChange bool
+	if len(input.BillingType) > 0 && input.BillingType != billingType {
+		billingChange = true
+		billingType = input.BillingType
+	}
+	if len(input.ChargeType) > 0 && input.ChargeType != chargeType {
+		billingChange = true
+		chargeType = input.ChargeType
+	}
+
+	if billingChange {
+		if len(input.BillingType) == 0 {
+			input.BillingType = billingType
+		}
+		if len(input.ChargeType) == 0 {
+			input.ChargeType = chargeType
+		}
+	}
+
+	if billingType == billing_api.BILLING_TYPE_POSTPAID && chargeType == billing_api.NET_CHARGE_TYPE_BY_TRAFFIC {
+		if txLimit > 0 {
+			txLimit = 0
+			input.TxTrafficLimit = &txLimit
+		} else {
+			input.TxTrafficLimit = nil
+		}
+		if rxLimit > 0 {
+			rxLimit = 0
+			input.RxTrafficLimit = &rxLimit
+		} else {
+			input.RxTrafficLimit = nil
+		}
+	} else if billingType == billing_api.BILLING_TYPE_POSTPAID && chargeType == billing_api.NET_CHARGE_TYPE_BY_BANDWIDTH {
+		return input, billingChange, errors.Wrapf(httperrors.ErrNotImplemented, "billing type %s and charge type %s are not supported", input.BillingType, input.ChargeType)
+	} else if billingType == billing_api.BILLING_TYPE_PREPAID && chargeType == billing_api.NET_CHARGE_TYPE_BY_TRAFFIC {
+		if txLimit == 0 && input.TxTrafficLimit == nil {
+			return input, billingChange, errors.Wrapf(httperrors.ErrBadRequest, "tx traffic limit is required")
+		}
+		if rxLimit == 0 && input.RxTrafficLimit == nil {
+			return input, billingChange, errors.Wrapf(httperrors.ErrBadRequest, "rx traffic limit is required")
+		}
+		if input.TxTrafficLimit != nil && *input.TxTrafficLimit <= 0 {
+			return input, billingChange, errors.Wrapf(httperrors.ErrBadRequest, "tx traffic limit must be greater than 0")
+		}
+		if input.RxTrafficLimit != nil && *input.RxTrafficLimit <= 0 {
+			return input, billingChange, errors.Wrapf(httperrors.ErrBadRequest, "rx traffic limit must be greater than 0")
+		}
+	} else if billingType == billing_api.BILLING_TYPE_PREPAID && chargeType == billing_api.NET_CHARGE_TYPE_BY_BANDWIDTH {
+		if txLimit > 0 {
+			txLimit = 0
+			input.TxTrafficLimit = &txLimit
+		} else {
+			input.TxTrafficLimit = nil
+		}
+		if rxLimit > 0 {
+			rxLimit = 0
+			input.RxTrafficLimit = &rxLimit
+		} else {
+			input.RxTrafficLimit = nil
+		}
+	} else {
+		return input, billingChange, errors.Wrapf(httperrors.ErrBadRequest, "invalid billing type %s and charge type %s", input.BillingType, input.ChargeType)
+	}
+	return input, billingChange, nil
 }
 
 type GuestAddSubIpsInfo struct {
@@ -1375,7 +1497,9 @@ type ServerChangeConfigSettings struct {
 	AutoStart   bool `json:"auto_start"`
 	GuestOnline bool `json:"guest_online"`
 
-	SetTrafficLimits   []ServerNicTrafficLimit `json:"set_traffic_limits"`
+	// 设置虚拟网卡的流量上限
+	SetTrafficLimits []ServerNicTrafficLimit `json:"set_traffic_limits"`
+	// 重置虚拟网卡的流量上限，并且将网卡的流量归零
 	ResetTrafficLimits []ServerNicTrafficLimit `json:"reset_traffic_limits"`
 
 	SchedDesc jsonutils.JSONObject `json:"sched_desc"`
@@ -1441,7 +1565,7 @@ type ServerChangeBillingTypeInput struct {
 	// 仅在虚拟机开机或关机状态下调用
 	// enmu: [postpaid, prepaid]
 	// required: true
-	BillingType string `json:"billing_type"`
+	BillingType billing_api.TBillingType `json:"billing_type"`
 }
 
 type ServerPerformStatusInput struct {

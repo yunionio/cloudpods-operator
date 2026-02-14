@@ -37,6 +37,8 @@ type SnapshotCreateInput struct {
 	// swagger:ignore
 	Size int `json:"size"`
 	// swagger:ignore
+	VirtualSize int `json:"virtual_size"`
+	// swagger:ignore
 	DiskType string `json:"disk_type"`
 	// swagger:ignore
 	CloudregionId string `json:"cloudregion_id"`

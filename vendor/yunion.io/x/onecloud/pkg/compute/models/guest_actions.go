@@ -150,7 +150,7 @@ func (self *SGuest) PerformEvent(ctx context.Context, userCred mcclient.TokenCre
 		kwargs := jsonutils.NewDict()
 		kwargs.Set("reason", jsonutils.NewString(event))
 		if data.Contains("screen_dump_info") {
-			screenDumpInfo := api.SGuestScreenDump{}
+			screenDumpInfo := api.SGuestScreenDumpInfo{}
 			if err := data.Unmarshal(&screenDumpInfo, "screen_dump_info"); err != nil {
 				log.Errorf("failed unmarshal screen_dump_info %s", err)
 			} else {
@@ -207,7 +207,7 @@ func (self *SGuest) PerformSaveImage(ctx context.Context, userCred mcclient.Toke
 		input.OsType = "Linux"
 	}
 	input.OsArch = self.OsArch
-	if apis.IsARM(self.OsArch) {
+	if apis.IsARM(self.OsArch) || apis.IsRISCV(self.OsArch) {
 		if osArch := self.GetMetadata(ctx, "os_arch", nil); len(osArch) == 0 {
 			host, _ := self.GetHost()
 			input.OsArch = host.CpuArchitecture
@@ -293,7 +293,7 @@ func (self *SGuest) PerformSaveGuestImage(ctx context.Context, userCred mcclient
 	}
 	kwargs.Properties["os_type"] = osType
 
-	if apis.IsARM(self.OsArch) {
+	if apis.IsARM(self.OsArch) || apis.IsRISCV(self.OsArch) {
 		var osArch string
 		if osArch = self.GetMetadata(ctx, "os_arch", nil); len(osArch) == 0 {
 			host, _ := self.GetHost()
@@ -3218,6 +3218,13 @@ func (self *SGuest) PerformAttachnetwork(
 			input.Nets[i].Driver = api.NETWORK_DRIVER_VFIO
 			isolatedDevCount += 1
 		}
+		if len(input.Nets[i].Secgroups) > 0 {
+			secgroupIds, err := isValidSecgroups(ctx, userCred, input.Nets[i].Secgroups)
+			if err != nil {
+				return nil, err
+			}
+			input.Nets[i].Secgroups = secgroupIds
+		}
 		if input.Nets[i].IsDefault {
 			defaultGwCnt++
 		}
@@ -3275,6 +3282,12 @@ func (self *SGuest) PerformAttachnetwork(
 			if err != nil {
 				quotas.CancelPendingUsage(ctx, userCred, pendingUsageHost, pendingUsageHost, false)
 				return nil, errors.Wrap(err, "self.allocSriovNicDevice")
+			}
+		}
+		if len(input.Nets[i].Secgroups) > 0 {
+			err = self.SaveNetworkSecgroups(ctx, userCred, input.Nets[i].Secgroups, gns[0].Index)
+			if err != nil {
+				return nil, errors.Wrap(err, "SaveNetworkSecgroups")
 			}
 		}
 	}
@@ -3454,7 +3467,7 @@ func (self *SGuest) PerformChangeConfig(ctx context.Context, userCred mcclient.T
 		}
 	}
 
-	log.Debugf("%s", jsonutils.Marshal(confs).String())
+	log.Debugf("PerformChangeConfig %s", jsonutils.Marshal(confs).String())
 
 	pendingUsage := &SQuota{}
 	if added := confs.AddedCpu(); added > 0 {
@@ -4110,11 +4123,11 @@ func (self *SGuest) PerformCreateEip(ctx context.Context, userCred mcclient.Toke
 		return nil, httperrors.NewGeneralError(err)
 	}
 
-	if chargeType == "" {
-		chargeType = regionDriver.GetEipDefaultChargeType()
+	if len(chargeType) == 0 {
+		chargeType = billing_api.TNetChargeType(regionDriver.GetEipDefaultChargeType())
 	}
 
-	if chargeType == api.EIP_CHARGE_TYPE_BY_BANDWIDTH {
+	if chargeType == billing_api.NET_CHARGE_TYPE_BY_BANDWIDTH {
 		if bw == 0 {
 			return nil, httperrors.NewMissingParameterError("bandwidth")
 		}
@@ -4831,7 +4844,7 @@ func (self *SGuest) startGuestRenewTask(ctx context.Context, userCred mcclient.T
 
 func (self *SGuest) SaveRenewInfo(
 	ctx context.Context, userCred mcclient.TokenCredential,
-	bc *billing.SBillingCycle, expireAt *time.Time, billingType string,
+	bc *billing.SBillingCycle, expireAt *time.Time, billingType billing_api.TBillingType,
 ) error {
 	err := SaveRenewInfo(ctx, userCred, self, bc, expireAt, billingType)
 	if err != nil {
@@ -4850,6 +4863,29 @@ func (self *SGuest) SaveRenewInfo(
 		}
 	}
 	return nil
+}
+
+func (self *SGuest) PerformSetNetworkNumQueues(
+	ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input api.ServerSetNetworkNumQueuesInput,
+) (jsonutils.JSONObject, error) {
+	if self.Status != api.VM_READY {
+		return nil, httperrors.NewInvalidStatusError("can't set network num_queues on vm %s", self.Status)
+	}
+	if input.NumQueues < 1 {
+		return nil, httperrors.NewInputParameterError("invalid num_queues %d", input.NumQueues)
+	}
+	gn, err := self.GetGuestnetworkByMac(input.MacAddr)
+	if err != nil {
+		if errors.Cause(err) == sql.ErrNoRows {
+			return nil, httperrors.NewNotFoundError("guest network mac %s not found", input.MacAddr)
+		}
+	}
+	_, err = db.Update(gn, func() error {
+		gn.NumQueues = input.NumQueues
+		return nil
+	})
+
+	return nil, err
 }
 
 func (self *SGuest) PerformStreamDisksComplete(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
@@ -6009,53 +6045,100 @@ func (guest *SGuest) StartDeleteGuestSnapshots(ctx context.Context, userCred mcc
 	return nil
 }
 
-// 重置网卡限速
-func (self *SGuest) PerformResetNicTrafficLimit(ctx context.Context, userCred mcclient.TokenCredential,
-	query jsonutils.JSONObject, input *api.ServerNicTrafficLimit) (jsonutils.JSONObject, error) {
-
-	if !utils.IsInStringArray(self.Status, []string{api.VM_READY, api.VM_RUNNING}) {
-		return nil, httperrors.NewUnsupportOperationError("The guest status need be %s or %s, current is %s", api.VM_READY, api.VM_RUNNING, self.Status)
+func (guest *SGuest) ValidateChangeNicBillingModeInput(ctx context.Context, input api.ServerNicTrafficLimit, needResetTraffic bool) (api.ServerNicTrafficLimit, bool, error) {
+	var err error
+	var gn *SGuestnetwork
+	if len(input.Mac) == 0 {
+		gns, err := guest.GetNetworks("")
+		if err != nil {
+			return input, needResetTraffic, errors.Wrap(err, "get guest networks")
+		}
+		if len(gns) == 0 {
+			return input, needResetTraffic, httperrors.NewBadRequestError("no guest network found")
+		}
+		if len(gns) > 1 {
+			return input, needResetTraffic, httperrors.NewBadRequestError("multiple guest networks found, please specify the mac")
+		}
+		input.Mac = gns[0].MacAddr
+		gn = &gns[0]
+	} else {
+		input.Mac = netutils2.FormatMac(input.Mac)
+		gn, err = guest.GetGuestnetworkByMac(input.Mac)
+		if err != nil {
+			return input, needResetTraffic, errors.Wrap(err, "get guest network by mac")
+		}
 	}
-	input.Mac = strings.ToLower(input.Mac)
-	_, err := self.GetGuestnetworkByMac(input.Mac)
+	if input.BillingType == "" {
+		input.BillingType = gn.BillingType
+	}
+	if input.ChargeType == "" {
+		input.ChargeType = gn.ChargeType
+	}
+	var changed bool
+	input, changed, err = input.Validate(gn.BillingType, gn.ChargeType, gn.TxTrafficLimit, gn.RxTrafficLimit)
 	if err != nil {
-		return nil, errors.Wrap(err, "get guest network by mac")
+		return input, needResetTraffic, errors.Wrap(err, "validate input")
+	}
+	if changed {
+		if gn.BillingType == billing_api.BILLING_TYPE_POSTPAID && gn.ChargeType == billing_api.NET_CHARGE_TYPE_BY_TRAFFIC {
+			// used to be postpaid traffic billing, need to stop the traffic log
+			// do nothing
+		}
+		if input.BillingType == billing_api.BILLING_TYPE_POSTPAID && input.ChargeType == billing_api.NET_CHARGE_TYPE_BY_TRAFFIC {
+			// need to start the traffic log
+			GuestNetworkTrafficLogManager.logTraffic(ctx, guest, gn, nil, time.Now(), true)
+		}
+		if input.ChargeType == billing_api.NET_CHARGE_TYPE_BY_TRAFFIC {
+			// need to measure the traffic from zero
+			needResetTraffic = true
+		}
+	}
+	return input, needResetTraffic, nil
+}
+
+func (guest *SGuest) doChangeNicBillingMode(ctx context.Context, userCred mcclient.TokenCredential, input api.ServerNicTrafficLimit, needResetTraffic bool, action string) error {
+	if !utils.IsInStringArray(guest.Status, []string{api.VM_READY, api.VM_RUNNING}) {
+		return httperrors.NewUnsupportOperationError("The guest status need be %s or %s, current is %s", api.VM_READY, api.VM_RUNNING, guest.Status)
 	}
 
+	var err error
+	input, needResetTraffic, err = guest.ValidateChangeNicBillingModeInput(ctx, input, needResetTraffic)
+	if err != nil {
+		return errors.Wrap(err, "validateChangeNicBillingModeInput")
+	}
+
+	taskName := "GuestSetNicTrafficsTask"
+	if needResetTraffic {
+		taskName = "GuestResetNicTrafficsTask"
+	}
 	params := jsonutils.Marshal(input).(*jsonutils.JSONDict)
-	params.Set("old_status", jsonutils.NewString(self.Status))
-	self.SetStatus(ctx, userCred, api.VM_SYNC_TRAFFIC_LIMIT, "PerformResetNicTrafficLimit")
-	task, err := taskman.TaskManager.NewTask(ctx, "GuestResetNicTrafficsTask", self, userCred, params, "", "", nil)
+	params.Set("old_status", jsonutils.NewString(guest.Status))
+	guest.SetStatus(ctx, userCred, api.VM_SYNC_TRAFFIC_LIMIT, action)
+	task, err := taskman.TaskManager.NewTask(ctx, taskName, guest, userCred, params, "", "", nil)
 	if err != nil {
-		return nil, err
+		return errors.Wrap(err, "NewTask")
 	}
 	task.ScheduleRun(nil)
+	return nil
+}
+
+// 重置网卡计费方式
+func (guest *SGuest) PerformResetNicTrafficLimit(ctx context.Context, userCred mcclient.TokenCredential,
+	query jsonutils.JSONObject, input api.ServerNicTrafficLimit) (jsonutils.JSONObject, error) {
+	err := guest.doChangeNicBillingMode(ctx, userCred, input, true, "PerformResetNicTrafficLimit")
+	if err != nil {
+		return nil, errors.Wrap(err, "doChangeNicBillingMode")
+	}
 	return nil, nil
 }
 
-// 网卡限速
-func (self *SGuest) PerformSetNicTrafficLimit(ctx context.Context, userCred mcclient.TokenCredential,
-	query jsonutils.JSONObject, input *api.ServerNicTrafficLimit) (jsonutils.JSONObject, error) {
-
-	if !utils.IsInStringArray(self.Status, []string{api.VM_READY, api.VM_RUNNING}) {
-		return nil, httperrors.NewUnsupportOperationError("The guest status need be %s or %s, current is %s", api.VM_READY, api.VM_RUNNING, self.Status)
-	}
-	if input.RxTrafficLimit == nil && input.TxTrafficLimit == nil {
-		return nil, httperrors.NewBadRequestError("rx/tx traffic not provider")
-	}
-	input.Mac = strings.ToLower(input.Mac)
-	_, err := self.GetGuestnetworkByMac(input.Mac)
+// 设置网卡计费方式
+func (guest *SGuest) PerformSetNicTrafficLimit(ctx context.Context, userCred mcclient.TokenCredential,
+	query jsonutils.JSONObject, input api.ServerNicTrafficLimit) (jsonutils.JSONObject, error) {
+	err := guest.doChangeNicBillingMode(ctx, userCred, input, false, "PerformSetNicTrafficLimit")
 	if err != nil {
-		return nil, errors.Wrap(err, "get guest network by mac")
+		return nil, errors.Wrap(err, "doChangeNicBillingMode")
 	}
-	params := jsonutils.Marshal(input).(*jsonutils.JSONDict)
-	params.Set("old_status", jsonutils.NewString(self.Status))
-	self.SetStatus(ctx, userCred, api.VM_SYNC_TRAFFIC_LIMIT, "GuestSetNicTrafficsTask")
-	task, err := taskman.TaskManager.NewTask(ctx, "GuestSetNicTrafficsTask", self, userCred, params, "", "", nil)
-	if err != nil {
-		return nil, err
-	}
-	task.ScheduleRun(nil)
 	return nil, nil
 }
 
@@ -6125,6 +6208,96 @@ func (self *SGuest) PerformUnbindGroups(ctx context.Context, userCred mcclient.T
 		log.Errorf("fail to clear scheduler desc cache after binding groups successfully")
 	}
 	logclient.AddActionLogWithContext(ctx, self, logclient.ACT_INSTANCE_GROUP_UNBIND, nil, userCred, true)
+	return nil, nil
+}
+
+// 绑定主机快照策略
+// 主机只能绑定一个快照策略，已绑定时报错
+// 若主机下任意磁盘已绑定快照策略则报错
+func (self *SGuest) PerformBindSnapshotpolicy(ctx context.Context, userCred mcclient.TokenCredential,
+	query jsonutils.JSONObject, input *api.ServerSnapshotpolicyInput) (jsonutils.JSONObject, error) {
+	if len(input.SnapshotpolicyId) == 0 {
+		return nil, httperrors.NewMissingParameterError("snapshotpolicy_id")
+	}
+	spObj, err := validators.ValidateModel(ctx, userCred, SnapshotPolicyManager, &input.SnapshotpolicyId)
+	if err != nil {
+		return nil, err
+	}
+	sp := spObj.(*SSnapshotPolicy)
+	if sp.Type != api.SNAPSHOT_POLICY_TYPE_SERVER {
+		return nil, httperrors.NewBadRequestError("The snapshot policy %s is not a server snapshot policy", sp.Name)
+	}
+	// 主机只能绑定一个快照策略
+	cnt, err := SnapshotPolicyResourceManager.GetBindingCount(self.Id, api.SNAPSHOT_POLICY_TYPE_SERVER)
+	if err != nil {
+		return nil, errors.Wrap(err, "GetBindingCount")
+	}
+	if cnt > 0 {
+		return nil, httperrors.NewConflictError("guest already bound to a snapshot policy")
+	}
+	// 若主机下任意磁盘已绑定快照策略，则主机不能再绑定主机快照策略
+	disks, err := self.GetDisks()
+	if err != nil {
+		return nil, errors.Wrap(err, "GetDisks")
+	}
+	for _, d := range disks {
+		diskCnt, err := SnapshotPolicyResourceManager.GetBindingCount(d.Id, api.SNAPSHOT_POLICY_TYPE_DISK)
+		if err != nil {
+			return nil, errors.Wrap(err, "GetBindingCount for disk")
+		}
+		if diskCnt > 0 {
+			return nil, httperrors.NewConflictError("guest has disk %s bound to snapshot policy, guest cannot bind server snapshot policy", d.Name)
+		}
+	}
+	sr := &SSnapshotPolicyResource{}
+	sr.SetModelManager(SnapshotPolicyResourceManager, sr)
+	sr.SnapshotpolicyId = sp.Id
+	sr.ResourceId = self.Id
+	sr.ResourceType = api.SNAPSHOT_POLICY_TYPE_SERVER
+	if err := SnapshotPolicyResourceManager.TableSpec().Insert(ctx, sr); err != nil {
+		return nil, errors.Wrap(err, "Insert")
+	}
+	logclient.AddActionLogWithContext(ctx, self, logclient.ACT_BIND, input, userCred, true)
+	return nil, nil
+}
+
+// 设置主机快照策略
+// 可覆盖当前主机绑定的快照策略，若主机下任意磁盘已绑定快照策略，则自动解除磁盘快照策略
+func (self *SGuest) PerformSetSnapshotpolicy(ctx context.Context, userCred mcclient.TokenCredential,
+	query jsonutils.JSONObject, input *api.ServerSnapshotpolicyInput) (jsonutils.JSONObject, error) {
+	if len(input.SnapshotpolicyId) == 0 {
+		return nil, httperrors.NewMissingParameterError("snapshotpolicy_id")
+	}
+	spObj, err := validators.ValidateModel(ctx, userCred, SnapshotPolicyManager, &input.SnapshotpolicyId)
+	if err != nil {
+		return nil, err
+	}
+	sp := spObj.(*SSnapshotPolicy)
+	if sp.Type != api.SNAPSHOT_POLICY_TYPE_SERVER {
+		return nil, httperrors.NewBadRequestError("The snapshot policy %s is not a server snapshot policy", sp.Name)
+	}
+	if err := SnapshotPolicyResourceManager.RemoveByResource(self.Id, api.SNAPSHOT_POLICY_TYPE_SERVER); err != nil {
+		return nil, errors.Wrap(err, "RemoveByResource")
+	}
+	// 若主机下任意磁盘已绑定快照策略，则主机不能再绑定主机快照策略
+	disks, err := self.GetDisks()
+	if err != nil {
+		return nil, errors.Wrap(err, "GetDisks")
+	}
+	for _, d := range disks {
+		if err := SnapshotPolicyResourceManager.RemoveByResource(d.Id, api.SNAPSHOT_POLICY_TYPE_DISK); err != nil {
+			return nil, errors.Wrap(err, "RemoveByResource")
+		}
+	}
+	sr := &SSnapshotPolicyResource{}
+	sr.SetModelManager(SnapshotPolicyResourceManager, sr)
+	sr.SnapshotpolicyId = sp.Id
+	sr.ResourceId = self.Id
+	sr.ResourceType = api.SNAPSHOT_POLICY_TYPE_SERVER
+	if err := SnapshotPolicyResourceManager.TableSpec().Insert(ctx, sr); err != nil {
+		return nil, errors.Wrap(err, "Insert")
+	}
+	logclient.AddActionLogWithContext(ctx, self, logclient.ACT_UPDATE, input, userCred, true)
 	return nil, nil
 }
 
@@ -7004,7 +7177,7 @@ func (g *SGuest) PerformChangeBillingType(ctx context.Context, userCred mcclient
 	if len(input.BillingType) == 0 {
 		return nil, httperrors.NewMissingParameterError("billing_type")
 	}
-	if !utils.IsInStringArray(input.BillingType, []string{billing_api.BILLING_TYPE_POSTPAID, billing_api.BILLING_TYPE_PREPAID}) {
+	if !utils.IsInStringArray(string(input.BillingType), []string{string(billing_api.BILLING_TYPE_POSTPAID), string(billing_api.BILLING_TYPE_PREPAID)}) {
 		return nil, httperrors.NewInputParameterError("invalid billing_type %s", input.BillingType)
 	}
 	if g.BillingType == input.BillingType {
