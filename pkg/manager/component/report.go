@@ -69,6 +69,10 @@ func (m *reportManager) getDBEngine(oc *v1alpha1.OnecloudCluster) v1alpha1.TDBEn
 	return oc.Spec.GetDbEngine(oc.Spec.Report.DbEngine)
 }
 
+func (m *reportManager) getClickhouseConfig(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.DBConfig {
+	return &cfg.Report.ClickhouseConf
+}
+
 func (m *reportManager) getCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alpha1.CloudUser {
 	return &cfg.Report.CloudUser
 }
