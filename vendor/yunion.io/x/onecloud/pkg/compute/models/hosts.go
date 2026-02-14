@@ -985,6 +985,10 @@ func (hh *SHost) IsArmHost() bool {
 	return hh.CpuArchitecture == apis.OS_ARCH_AARCH64
 }
 
+func (hh *SHost) IsRISCVHost() bool {
+	return hh.CpuArchitecture == apis.OS_ARCH_RISCV64
+}
+
 func (hh *SHost) GetZone() (*SZone, error) {
 	zone, err := ZoneManager.FetchById(hh.ZoneId)
 	if err != nil {
@@ -2402,7 +2406,7 @@ func (hh *SHost) syncWithCloudPrepaidVM(extVM cloudprovider.ICloudVM, host *SHos
 		hh.CpuCount = extVM.GetVcpuCount()
 		hh.MemSize = extVM.GetVmemSizeMB()
 
-		hh.BillingType = extVM.GetBillingType()
+		hh.BillingType = billing_api.ParseBillingType(extVM.GetBillingType())
 		hh.ExpiredAt = extVM.GetExpiredAt()
 
 		hh.ExternalId = host.ExternalId
@@ -3252,7 +3256,7 @@ func (hh *SHost) SyncHostVMs(ctx context.Context, userCred mcclient.TokenCredent
 			}
 			continue
 		}
-		if added[i].GetBillingType() == billing_api.BILLING_TYPE_PREPAID {
+		if added[i].GetBillingType() == string(billing_api.BILLING_TYPE_PREPAID) {
 			vhost := HostManager.GetHostByRealExternalId(added[i].GetGlobalId())
 			if vhost != nil {
 				// this recycle vm is not build yet, skip synchronize
@@ -6344,6 +6348,7 @@ func (hh *SHost) attach2Network(
 		bn.BaremetalId = hh.Id
 		bn.NetworkId = net.Id
 		bn.MacAddr = netif.Mac
+		bn.VlanId = netif.VlanId
 		bn.IpAddr = freeIp4
 		bn.Ip6Addr = freeIp6
 		err := HostnetworkManager.TableSpec().Insert(ctx, bn)
@@ -7298,7 +7303,6 @@ func (host *SHost) OnHostDown(ctx context.Context, userCred mcclient.TokenCreden
 	}
 
 	log.Errorf("host %s down, try rescue guests", hostname)
-	db.OpsLog.LogEvent(host, db.ACT_HOST_DOWN, "", userCred)
 	if _, err := host.SaveCleanUpdates(func() error {
 		host.EnableHealthCheck = false
 		host.HostStatus = api.HOST_OFFLINE
@@ -7307,7 +7311,12 @@ func (host *SHost) OnHostDown(ctx context.Context, userCred mcclient.TokenCreden
 		log.Errorf("update host %s failed %s", host.Id, err)
 	}
 
-	logclient.AddActionLogWithContext(ctx, host, logclient.ACT_OFFLINE, map[string]string{"reason": "host down"}, userCred, false)
+	data := jsonutils.NewDict()
+	data.Set("reason", jsonutils.NewString("host down"))
+	db.OpsLog.LogEvent(host, db.ACT_HOST_DOWN, data, userCred)
+	logclient.AddActionLogWithContext(ctx, host, logclient.ACT_OFFLINE, data, userCred, false)
+	notifyclient.SystemExceptionNotify(ctx, napi.ActionHostDown, HostManager.Keyword(), data)
+
 	host.SyncCleanSchedDescCache()
 	host.switchWithBackup(ctx, userCred)
 	host.migrateOnHostDown(ctx, userCred)
@@ -7371,6 +7380,11 @@ func (host *SHost) MigrateSharedStorageServers(ctx context.Context, userCred mcc
 	}
 	kwargs := jsonutils.NewDict()
 	kwargs.Set("guests", jsonutils.Marshal(hostGuests))
+
+	db.OpsLog.LogEvent(host, db.ACT_HOST_DOWN_AUTO_MIGRATE, kwargs, userCred)
+	logclient.AddActionLogWithContext(ctx, host, logclient.ACT_HOST_DOWN_AUTO_MIGRATE, kwargs, userCred, true)
+	notifyclient.SystemExceptionNotify(ctx, napi.ActionHostDownAutoMigrate, HostManager.Keyword(), kwargs)
+
 	return GuestManager.StartHostGuestsMigrateTask(ctx, userCred, migGuests, kwargs, "")
 }
 
@@ -8053,18 +8067,9 @@ func (hh *SHost) updateHostReservedCpus(ctx context.Context, userCred mcclient.T
 	return nil
 }
 
-func (h *SHost) PerformSyncGuestNicTraffics(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
-	guestTraffics, err := data.GetMap()
-	if err != nil {
-		return nil, errors.Wrap(err, "get guest traffics")
-	}
-	for guestId, nicTraffics := range guestTraffics {
-		nicTrafficMap := make(map[string]api.SNicTrafficRecord)
-		err = nicTraffics.Unmarshal(&nicTrafficMap)
-		if err != nil {
-			log.Errorf("failed unmarshal guest %s nic traffics %s", guestId, err)
-			continue
-		}
+func (h *SHost) PerformSyncGuestNicTraffics(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input api.GuestNicTrafficSyncInput) (jsonutils.JSONObject, error) {
+	for guestId := range input.Traffic {
+		nicTrafficMap := input.Traffic[guestId]
 
 		guest := GuestManager.FetchGuestById(guestId)
 		gns, err := guest.GetNetworks("")
@@ -8073,11 +8078,11 @@ func (h *SHost) PerformSyncGuestNicTraffics(ctx context.Context, userCred mcclie
 			continue
 		}
 		for i := range gns {
-			nicTraffic, ok := nicTrafficMap[strconv.Itoa(int(gns[i].Index))]
+			nicTraffic, ok := nicTrafficMap[gns[i].MacAddr]
 			if !ok {
 				continue
 			}
-			if err = gns[i].UpdateNicTrafficUsed(nicTraffic.RxTraffic, nicTraffic.TxTraffic); err != nil {
+			if err := gns[i].UpdateNicTrafficUsed(ctx, guest, nicTraffic, input.SyncAt, input.IsReset); err != nil {
 				log.Errorf("failed update guestnetwork %d traffic used %s", gns[i].RowId, err)
 				continue
 			}

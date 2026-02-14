@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"yunion.io/x/onecloud/pkg/apis"
+	computeapi "yunion.io/x/onecloud/pkg/apis/compute"
 	"yunion.io/x/onecloud/pkg/cloudcommon/db/taskman"
 )
 
@@ -47,15 +48,16 @@ type LLMBaseListDetails struct {
 
 type MountedModelInfo struct {
 	FullName string `json:"fullname"` // 模型全名，如: qwen3:8b
-	Id       string `json:"id"`       // 模型ID，如: 500a1f067a9f
+	ModelId  string `json:"model_id"` // 模型ID，如: 500a1f067a9f
+	Id       string `json:"id"`       // 秒装包的 ID 主键
 }
 
 type LLMListDetails struct {
 	LLMBaseListDetails
 
-	LLMSku string
+	LLMSku string `json:"llm_sku"`
 
-	MountedModels []MountedModelInfo
+	MountedModels []MountedModelInfo `json:"mounted_models"`
 }
 
 type LLMBaseCreateInput struct {
@@ -64,8 +66,7 @@ type LLMBaseCreateInput struct {
 	PreferHost string `json:"prefer_host"`
 	AutoStart  bool   `json:"auto_start"`
 
-	NetworkType string `json:"network_type"`
-	NetworkId   string `json:"network_id"`
+	Nets []*computeapi.NetworkConfig `json:"nets"`
 
 	BandwidthMB   int  `json:"bandwidth_mb"`
 	DebugMode     bool `json:"debug_mode"`
@@ -75,8 +76,8 @@ type LLMBaseCreateInput struct {
 type LLMCreateInput struct {
 	LLMBaseCreateInput
 
-	LLMSkuId   string `json:"llm_sku_id"`
-	LLMImageId string `json:"llm_image_id"`
+	LLMSkuId   string
+	LLMImageId string
 }
 
 type LLMBaseListInput struct {
@@ -117,21 +118,21 @@ type ModelInfo struct {
 }
 
 type LLMPerformQuickModelsInput struct {
-	Models []ModelInfo       `json:"models"`
-	Method TQuickModelMethod `json:"method"`
+	Models []ModelInfo
+	Method TQuickModelMethod
 }
 
 type LLMBatchPerformOutput struct {
-	Data []LLMPerformOutput `json:"data"`
-	Task *taskman.STask     `json:"task"`
+	Data []LLMPerformOutput
+	Task *taskman.STask
 }
 
 type LLMPerformOutput struct {
-	Id            string `json:"id"`
-	Name          string `json:"name"`
-	RequestStatus int    `json:"request_status"`
-	Msg           string `json:"msg"`
-	TaskId        string `json:"task_id"`
+	Id            string
+	Name          string
+	RequestStatus int
+	Msg           string
+	TaskId        string
 }
 
 type LLMSyncModelTaskInput struct {
@@ -144,9 +145,9 @@ type LLMSyncModelTaskInput struct {
 }
 
 type LLMMountDirInfo struct {
-	ImageId   string `json:"image_id"`
-	Host      string `json:"host"`
-	Container string `json:"container"`
+	ImageId   string
+	Host      string
+	Container string
 }
 
 func (info LLMMountDirInfo) ToOverlay() apis.ContainerVolumeMountDiskPostOverlay {
