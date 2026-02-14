@@ -23,10 +23,10 @@ func IsLLMSkuBaseNetworkType(t string) bool {
 }
 
 type HostInfo struct {
-	HostId       string `json:"host_id"`
-	Host         string `json:"host"`
-	HostAccessIp string `json:"host_access_ip"`
-	HostEIP      string `json:"host_eip"`
+	HostId       string
+	Host         string
+	HostAccessIp string
+	HostEIP      string
 }
 
 func init() {
@@ -111,10 +111,12 @@ func (s Envs) IsZero() bool {
 type LLMSkuDetails struct {
 	apis.SharableVirtualResourceDetails
 	// 当前大模型套餐包含的实例个数。
-	LLMCapacity int    `json:"llm_capacity"`
-	Image       string `json:"image"`
-	ImageLabel  string `json:"image_label"`
-	ImageName   string `json:"image_name"`
+	LLMCapacity int
+	Image       string
+	ImageLabel  string
+	ImageName   string
+
+	MountedModelDetails []MountedModelInfo `json:"mounted_model_details"`
 
 	Template string `json:"template"`
 }
@@ -166,18 +168,17 @@ type LLMSkuListInput struct {
 
 type LLMSkuCreateInput struct {
 	LLMSKuBaseCreateInput
+	MountedModelResourceCreateInput
 
-	LLMImageId   string `json:"llm_image_id"`
-	LLMType      string `json:"llm_type"`
-	LLMModelName string `json:"llm_model_name"`
+	LLMImageId string `json:"llm_image_id"`
+	LLMType    string `json:"llm_type"`
 }
 
 type LLMSkuUpdateInput struct {
 	LLMSkuBaseUpdateInput
 	MountedModelResourceUpdateInput
 
-	LLMImageId   string `json:"llm_image_id"`
-	LLMModelName string `json:"llm_model_name"`
+	LLMImageId string `json:"llm_image_id"`
 }
 
 // type LLMModelCloneInput struct {
