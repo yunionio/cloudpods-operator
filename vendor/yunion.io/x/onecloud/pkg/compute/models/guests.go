@@ -743,6 +743,16 @@ func (manager *SGuestManager) ListItemFilter(
 			q = q.NotIn("id", spjsq)
 		}
 	}
+	if query.BindingDisksSnapshotpolicy != nil {
+		guestDisks := GuestdiskManager.Query("guest_id")
+		sq := SnapshotPolicyResourceManager.Query("resource_id").Equals("resource_type", api.SNAPSHOT_POLICY_TYPE_DISK).SubQuery()
+		gdsq := guestDisks.Join(sq, sqlchemy.Equals(guestDisks.Field("disk_id"), sq.Field("resource_id"))).SubQuery()
+		if *query.BindingDisksSnapshotpolicy {
+			q = q.In("id", gdsq)
+		} else {
+			q = q.NotIn("id", gdsq)
+		}
+	}
 
 	return q, nil
 }
@@ -1210,6 +1220,18 @@ func (guest *SGuest) ConvertEsxiNetworks(targetGuest *SGuest) error {
 		}
 	}
 	return err
+}
+
+func (guest *SGuest) getGuestnetworkByIndex(networkIndex int) (*SGuestnetwork, error) {
+	q := guest.GetNetworksQuery("").Equals("index", networkIndex)
+
+	guestnic := SGuestnetwork{}
+	err := q.First(&guestnic)
+	if err != nil {
+		return nil, err
+	}
+	guestnic.SetModelManager(GuestnetworkManager, &guestnic)
+	return &guestnic, nil
 }
 
 func (guest *SGuest) getGuestnetworkByIpOrMac(ipAddr string, ip6Addr string, macAddr string) (*SGuestnetwork, error) {
@@ -1705,7 +1727,7 @@ func (manager *SGuestManager) validateCreateData(
 	}
 
 	// check group
-	if input.InstanceGroupIds != nil && len(input.InstanceGroupIds) != 0 {
+	if len(input.InstanceGroupIds) > 0 {
 		newGroupIds := make([]string, len(input.InstanceGroupIds))
 		for index, id := range input.InstanceGroupIds {
 			model, err := GroupManager.FetchByIdOrName(ctx, userCred, id)
@@ -1805,8 +1827,11 @@ func (manager *SGuestManager) validateCreateData(
 			}
 		}
 
-		if arch := imgProperties["os_arch"]; strings.Contains(arch, "aarch") || strings.Contains(arch, "arm") {
+		arch := imgProperties["os_arch"]
+		if strings.Contains(arch, "aarch") || strings.Contains(arch, "arm") {
 			input.OsArch = apis.OS_ARCH_AARCH64
+		} else if strings.Contains(arch, "riscv") {
+			input.OsArch = apis.OS_ARCH_RISCV64
 		}
 
 		// enable tpm on windows 11 image
@@ -1837,7 +1862,7 @@ func (manager *SGuestManager) validateCreateData(
 				imgSupportBIOS = &supportBIOS
 			}
 
-			if input.OsArch == apis.OS_ARCH_AARCH64 {
+			if apis.IsARM(input.OsArch) || apis.IsRISCV(input.OsArch) {
 				// arm image supports UEFI by default
 				support := true
 				imgSupportUEFI = &support
@@ -2126,6 +2151,11 @@ func (manager *SGuestManager) validateCreateData(
 			netConfig.SriovDevice = devConfig
 			netConfig.Driver = api.NETWORK_DRIVER_VFIO
 		}
+		secgroupIds, err := isValidSecgroups(ctx, userCred, netConfig.Secgroups)
+		if err != nil {
+			return nil, err
+		}
+		netConfig.Secgroups = secgroupIds
 
 		netConfig.Project = ownerId.GetProjectId()
 		netConfig.Domain = ownerId.GetProjectDomainId()
@@ -2192,15 +2222,9 @@ func (manager *SGuestManager) validateCreateData(
 		input.KeypairId = keypairObj.GetId()
 	}
 
-	secGrpIds := []string{}
-	for _, secgroup := range input.Secgroups {
-		secGrpObj, err := SecurityGroupManager.FetchByIdOrName(ctx, userCred, secgroup)
-		if err != nil {
-			return nil, httperrors.NewResourceNotFoundError("Secgroup %s not found", secgroup)
-		}
-		if !utils.IsInStringArray(secGrpObj.GetId(), secGrpIds) {
-			secGrpIds = append(secGrpIds, secGrpObj.GetId())
-		}
+	secGrpIds, err := isValidSecgroups(ctx, userCred, input.Secgroups)
+	if err != nil {
+		return nil, err
 	}
 	if len(secGrpIds) > 0 {
 		input.SecgroupId = secGrpIds[0]
@@ -2373,9 +2397,9 @@ func (manager *SGuestManager) validateEip(ctx context.Context, userCred mcclient
 			return httperrors.NewNotImplementedError("public ip not supported for %s", input.Hypervisor)
 		}
 		if len(input.PublicIpChargeType) == 0 {
-			input.PublicIpChargeType = string(cloudprovider.ElasticipChargeTypeByTraffic)
+			input.PublicIpChargeType = billing_api.TNetChargeType(cloudprovider.ElasticipChargeTypeByTraffic)
 		}
-		if !utils.IsInStringArray(input.PublicIpChargeType, []string{
+		if !utils.IsInStringArray(string(input.PublicIpChargeType), []string{
 			string(cloudprovider.ElasticipChargeTypeByTraffic),
 			string(cloudprovider.ElasticipChargeTypeByBandwidth),
 		}) {
@@ -2771,8 +2795,9 @@ func (self *SGuest) getBandwidth(isExit bool) int {
 	}
 	if networks != nil && len(networks) > 0 {
 		for i := 0; i < len(networks); i += 1 {
-			if networks[i].IsExit() == isExit {
-				bw += networks[i].getBandwidth()
+			net, _ := networks[i].GetNetwork()
+			if networks[i].IsExit(net) == isExit {
+				bw += networks[i].getBandwidth(net, nil)
 			}
 		}
 	}
@@ -3177,6 +3202,26 @@ func (self *SGuest) getSecurityGroupsRules() string {
 	return strings.Join(rules, SECURITY_GROUP_SEPARATOR)
 }
 
+func (self *SGuest) getNetworkSecurityGroupsRules(networkIndex int) string {
+	gnss, _ := self.GetGuestNetworkSecgroups(networkIndex)
+	secgroupids := []string{}
+	for _, gns := range gnss {
+		secgroupids = append(secgroupids, gns.SecgroupId)
+	}
+	q := SecurityGroupRuleManager.Query()
+	q.Filter(sqlchemy.In(q.Field("secgroup_id"), secgroupids)).Desc(q.Field("priority"), q.Field("action"))
+	secrules := []SSecurityGroupRule{}
+	if err := db.FetchModelObjects(SecurityGroupRuleManager, q, &secrules); err != nil {
+		log.Errorf("Get security group rules error: %v", err)
+		return ""
+	}
+	rules := []string{}
+	for _, rule := range secrules {
+		rules = append(rules, rule.String())
+	}
+	return strings.Join(rules, SECURITY_GROUP_SEPARATOR)
+}
+
 func (self *SGuest) getAdminSecurityRules() string {
 	secgrp := self.getAdminSecgroup()
 	if secgrp != nil {
@@ -3407,7 +3452,7 @@ func (g *SGuest) syncWithCloudVM(ctx context.Context, userCred mcclient.TokenCre
 			g.Description = extVM.GetDescription()
 		}
 
-		g.BillingType = extVM.GetBillingType()
+		g.BillingType = billing_api.TBillingType(extVM.GetBillingType())
 		g.ExpiredAt = time.Time{}
 		g.AutoRenew = false
 		if g.BillingType == billing_api.BILLING_TYPE_PREPAID {
@@ -3481,7 +3526,7 @@ func (manager *SGuestManager) newCloudVM(ctx context.Context, userCred mcclient.
 
 	guest.IsEmulated = extVM.IsEmulated()
 
-	guest.BillingType = extVM.GetBillingType()
+	guest.BillingType = billing_api.TBillingType(extVM.GetBillingType())
 	guest.ExpiredAt = time.Time{}
 	guest.AutoRenew = false
 	if guest.BillingType == billing_api.BILLING_TYPE_PREPAID {
@@ -3667,7 +3712,8 @@ type Attach2NetworkArgs struct {
 	IsDefault    bool
 	PortMappings api.GuestPortMappings
 
-	ChargeType string
+	BillingType billing_api.TBillingType
+	ChargeType  billing_api.TNetChargeType
 
 	PendingUsage quotas.IQuota
 }
@@ -3702,7 +3748,8 @@ func (args *Attach2NetworkArgs) onceArgs(i int) attach2NetworkOnceArgs {
 		pendingUsage: args.PendingUsage,
 		portMappings: args.PortMappings,
 
-		chargeType: args.ChargeType,
+		billingType: args.BillingType,
+		chargeType:  args.ChargeType,
 	}
 	if i > 0 {
 		r.ipAddr = ""
@@ -3748,7 +3795,8 @@ type attach2NetworkOnceArgs struct {
 	pendingUsage quotas.IQuota
 	portMappings api.GuestPortMappings
 
-	chargeType string
+	billingType billing_api.TBillingType
+	chargeType  billing_api.TNetChargeType
 }
 
 func (self *SGuest) Attach2Network(
@@ -3828,7 +3876,8 @@ func (self *SGuest) attach2NetworkOnce(
 		isDefault:    args.isDefault,
 		portMappings: args.portMappings,
 
-		chargeType: args.chargeType,
+		billingType: args.billingType,
+		chargeType:  args.chargeType,
 	}
 	lockman.LockClass(ctx, QuotaManager, self.ProjectId)
 	defer lockman.ReleaseClass(ctx, QuotaManager, self.ProjectId)
@@ -4503,7 +4552,12 @@ func (self *SGuest) CreateNetworksOnHost(
 				return errors.Wrap(err, "self.allocSriovNicDevice")
 			}
 		}
-
+		if len(netConfig.Secgroups) > 0 {
+			err = self.SaveNetworkSecgroups(ctx, userCred, netConfig.Secgroups, gns[0].Index)
+			if err != nil {
+				return errors.Wrap(err, "SaveNetworkSecgroups")
+			}
+		}
 	}
 	return nil
 }
@@ -4642,7 +4696,8 @@ func (self *SGuest) attach2NamedNetworkDesc(ctx context.Context, userCred mcclie
 			IsDefault:    netConfig.IsDefault,
 			PortMappings: netConfig.PortMappings,
 
-			ChargeType: netConfig.ChargeType,
+			BillingType: netConfig.BillingType,
+			ChargeType:  netConfig.ChargeType,
 		})
 		if err != nil {
 			return nil, errors.Wrap(err, "Attach2Network fail")
@@ -4964,7 +5019,7 @@ func (self *SGuest) CategorizeNics() SGuestNicCategory {
 	}
 
 	for _, gn := range guestnics {
-		if gn.IsExit() {
+		if gn.IsExit(nil) {
 			netCat.ExternalNics = append(netCat.ExternalNics, gn)
 		} else {
 			netCat.InternalNics = append(netCat.InternalNics, gn)
@@ -5459,6 +5514,13 @@ func (self *SGuest) GetJsonDescAtHypervisor(ctx context.Context, host *SHost) *a
 		if len(nicDesc.Domain) > 0 {
 			desc.Domain = nicDesc.Domain
 		}
+		secgroupDesc := nic.getSecgroupDesc()
+		if secgroupDesc != nil {
+			if desc.NicSecgroups == nil {
+				desc.NicSecgroups = make([]*api.GuestnetworkSecgroupDesc, 0)
+			}
+			desc.NicSecgroups = append(desc.NicSecgroups, secgroupDesc)
+		}
 	}
 
 	{
@@ -5670,9 +5732,10 @@ func (self *SGuest) GetSpec(checkStatus bool) *jsonutils.JSONDict {
 	nicSpecs := jsonutils.NewArray()
 	for _, guestnic := range guestnics {
 		nicSpec := jsonutils.NewDict()
-		nicSpec.Set("bandwidth", jsonutils.NewInt(int64(guestnic.getBandwidth())))
+		net, _ := guestnic.GetNetwork()
+		nicSpec.Set("bandwidth", jsonutils.NewInt(int64(guestnic.getBandwidth(net, nil))))
 		t := "int"
-		if guestnic.IsExit() {
+		if guestnic.IsExit(net) {
 			t = "ext"
 		}
 		nicSpec.Set("type", jsonutils.NewString(t))
@@ -6785,7 +6848,7 @@ func (self *SGuest) ToNetworksConfig() []*api.NetworkConfig {
 		// XXX: same wire
 		netConf.Wire = network.WireId
 		netConf.Network = network.Id
-		netConf.Exit = guestNetwork.IsExit()
+		netConf.Exit = guestNetwork.IsExit(nil)
 		if len(guestNetwork.Ip6Addr) > 0 {
 			netConf.RequireIPv6 = true
 			if len(guestNetwork.IpAddr) == 0 {
@@ -7087,7 +7150,7 @@ func (self *SGuest) GetAddress() (string, error) {
 		return "", errors.Wrapf(err, "GetNetworks")
 	}
 	for _, gn := range gns {
-		if !gn.IsExit() {
+		if !gn.IsExit(nil) {
 			return gn.IpAddr, nil
 		}
 	}
