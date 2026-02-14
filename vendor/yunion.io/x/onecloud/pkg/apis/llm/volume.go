@@ -46,25 +46,25 @@ type VolumeDetails struct {
 
 	Volume
 
-	Template string `json:"template"`
+	Template string
 
-	DesktopId     string `json:"desktop_id"`
-	DesktopName   string `json:"desktop_name"`
-	DesktopStatus string `json:"desktop_status"`
+	DesktopId     string
+	DesktopName   string
+	DesktopStatus string
 
-	Disk string `json:"disk"`
+	Disk string
 
-	StorageId     string                   `json:"storage_id"`
-	Storage       string                   `json:"storage"`
-	StorageStatus string                   `json:"storage_status"`
-	StorageHosts  []computeapi.StorageHost `json:"storage_hosts"`
+	StorageId     string
+	Storage       string
+	StorageStatus string
+	StorageHosts  []computeapi.StorageHost
 
-	Hosts []HostInfo `json:"hosts"`
+	Hosts []HostInfo
 
 	HostInfo
 
-	InstanceId   string `json:"instance_id"`
-	InstanceName string `json:"instance_name"`
+	InstanceId   string
+	InstanceName string
 }
 
 type ContainerVolumeRelation struct {
@@ -88,11 +88,11 @@ func (s ContainerVolumeRelations) IsZero() bool {
 
 type Volume struct {
 	// db.SStandaloneAnonResourceBase
-	Id          string `json:"id"`
-	Name        string `json:"name"`
-	StorageType string `json:"storage_type"`
-	TemplateId  string `json:"template_id"`
-	SizeMB      int    `json:"size_mb"`
+	Id          string
+	Name        string
+	StorageType string
+	TemplateId  string
+	SizeMB      int
 	// Container index to mount path relation
 	Containers ContainerVolumeRelations `json:"containers"`
 }
@@ -125,11 +125,11 @@ func (s Volumes) IsZero() bool {
 
 type VolumeCreateInput struct {
 	apis.VirtualResourceCreateInput
-	ImageId     string `json:"image_id"`
-	Size        int    `json:"size"`
-	StorageType string `json:"storage_type"`
+	ImageId     string
+	Size        int
+	StorageType string
 
-	PreferHost string `json:"prefer_host"`
+	PreferHost string
 }
 
 type VolumePerformResetInput struct {

@@ -20,5 +20,5 @@ type DifyListInput struct {
 type DifyCreateInput struct {
 	LLMBaseCreateInput
 
-	DifySkuId string `json:"dify_sku_id"`
+	DifySkuId string
 }

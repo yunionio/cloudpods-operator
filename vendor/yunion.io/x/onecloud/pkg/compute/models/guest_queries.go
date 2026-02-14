@@ -90,6 +90,15 @@ func (manager *SGuestManager) FetchCustomizeColumns(
 			}
 		}
 	}
+	if len(fields) == 0 || fields.Contains("snapshotpolicy") {
+		counts := fetchGuestSnapshotpolicyInfo(guestIds)
+		for i := range rows {
+			rows[i].SnapshotpolicyCount = counts[guestIds[i]]
+			for j := range rows[i].DisksInfo {
+				rows[i].DisksSnapshotpolicyCount += counts[rows[i].DisksInfo[j].Id]
+			}
+		}
+	}
 	/*if len(fields) == 0 || fields.Contains("ips") {
 		gips := fetchGuestIPs(guestIds, tristate.False)
 		if gips != nil {
@@ -193,6 +202,16 @@ func (manager *SGuestManager) FetchCustomizeColumns(
 					if len(fields) == 0 || fields.Contains("secgroup") {
 						rows[i].Secgroup = gsg[0].Name
 					}
+				}
+			}
+		}
+	}
+	if len(fields) == 0 || fields.Contains("network_secgroups") {
+		gnss := fetchGuestNetworkSecgroups(guestIds)
+		if gnss != nil {
+			for i := range rows {
+				if gns, ok := gnss[guestIds[i]]; ok {
+					rows[i].NetworkSecgroups = gns
 				}
 			}
 		}
@@ -449,6 +468,34 @@ func fetchGuestDisksInfo(guestIds []string) map[string][]GuestDiskInfo {
 	return ret
 }
 
+func fetchGuestSnapshotpolicyInfo(guestIds []string) map[string]int {
+	ret := map[string]int{}
+	disks := GuestdiskManager.Query("disk_id").In("guest_id", guestIds).SubQuery()
+	spq := SnapshotPolicyResourceManager.Query()
+	spq = spq.Filter(sqlchemy.OR(
+		sqlchemy.In(spq.Field("resource_id"), guestIds),
+		sqlchemy.In(spq.Field("resource_id"), disks),
+	))
+	sq := spq.SubQuery()
+	q := sq.Query(
+		sq.Field("resource_id"),
+		sqlchemy.COUNT("count", sq.Field("snapshotpolicy_id")),
+	).GroupBy(sq.Field("resource_id"))
+	counts := []struct {
+		ResourceId string
+		Count      int
+	}{}
+	err := q.All(&counts)
+	if err != nil {
+		return nil
+	}
+	for _, count := range counts {
+		ret[count.ResourceId] = count.Count
+	}
+
+	return ret
+}
+
 func (guest *SGuest) GetDisksSize() int {
 	return guest.getDiskSize()
 }
@@ -574,6 +621,7 @@ func fetchGuestNICs(ctx context.Context, guestIds []string, virtual tristate.Tri
 		gnwq.Field("network_id"), // caution: do not alias netq.id as network_id
 
 		gnwq.Field("port_mappings"),
+		gnwq.Field("ifname"),
 
 		gnwq.Field("is_default"),
 
@@ -718,6 +766,79 @@ func fetchSecgroups(guestIds []string) map[string][]apis.StandaloneShortDesc {
 		ret[gsgs[i].GuestId] = gsg
 	}
 
+	return ret
+}
+
+func fetchGuestNetworkSecgroups(guestIds []string) map[string][]api.GuestnetworkSecgroupShortDesc {
+	guestnetworks := GuestnetworkManager.Query().SubQuery()
+	guestnetworksecgroups := GuestnetworksecgroupManager.Query().SubQuery()
+	secgroups := SecurityGroupManager.Query().SubQuery()
+
+	q := guestnetworksecgroups.Query(
+		guestnetworksecgroups.Field("guest_id"),
+		guestnetworksecgroups.Field("network_index"),
+		guestnetworksecgroups.Field("secgroup_id"),
+		guestnetworks.Field("mac_addr").Label("mac"),
+		secgroups.Field("name").Label("secgroup_name"),
+	)
+	q = q.Join(guestnetworks, sqlchemy.AND(
+		sqlchemy.Equals(guestnetworks.Field("guest_id"), guestnetworksecgroups.Field("guest_id")),
+		sqlchemy.Equals(guestnetworks.Field("index"), guestnetworksecgroups.Field("network_index")),
+	))
+	q = q.Join(secgroups, sqlchemy.Equals(secgroups.Field("id"), guestnetworksecgroups.Field("secgroup_id")))
+	q = q.Filter(sqlchemy.In(guestnetworksecgroups.Field("guest_id"), guestIds))
+
+	type sGuestNetworkSecgroupInfo struct {
+		GuestId      string
+		NetworkIndex int
+		SecgroupId   string
+		SecgroupName string
+		Mac          string
+	}
+
+	gnss := make([]sGuestNetworkSecgroupInfo, 0)
+	err := q.All(&gnss)
+	if err != nil && errors.Cause(err) != sql.ErrNoRows {
+		log.Errorf("fetchGuestNetworkSecgroups query error: %s", err)
+		return nil
+	}
+
+	groupedSecgroups := make(map[string][]sGuestNetworkSecgroupInfo)
+	for i := range gnss {
+		groupedSecgroup, ok := groupedSecgroups[gnss[i].GuestId]
+		if !ok {
+			groupedSecgroup = make([]sGuestNetworkSecgroupInfo, 0)
+		}
+		groupedSecgroups[gnss[i].GuestId] = append(groupedSecgroup, gnss[i])
+	}
+	ret := make(map[string][]api.GuestnetworkSecgroupShortDesc)
+	for guestId, secgroups := range groupedSecgroups {
+		networkGroupedSecgroups := make(map[int][]sGuestNetworkSecgroupInfo)
+		for i := range secgroups {
+			secgroupInfos, ok := networkGroupedSecgroups[secgroups[i].NetworkIndex]
+			if !ok {
+				secgroupInfos = make([]sGuestNetworkSecgroupInfo, 0)
+			}
+			networkGroupedSecgroups[secgroups[i].NetworkIndex] = append(secgroupInfos, secgroups[i])
+		}
+
+		guestnetworkSecgroups := make([]api.GuestnetworkSecgroupShortDesc, 0)
+		for networkIndex, secgroups := range networkGroupedSecgroups {
+			//networkSecgroupsDesc := make([]api.GuestnetworkSecgroupShortDesc, 0)
+			nsDesc := api.GuestnetworkSecgroupShortDesc{
+				NetworkIndex: networkIndex,
+				Mac:          secgroups[0].Mac,
+			}
+			for i := range secgroups {
+				nsDesc.Secgroups = append(nsDesc.Secgroups, apis.StandaloneShortDesc{
+					Id:   secgroups[i].SecgroupId,
+					Name: secgroups[i].SecgroupName,
+				})
+			}
+			guestnetworkSecgroups = append(guestnetworkSecgroups, nsDesc)
+		}
+		ret[guestId] = guestnetworkSecgroups
+	}
 	return ret
 }
 
