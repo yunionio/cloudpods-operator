@@ -25,6 +25,7 @@ import (
 	"yunion.io/x/pkg/util/fileutils"
 	"yunion.io/x/pkg/util/regutils"
 
+	billing_api "yunion.io/x/onecloud/pkg/apis/billing"
 	"yunion.io/x/onecloud/pkg/apis/cloudcommon/db"
 	computeapi "yunion.io/x/onecloud/pkg/apis/compute"
 	schedapi "yunion.io/x/onecloud/pkg/apis/scheduler"
@@ -80,8 +81,10 @@ type ServerListOptions struct {
 
 	WithUserMeta *bool `help:"filter by user metadata" negative:"without_user_meta"`
 
-	WithHost         *bool  `help:"filter guest with host or not" negative:"without_host"`
-	SnapshotpolicyId string `help:"filter guest with snapshotpolicy or not" json:"snapshotpolicy_id"`
+	WithHost                   *bool  `help:"filter guest with host or not" negative:"without_host"`
+	SnapshotpolicyId           string `help:"filter guest with snapshotpolicy or not" json:"snapshotpolicy_id"`
+	BindingDisksSnapshotpolicy *bool  `help:"filter guest with disks binding snapshotpolicy or not" negative:"no-binding-disks-snapshotpolicy" json:"binding_disks_snapshotpolicy"`
+	BindingSnapshotpolicy      *bool  `help:"filter guest with binding snapshotpolicy or not" negative:"no-binding-snapshotpolicy" json:"binding_snapshotpolicy"`
 }
 
 func (o *ServerListOptions) Params() (jsonutils.JSONObject, error) {
@@ -590,9 +593,9 @@ func (opts *ServerCreateOptionalOptions) OptionalParams() (*computeapi.ServerCre
 		AutoPrepaidRecycle: opts.AutoPrepaidRecycle,
 		EipBw:              opts.EipBw,
 		EipBgpType:         opts.EipBgpType,
-		EipChargeType:      opts.EipChargeType,
+		EipChargeType:      billing_api.TNetChargeType(opts.EipChargeType),
 		PublicIpBw:         opts.PublicIpBw,
-		PublicIpChargeType: opts.PublicIpChargeType,
+		PublicIpChargeType: billing_api.TNetChargeType(opts.PublicIpChargeType),
 		Eip:                opts.Eip,
 		EnableCloudInit:    opts.EnableCloudInit,
 		OsType:             opts.OsType,
@@ -892,6 +895,20 @@ func (opts *ServerSecGroupsOptions) Params() (jsonutils.JSONObject, error) {
 	return jsonutils.Marshal(map[string][]string{"secgroup_ids": opts.SecgroupIds}), nil
 }
 
+type ServerNetworkSecGroupsOptions struct {
+	ID           string   `help:"ID or Name of server" metavar:"Guest" json:"-"`
+	NetworkIndex *int     `help:"Guest network index" metavar:"Network Index"`
+	SecgroupIds  []string `help:"Ids of Security Groups" metavar:"Security Groups" positional:"true"`
+}
+
+func (o *ServerNetworkSecGroupsOptions) GetId() string {
+	return o.ID
+}
+
+func (opts *ServerNetworkSecGroupsOptions) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.Marshal(opts), nil
+}
+
 type ServerModifySrcCheckOptions struct {
 	ID          string `help:"ID or Name of server" metavar:"Guest" json:"-"`
 	SrcIpCheck  string `help:"Turn on/off src ip check" choices:"on|off"`
@@ -1069,6 +1086,8 @@ type ServerNicTrafficLimitOptions struct {
 	MAC            string `help:"guest network mac address"`
 	RxTrafficLimit *int64 `help:" rx traffic limit, unit Byte"`
 	TxTrafficLimit *int64 `help:" tx traffic limit, unit Byte"`
+	ChargeType     string `help:"nic charge type" choices:"bandwidth|traffic"`
+	BillingType    string `help:"nic billing type" choices:"prepaid|postpaid"`
 }
 
 func (o *ServerNicTrafficLimitOptions) Params() (jsonutils.JSONObject, error) {
@@ -1615,6 +1634,16 @@ type ServerScreenDumpOptions struct {
 }
 
 func (o *ServerScreenDumpOptions) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.Marshal(o), nil
+}
+
+type ServerSetNetworkNumQueues struct {
+	ServerIdOptions
+	MacAddr   string `help:"server network mac addr"`
+	NumQueues int    `help:"network num queues"`
+}
+
+func (o *ServerSetNetworkNumQueues) Params() (jsonutils.JSONObject, error) {
 	return jsonutils.Marshal(o), nil
 }
 

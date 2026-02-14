@@ -116,6 +116,8 @@ type LLMSkuDetails struct {
 	ImageLabel  string `json:"image_label"`
 	ImageName   string `json:"image_name"`
 
+	MountedModelDetails []MountedModelInfo `json:"mounted_model_details"`
+
 	Template string `json:"template"`
 }
 
@@ -166,18 +168,17 @@ type LLMSkuListInput struct {
 
 type LLMSkuCreateInput struct {
 	LLMSKuBaseCreateInput
+	MountedModelResourceCreateInput
 
-	LLMImageId   string `json:"llm_image_id"`
-	LLMType      string `json:"llm_type"`
-	LLMModelName string `json:"llm_model_name"`
+	LLMImageId string `json:"llm_image_id"`
+	LLMType    string `json:"llm_type"`
 }
 
 type LLMSkuUpdateInput struct {
 	LLMSkuBaseUpdateInput
 	MountedModelResourceUpdateInput
 
-	LLMImageId   string `json:"llm_image_id"`
-	LLMModelName string `json:"llm_model_name"`
+	LLMImageId string `json:"llm_image_id"`
 }
 
 // type LLMModelCloneInput struct {

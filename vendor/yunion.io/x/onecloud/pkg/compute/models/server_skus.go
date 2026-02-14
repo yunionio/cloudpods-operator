@@ -16,7 +16,6 @@ package models
 
 import (
 	"context"
-	"crypto/md5"
 	"database/sql"
 	"fmt"
 	"math"
@@ -136,44 +135,6 @@ func (manager *SServerSkuManager) FilterByUniqValues(q *sqlchemy.SQuery, values 
 		q = q.Equals("zone_id", zoneId)
 	}
 	return q
-}
-
-type SInstanceSpecQueryParams struct {
-	Provider       string
-	PublicCloud    bool
-	ZoneId         string
-	PostpaidStatus string
-	PrepaidStatus  string
-	IngoreCache    bool
-}
-
-func (self *SInstanceSpecQueryParams) GetCacheKey() string {
-	hashStr := fmt.Sprintf("%s:%t:%s:%s:%s", self.Provider, self.PublicCloud, self.ZoneId, self.PostpaidStatus, self.PrepaidStatus)
-	_md5 := md5.Sum([]byte(hashStr))
-	return "InstanceSpecs_" + fmt.Sprintf("%x", _md5)
-}
-
-func NewInstanceSpecQueryParams(query jsonutils.JSONObject) *SInstanceSpecQueryParams {
-	zone := jsonutils.GetAnyString(query, []string{"zone", "zone_id"})
-	postpaid, _ := query.GetString("postpaid_status")
-	prepaid, _ := query.GetString("prepaid_status")
-	ingore_cache, _ := query.Bool("ingore_cache")
-	provider := normalizeProvider(jsonutils.GetAnyString(query, []string{"provider"}))
-	public_cloud, _ := query.Bool("public_cloud")
-	if utils.IsInStringArray(provider, cloudprovider.GetPublicProviders()) {
-		public_cloud = true
-	}
-
-	params := &SInstanceSpecQueryParams{
-		Provider:       provider,
-		PublicCloud:    public_cloud,
-		ZoneId:         zone,
-		PostpaidStatus: postpaid,
-		PrepaidStatus:  prepaid,
-		IngoreCache:    ingore_cache,
-	}
-
-	return params
 }
 
 func sliceToJsonObject(items []int) jsonutils.JSONObject {
@@ -322,22 +283,6 @@ func (self *SServerSkuManager) ValidateCreateData(ctx context.Context, userCred 
 		region, _ = zone.GetRegion()
 	}
 
-	if input.CpuCoreCount < 1 || input.CpuCoreCount > options.Options.SkuMaxCpuCount {
-		return input, httperrors.NewOutOfRangeError("cpu_core_count should be range of 1~%d", options.Options.SkuMaxCpuCount)
-	}
-
-	if input.MemorySizeMB < 512 || input.MemorySizeMB > 1024*options.Options.SkuMaxMemSize {
-		return input, httperrors.NewOutOfRangeError("memory_size_mb, shoud be range of 512~%d", 1024*options.Options.SkuMaxMemSize)
-	}
-
-	if len(input.InstanceTypeCategory) == 0 {
-		input.InstanceTypeCategory = api.SkuCategoryGeneralPurpose
-	}
-
-	if !utils.IsInStringArray(input.InstanceTypeCategory, api.SKU_FAMILIES) {
-		return input, httperrors.NewInputParameterError("instance_type_category shoud be one of %s", api.SKU_FAMILIES)
-	}
-
 	if input.Enabled == nil {
 		enabled := true
 		input.Enabled = &enabled
@@ -348,14 +293,41 @@ func (self *SServerSkuManager) ValidateCreateData(ctx context.Context, userCred 
 	if region != nil {
 		input.Provider = region.Provider
 	}
+
 	if input.Provider == api.CLOUD_PROVIDER_ONECLOUD {
 		input.CloudregionId = api.DEFAULT_REGION_ID
 	} else if utils.IsInStringArray(input.Provider, api.PRIVATE_CLOUD_PROVIDERS) {
 		input.Status = api.SkuStatusCreating
 	}
 
-	input.LocalCategory = input.InstanceTypeCategory
-	input.InstanceTypeFamily = api.InstanceFamilies[input.InstanceTypeCategory]
+	if !utils.IsInStringArray(input.Provider, api.PUBLIC_CLOUD_PROVIDERS) {
+		if input.CpuCoreCount < 1 || input.CpuCoreCount > options.Options.SkuMaxCpuCount {
+			return input, httperrors.NewOutOfRangeError("cpu_core_count should be range of 1~%d", options.Options.SkuMaxCpuCount)
+		}
+
+		if input.MemorySizeMB < 512 || input.MemorySizeMB > 1024*options.Options.SkuMaxMemSize {
+			return input, httperrors.NewOutOfRangeError("memory_size_mb, shoud be range of 512~%d", 1024*options.Options.SkuMaxMemSize)
+		}
+
+		if len(input.InstanceTypeCategory) == 0 {
+			input.InstanceTypeCategory = api.SkuCategoryGeneralPurpose
+		}
+
+		if !utils.IsInStringArray(input.InstanceTypeCategory, api.SKU_FAMILIES) {
+			return input, httperrors.NewInputParameterError("instance_type_category shoud be one of %s", api.SKU_FAMILIES)
+		}
+
+		input.LocalCategory = input.InstanceTypeCategory
+		input.InstanceTypeFamily = api.InstanceFamilies[input.InstanceTypeCategory]
+	}
+
+	if len(input.LocalCategory) == 0 {
+		input.LocalCategory = input.InstanceTypeCategory
+	}
+
+	if len(input.InstanceTypeFamily) == 0 {
+		input.InstanceTypeFamily = api.InstanceFamilies[input.InstanceTypeCategory]
+	}
 
 	var err error
 	if len(input.Name) == 0 {
@@ -482,20 +454,6 @@ func intervalMem(n int) (int, int) {
 		return 0, 512
 	}
 	return interval(n, 1024)
-}
-
-func normalizeProvider(provider string) string {
-	if len(provider) == 0 {
-		return provider
-	}
-
-	for _, p := range api.CLOUD_PROVIDERS {
-		if strings.ToLower(p) == strings.ToLower(provider) {
-			return p
-		}
-	}
-
-	return provider
 }
 
 func networkUsableRegionQueries(f sqlchemy.IQueryField) []sqlchemy.ICondition {
@@ -779,6 +737,13 @@ func (manager *SServerSkuManager) ListItemFilter(
 				sqlchemy.Startswith(q.Field("cpu_arch"), arch),
 				sqlchemy.Equals(q.Field("cpu_arch"), apis.OS_ARCH_AARCH32),
 				sqlchemy.Equals(q.Field("cpu_arch"), apis.OS_ARCH_AARCH64),
+				sqlchemy.IsNullOrEmpty(q.Field("cpu_arch")),
+			))
+		} else if arch == apis.OS_ARCH_RISCV {
+			conditions = append(conditions, sqlchemy.OR(
+				sqlchemy.Startswith(q.Field("cpu_arch"), arch),
+				sqlchemy.Equals(q.Field("cpu_arch"), apis.OS_ARCH_RISCV32),
+				sqlchemy.Equals(q.Field("cpu_arch"), apis.OS_ARCH_RISCV64),
 				sqlchemy.IsNullOrEmpty(q.Field("cpu_arch")),
 			))
 		} else {
@@ -1146,21 +1111,6 @@ func (self *SServerSku) constructSku(extSku cloudprovider.ICloudSku) {
 	self.GpuCount = extSku.GetGpuCount()
 	self.GpuMaxCount = extSku.GetGpuMaxCount()
 	self.Name = extSku.GetName()
-}
-
-func (self *SServerSku) setPrepaidPostpaidStatus(userCred mcclient.TokenCredential, prepaidStatus, postpaidStatus string) error {
-	if prepaidStatus != self.PrepaidStatus || postpaidStatus != self.PostpaidStatus {
-		diff, err := db.Update(self, func() error {
-			self.PrepaidStatus = prepaidStatus
-			self.PostpaidStatus = postpaidStatus
-			return nil
-		})
-		if err != nil {
-			return err
-		}
-		db.OpsLog.LogEvent(self, db.ACT_UPDATE, diff, userCred)
-	}
-	return nil
 }
 
 func (region *SCloudregion) getMetaUrl(base string, externalId string) string {
