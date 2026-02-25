@@ -187,6 +187,8 @@ const (
 	ProductVersionLightEdge ProductVersion = "LightEdge"
 	// ProductVersionBaremetal: Baremetal management product
 	ProductVersionBaremetal ProductVersion = "Baremetal"
+	// ProductVersionAI: AI product
+	ProductVersionAI ProductVersion = "AI"
 )
 
 // +genclient
