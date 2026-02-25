@@ -37,6 +37,7 @@ func (m *hostManager) getProductVersions() []v1alpha1.ProductVersion {
 		v1alpha1.ProductVersionFullStack,
 		v1alpha1.ProductVersionEdge,
 		v1alpha1.ProductVersionLightEdge,
+		v1alpha1.ProductVersionAI,
 	}
 }
 

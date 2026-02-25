@@ -286,6 +286,10 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 			"onecloud",
 			"baremetal",
 		}
+		setupKeysAI := []string{
+			"onecloud",
+			"pod",
+		}
 		setupKeysFull := []string{}
 		setupKeysFull = append(setupKeysFull, setupKeysCmp...)
 		setupKeysFull = append(setupKeysFull, setupKeysEdge...)
@@ -300,6 +304,8 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 			setupKeys = setupKeysLightEdge
 		case v1alpha1.ProductVersionBaremetal:
 			setupKeys = setupKeysBaremetal
+		case v1alpha1.ProductVersionAI:
+			setupKeys = setupKeysAI
 		default:
 			setupKeys = setupKeysFull
 		}
