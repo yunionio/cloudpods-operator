@@ -111,6 +111,31 @@ func (m *hostDeployerManager) newHostPrivilegedDaemonSet(
 			TopologyKey: "kubernetes.io/hostname",
 		},
 	}
+	if ds.Spec.Template.Spec.Affinity.NodeAffinity == nil {
+		ds.Spec.Template.Spec.Affinity.NodeAffinity = &corev1.NodeAffinity{}
+	}
+	ds.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &corev1.NodeSelector{
+		NodeSelectorTerms: []corev1.NodeSelectorTerm{
+			{
+				MatchExpressions: []corev1.NodeSelectorRequirement{
+					{
+						Key:      constants.OnecloudEnableHostLabelKey,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"enable"},
+					},
+				},
+			},
+			{
+				MatchExpressions: []corev1.NodeSelectorRequirement{
+					{
+						Key:      constants.OnecloudControllerLabelKey,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"enable"},
+					},
+				},
+			},
+		},
+	}
 	if ds.Spec.UpdateStrategy.RollingUpdate == nil {
 		ds.Spec.UpdateStrategy.RollingUpdate = &apps.RollingUpdateDaemonSet{}
 	}
