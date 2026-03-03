@@ -1255,6 +1255,17 @@ func (m *ComponentManager) newDaemonSetWithLimits(
 	return appDaemonSet, nil
 }
 
+// applyHostComponentAntiEviction sets PriorityClassName to system-node-critical
+// so host-related DaemonSet pods are less likely to be evicted when the node is
+// under resource pressure. OomScoreAdj is not set because k8s.io/api v0.19 does
+// not include SecurityContext.OomScoreAdj (added in Kubernetes 1.20).
+func (m *ComponentManager) applyHostComponentAntiEviction(ds *apps.DaemonSet) {
+	if ds == nil {
+		return
+	}
+	ds.Spec.Template.Spec.PriorityClassName = "system-node-critical"
+}
+
 func (m *ComponentManager) newCronJob(
 	componentType v1alpha1.ComponentType,
 	oc *v1alpha1.OnecloudCluster,

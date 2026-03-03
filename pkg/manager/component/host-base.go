@@ -111,6 +111,7 @@ func (m *hostBasedDsManager) newHostPrivilegedDaemonSet(
 	if err != nil {
 		return nil, err
 	}
+	m.applyHostComponentAntiEviction(ds)
 
 	/* set pod max maxUnavailable count, default 1 */
 	if ds.Spec.UpdateStrategy.RollingUpdate == nil {

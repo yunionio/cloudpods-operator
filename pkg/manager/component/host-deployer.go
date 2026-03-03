@@ -96,6 +96,7 @@ func (m *hostDeployerManager) newHostPrivilegedDaemonSet(
 	if err != nil {
 		return nil, err
 	}
+	m.applyHostComponentAntiEviction(ds)
 	// set inter pod affinity
 	if ds.Spec.Template.Spec.Affinity == nil {
 		ds.Spec.Template.Spec.Affinity = &corev1.Affinity{}
