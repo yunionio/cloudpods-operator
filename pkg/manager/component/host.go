@@ -273,6 +273,7 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 	if err != nil {
 		return nil, err
 	}
+	m.applyHostComponentAntiEviction(ds)
 
 	/* set host pod TerminationGracePeriodSeconds, default 30s */
 	var terminationGracePeriodSecond int64 = 60 * 5
