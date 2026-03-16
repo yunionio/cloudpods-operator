@@ -111,7 +111,7 @@ var (
 	}
 	DefaultLLMSku = []llmapi.LLMSkuCreateInput{
 		newLLMSku("ollama-4c4g", 4, 4096, 40960, 1000, DefaultOllamaImageName, "ollama"),
-		newLLMSku("openclaw-4c8g", 4, 8192, 40960, 1000, DefaultOpenclawImageName, "openclaw"),
+		newLLMSku("openclaw-4c4g", 4, 4096, 40960, 1000, DefaultOpenclawImageName, "openclaw"),
 		newLLMSku("comfyui-8c16g", 8, 16384, 40960, 1000, DefaultComfyuiImageName, "comfyui"),
 	}
 )
@@ -1006,7 +1006,8 @@ func newLLMSku(name string, cpu, memory, diskSize int, bandwidth int, imageId, l
 		LLMSKuBaseCreateInput: llmapi.LLMSKuBaseCreateInput{
 			SharableVirtualResourceCreateInput: apis.SharableVirtualResourceCreateInput{
 				SharableResourceBaseCreateInput: apis.SharableResourceBaseCreateInput{
-					IsPublic: &isPublic,
+					IsPublic:    &isPublic,
+					PublicScope: "system",
 				},
 				VirtualResourceCreateInput: apis.VirtualResourceCreateInput{
 					StatusStandaloneResourceCreateInput: apis.StatusStandaloneResourceCreateInput{
