@@ -89,9 +89,16 @@ const (
 )
 
 const (
-	DefaultOllamaImageName   = "ollama-0.15.1"
-	DefaultComfyuiImageName  = "comfyui-boot-cu128-slim"
-	DefaultOpenclawImageName = "openclaw-20260313.5"
+	DefaultOpenclawImageTag = "v2026.3.13-1-20260313.0"
+)
+
+const (
+	DefaultOllamaImageName  = "ollama-0.15.1"
+	DefaultComfyuiImageName = "comfyui-boot-cu128-slim"
+)
+
+var (
+	DefaultOpenclawImageName = fmt.Sprintf("openclaw-%s", DefaultOpenclawImageTag)
 )
 
 var (
@@ -107,11 +114,11 @@ var (
 		newLLMImage("squid-5.2-22.04_beta", "registry.cn-beijing.aliyuncs.com/cloudpods/squid", "5.2-22.04_beta", "dify"),
 		newLLMImage("weaviate-1.19.0", "registry.cn-beijing.aliyuncs.com/cloudpods/weaviate", "1.19.0", "dify"),
 		newLLMImage(DefaultComfyuiImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/comfyui-boot", "cu128-slim", "comfyui"),
-		newLLMImage(DefaultOpenclawImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/openclaw", "ubu-20260313.5", "openclaw"),
+		newLLMImage(DefaultOpenclawImageName, "registry.cn-beijing.aliyuncs.com/zexi/openclaw", DefaultOpenclawImageTag, "openclaw"),
 	}
 	DefaultLLMSku = []llmapi.LLMSkuCreateInput{
 		newLLMSku("ollama-4c4g", 4, 4096, 40960, 1000, DefaultOllamaImageName, "ollama"),
-		newLLMSku("openclaw-4c4g", 4, 4096, 40960, 1000, DefaultOpenclawImageName, "openclaw"),
+		newLLMSku(fmt.Sprintf("%s-4c4g", DefaultOpenclawImageName), 4, 4096, 40960, 1000, DefaultOpenclawImageName, "openclaw"),
 		newLLMSku("comfyui-8c16g", 8, 16384, 40960, 1000, DefaultComfyuiImageName, "comfyui"),
 	}
 )
