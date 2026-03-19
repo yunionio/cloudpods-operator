@@ -28,6 +28,7 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/util/passwd"
 	"yunion.io/x/onecloud/pkg/apis"
+	computeapi "yunion.io/x/onecloud/pkg/apis/compute"
 	llmapi "yunion.io/x/onecloud/pkg/apis/llm"
 )
 
@@ -89,7 +90,7 @@ const (
 )
 
 const (
-	DefaultOpenclawImageTag = "v2026.3.13-1-20260313.0"
+	DefaultOpenclawImageTag = "v2026.3.13-1-20260318.2"
 )
 
 const (
@@ -118,7 +119,14 @@ var (
 	}
 	DefaultLLMSku = []llmapi.LLMSkuCreateInput{
 		newLLMSku("ollama-4c4g", 4, 4096, 40960, 1000, DefaultOllamaImageName, "ollama"),
-		newLLMSku(fmt.Sprintf("%s-4c4g", DefaultOpenclawImageName), 4, 4096, 40960, 1000, DefaultOpenclawImageName, "openclaw"),
+		newLLMSkuWithPortMappings(fmt.Sprintf("%s-4c4g", DefaultOpenclawImageName), 4, 4096, 40960, 1000, DefaultOpenclawImageName, "openclaw", &llmapi.PortMappings{
+			{
+				Protocol:        string(computeapi.PodPortMappingProtocolTCP),
+				ContainerPort:   3001,
+				RemoteIps:       []string{"0.0.0.0/0"},
+				FirstPortOffset: nil,
+			},
+		}),
 		newLLMSku("comfyui-8c16g", 8, 16384, 40960, 1000, DefaultComfyuiImageName, "comfyui"),
 	}
 )
@@ -999,6 +1007,10 @@ func newLLMImage(name, imageName, imageLabel, llmType string) llmapi.LLMImageCre
 }
 
 func newLLMSku(name string, cpu, memory, diskSize int, bandwidth int, imageId, llmType string) llmapi.LLMSkuCreateInput {
+	return newLLMSkuWithPortMappings(name, cpu, memory, diskSize, bandwidth, imageId, llmType, nil)
+}
+
+func newLLMSkuWithPortMappings(name string, cpu, memory, diskSize int, bandwidth int, imageId, llmType string, portMappings *llmapi.PortMappings) llmapi.LLMSkuCreateInput {
 	// 初始化 Volume
 	vol := llmapi.Volume{
 		SizeMB:      diskSize,
@@ -1024,10 +1036,11 @@ func newLLMSku(name string, cpu, memory, diskSize int, bandwidth int, imageId, l
 					},
 				},
 			},
-			Cpu:       cpu,
-			Memory:    memory,
-			Bandwidth: bandwidth,
-			Volumes:   &vols,
+			Cpu:          cpu,
+			Memory:       memory,
+			Bandwidth:    bandwidth,
+			Volumes:      &vols,
+			PortMappings: portMappings,
 		},
 		LLMImageId: imageId,
 		LLMType:    llmType,

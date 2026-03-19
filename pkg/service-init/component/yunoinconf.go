@@ -288,6 +288,7 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 		}
 		setupKeysAI := []string{
 			"onecloud",
+			"onestack",
 			"pod",
 		}
 		setupKeysFull := []string{}
