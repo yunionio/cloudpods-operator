@@ -90,7 +90,7 @@ const (
 )
 
 const (
-	DefaultOpenclawImageTag = "v2026.3.13-1-20260318.2"
+	DefaultOpenclawImageTag = "v2026.3.12-20260320.1"
 )
 
 const (
@@ -115,21 +115,33 @@ var (
 		newLLMImage("squid-5.2-22.04_beta", "registry.cn-beijing.aliyuncs.com/cloudpods/squid", "5.2-22.04_beta", "dify"),
 		newLLMImage("weaviate-1.19.0", "registry.cn-beijing.aliyuncs.com/cloudpods/weaviate", "1.19.0", "dify"),
 		newLLMImage(DefaultComfyuiImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/comfyui-boot", "cu128-slim", "comfyui"),
-		newLLMImage(DefaultOpenclawImageName, "registry.cn-beijing.aliyuncs.com/zexi/openclaw", DefaultOpenclawImageTag, "openclaw"),
+		newLLMImage(DefaultOpenclawImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/openclaw", DefaultOpenclawImageTag, "openclaw"),
 	}
 	DefaultLLMSku = []llmapi.LLMSkuCreateInput{
-		newLLMSku("ollama-4c4g", 4, 4096, 40960, 1000, DefaultOllamaImageName, "ollama"),
-		newLLMSkuWithPortMappings(fmt.Sprintf("%s-4c4g", DefaultOpenclawImageName), 4, 4096, 40960, 1000, DefaultOpenclawImageName, "openclaw", &llmapi.PortMappings{
-			{
-				Protocol:        string(computeapi.PodPortMappingProtocolTCP),
-				ContainerPort:   3001,
-				RemoteIps:       []string{"0.0.0.0/0"},
-				FirstPortOffset: nil,
-			},
+		newLLMSkuWithPortMappings("ollama-4c4g", 4, 4096, 40960, 1000, DefaultOllamaImageName, "ollama", &llmapi.PortMappings{
+			newTCPPortMapping(11434),
 		}),
-		newLLMSku("comfyui-8c16g", 8, 16384, 40960, 1000, DefaultComfyuiImageName, "comfyui"),
+		newLLMSkuWithPortMappings(fmt.Sprintf("%s-4c4g", DefaultOpenclawImageName), 4, 4096, 40960, 1000, DefaultOpenclawImageName, "openclaw", &llmapi.PortMappings{
+			newTCPPortMapping(3001),
+		}),
+		newLLMSkuWithPortMappings("comfyui-8c16g", 8, 16384, 40960, 1000, DefaultComfyuiImageName, "comfyui", &llmapi.PortMappings{
+			newTCPPortMapping(8188),
+		}),
 	}
 )
+
+func newPortMapping(protocol string, containerPort int) llmapi.PortMapping {
+	return llmapi.PortMapping{
+		Protocol:        protocol,
+		ContainerPort:   containerPort,
+		RemoteIps:       []string{"0.0.0.0/0"},
+		FirstPortOffset: nil,
+	}
+}
+
+func newTCPPortMapping(containerPort int) llmapi.PortMapping {
+	return newPortMapping(string(computeapi.PodPortMappingProtocolTCP), containerPort)
+}
 
 var (
 	clusterDefaultMutex sync.Mutex = sync.Mutex{}
