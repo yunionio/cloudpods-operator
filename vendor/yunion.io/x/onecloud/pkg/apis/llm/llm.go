@@ -55,7 +55,8 @@ type MountedModelInfo struct {
 type LLMListDetails struct {
 	LLMBaseListDetails
 
-	LLMSku string `json:"llm_sku"`
+	LLMSku  string `json:"llm_sku"`
+	LLMType string `json:"llm_type"`
 
 	MountedModels []MountedModelInfo `json:"mounted_models"`
 }
@@ -76,8 +77,17 @@ type LLMBaseCreateInput struct {
 type LLMCreateInput struct {
 	LLMBaseCreateInput
 
-	LLMSkuId   string
-	LLMImageId string
+	LLMSkuId   string   `json:"llm_sku_id"`
+	LLMImageId string   `json:"llm_image_id"`
+	LLMSpec    *LLMSpec `json:"llm_spec,omitempty"`
+}
+
+// LLMUpdateInput is the request body for updating an LLM (including llm_spec overrides).
+type LLMUpdateInput struct {
+	apis.VirtualResourceBaseUpdateInput
+
+	InstantModelQuotaGb *int     `json:"instant_model_quota_gb,omitempty"`
+	LLMSpec             *LLMSpec `json:"llm_spec,omitempty"`
 }
 
 type LLMBaseListInput struct {
@@ -100,8 +110,10 @@ type LLMBaseListInput struct {
 type LLMListInput struct {
 	LLMBaseListInput
 
-	LLMSku   string `json:"llm_sku"`
-	LLMImage string `json:"llm_image"`
+	LLMSku   string   `json:"llm_sku"`
+	LLMImage string   `json:"llm_image"`
+	LLMTypes []string `json:"llm_types"` // filter by linked SKU's llm_types (e.g. [dify, openclaw])
+	LLMType  string   `json:"llm_type"`  // filter by linked SKU's llm_type (e.g. dify)
 }
 
 type ModelInfo struct {
@@ -171,4 +183,46 @@ func (info LLMMountDirInfo) ToOverlay() apis.ContainerVolumeMountDiskPostOverlay
 }
 
 type LLMSyncStatusInput struct {
+}
+
+type LLMRestartInput struct {
+}
+
+type LLMRestartTaskInput struct {
+	LLMId         string
+	ResetDataDisk bool
+	LLMStatus     string
+	SkuId         string
+	ImageId       string
+	BackupName    string
+	Property      []string
+
+	RebindVolumeId string
+	OnlyStop       bool
+}
+
+type LLMChangeNetworkInput struct {
+	BandwidthMb   int      `json:"bandwidth_mb"`
+	WhitePrefxies []string `json:"white_prefxies"`
+}
+
+type LLMVolumeInput struct {
+	LLMId     string `json:"llm_id"`
+	VolumeId  string `json:"volume_id"`
+	AutoStart bool   `json:"auto_start"`
+}
+
+type LLMAccessUrlInfo struct {
+	LoginUrl    string `json:"login_url"`
+	PublicUrl   string `json:"public_url"`
+	InternalUrl string `json:"internal_url"`
+}
+
+// LLMAccessInfo is the response for GET /llms/<id>/login-info: login URL and credentials.
+type LLMAccessInfo struct {
+	LLMAccessUrlInfo
+
+	Username string            `json:"username,omitempty"`
+	Password string            `json:"password,omitempty"`
+	Extra    map[string]string `json:"extra,omitempty"`
 }
