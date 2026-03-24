@@ -67,10 +67,10 @@ const (
 	DefaultNotifyPluginsImageName = "notify-plugins"
 
 	DefaultHostImageName = "host-image"
-	DefaultHostImageTag  = "v1.0.7"
+	DefaultHostImageTag  = "v1.0.8"
 
 	DefaultHostHealthName = "host-health"
-	DefaultHostHealthTag  = "v0.0.3"
+	DefaultHostHealthTag  = "v0.0.4"
 
 	DefaultInfluxdbImageVersion = "1.7.7"
 
