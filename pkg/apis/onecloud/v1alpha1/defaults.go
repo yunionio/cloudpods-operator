@@ -90,12 +90,24 @@ const (
 )
 
 const (
+	DefaultVllmImageTag = "v0.15.1"
+
 	DefaultOpenclawImageTag = "v2026.3.12-20260320.1"
 )
 
 const (
-	DefaultOllamaImageName  = "ollama-0.15.1"
-	DefaultComfyuiImageName = "comfyui-boot-cu128-slim"
+	DefaultOllamaImageName       = "ollama-0.15.1"
+	DefaultVllmImageName         = "vllm-openai-v0.15.1"
+	DefaultDifyNginxImageName    = "nginx-stable-alpine"
+	DefaultDifyRedisImageName    = "redis-6-alpine"
+	DefaultDifyPostgresImageName = "postgres-15-alpine"
+	DefaultDifyApiImageName      = "dify-api-1.7.2"
+	DefaultDifySandboxImageName  = "dify-sandbox-0.2.12"
+	DefaultDifyPluginImageName   = "dify-plugin-daemon-0.2.0-local"
+	DefaultDifyWebImageName      = "dify-web-1.7.2"
+	DefaultDifySSRFImageName     = "squid-5.2-22.04_beta"
+	DefaultDifyWeaviateImageName = "weaviate-1.19.0"
+	DefaultComfyuiImageName      = "comfyui-boot-cu128-slim"
 )
 
 var (
@@ -105,15 +117,16 @@ var (
 var (
 	DefaultLLMImages = []llmapi.LLMImageCreateInput{
 		newLLMImage(DefaultOllamaImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/ollama", "0.15.1", "ollama"),
-		newLLMImage("nginx-stable-alpine", "registry.cn-beijing.aliyuncs.com/cloudpods/nginx", "stable-alpine", "dify"),
-		newLLMImage("redis-6-alpine", "registry.cn-beijing.aliyuncs.com/cloudpods/redis", "6-alpine", "dify"),
-		newLLMImage("postgres-15-alpine", "registry.cn-beijing.aliyuncs.com/cloudpods/postgres", "15-alpine", "dify"),
-		newLLMImage("dify-api-1.7.2", "registry.cn-beijing.aliyuncs.com/cloudpods/dify-api", "1.7.2", "dify"),
-		newLLMImage("dify-sandbox-0.2.12", "registry.cn-beijing.aliyuncs.com/cloudpods/dify-sandbox", "0.2.12", "dify"),
-		newLLMImage("dify-plugin-daemon-0.2.0-local", "registry.cn-beijing.aliyuncs.com/cloudpods/dify-plugin-daemon", "0.2.0-local", "dify"),
-		newLLMImage("dify-web-1.7.2", "registry.cn-beijing.aliyuncs.com/cloudpods/dify-web", "1.7.2", "dify"),
-		newLLMImage("squid-5.2-22.04_beta", "registry.cn-beijing.aliyuncs.com/cloudpods/squid", "5.2-22.04_beta", "dify"),
-		newLLMImage("weaviate-1.19.0", "registry.cn-beijing.aliyuncs.com/cloudpods/weaviate", "1.19.0", "dify"),
+		// newLLMImage(DefaultVllmImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/vllm-openai", DefaultVllmImageTag, "vllm"),
+		newLLMImage(DefaultDifyNginxImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/nginx", "stable-alpine", "dify"),
+		newLLMImage(DefaultDifyRedisImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/redis", "6-alpine", "dify"),
+		newLLMImage(DefaultDifyPostgresImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/postgres", "15-alpine", "dify"),
+		newLLMImage(DefaultDifyApiImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/dify-api", "1.7.2", "dify"),
+		newLLMImage(DefaultDifySandboxImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/dify-sandbox", "0.2.12", "dify"),
+		newLLMImage(DefaultDifyPluginImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/dify-plugin-daemon", "0.2.0-local", "dify"),
+		newLLMImage(DefaultDifyWebImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/dify-web", "1.7.2", "dify"),
+		newLLMImage(DefaultDifySSRFImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/squid", "5.2-22.04_beta", "dify"),
+		newLLMImage(DefaultDifyWeaviateImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/weaviate", "1.19.0", "dify"),
 		newLLMImage(DefaultComfyuiImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/comfyui-boot", "cu128-slim.20260324.0", "comfyui"),
 		newLLMImage(DefaultOpenclawImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/openclaw", DefaultOpenclawImageTag, "openclaw"),
 	}
@@ -121,8 +134,26 @@ var (
 		newLLMSkuWithPortMappings("ollama-4c4g", 4, 4096, 40960, 1000, DefaultOllamaImageName, "ollama", &llmapi.PortMappings{
 			newTCPPortMapping(11434),
 		}),
+		// newLLMSkuWithPortMappings("vllm-8c16g", 8, 16384, 40960, 1000, DefaultVllmImageName, "vllm", &llmapi.PortMappings{
+		// 	newTCPPortMapping(8000),
+		// }),
 		newLLMSkuWithPortMappings(fmt.Sprintf("%s-4c4g", DefaultOpenclawImageName), 4, 4096, 40960, 1000, DefaultOpenclawImageName, "openclaw", &llmapi.PortMappings{
 			newTCPPortMapping(3001),
+		}),
+		newLLMSkuWithSpecAndPortMappings("dify-4c8g", 4, 8192, 40960, 1000, DefaultDifyApiImageName, "dify", &llmapi.LLMSpec{
+			Dify: &llmapi.LLMSpecDify{
+				PostgresImageId:     DefaultDifyPostgresImageName,
+				RedisImageId:        DefaultDifyRedisImageName,
+				NginxImageId:        DefaultDifyNginxImageName,
+				DifyApiImageId:      DefaultDifyApiImageName,
+				DifyPluginImageId:   DefaultDifyPluginImageName,
+				DifyWebImageId:      DefaultDifyWebImageName,
+				DifySandboxImageId:  DefaultDifySandboxImageName,
+				DifySSRFImageId:     DefaultDifySSRFImageName,
+				DifyWeaviateImageId: DefaultDifyWeaviateImageName,
+			},
+		}, &llmapi.PortMappings{
+			newTCPPortMapping(80),
 		}),
 		newLLMSkuWithPortMappings("comfyui-8c16g", 8, 16384, 40960, 1000, DefaultComfyuiImageName, "comfyui", &llmapi.PortMappings{
 			newTCPPortMapping(8188),
@@ -1019,10 +1050,14 @@ func newLLMImage(name, imageName, imageLabel, llmType string) llmapi.LLMImageCre
 }
 
 func newLLMSku(name string, cpu, memory, diskSize int, bandwidth int, imageId, llmType string) llmapi.LLMSkuCreateInput {
-	return newLLMSkuWithPortMappings(name, cpu, memory, diskSize, bandwidth, imageId, llmType, nil)
+	return newLLMSkuWithSpecAndPortMappings(name, cpu, memory, diskSize, bandwidth, imageId, llmType, nil, nil)
 }
 
 func newLLMSkuWithPortMappings(name string, cpu, memory, diskSize int, bandwidth int, imageId, llmType string, portMappings *llmapi.PortMappings) llmapi.LLMSkuCreateInput {
+	return newLLMSkuWithSpecAndPortMappings(name, cpu, memory, diskSize, bandwidth, imageId, llmType, nil, portMappings)
+}
+
+func newLLMSkuWithSpecAndPortMappings(name string, cpu, memory, diskSize int, bandwidth int, imageId, llmType string, llmSpec *llmapi.LLMSpec, portMappings *llmapi.PortMappings) llmapi.LLMSkuCreateInput {
 	// 初始化 Volume
 	vol := llmapi.Volume{
 		SizeMB:      diskSize,
@@ -1056,5 +1091,6 @@ func newLLMSkuWithPortMappings(name string, cpu, memory, diskSize int, bandwidth
 		},
 		LLMImageId: imageId,
 		LLMType:    llmType,
+		LLMSpec:    llmSpec,
 	}
 }
