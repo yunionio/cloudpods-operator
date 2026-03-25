@@ -114,7 +114,7 @@ var (
 		newLLMImage("dify-web-1.7.2", "registry.cn-beijing.aliyuncs.com/cloudpods/dify-web", "1.7.2", "dify"),
 		newLLMImage("squid-5.2-22.04_beta", "registry.cn-beijing.aliyuncs.com/cloudpods/squid", "5.2-22.04_beta", "dify"),
 		newLLMImage("weaviate-1.19.0", "registry.cn-beijing.aliyuncs.com/cloudpods/weaviate", "1.19.0", "dify"),
-		newLLMImage(DefaultComfyuiImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/comfyui-boot", "cu128-slim", "comfyui"),
+		newLLMImage(DefaultComfyuiImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/comfyui-boot", "cu128-slim.20260324.0", "comfyui"),
 		newLLMImage(DefaultOpenclawImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/openclaw", DefaultOpenclawImageTag, "openclaw"),
 	}
 	DefaultLLMSku = []llmapi.LLMSkuCreateInput{
