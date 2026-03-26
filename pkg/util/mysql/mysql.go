@@ -191,7 +191,7 @@ func (conn *Connection) Grant(username string, password string, database string,
 		database = "*"
 	}
 	{
-		sql := fmt.Sprintf("CREATE USER '%s'@'%s' IDENTIFIED BY '%s'", username, address, password)
+		sql := fmt.Sprintf("CREATE USER IF NOT EXISTS '%s'@'%s' IDENTIFIED BY '%s'", username, address, password)
 		_, err := conn.db.Exec(sql)
 		if err != nil {
 			return errors.Wrap(err, sql)
@@ -203,6 +203,7 @@ func (conn *Connection) Grant(username string, password string, database string,
 		if err != nil {
 			return errors.Wrap(err, sql)
 		}
+		conn.db.Exec("FLUSH PRIVILEGES")
 	}
 	return nil
 }
