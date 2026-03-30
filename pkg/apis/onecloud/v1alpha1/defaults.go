@@ -92,7 +92,7 @@ const (
 const (
 	DefaultVllmImageTag = "v0.15.1"
 
-	DefaultOpenclawImageTag = "v2026.3.12-20260326.2"
+	DefaultOpenclawImageTag = "v2026.3.24-20260327.0"
 )
 
 const (
