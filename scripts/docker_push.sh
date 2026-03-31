@@ -41,6 +41,8 @@ get_current_arch() {
     echo $current_arch
 }
 
+ALLARCH=("amd64" "arm64" "riscv64")
+
 pushd $(cd "$(dirname "$0")"; pwd) > /dev/null
 readlink_mac $(basename "$0")
 cd "$(dirname "$REAL_PATH")"
@@ -88,10 +90,8 @@ get_image_name() {
     local arch=$2
     local is_all_arch=$3
     local img_name="$REGISTRY/$component:$TAG"
-    if [[ -n "$arch" ]]; then
-        if [[ "$is_all_arch" == "true" || "$arch" != "$CURRENT_ARCH" ]]; then
-            img_name="${img_name}-$arch"
-        fi
+    if [[ -n "$arch" && "$is_all_arch" == "true" ]]; then
+        img_name="${img_name}-$arch"
     fi
     echo $img_name
 }
@@ -103,9 +103,6 @@ build_process_with_buildx() {
     local img_name=$(get_image_name $component $arch $is_all_arch)
 
     build_env="GOARCH=$arch "
-    if [[ $arch == arm64 ]]; then
-        build_env="$build_env CC=aarch64-linux-musl-gcc"
-    fi
 	build_bin $component $build_env
     if [[ "$DRY_RUN" == "true" ]]; then
         echo "[$(readlink -f ${BASH_SOURCE}):${LINENO} ${FUNCNAME[0]}] return for DRY_RUN"
@@ -116,15 +113,20 @@ build_process_with_buildx() {
 
 make_manifest_image() {
     local component=$1
+    local arch=$2
     local img_name=$(get_image_name $component "" "false")
     if [[ "$DRY_RUN" == "true" ]]; then
         echo "[$(readlink -f ${BASH_SOURCE}):${LINENO} ${FUNCNAME[0]}] return for DRY_RUN"
         return
     fi
-    docker buildx imagetools create -t $img_name \
-        $img_name-amd64 \
-        $img_name-arm64 \
-        $img_name-riscv64
+    CMD="docker buildx imagetools create -t ${img_name} "
+    for ac in "${ALLARCH[@]}"; do
+        if [[ "${arch}" == "all" || "${arch}" == *"$ac"* ]]; then
+            CMD="${CMD} ${img_name}-${ac}"
+        fi
+    done
+    echo "$CMD"
+    $CMD
 }
 
 cd $SRC_DIR
@@ -147,34 +149,27 @@ fi
 
 echo COMPONENTS ${COMPONENTS[@]}
 for component in $COMPONENTS; do
-    case "$ARCH" in
-        all)
-            for arch in "arm64" "amd64" "riscv64"; do
-                build_process_with_buildx $component $arch "true"
-            done
-            make_manifest_image $component
-            ;;
-        *)
-            build_process_with_buildx $component $ARCH "false"
-            ;;
-    esac
+    multiarch=""
+    for ac in "${ALLARCH[@]}"; do
+        if [[ "$ARCH" == "$ac" ]]; then
+            # single arch
+            build_process_with_buildx $component $ac "false"
+        elif [[ "$ARCH" == "all" || "$ARCH" == *"$ac"* ]]; then
+            multiarch="true"
+            build_process_with_buildx $component $ac "true"
+        fi
+    done
+    if [[ "$multiarch" == "true" ]]; then
+        make_manifest_image $component $ARCH
+    fi
 done
 
 show_update_cmd() {
     local component=$1
-    local arch=$2
-    local is_all_arch="false"
-    if [[ $arch == all ]]; then
-        is_all_arch="true"
-    fi
-
-    if [[ "$arch" == "all" ]]; then
-        arch=
-    fi
-    local img_name=$(get_image_name "$component" "$arch" "$is_all_arch")
+    local img_name=$(get_image_name "$component" "" "true")
     echo "kubectl patch deployments -n onecloud onecloud-operator --type='json' -p='[{op: replace, path: /spec/template/spec/containers/0/image, value: ${img_name}}]'"
 }
 
 for component in $COMPONENTS; do
-    show_update_cmd $component $ARCH
+    show_update_cmd $component
 done
