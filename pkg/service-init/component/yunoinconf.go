@@ -271,7 +271,7 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 		setupKeysEdge := []string{
 			"onecloud",
 			"onestack",
-			"pod",
+			// "pod",
 			"baremetal",
 			"lb",
 			FEAT_VMWARE,
@@ -280,7 +280,7 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 		setupKeysLightEdge := []string{
 			"onecloud",
 			"onestack",
-			"pod",
+			// "pod",
 		}
 		setupKeysBaremetal := []string{
 			"onecloud",
