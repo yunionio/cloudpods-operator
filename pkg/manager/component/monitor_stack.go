@@ -61,6 +61,10 @@ func (m *monitorStackManager) IsDisabled(oc *v1alpha1.OnecloudCluster) bool {
 }
 
 func (m *monitorStackManager) Sync(oc *v1alpha1.OnecloudCluster) error {
+	if m.IsDisabled(oc) {
+		return nil
+	}
+
 	clustercfg, err := m.configer.GetClusterConfig(oc)
 	if err != nil {
 		return errors.Wrap(err, "get cluster config for grafana")
