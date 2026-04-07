@@ -20,7 +20,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/rand"
 
 	"yunion.io/x/log"
 	"yunion.io/x/pkg/utils"
@@ -192,7 +191,7 @@ func SetDefaults_OnecloudCluster(obj *OnecloudCluster) {
 		if existingLabels == nil {
 			existingLabels = make(map[string]string)
 		}
-		existingLabels[constants.InstanceLabelKey] = fmt.Sprintf("onecloud-cluster-%s", rand.String(4))
+		existingLabels[constants.InstanceLabelKey] = fmt.Sprintf("onecloud-cluster-%s", obj.GetName())
 		obj.SetLabels(existingLabels)
 	}
 
