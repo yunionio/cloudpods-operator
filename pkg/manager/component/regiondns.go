@@ -34,7 +34,26 @@ import (
 
 const (
 	RegionDNSConfigTemplate = `.:53 {
-    cache {{.CacheTtl}}
+    cancel
+    whoami
+    bufsize 1232
+    log {
+        class error
+    }
+    errors
+    ready
+    local
+    loadbalance round_robin
+
+    cache {{.CacheTtl}} {
+        success 4096
+        denial  1024
+        prefetch 512
+        serve_stale
+        servfail 0
+    }
+    loop
+    reload
 
     yunion . {
         sql_connection {{.SQLConnection}}
@@ -54,13 +73,10 @@ const (
 
     {{- range .Proxies }}
 
-    proxy {{.From}} {{.To}} {
+    forward {{.From}} {{.To}} {
+        max_fails 5
     }
     {{- end }}
-
-    log {
-        class error
-    }
 }`
 )
 
