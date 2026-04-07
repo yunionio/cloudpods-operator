@@ -373,6 +373,15 @@ func (m *ComponentManager) syncDaemonSet(
 }
 
 func (m *ComponentManager) updateDaemonSet(oc *v1alpha1.OnecloudCluster, newDs, oldDs *apps.DaemonSet) error {
+	// If selector has changed (e.g. instance label changed), the DaemonSet must be
+	// deleted and recreated because Kubernetes does not allow selector updates.
+	if !selectorMatchesLabels(oldDs.Spec.Selector, newDs.Spec.Template.Labels) {
+		log.Infof("DaemonSet %s selector does not match new template labels, deleting for recreation", oldDs.Name)
+		if err := m.dsControl.DeleteDaemonSet(oc, oldDs); err != nil {
+			return err
+		}
+		return m.dsControl.CreateDaemonSet(oc, newDs)
+	}
 	if !daemonSetEqual(newDs, oldDs) {
 		ds := *oldDs
 		ds.Spec.Template = newDs.Spec.Template
@@ -551,6 +560,18 @@ func (m *ComponentManager) syncDeployment(
 }
 
 func (m *ComponentManager) updateDeployment(oc *v1alpha1.OnecloudCluster, newDeploy, oldDeploy *apps.Deployment) error {
+	// If selector has changed (e.g. instance label changed), the Deployment must be
+	// deleted and recreated because Kubernetes does not allow selector updates.
+	if !selectorMatchesLabels(oldDeploy.Spec.Selector, newDeploy.Spec.Template.Labels) {
+		log.Infof("Deployment %s selector does not match new template labels, deleting for recreation", oldDeploy.Name)
+		if err := m.deployControl.DeleteDeployment(oc, oldDeploy.Name); err != nil {
+			return err
+		}
+		if err := SetDeploymentLastAppliedConfigAnnotation(newDeploy); err != nil {
+			return err
+		}
+		return m.deployControl.CreateDeployment(oc, newDeploy)
+	}
 	if !deploymentEqual(*newDeploy, *oldDeploy) {
 		deploy := *oldDeploy
 		deploy.Spec.Template = newDeploy.Spec.Template

@@ -238,6 +238,23 @@ func daemonSetEqual(new, old *apps.DaemonSet) bool {
 	return false
 }
 
+// selectorMatchesLabels checks whether all key-value pairs in the selector's
+// MatchLabels are present in the given labels. This is used to detect when a
+// DaemonSet or Deployment's immutable selector no longer matches the desired
+// template labels (e.g. after the instance label is regenerated).
+func selectorMatchesLabels(selector *v1.LabelSelector, labels map[string]string) bool {
+	if selector == nil {
+		return true
+	}
+	for k, v := range selector.MatchLabels {
+		labelVal, exists := labels[k]
+		if !exists || labelVal != v {
+			return false
+		}
+	}
+	return true
+}
+
 func cronJobEqual(new, old *batchv1.CronJob) bool {
 	oldConfig := batchv1.CronJob{}
 	if LastAppliedConfig, ok := old.Annotations[LastAppliedConfigAnnotation]; ok {
