@@ -1284,6 +1284,9 @@ func (m *ComponentManager) applyHostComponentAntiEviction(ds *apps.DaemonSet) {
 	if ds == nil {
 		return
 	}
+	if !m.clusterVersion.IsGreatOrEqualThanV120() {
+		return
+	}
 	ds.Spec.Template.Spec.PriorityClassName = "system-node-critical"
 }
 
