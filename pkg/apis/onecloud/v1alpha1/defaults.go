@@ -92,6 +92,8 @@ const (
 	DefaultVllmImageTag = "v0.15.1"
 
 	DefaultOpenclawImageTag = "v2026.3.24-20260327.0"
+
+	DefaultHermesAgentImageTag = "v2026.4.23-20260424.0"
 )
 
 const (
@@ -110,7 +112,8 @@ const (
 )
 
 var (
-	DefaultOpenclawImageName = fmt.Sprintf("openclaw-%s", DefaultOpenclawImageTag)
+	DefaultOpenclawImageName     = fmt.Sprintf("openclaw-%s", DefaultOpenclawImageTag)
+	DefaultHermesAgentImageName  = fmt.Sprintf("hermes-%s", DefaultHermesAgentImageTag)
 )
 
 var (
@@ -128,6 +131,7 @@ var (
 		newLLMImage(DefaultDifyWeaviateImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/weaviate", "1.19.0", "dify"),
 		newLLMImage(DefaultComfyuiImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/comfyui-boot", "cu128-slim.20260324.0", "comfyui"),
 		newLLMImage(DefaultOpenclawImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/openclaw", DefaultOpenclawImageTag, "openclaw"),
+		newLLMImage(DefaultHermesAgentImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/hermes", DefaultHermesAgentImageTag, "hermes-agent"),
 	}
 	DefaultLLMSku = []llmapi.LLMSkuCreateInput{
 		newLLMSkuWithPortMappings("ollama-4c4g", 4, 4096, 40960, 1000, DefaultOllamaImageName, "ollama", &llmapi.PortMappings{
@@ -156,6 +160,9 @@ var (
 		}),
 		newLLMSkuWithPortMappings("comfyui-8c16g", 8, 16384, 40960, 1000, DefaultComfyuiImageName, "comfyui", &llmapi.PortMappings{
 			newTCPPortMapping(8188),
+		}),
+		newLLMSkuWithPortMappings(fmt.Sprintf("%s-4c4g", DefaultHermesAgentImageName), 4, 4096, 40960, 1000, DefaultHermesAgentImageName, "hermes-agent", &llmapi.PortMappings{
+			newTCPPortMapping(3001),
 		}),
 	}
 )
