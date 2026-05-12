@@ -1155,8 +1155,8 @@ func InitLLMSku(s *mcclient.ClientSession, skus []llmapi.LLMSkuCreateInput) erro
 			return errors.Errorf("memory is required for sku at index %d", i)
 		}
 
-		// openclaw and dify types do not require devices (no GPU)
-		if input.LLMType != "openclaw" && input.LLMType != "dify" {
+		// openclaw / dify / hermes-agent types do not require devices (no GPU)
+		if input.LLMType != "openclaw" && input.LLMType != "dify" && input.LLMType != "hermes-agent" {
 			input.Devices = &devices
 		}
 
