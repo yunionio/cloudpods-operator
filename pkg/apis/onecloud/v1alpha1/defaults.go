@@ -119,7 +119,7 @@ var (
 var (
 	DefaultLLMImages = []llmapi.LLMImageCreateInput{
 		newLLMImage(DefaultOllamaImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/ollama", "0.15.1", "ollama"),
-		// newLLMImage(DefaultVllmImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/vllm-openai", DefaultVllmImageTag, "vllm"),
+		newLLMImage(DefaultVllmImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/vllm-openai", DefaultVllmImageTag, "vllm"),
 		newLLMImage(DefaultDifyNginxImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/nginx", "stable-alpine", "dify"),
 		newLLMImage(DefaultDifyRedisImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/redis", "6-alpine", "dify"),
 		newLLMImage(DefaultDifyPostgresImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/postgres", "15-alpine", "dify"),
@@ -137,9 +137,9 @@ var (
 		newLLMSkuWithPortMappings("ollama-4c4g", 4, 4096, 40960, 1000, DefaultOllamaImageName, "ollama", &llmapi.PortMappings{
 			newTCPPortMapping(11434),
 		}),
-		// newLLMSkuWithPortMappings("vllm-8c16g", 8, 16384, 40960, 1000, DefaultVllmImageName, "vllm", &llmapi.PortMappings{
-		// 	newTCPPortMapping(8000),
-		// }),
+		newLLMSkuWithPortMappings("vllm-4c8g", 4, 8192, 40960, 1000, DefaultVllmImageName, "vllm", &llmapi.PortMappings{
+			newTCPPortMapping(8000),
+		}),
 		newLLMSkuWithPortMappings(fmt.Sprintf("%s-4c4g", DefaultOpenclawImageName), 4, 4096, 40960, 1000, DefaultOpenclawImageName, "openclaw", &llmapi.PortMappings{
 			newTCPPortMapping(3001),
 		}),
