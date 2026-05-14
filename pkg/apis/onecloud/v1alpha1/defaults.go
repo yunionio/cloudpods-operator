@@ -89,7 +89,7 @@ const (
 )
 
 const (
-	DefaultVllmImageTag = "v0.15.1"
+	DefaultVllmImageTag = "v0.17.0-x86_64-cu130"
 
 	DefaultOpenclawImageTag = "v2026.3.24-20260327.0"
 
@@ -112,8 +112,8 @@ const (
 )
 
 var (
-	DefaultOpenclawImageName     = fmt.Sprintf("openclaw-%s", DefaultOpenclawImageTag)
-	DefaultHermesAgentImageName  = fmt.Sprintf("hermes-%s", DefaultHermesAgentImageTag)
+	DefaultOpenclawImageName    = fmt.Sprintf("openclaw-%s", DefaultOpenclawImageTag)
+	DefaultHermesAgentImageName = fmt.Sprintf("hermes-%s", DefaultHermesAgentImageTag)
 )
 
 var (
