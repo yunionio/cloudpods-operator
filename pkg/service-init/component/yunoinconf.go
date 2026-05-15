@@ -30,6 +30,9 @@ const (
 
 	FEAT_VMWARE  = "vmware"
 	FEAT_PROXMOX = "proxmox"
+
+	FEAT_POD = "pod"
+	FEAT_AI  = "ai"
 )
 
 type yunionconfSvc struct {
@@ -289,7 +292,8 @@ func (pc *yunionconfPC) SystemInit(oc *v1alpha1.OnecloudCluster) error {
 		setupKeysAI := []string{
 			"onecloud",
 			"onestack",
-			"pod",
+			FEAT_POD,
+			FEAT_AI,
 		}
 		setupKeysFull := []string{}
 		setupKeysFull = append(setupKeysFull, setupKeysCmp...)
