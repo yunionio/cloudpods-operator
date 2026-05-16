@@ -146,20 +146,37 @@ func (conn *Connection) isUserExists(username string, host string) (bool, error)
 	return true, nil
 }
 
-func (conn *Connection) DropUserByHosts(username string, hosts []string) error {
+func (conn *Connection) dropUserByHosts(username string, hosts []string) error {
 	for _, host := range hosts {
-		if err := conn.DropUserByHost(username, host); err != nil {
+		if err := conn.dropUserByHost(username, host); err != nil {
 			return errors.Wrapf(err, "drop user %s@%s", username, host)
 		}
 	}
 	return nil
 }
 
-func (conn *Connection) DropUser(username string) error {
-	return conn.DropUserByHosts(username, allHosts)
+func (conn *Connection) dropUser(username string) error {
+	rows, err := conn.db.Query("SELECT host FROM mysql.user WHERE user = ?", username)
+	if err != nil {
+		return errors.Wrapf(err, "drop user %s", username)
+	}
+	defer rows.Close()
+	hosts := []string{}
+	for rows.Next() {
+		var host string
+		err := rows.Scan(&host)
+		if err != nil {
+			return errors.Wrapf(err, "fetch user %s hosts", username)
+		}
+		hosts = append(hosts, host)
+	}
+	if len(hosts) == 0 {
+		return nil
+	}
+	return conn.dropUserByHosts(username, hosts)
 }
 
-func (conn *Connection) DropUserByHost(username string, address string) error {
+func (conn *Connection) dropUserByHost(username string, address string) error {
 	exists, err := conn.isUserExists(username, address)
 	if err != nil {
 		return errors.Wrapf(err, "drop user %s@%s check exists", username, address)
@@ -179,7 +196,7 @@ func (conn *Connection) DropUserByHost(username string, address string) error {
 	return nil
 }
 
-func (conn *Connection) Grant(username string, password string, database string, address string) error {
+func (conn *Connection) grant(username string, password string, database string, address string) error {
 	if address == "" {
 		address = "%"
 	}
@@ -187,7 +204,7 @@ func (conn *Connection) Grant(username string, password string, database string,
 		database = "*"
 	}
 	{
-		sql := fmt.Sprintf("CREATE USER IF NOT EXISTS '%s'@'%s' IDENTIFIED BY '%s'", username, address, password)
+		sql := fmt.Sprintf("CREATE USER '%s'@'%s' IDENTIFIED BY '%s'", username, address, password)
 		_, err := conn.db.Exec(sql)
 		if err != nil {
 			return errors.Wrap(err, sql)
@@ -212,12 +229,11 @@ func (conn *Connection) UpdateUser(username string, password string, database st
 	if database == "" {
 		database = "*"
 	}
-	addrs := allHosts
-	if err := conn.DropUser(username); err != nil {
+	if err := conn.dropUser(username); err != nil {
 		return errors.Wrapf(err, "Delete user %s", username)
 	}
-	for _, addr := range addrs {
-		if err := conn.Grant(username, password, database, addr); err != nil {
+	for _, addr := range allHosts {
+		if err := conn.grant(username, password, database, addr); err != nil {
 			return errors.Wrapf(err, "Grant user %s@%s to database %s", username, addr, database)
 		}
 	}
