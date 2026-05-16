@@ -41,17 +41,18 @@ image_keyword=${IMAGE_KEYWORD}
 
 build_bin() {
     local component="$1"; shift
-    local BUILD_ARCH="$1";
+    local ARCH="$1";
     local BUILD_CC="$2";
     local BUILD_CGO="$3"
 
 	docker run --rm \
+        --platform linux/$ARCH \
         -v $SRC_DIR:/root/go/src/yunion.io/x/$PROJ \
         -v $SRC_DIR/_output/alpine-build:/root/go/src/yunion.io/x/$PROJ/_output \
         -v $SRC_DIR/_output/alpine-build/_cache:/root/.cache \
         registry.cn-beijing.aliyuncs.com/yunionio/alpine-build:3.19.0-go-1.21.10-0 \
         /bin/sh -c "set -ex; git config --global --add safe.directory /root/go/src/yunion.io/x/$PROJ; cd /root/go/src/yunion.io/x/$PROJ;
-        $BUILD_ARCH $BUILD_CC $BUILD_CGO SHELL='sh -x' GOOS=linux make $component;
+        GOARCH=$ARCH $BUILD_CC $BUILD_CGO SHELL='sh -x' GOOS=linux make $component;
         chown -R $(id -u):$(id -g) _output;
         find _output/bin -type f |xargs ls -lah"
 }
@@ -111,11 +112,7 @@ build_process_with_buildx() {
     local is_all_arch=$3
     local img_name=$(get_image_name $component $arch $is_all_arch)
 
-    build_env="GOARCH=$arch "
-    if [[ $arch == arm64 ]]; then
-        build_env="$build_env CC=aarch64-linux-musl-gcc"
-    fi
-	build_bin $component $build_env
+	build_bin $component $arch
     if [[ "$DRY_RUN" == "true" ]]; then
         echo "[$(readlink -f ${BASH_SOURCE}):${LINENO} ${FUNCNAME[0]}] return for DRY_RUN"
         return
