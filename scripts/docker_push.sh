@@ -66,7 +66,6 @@ build_bin() {
     local BUILD_CGO="$3"
 
 	docker run --rm \
-        --platform linux/$ARCH \
         -v $SRC_DIR:/root/go/src/yunion.io/x/$PROJ \
         -v $SRC_DIR/_output/alpine-build:/root/go/src/yunion.io/x/$PROJ/_output \
         -v $SRC_DIR/_output/alpine-build/_cache:/root/.cache \
