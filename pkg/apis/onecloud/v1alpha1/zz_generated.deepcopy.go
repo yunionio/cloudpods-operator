@@ -1437,6 +1437,7 @@ func (in *OnecloudClusterConfig) DeepCopyInto(out *OnecloudClusterConfig) {
 	out.Extdb = in.Extdb
 	out.LLM = in.LLM
 	out.McpServer = in.McpServer
+	out.AiProxy = in.AiProxy
 	return
 }
 
@@ -1564,6 +1565,7 @@ func (in *OnecloudClusterSpec) DeepCopyInto(out *OnecloudClusterSpec) {
 	in.Extdb.DeepCopyInto(&out.Extdb)
 	in.LLM.DeepCopyInto(&out.LLM)
 	in.McpServer.DeepCopyInto(&out.McpServer)
+	in.AiProxy.DeepCopyInto(&out.AiProxy)
 	return
 }
 
@@ -1620,6 +1622,7 @@ func (in *OnecloudClusterStatus) DeepCopyInto(out *OnecloudClusterStatus) {
 	in.Extdb.DeepCopyInto(&out.Extdb)
 	in.LLM.DeepCopyInto(&out.LLM)
 	in.McpServer.DeepCopyInto(&out.McpServer)
+	in.AiProxy.DeepCopyInto(&out.AiProxy)
 	return
 }
 

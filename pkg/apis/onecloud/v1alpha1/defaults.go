@@ -311,6 +311,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool, isEEOr
 		BillingComponentType:         nHP(&obj.Billing.DeploymentSpec, useHyperImage),
 		LLMComponentType:             nHP(&obj.LLM.DeploymentSpec, useHyperImage),
 		McpServerComponentType:       nHP(&obj.McpServer.DeploymentSpec, useHyperImage),
+		AiProxyComponentType:         nHP(&obj.AiProxy.DeploymentSpec, useHyperImage),
 	} {
 		SetDefaults_DeploymentSpec(spec.DeploymentSpec, getImage(
 			obj.ImageRepository, spec.Repository,
@@ -598,6 +599,7 @@ func setDefaults_Components_ServicePort(obj *OnecloudClusterSpec) {
 		newSP(&obj.Extdb.Service, constants.ExtdbPort),
 		newSP(&obj.LLM.Service, constants.LLMPort),
 		newSP(&obj.McpServer.Service, constants.McpServerPort),
+		newSP(&obj.AiProxy.Service, constants.AiProxyPort),
 	} {
 		SetDefaults_ServiceSpec(spec.spec, spec.defaultPort)
 	}
@@ -929,6 +931,7 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		&obj.BastionHost:                         {constants.BastionHostAdminUser, constants.BastionHostPort, constants.BastionHostDB, constants.BastionHostDBUser},
 		&obj.Extdb:                               {constants.ExtdbAdminUser, constants.ExtdbPort, constants.ExtdbDB, constants.ExtdbDBUser},
 		&obj.LLM:                                 {constants.LLMAdminUser, constants.LLMPort, constants.LLMDB, constants.LLMDBUser},
+		&obj.AiProxy:                             {constants.AiProxyAdminUser, constants.AiProxyPort, constants.AiProxyDB, constants.AiProxyDBUser},
 	} {
 		if user, ok := registryPorts[tmp.port]; ok {
 			log.Fatalf("port %d has been registered by %s", tmp.port, user)
