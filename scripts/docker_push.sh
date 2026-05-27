@@ -69,7 +69,7 @@ build_bin() {
         -v $SRC_DIR:/root/go/src/yunion.io/x/$PROJ \
         -v $SRC_DIR/_output/alpine-build:/root/go/src/yunion.io/x/$PROJ/_output \
         -v $SRC_DIR/_output/alpine-build/_cache:/root/.cache \
-        registry.cn-beijing.aliyuncs.com/yunionio/alpine-build:3.22.2-go-1.24.9-0 \
+        registry.cn-beijing.aliyuncs.com/yunionio/alpine-build:3.23-go-1.26.3-0 \
         /bin/sh -c "set -ex; git config --global --add safe.directory /root/go/src/yunion.io/x/$PROJ; cd /root/go/src/yunion.io/x/$PROJ;
         GOARCH=$ARCH $BUILD_CC $BUILD_CGO SHELL='sh -x' GOOS=linux make $component;
         chown -R $(id -u):$(id -g) _output;
