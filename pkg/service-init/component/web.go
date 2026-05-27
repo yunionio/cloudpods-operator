@@ -158,6 +158,18 @@ server {
         proxy_read_timeout 600;
     }
 
+    location ^~ /ai {
+        proxy_pass {{.AiProxyURL}};
+        proxy_redirect   off;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+        proxy_http_version 1.1;
+        proxy_buffering off;
+        proxy_read_timeout 600;
+    }
+
     location /api/s/image/v1/images {
         client_max_body_size 0;
         client_body_timeout 300;
@@ -292,6 +304,7 @@ type WebNginxConfig struct {
 	APIGatewayWsURL string
 	APIGatewayURL   string
 	GlanceURL       string
+	AiProxyURL      string
 	UseHTTP         bool
 	EnableIPv6      bool
 }
@@ -319,6 +332,7 @@ func (w web) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClust
 		APIGatewayWsURL: urlF(v1alpha1.APIGatewayComponentType, constants.APIWebsocketPort),
 		APIGatewayURL:   urlF(v1alpha1.APIGatewayComponentType, constants.APIGatewayPort),
 		GlanceURL:       urlF(v1alpha1.GlanceComponentType, constants.GlanceAPIPort),
+		AiProxyURL:      urlF(v1alpha1.AiProxyComponentType, constants.AiProxyPort),
 		UseHTTP:         oc.Spec.Web.UseHTTP,
 		EnableIPv6:      oc.Spec.IPv6Cluster,
 	}

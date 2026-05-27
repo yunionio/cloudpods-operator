@@ -1792,6 +1792,10 @@ func (m *ComponentManager) McpServer() manager.Manager {
 	return newMcpServerManager(m)
 }
 
+func (m *ComponentManager) AiProxy() manager.Manager {
+	return newAiProxyManager(m)
+}
+
 func setSelfAntiAffnity(deploy *apps.Deployment, component v1alpha1.ComponentType) *apps.Deployment {
 	if deploy.Spec.Template.Spec.Affinity == nil {
 		deploy.Spec.Template.Spec.Affinity = new(corev1.Affinity)

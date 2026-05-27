@@ -457,6 +457,14 @@ const (
 	McpServerAdminUser    = "mcp-server-admin"
 	McpServerAdminProject = SysAdminProject
 	McpServerPort         = 30876
+
+	ServiceNameAiProxy  = "aiproxy"
+	ServiceTypeAiProxy  = "aiproxy"
+	AiProxyAdminUser    = "aiproxy-admin"
+	AiProxyAdminProject = SysAdminProject
+	AiProxyPort         = 31513
+	AiProxyDB           = "aiproxy"
+	AiProxyDBUser       = "aiproxy"
 )
 
 var (
