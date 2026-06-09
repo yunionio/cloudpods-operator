@@ -163,6 +163,8 @@ const (
 	LLMComponentType ComponentType = "llm"
 
 	McpServerComponentType ComponentType = "mcp-server"
+
+	AiProxyComponentType ComponentType = "aiproxy"
 )
 
 // ComponentPhase is the current state of component
@@ -361,6 +363,8 @@ type OnecloudClusterSpec struct {
 	LLM DeploymentServicePortSpec `json:"llm"`
 
 	McpServer DeploymentServicePortSpec `json:"mcpServer"`
+
+	AiProxy DeploymentServicePortSpec `json:"aiproxy"`
 }
 
 func (s OnecloudClusterSpec) GetDbEngine(srvSpec TDBEngineType) TDBEngineType {
@@ -418,6 +422,7 @@ type OnecloudClusterStatus struct {
 	Extdb           DeploymentStatus     `json:"extdb,omitempty"`
 	LLM             DeploymentStatus     `json:"llm,omitempty"`
 	McpServer       DeploymentStatus     `json:"mcpServer,omitempty"`
+	AiProxy         DeploymentStatus     `json:"aiproxy,omitempty"`
 }
 
 type EtcdClusterSpec struct {
@@ -1282,4 +1287,5 @@ type OnecloudClusterConfig struct {
 	Extdb           ServiceDBCommonOptions    `json:"extdb"`
 	LLM             ServiceDBCommonOptions    `json:"llm"`
 	McpServer       ServiceDBCommonOptions    `json:"mcpServer"`
+	AiProxy         ServiceDBCommonOptions    `json:"aiproxy"`
 }
