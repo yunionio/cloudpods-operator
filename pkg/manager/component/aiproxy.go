@@ -39,6 +39,7 @@ func newAiProxyManager(man *ComponentManager) manager.ServiceManager {
 func (m *aiProxyManager) getProductVersions() []v1alpha1.ProductVersion {
 	return []v1alpha1.ProductVersion{
 		v1alpha1.ProductVersionFullStack,
+		v1alpha1.ProductVersionEdge,
 		v1alpha1.ProductVersionAI,
 	}
 }
