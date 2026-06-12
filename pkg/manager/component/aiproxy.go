@@ -17,6 +17,7 @@ package component
 import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"yunion.io/x/onecloud/pkg/mcclient"
 
@@ -26,6 +27,10 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/manager"
 	"yunion.io/x/onecloud-operator/pkg/service-init/component"
 	"yunion.io/x/onecloud-operator/pkg/util/onecloud"
+)
+
+const (
+	TRAEFIK_SERVICE_SCHEME = "traefik.ingress.kubernetes.io/service.serversscheme"
 )
 
 type aiProxyManager struct {
@@ -82,7 +87,77 @@ func (m *aiProxyManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha
 }
 
 func (m *aiProxyManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) []*corev1.Service {
-	return m.newSinglePortService(v1alpha1.AiProxyComponentType, oc, oc.Spec.AiProxy.Service.InternalOnly, int32(oc.Spec.AiProxy.Service.NodePort), int32(cfg.AiProxy.Port), oc.Spec.AiProxy.SlaveReplicas > 0)
+	svcs := m.newSinglePortService(v1alpha1.AiProxyComponentType, oc, oc.Spec.AiProxy.Service.InternalOnly, int32(oc.Spec.AiProxy.Service.NodePort), int32(cfg.AiProxy.Port), oc.Spec.AiProxy.SlaveReplicas > 0)
+	for _, svc := range svcs {
+		if svc.Annotations == nil {
+			svc.Annotations = map[string]string{}
+		}
+		svc.Annotations[TRAEFIK_SERVICE_SCHEME] = "https"
+	}
+	return svcs
+}
+
+func (m *aiProxyManager) getIngress(oc *v1alpha1.OnecloudCluster, zone string) *unstructured.Unstructured {
+	if m.IsDisabled(oc) {
+		return nil
+	}
+
+	ocName := oc.GetName()
+	svcName := controller.NewClusterComponentName(ocName, v1alpha1.AiProxyComponentType)
+	appLabel := m.getComponentLabel(oc, v1alpha1.AiProxyComponentType, false)
+	secretName := controller.ClustercertSecretName(oc)
+	port := int64(constants.AiProxyPort)
+
+	obj := new(unstructured.Unstructured)
+	objMeta := m.getObjectMeta(oc, svcName, appLabel)
+	obj.SetName(objMeta.Name)
+	obj.SetNamespace(objMeta.Namespace)
+	obj.SetLabels(objMeta.Labels)
+	obj.SetOwnerReferences(objMeta.OwnerReferences)
+
+	unstructured.SetNestedMap(obj.Object, map[string]interface{}{
+		"tls": []interface{}{
+			map[string]interface{}{
+				"secretName": secretName,
+			},
+		},
+		"rules": []interface{}{
+			map[string]interface{}{
+				"http": map[string]interface{}{
+					"paths": []interface{}{
+						map[string]interface{}{
+							"pathType": "Prefix",
+							"path":     "/ai",
+							"backend": map[string]interface{}{
+								"serviceName": svcName,
+								"servicePort": port,
+								"service": map[string]interface{}{
+									"name": svcName,
+									"port": map[string]interface{}{
+										"number": port,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}, "spec")
+
+	anno := map[string]string{
+		"nginx.ingress.kubernetes.io/backend-protocol":   "HTTPS",
+		"nginx.ingress.kubernetes.io/proxy-ssl-verify":   "off",
+		"nginx.ingress.kubernetes.io/proxy-read-timeout": "600",
+		"nginx.ingress.kubernetes.io/proxy-buffering":    "off",
+	}
+	obj.SetAnnotations(anno)
+
+	return obj
+}
+
+func (m *aiProxyManager) updateIngress(oc *v1alpha1.OnecloudCluster, oldIng *unstructured.Unstructured) *unstructured.Unstructured {
+	return m.getIngress(oc, "")
 }
 
 func (m *aiProxyManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
