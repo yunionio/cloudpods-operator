@@ -90,48 +90,17 @@ const (
 
 const (
 	DefaultVllmImageTag = "v0.17.0-x86_64-cu130"
-
-	DefaultOpenclawImageTag = "v2026.3.24-20260327.0"
-
-	DefaultHermesAgentImageTag = "v2026.4.23-20260424.0"
 )
 
 const (
-	DefaultOllamaImageName       = "ollama-0.15.1"
-	DefaultVllmImageName         = "vllm-openai-v0.15.1"
-	DefaultDifyNginxImageName    = "nginx-stable-alpine"
-	DefaultDifyRedisImageName    = "redis-6-alpine"
-	DefaultDifyPostgresImageName = "postgres-15-alpine"
-	DefaultDifyApiImageName      = "dify-api-1.7.2"
-	DefaultDifySandboxImageName  = "dify-sandbox-0.2.12"
-	DefaultDifyPluginImageName   = "dify-plugin-daemon-0.2.0-local"
-	DefaultDifyWebImageName      = "dify-web-1.7.2"
-	DefaultDifySSRFImageName     = "squid-5.2-22.04_beta"
-	DefaultDifyWeaviateImageName = "weaviate-1.19.0"
-	DefaultComfyuiImageName      = "comfyui-boot-cu128-slim"
-)
-
-var (
-	DefaultOpenclawImageName    = fmt.Sprintf("openclaw-%s", DefaultOpenclawImageTag)
-	DefaultHermesAgentImageName = fmt.Sprintf("hermes-%s", DefaultHermesAgentImageTag)
+	DefaultOllamaImageName = "ollama-0.15.1"
+	DefaultVllmImageName   = "vllm-openai-v0.15.1"
 )
 
 var (
 	DefaultLLMImages = []llmapi.LLMImageCreateInput{
 		newLLMImage(DefaultOllamaImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/ollama", "0.15.1", "ollama"),
 		newLLMImage(DefaultVllmImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/vllm-openai", DefaultVllmImageTag, "vllm"),
-		newLLMImage(DefaultDifyNginxImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/nginx", "stable-alpine", "dify"),
-		newLLMImage(DefaultDifyRedisImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/redis", "6-alpine", "dify"),
-		newLLMImage(DefaultDifyPostgresImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/postgres", "15-alpine", "dify"),
-		newLLMImage(DefaultDifyApiImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/dify-api", "1.7.2", "dify"),
-		newLLMImage(DefaultDifySandboxImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/dify-sandbox", "0.2.12", "dify"),
-		newLLMImage(DefaultDifyPluginImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/dify-plugin-daemon", "0.2.0-local", "dify"),
-		newLLMImage(DefaultDifyWebImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/dify-web", "1.7.2", "dify"),
-		newLLMImage(DefaultDifySSRFImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/squid", "5.2-22.04_beta", "dify"),
-		newLLMImage(DefaultDifyWeaviateImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/weaviate", "1.19.0", "dify"),
-		newLLMImage(DefaultComfyuiImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/comfyui-boot", "cu128-slim.20260324.0", "comfyui"),
-		newLLMImage(DefaultOpenclawImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/openclaw", DefaultOpenclawImageTag, "openclaw"),
-		newLLMImage(DefaultHermesAgentImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/hermes", DefaultHermesAgentImageTag, "hermes-agent"),
 	}
 	DefaultLLMSku = []llmapi.LLMSkuCreateInput{
 		newLLMSkuWithPortMappings("ollama-4c4g", 4, 4096, 40960, 1000, DefaultOllamaImageName, "ollama", &llmapi.PortMappings{
@@ -139,30 +108,6 @@ var (
 		}),
 		newLLMSkuWithPortMappings("vllm-4c8g", 4, 8192, 40960, 1000, DefaultVllmImageName, "vllm", &llmapi.PortMappings{
 			newTCPPortMapping(8000),
-		}),
-		newLLMSkuWithPortMappings(fmt.Sprintf("%s-4c4g", DefaultOpenclawImageName), 4, 4096, 40960, 1000, DefaultOpenclawImageName, "openclaw", &llmapi.PortMappings{
-			newTCPPortMapping(3001),
-		}),
-		newLLMSkuWithSpecAndPortMappings("dify-4c8g", 4, 8192, 40960, 1000, DefaultDifyApiImageName, "dify", &llmapi.LLMSpec{
-			Dify: &llmapi.LLMSpecDify{
-				PostgresImageId:     DefaultDifyPostgresImageName,
-				RedisImageId:        DefaultDifyRedisImageName,
-				NginxImageId:        DefaultDifyNginxImageName,
-				DifyApiImageId:      DefaultDifyApiImageName,
-				DifyPluginImageId:   DefaultDifyPluginImageName,
-				DifyWebImageId:      DefaultDifyWebImageName,
-				DifySandboxImageId:  DefaultDifySandboxImageName,
-				DifySSRFImageId:     DefaultDifySSRFImageName,
-				DifyWeaviateImageId: DefaultDifyWeaviateImageName,
-			},
-		}, &llmapi.PortMappings{
-			newTCPPortMapping(80),
-		}),
-		newLLMSkuWithPortMappings("comfyui-8c16g", 8, 16384, 40960, 1000, DefaultComfyuiImageName, "comfyui", &llmapi.PortMappings{
-			newTCPPortMapping(8188),
-		}),
-		newLLMSkuWithPortMappings(fmt.Sprintf("%s-4c4g", DefaultHermesAgentImageName), 4, 4096, 40960, 1000, DefaultHermesAgentImageName, "hermes-agent", &llmapi.PortMappings{
-			newTCPPortMapping(3001),
 		}),
 	}
 )
