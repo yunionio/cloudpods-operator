@@ -26,9 +26,6 @@ import (
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/util/passwd"
-	"yunion.io/x/onecloud/pkg/apis"
-	computeapi "yunion.io/x/onecloud/pkg/apis/compute"
-	llmapi "yunion.io/x/onecloud/pkg/apis/llm"
 )
 
 var (
@@ -87,43 +84,6 @@ const (
 	DefaultEChartSSRVersion = "v0.0.6"
 	DefaultGuacdVersion     = "1.6.0"
 )
-
-const (
-	DefaultVllmImageTag = "v0.17.0-x86_64-cu130"
-)
-
-const (
-	DefaultOllamaImageName = "ollama-0.15.1"
-	DefaultVllmImageName   = "vllm-openai-v0.15.1"
-)
-
-var (
-	DefaultLLMImages = []llmapi.LLMImageCreateInput{
-		newLLMImage(DefaultOllamaImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/ollama", "0.15.1", "ollama"),
-		newLLMImage(DefaultVllmImageName, "registry.cn-beijing.aliyuncs.com/cloudpods/vllm-openai", DefaultVllmImageTag, "vllm"),
-	}
-	DefaultLLMSku = []llmapi.LLMSkuCreateInput{
-		newLLMSkuWithPortMappings("ollama-4c4g", 4, 4096, 40960, 1000, DefaultOllamaImageName, "ollama", &llmapi.PortMappings{
-			newTCPPortMapping(11434),
-		}),
-		newLLMSkuWithPortMappings("vllm-4c8g", 4, 8192, 40960, 1000, DefaultVllmImageName, "vllm", &llmapi.PortMappings{
-			newTCPPortMapping(8000),
-		}),
-	}
-)
-
-func newPortMapping(protocol string, containerPort int) llmapi.PortMapping {
-	return llmapi.PortMapping{
-		Protocol:        protocol,
-		ContainerPort:   containerPort,
-		RemoteIps:       []string{"0.0.0.0/0"},
-		FirstPortOffset: nil,
-	}
-}
-
-func newTCPPortMapping(containerPort int) llmapi.PortMapping {
-	return newPortMapping(string(computeapi.PodPortMappingProtocolTCP), containerPort)
-}
 
 var (
 	clusterDefaultMutex sync.Mutex = sync.Mutex{}
@@ -993,71 +953,4 @@ func setDefaults_Cloudmux(spec *OnecloudClusterSpec, obj *CloudmuxSpec) {
 		spec.Version, dSpec.Tag,
 		false, false))
 	obj.FillBySpec(dSpec)
-}
-
-func newLLMImage(name, imageName, imageLabel, llmType string) llmapi.LLMImageCreateInput {
-	isPublic := true
-	return llmapi.LLMImageCreateInput{
-		SharableVirtualResourceCreateInput: apis.SharableVirtualResourceCreateInput{
-			SharableResourceBaseCreateInput: apis.SharableResourceBaseCreateInput{
-				IsPublic: &isPublic,
-			},
-			VirtualResourceCreateInput: apis.VirtualResourceCreateInput{
-				StatusStandaloneResourceCreateInput: apis.StatusStandaloneResourceCreateInput{
-					StandaloneResourceCreateInput: apis.StandaloneResourceCreateInput{
-						Name: name,
-					},
-				},
-			},
-		},
-		ImageName:  imageName,
-		ImageLabel: imageLabel,
-		LLMType:    llmType,
-	}
-}
-
-func newLLMSku(name string, cpu, memory, diskSize int, bandwidth int, imageId, llmType string) llmapi.LLMSkuCreateInput {
-	return newLLMSkuWithSpecAndPortMappings(name, cpu, memory, diskSize, bandwidth, imageId, llmType, nil, nil)
-}
-
-func newLLMSkuWithPortMappings(name string, cpu, memory, diskSize int, bandwidth int, imageId, llmType string, portMappings *llmapi.PortMappings) llmapi.LLMSkuCreateInput {
-	return newLLMSkuWithSpecAndPortMappings(name, cpu, memory, diskSize, bandwidth, imageId, llmType, nil, portMappings)
-}
-
-func newLLMSkuWithSpecAndPortMappings(name string, cpu, memory, diskSize int, bandwidth int, imageId, llmType string, llmSpec *llmapi.LLMSpec, portMappings *llmapi.PortMappings) llmapi.LLMSkuCreateInput {
-	// 初始化 Volume
-	vol := llmapi.Volume{
-		SizeMB:      diskSize,
-		TemplateId:  "",
-		StorageType: "",
-	}
-	vols := llmapi.Volumes{vol}
-
-	isPublic := true
-
-	return llmapi.LLMSkuCreateInput{
-		LLMSKuBaseCreateInput: llmapi.LLMSKuBaseCreateInput{
-			SharableVirtualResourceCreateInput: apis.SharableVirtualResourceCreateInput{
-				SharableResourceBaseCreateInput: apis.SharableResourceBaseCreateInput{
-					IsPublic:    &isPublic,
-					PublicScope: "system",
-				},
-				VirtualResourceCreateInput: apis.VirtualResourceCreateInput{
-					StatusStandaloneResourceCreateInput: apis.StatusStandaloneResourceCreateInput{
-						StandaloneResourceCreateInput: apis.StandaloneResourceCreateInput{
-							Name: name,
-						},
-					},
-				},
-			},
-			Cpu:          cpu,
-			Memory:       memory,
-			Bandwidth:    bandwidth,
-			Volumes:      &vols,
-			PortMappings: portMappings,
-		},
-		LLMImageId: imageId,
-		LLMType:    llmType,
-		LLMSpec:    llmSpec,
-	}
 }
