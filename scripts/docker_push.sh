@@ -46,7 +46,6 @@ build_bin() {
     local BUILD_CGO="$3"
 
 	docker run --rm \
-        --platform linux/$ARCH \
         -v $SRC_DIR:/root/go/src/yunion.io/x/$PROJ \
         -v $SRC_DIR/_output/alpine-build:/root/go/src/yunion.io/x/$PROJ/_output \
         -v $SRC_DIR/_output/alpine-build/_cache:/root/.cache \
@@ -95,7 +94,7 @@ build_process() {
     local is_all_arch=$3
     local img_name=$(get_image_name $component $arch $is_all_arch)
 
-    build_bin $component
+    build_bin $component $arch
     if [[ "$DRY_RUN" == "true" ]]; then
         echo "[$(readlink -f ${BASH_SOURCE}):${LINENO} ${FUNCNAME[0]}] return for DRY_RUN"
         return
