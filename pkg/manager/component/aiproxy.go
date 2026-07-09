@@ -127,7 +127,7 @@ func (m *aiProxyManager) getIngress(oc *v1alpha1.OnecloudCluster, zone string) *
 					"paths": []interface{}{
 						map[string]interface{}{
 							"pathType": "Prefix",
-							"path":     "/ai",
+							"path":     "/ai/",
 							"backend": map[string]interface{}{
 								"serviceName": svcName,
 								"servicePort": port,
