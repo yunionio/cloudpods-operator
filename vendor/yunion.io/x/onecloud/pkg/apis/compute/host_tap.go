@@ -15,8 +15,11 @@
 package compute
 
 const (
-	HostVpcBridge = "__vpc_bridge__"
-	HostTapBridge = "__tap_bridge__"
+	TapConfigFileName = "tap-config.json"
+
+	HostVpcBridge   = "__vpc_bridge__"
+	HostTapBridge   = "__tap_bridge__"
+	HostLocalBridge = "brlocal"
 )
 
 type SMirrorConfig struct {

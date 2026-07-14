@@ -77,9 +77,20 @@ const (
 	// Ucloud storage type
 	STORAGE_UCLOUD_CLOUD_NORMAL         = "CLOUD_NORMAL"         // 普通云盘
 	STORAGE_UCLOUD_CLOUD_SSD            = "CLOUD_SSD"            // SSD云盘
+	STORAGE_UCLOUD_CLOUD_ESSD           = "CLOUD_ESSD"           // ESSD云盘
+	STORAGE_UCLOUD_CLOUD_RSSD           = "CLOUD_RSSD"           // RSSD云盘
 	STORAGE_UCLOUD_LOCAL_NORMAL         = "LOCAL_NORMAL"         // 普通本地盘
 	STORAGE_UCLOUD_LOCAL_SSD            = "LOCAL_SSD"            // SSD本地盘
 	STORAGE_UCLOUD_EXCLUSIVE_LOCAL_DISK = "EXCLUSIVE_LOCAL_DISK" // 独享本地盘
+
+	// RockBase storage type
+	STORAGE_ROCKBASE_CLOUD_NORMAL         = "CLOUD_NORMAL"         // 普通云盘
+	STORAGE_ROCKBASE_CLOUD_SSD            = "CLOUD_SSD"            // SSD云盘
+	STORAGE_ROCKBASE_CLOUD_ESSD           = "CLOUD_ESSD"           // ESSD云盘
+	STORAGE_ROCKBASE_CLOUD_RSSD           = "CLOUD_RSSD"           // RSSD云盘
+	STORAGE_ROCKBASE_LOCAL_NORMAL         = "LOCAL_NORMAL"         // 普通本地盘
+	STORAGE_ROCKBASE_LOCAL_SSD            = "LOCAL_SSD"            // SSD本地盘
+	STORAGE_ROCKBASE_EXCLUSIVE_LOCAL_DISK = "EXCLUSIVE_LOCAL_DISK" // 独享本地盘
 
 	// Zstack storage type
 	STORAGE_ZSTACK_LOCAL_STORAGE = "localstorage"
@@ -110,10 +121,21 @@ const (
 	STORAGE_JDCLOUD_SSD = "ssd"         // SSD云硬盘
 	STORAGE_JDCLOUD_PHD = "premium-hdd" // HDD云硬盘
 
-	STORAGE_ECLOUD_CAPEBS = "capebs" // 容量盘
-	STORAGE_ECLOUD_EBS    = "ebs"    // 性能盘
-	STORAGE_ECLOUD_SSD    = "ssd"    // 高性能盘
-	STORAGE_ECLOUD_SSDEBS = "ssdebs" // 性能优化盘
+	STORAGE_ECLOUD_CAPEBS    = "capebs"   // 容量盘
+	STORAGE_ECLOUD_SSDEBS    = "ssdebs"   // 性能优化型
+	STORAGE_ECLOUD_SSD       = "ssd"      // 高性能盘
+	STORAGE_ECLOUD_CAPEBS_YC = "capebsyc" // 容量型-云创版
+	STORAGE_ECLOUD_SSDEBS_YC = "ssdebsyc" // 性能优化型-云创版
+	STORAGE_ECLOUD_SSDYC     = "ssdyc"    // 高性能型-云创版
+	STORAGE_ECLOUD_CAPEBS_ZX = "capebszx" // 经济型
+	STORAGE_ECLOUD_ESSDL1    = "essdl1"   // 极速型-L1
+	STORAGE_ECLOUD_ESSDL2    = "essdl2"   // 极速型-L2
+	STORAGE_ECLOUD_ESSDL3    = "essdl3"   // 极速型-L3
+	STORAGE_ECLOUD_ESSDYCL1  = "essdycl1" // 极速型-L1-云创版
+	// 系统盘
+	STORAGE_ECLOUD_LOCAL = "local" // 本地盘
+	// 弃用
+	STORAGE_ECLOUD_EBS    = "ebs"    // 弹性块存储
 	STORAGE_ECLOUD_SYSTEM = "system" // 系统盘
 
 	// volcengine storage type
@@ -166,6 +188,29 @@ const (
 	DISK_TYPE_SSD    = "ssd"
 	DISK_TYPE_HYBRID = "hybrid"
 )
+
+var ROCKBASE_STORAGES = []string{
+	STORAGE_ROCKBASE_LOCAL_SSD,
+	STORAGE_ROCKBASE_CLOUD_SSD,
+	STORAGE_ROCKBASE_LOCAL_NORMAL,
+	STORAGE_ROCKBASE_CLOUD_NORMAL,
+	STORAGE_ROCKBASE_CLOUD_ESSD,
+	STORAGE_ROCKBASE_CLOUD_RSSD,
+}
+
+var UCLOUD_STORAGES = []string{
+	STORAGE_UCLOUD_LOCAL_SSD,
+	STORAGE_UCLOUD_CLOUD_SSD,
+	STORAGE_UCLOUD_LOCAL_NORMAL,
+	STORAGE_UCLOUD_CLOUD_NORMAL,
+	STORAGE_UCLOUD_CLOUD_ESSD,
+	STORAGE_UCLOUD_CLOUD_RSSD,
+}
+
+var UCLOUD_LOCAL_STORAGES = []string{
+	STORAGE_UCLOUD_LOCAL_SSD,
+	STORAGE_UCLOUD_LOCAL_NORMAL,
+}
 
 var KSYUN_STORAGES = []string{
 	STORAGE_KSYUN_ESSD_AUTO_PL,

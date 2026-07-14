@@ -15,6 +15,7 @@
 package fsdriver
 
 import (
+	"encoding/base64"
 	"fmt"
 	"math/rand"
 	"path"
@@ -107,15 +108,17 @@ func (w *SWindowsRootFs) GetReleaseInfo(IDiskPartition) *deployapi.ReleaseInfo {
 	confPath := w.rootFs.GetLocalPath("/windows/system32/config", true)
 	tool := winutils.NewWinRegTool(confPath)
 	if tool.CheckPath() {
-		distro := tool.GetProductName()
-		version := tool.GetVersion()
+		distro := w.GetName()
+		version := tool.GetProductName()
+		curVersion := tool.GetVersion()
 		arch := w.GetArch(hostCpuArch)
 		lan := tool.GetInstallLanguage()
 		return &deployapi.ReleaseInfo{
-			Distro:   distro,
-			Version:  version,
-			Arch:     arch,
-			Language: lan,
+			Distro:         distro,
+			Version:        version,
+			Arch:           arch,
+			Language:       lan,
+			CurrentVersion: curVersion,
 		}
 	} else {
 		return nil
@@ -172,7 +175,7 @@ func (w *SWindowsRootFs) GetArch(hostCpuArch string) string {
 
 func (w *SWindowsRootFs) IsWindows10NonPro() bool {
 	info := w.GetReleaseInfo(nil)
-	if info != nil && strings.HasPrefix(info.Distro, "Windows 10 ") && !strings.HasPrefix(info.Distro, "Windows 10 Pro") {
+	if info != nil && strings.HasPrefix(info.Version, "Windows 10 ") && !strings.HasPrefix(info.Version, "Windows 10 Pro") {
 		return true
 	}
 	return false
@@ -180,7 +183,7 @@ func (w *SWindowsRootFs) IsWindows10NonPro() bool {
 
 func (w *SWindowsRootFs) IsOldWindows() bool {
 	info := w.GetReleaseInfo(nil)
-	if info != nil && strings.HasPrefix(info.Version, "5.") {
+	if info != nil && strings.HasPrefix(info.CurrentVersion, "5.") {
 		return true
 	}
 	return false
@@ -451,9 +454,7 @@ func (w *SWindowsRootFs) ChangeUserPasswd(part IDiskPartition, account, gid, pub
 	tool.CheckPath()
 	success := false
 
-	// symbol ^ is escape character is batch file.
-	password = strings.ReplaceAll(password, "^", "")
-	if rinfo != nil && version.GE(rinfo.Version, "6.1") {
+	if rinfo != nil && version.GE(rinfo.CurrentVersion, "6.1") {
 		success = w.deployPublicKeyByGuest(account, password)
 	} else {
 		success = tool.ChangePassword(account, password) == nil
@@ -475,7 +476,7 @@ func (w *SWindowsRootFs) ChangeUserPasswd(part IDiskPartition, account, gid, pub
 				return "", err
 			}
 		}
-		if rinfo != nil && strings.Contains(rinfo.Distro, "Windows XP") {
+		if rinfo != nil && strings.Contains(rinfo.Version, "Windows XP") {
 			if len(tool.GetLogontype()) > 0 {
 				tool.SetLogontype("0x0")
 			}
@@ -488,6 +489,10 @@ func (w *SWindowsRootFs) ChangeUserPasswd(part IDiskPartition, account, gid, pub
 		tool.SetDefaultAccount(account)
 	}
 	return secret, nil
+}
+
+func encodeWindowsScriptPassword(passwd string) string {
+	return base64.StdEncoding.EncodeToString([]byte(passwd))
 }
 
 func (w *SWindowsRootFs) deployPublicKeyByGuest(uname, passwd string) bool {
@@ -504,13 +509,14 @@ func (w *SWindowsRootFs) deployPublicKeyByGuest(uname, passwd string) bool {
 	w.appendGuestBootScript("chgpwd", bootScript)
 	logPath := w.guestDebugLogPath
 	chksum := stringutils2.GetMD5Hash(passwd + logPath[(len(logPath)-10):])
+	passwdEnc := encodeWindowsScriptPassword(passwd)
 
 	chgpwdScript := strings.Join([]string{
 		w.MakeGuestDebugCmd("change password step 1"),
 		strings.Join([]string{
 			`%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`,
 			` -executionpolicy bypass %SystemRoot%\chgpwd.ps1`,
-			fmt.Sprintf(" %s %s %s %s", uname, passwd, chksum, logPath),
+			fmt.Sprintf(" %s %s %s %s", uname, passwdEnc, chksum, logPath),
 		}, ""),
 		`del %SystemRoot%\chgpwd.ps1`,
 		w.MakeGuestDebugCmd("change password step 2"),
@@ -533,9 +539,10 @@ func (w *SWindowsRootFs) deploySetupCompleteScripts(uname, passwd string) bool {
 	if w.putGuestScriptContents("/windows/chgpwd_setup.ps1", WinScriptChangePassword) != nil {
 		return false
 	}
+	passwdEnc := encodeWindowsScriptPassword(passwd)
 	cmds := []string{
 		`%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe -executionpolicy bypass %SystemRoot%\chgpwd_setup.ps1 ` +
-			fmt.Sprintf("%s %s", uname, passwd),
+			fmt.Sprintf("%s %s", uname, passwdEnc),
 		"Net stop wuauserv",
 	}
 	for _, v := range [][3]string{

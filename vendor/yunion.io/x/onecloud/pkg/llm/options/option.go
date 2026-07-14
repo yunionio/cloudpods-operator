@@ -25,7 +25,9 @@ type LLMOptions struct {
 	InstantModelSyncTaskWorkerCount int `help:"backup task worker count" default:"128"`
 	ModelSyncTaskWaitSecs           int `help:"model sync task wait seconds" default:"30"`
 
-	StartTaskWorkerCount int `help:"start task worker count" default:"128"`
+	BackupTaskWorkerCount int `help:"backup task worker count" default:"128"`
+	ImportTaskWorkerCount int `help:"import task worker count" default:"8"`
+	StartTaskWorkerCount  int `help:"start task worker count" default:"128"`
 
 	// MCP Agent 配置
 	MCPServerURL    string `help:"MCP Server URL" default:"http://default-mcp-server:30876"`
@@ -33,6 +35,21 @@ type LLMOptions struct {
 
 	MCPAgentUserCharLimit      int `help:"MCP Agent user char limit" default:"3200"`
 	MCPAgentAssistantCharLimit int `help:"MCP Agent assistant char limit" default:"6400"`
+
+	// LLM model catalog (browsable curated entries). Value can be either an
+	// http(s) URL or a local file path; sources without an http:// or https://
+	// prefix are treated as local files.
+	ModelCatalogURL                  string `help:"URL of the LLM model catalog YAML; values without http(s):// prefix are treated as local file paths" default:"https://www.cloudpods.org/model-catalog.yaml"`
+	LLMImagesCatalogURL              string `help:"URL of the LLM community images YAML; values without http(s):// prefix are treated as local file paths" default:"https://www.cloudpods.org/llmimages.yaml"`
+	LLMCatalogRefreshIntervalMinutes int    `help:"Catalog refresh interval in minutes; 0 disables periodic refresh" default:"60"`
+
+	// Server-side proxy for outbound HuggingFace / ModelScope calls (used by
+	// the dashboard for model browsing). Mirrors GPUStack's /v1/proxy design.
+	HuggingFaceEndpoint string `help:"Replacement endpoint for huggingface.co (e.g., https://hf-mirror.com); empty means no substitution"`
+	HuggingFaceToken    string `help:"Optional HuggingFace bearer token; injected as Authorization header on huggingface.co requests"`
+
+	ModelScopeEndpoint string `help:"ModelScope API endpoint (e.g., https://www.modelscope.cn)" default:"https://www.modelscope.cn"`
+	ModelScopeToken    string `help:"Optional ModelScope bearer token; injected as Authorization header on modelscope.cn requests"`
 }
 
 var (

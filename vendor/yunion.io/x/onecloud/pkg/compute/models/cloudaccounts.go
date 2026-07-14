@@ -345,7 +345,7 @@ func (acnt *SCloudaccount) ValidateUpdateData(
 		return input, httperrors.NewGeneralError(errors.Wrapf(err, "GetProviderFactory"))
 	}
 	if input.SAMLAuth != nil && *input.SAMLAuth && !factory.IsSupportSAMLAuth() {
-		return input, httperrors.NewNotSupportedError("%s not support saml auth", acnt.Provider)
+		return input, httperrors.NewNotSupportedError("%s does not support saml auth", acnt.Provider)
 	}
 
 	if len(input.ProxySettingId) > 0 {
@@ -505,7 +505,7 @@ func (manager *SCloudaccountManager) validateCreateData(
 	}
 
 	if input.SAMLAuth != nil && *input.SAMLAuth && !providerDriver.IsSupportSAMLAuth() {
-		return input, httperrors.NewNotSupportedError("%s not support saml auth", input.Provider)
+		return input, httperrors.NewNotSupportedError("%s does not support saml auth", input.Provider)
 	}
 	if len(input.Brand) > 0 && input.Brand != providerDriver.GetName() {
 		brands := providerDriver.GetSupportedBrands()
@@ -513,7 +513,7 @@ func (manager *SCloudaccountManager) validateCreateData(
 			brands = append(brands, providerDriver.GetName())
 		}
 		if !utils.IsInStringArray(input.Brand, brands) {
-			return input, httperrors.NewUnsupportOperationError("Not support brand %s, only support %s", input.Brand, brands)
+			return input, httperrors.NewUnsupportOperationError("brand %s is not supported; supported brands: %s", input.Brand, brands)
 		}
 	}
 	input.IsPublicCloud = providerDriver.IsPublicCloud()
@@ -533,7 +533,7 @@ func (manager *SCloudaccountManager) validateCreateData(
 
 		cnt, err := q.CountWithError()
 		if err != nil {
-			return input, httperrors.NewInternalServerError("check uniqness fail %s", err)
+			return input, httperrors.NewInternalServerError("check uniqueness failed %s", err)
 		}
 		if cnt > 0 {
 			return input, httperrors.NewConflictError("The account has been registered")
@@ -599,7 +599,7 @@ func (manager *SCloudaccountManager) validateCreateData(
 	if len(accountId) > 0 && !input.SkipDuplicateAccountCheck {
 		cnt, err := manager.Query().Equals("account_id", accountId).CountWithError()
 		if err != nil {
-			return input, httperrors.NewInternalServerError("check account_id duplication error %s", err)
+			return input, httperrors.NewInternalServerError("check account_id duplication failed %s", err)
 		}
 		if cnt > 0 {
 			return input, httperrors.NewDuplicateResourceError("the account has been registerd %s", accountId)
@@ -793,7 +793,7 @@ func (acnt *SCloudaccount) PerformUpdateCredential(
 		q = q.NotEquals("id", acnt.Id)
 		cnt, err := q.CountWithError()
 		if err != nil {
-			return nil, httperrors.NewInternalServerError("check uniqueness fail %s", err)
+			return nil, httperrors.NewInternalServerError("check uniqueness failed %s", err)
 		}
 		if cnt > 0 {
 			return nil, httperrors.NewConflictError("account %s conflict", account.Account)
@@ -965,9 +965,11 @@ func (acnt *SCloudaccount) markStartSync(userCred mcclient.TokenCredential, sync
 
 func (acnt *SCloudaccount) MarkSyncing(userCred mcclient.TokenCredential) error {
 	_, err := db.Update(acnt, func() error {
-		acnt.SyncStatus = api.CLOUD_PROVIDER_SYNC_STATUS_SYNCING
-		acnt.LastSync = timeutils.UtcNow()
-		acnt.LastSyncEndAt = time.Time{}
+		if acnt.SyncStatus != api.CLOUD_PROVIDER_SYNC_STATUS_SYNCING {
+			acnt.SyncStatus = api.CLOUD_PROVIDER_SYNC_STATUS_SYNCING
+			acnt.LastSync = timeutils.UtcNow()
+			acnt.LastSyncEndAt = time.Time{}
+		}
 		return nil
 	})
 	if err != nil {
@@ -976,7 +978,7 @@ func (acnt *SCloudaccount) MarkSyncing(userCred mcclient.TokenCredential) error 
 	return nil
 }
 
-func (acnt *SCloudaccount) MarkEndSyncWithLock(ctx context.Context, userCred mcclient.TokenCredential) error {
+func (acnt *SCloudaccount) MarkEndSyncWithLock(ctx context.Context, userCred mcclient.TokenCredential, deepSync bool) error {
 	lockman.LockObject(ctx, acnt)
 	defer lockman.ReleaseObject(ctx, acnt)
 
@@ -992,13 +994,15 @@ func (acnt *SCloudaccount) MarkEndSyncWithLock(ctx context.Context, userCred mcc
 		return errors.Error("some cloud providers not idle")
 	}
 
-	return acnt.MarkEndSync(userCred)
+	return acnt.MarkEndSync(userCred, deepSync)
 }
 
-func (acnt *SCloudaccount) MarkEndSync(userCred mcclient.TokenCredential) error {
+func (acnt *SCloudaccount) MarkEndSync(userCred mcclient.TokenCredential, deepSync bool) error {
 	_, err := db.Update(acnt, func() error {
 		acnt.SyncStatus = api.CLOUD_PROVIDER_SYNC_STATUS_IDLE
-		acnt.LastSyncEndAt = timeutils.UtcNow()
+		if deepSync {
+			acnt.LastSyncEndAt = timeutils.UtcNow()
+		}
 		return nil
 	})
 	if err != nil {
@@ -1159,7 +1163,7 @@ func (acnt *SCloudaccount) importSubAccount(ctx context.Context, userCred mcclie
 				lockman.LockRawObject(ctx, CloudproviderManager.Keyword(), "name")
 				defer lockman.ReleaseRawObject(ctx, CloudproviderManager.Keyword(), "name")
 				// 根据云订阅名称获取或创建项目
-				domainId, projectId, err := acnt.getOrCreateTenant(ctx, provider.Name, provider.DomainId, "", subAccount.Desc)
+				domainId, projectId, err := acnt.getOrCreateTenant(ctx, provider.Name, provider.DomainId, "", subAccount.Desc, subAccount.Tags)
 				if err != nil {
 					return errors.Wrapf(err, "getOrCreateTenant err,provider_name :%s", provider.Name)
 				}
@@ -1261,7 +1265,7 @@ func (acnt *SCloudaccount) importSubAccount(ctx context.Context, userCred mcclie
 				if err != nil {
 					return err
 				}
-				domainId, projectId, err := acnt.getOrCreateTenant(ctx, newCloudprovider.Name, newCloudprovider.DomainId, "", subAccount.Desc)
+				domainId, projectId, err := acnt.getOrCreateTenant(ctx, newCloudprovider.Name, newCloudprovider.DomainId, "", subAccount.Desc, subAccount.Tags)
 				if err != nil {
 					return errors.Wrapf(err, "getOrCreateTenant err,provider_name :%s", newCloudprovider.Name)
 				}
@@ -2303,7 +2307,7 @@ func (manager *SCloudaccountManager) AutoSyncCloudaccountStatusTask(ctx context.
 			}
 			cloudaccountPendingSyncs[id] = struct{}{}
 			cloudaccountPendingSyncsMutex.Unlock()
-			RunSyncCloudAccountTask(ctx, func() {
+			RunSyncCloudAccountProbeTask(ctx, func() {
 				defer func() {
 					cloudaccountPendingSyncsMutex.Lock()
 					defer cloudaccountPendingSyncsMutex.Unlock()
@@ -2313,7 +2317,7 @@ func (manager *SCloudaccountManager) AutoSyncCloudaccountStatusTask(ctx context.
 				idctx := context.WithValue(ctx, "id", id)
 				lockman.LockObject(idctx, account)
 				defer lockman.ReleaseObject(idctx, account)
-				err := account.syncAccountStatus(idctx, userCred)
+				err := account.syncAccountStatus(idctx, userCred, false)
 				if err != nil {
 					log.Errorf("unable to syncAccountStatus for cloudaccount %s: %s", account.Id, err.Error())
 				}
@@ -2329,6 +2333,9 @@ func (account *SCloudaccount) probeAccountStatus(ctx context.Context, userCred m
 	}
 	balance, err := manager.GetBalance()
 	if err != nil {
+		if gotypes.IsNil(balance) {
+			balance = &cloudprovider.SBalanceInfo{}
+		}
 		switch err {
 		case cloudprovider.ErrNotSupported:
 			balance.Status = api.CLOUD_PROVIDER_HEALTH_NORMAL
@@ -2468,7 +2475,7 @@ func (acnt *SCloudaccount) setSubAccountStatus() error {
 	return err
 }
 
-func (account *SCloudaccount) syncAccountStatus(ctx context.Context, userCred mcclient.TokenCredential) error {
+func (account *SCloudaccount) syncAccountStatus(ctx context.Context, userCred mcclient.TokenCredential, prepareRegions bool) error {
 	subaccounts, err := account.probeAccountStatus(ctx, userCred)
 	if err != nil {
 		account.markAllProvidersDisconnected(ctx, userCred)
@@ -2477,11 +2484,13 @@ func (account *SCloudaccount) syncAccountStatus(ctx context.Context, userCred mc
 	}
 	account.markAccountConnected(ctx, userCred)
 	providers := account.importAllSubaccounts(ctx, userCred, subaccounts)
-	for i := range providers {
-		if providers[i].GetEnabled() {
-			_, err := providers[i].prepareCloudproviderRegions(ctx, userCred)
-			if err != nil {
-				providers[i].SetStatus(ctx, userCred, api.CLOUD_PROVIDER_DISCONNECTED, errors.Wrapf(err, "prepareCloudproviderRegions").Error())
+	if prepareRegions {
+		for i := range providers {
+			if providers[i].GetEnabled() {
+				_, err := providers[i].prepareCloudproviderRegions(ctx, userCred)
+				if err != nil {
+					providers[i].SetStatus(ctx, userCred, api.CLOUD_PROVIDER_DISCONNECTED, errors.Wrapf(err, "prepareCloudproviderRegions").Error())
+				}
 			}
 		}
 	}
@@ -2506,14 +2515,14 @@ func (account *SCloudaccount) SubmitSyncAccountTask(ctx context.Context, userCre
 	}
 	cloudaccountPendingSyncs[account.Id] = struct{}{}
 
-	RunSyncCloudAccountTask(ctx, func() {
+	RunSyncCloudAccountSyncTask(ctx, func() {
 		defer func() {
 			cloudaccountPendingSyncsMutex.Lock()
 			defer cloudaccountPendingSyncsMutex.Unlock()
 			delete(cloudaccountPendingSyncs, account.Id)
 		}()
 		log.Debugf("syncAccountStatus %s %s", account.Id, account.Name)
-		err := account.syncAccountStatus(ctx, userCred)
+		err := account.syncAccountStatus(ctx, userCred, true)
 		if waitChan != nil {
 			if err != nil {
 				err = errors.Wrap(err, "account.syncAccountStatus")
@@ -2955,7 +2964,7 @@ func GetAvailableExternalProject(local *db.STenant, projects []SExternalProject)
 // 获取Azure Enrollment Accounts
 func (acnt *SCloudaccount) GetDetailsEnrollmentAccounts(ctx context.Context, userCred mcclient.TokenCredential, query api.EnrollmentAccountQuery) ([]cloudprovider.SEnrollmentAccount, error) {
 	if acnt.Provider != api.CLOUD_PROVIDER_AZURE {
-		return nil, httperrors.NewNotSupportedError("%s not support", acnt.Provider)
+		return nil, httperrors.NewNotSupportedError("%s is not supported", acnt.Provider)
 	}
 	provider, err := acnt.GetProvider(ctx)
 	if err != nil {
@@ -2973,7 +2982,7 @@ func (acnt *SCloudaccount) GetDetailsEnrollmentAccounts(ctx context.Context, use
 // 创建Azure订阅
 func (acnt *SCloudaccount) PerformCreateSubscription(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input api.SubscriptonCreateInput) (jsonutils.JSONObject, error) {
 	if acnt.Provider != api.CLOUD_PROVIDER_AZURE {
-		return nil, httperrors.NewNotSupportedError("%s not support create subscription", acnt.Provider)
+		return nil, httperrors.NewNotSupportedError("%s does not support creating subscription", acnt.Provider)
 	}
 	if len(input.Name) == 0 {
 		return nil, httperrors.NewMissingParameterError("name")

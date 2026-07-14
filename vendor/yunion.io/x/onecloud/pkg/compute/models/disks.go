@@ -27,6 +27,7 @@ import (
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
 	"yunion.io/x/pkg/errors"
+	"yunion.io/x/pkg/gotypes"
 	"yunion.io/x/pkg/tristate"
 	"yunion.io/x/pkg/util/compare"
 	"yunion.io/x/pkg/util/fileutils"
@@ -496,7 +497,7 @@ func (self *SDisk) ValidateUpdateData(ctx context.Context, userCred mcclient.Tok
 
 	if input.DiskType != "" {
 		if !utils.IsInStringArray(input.DiskType, []string{api.DISK_TYPE_DATA, api.DISK_TYPE_VOLUME, api.DISK_TYPE_SYS}) {
-			return input, httperrors.NewInputParameterError("not support update disk_type %s", input.DiskType)
+			return input, httperrors.NewInputParameterError("updating disk_type %s is not supported", input.DiskType)
 		}
 	}
 
@@ -543,47 +544,7 @@ func (man *SDiskManager) BatchCreateValidateCreateData(ctx context.Context, user
 }
 
 func diskCreateInput2ComputeQuotaKeys(input api.DiskCreateInput, ownerId mcclient.IIdentityProvider) (SComputeResourceKeys, error) {
-	var keys SComputeResourceKeys
-	if len(input.PreferHost) > 0 {
-		hostObj, err := HostManager.FetchById(input.PreferHost)
-		if err != nil {
-			return keys, err
-		}
-		host := hostObj.(*SHost)
-		input.PreferZone = host.ZoneId
-		keys.ZoneId = host.ZoneId
-	}
-	if len(input.PreferWire) > 0 {
-		wireObj, err := WireManager.FetchById(input.PreferWire)
-		if err != nil {
-			return keys, err
-		}
-		wire := wireObj.(*SWire)
-		if len(wire.ZoneId) > 0 {
-			input.PreferZone = wire.ZoneId
-			keys.ZoneId = wire.ZoneId
-		}
-	}
-	if len(input.PreferZone) > 0 {
-		zoneObj, err := ZoneManager.FetchById(input.PreferZone)
-		if err != nil {
-			return keys, err
-		}
-		zone := zoneObj.(*SZone)
-		input.PreferRegion = zone.CloudregionId
-		keys.ZoneId = zone.Id
-		keys.RegionId = zone.CloudregionId
-	}
-	if len(input.PreferRegion) > 0 {
-		regionObj, err := CloudregionManager.FetchById(input.PreferRegion)
-		if err != nil {
-			return keys, err
-		}
-		region := regionObj.(*SCloudregion)
-		keys.RegionId = region.GetId()
-		keys.Brand = region.Provider
-	}
-	return keys, nil
+	return serverCreateInput2ComputeQuotaKeys(*input.ToServerCreateInput(), ownerId)
 }
 
 func (manager *SDiskManager) ValidateCreateData(ctx context.Context, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, query jsonutils.JSONObject, input api.DiskCreateInput) (api.DiskCreateInput, error) {
@@ -668,7 +629,10 @@ func (manager *SDiskManager) ValidateCreateData(ctx context.Context, userCred mc
 		encInput := input.EncryptedResourceCreateInput
 		input = *serverInput.ToDiskCreateInput()
 		input.EncryptedResourceCreateInput = encInput
-		quotaKey, _ = diskCreateInput2ComputeQuotaKeys(input, ownerId)
+		quotaKey, err = diskCreateInput2ComputeQuotaKeys(input, ownerId)
+		if err != nil {
+			return input, errors.Wrap(err, "diskCreateInput2ComputeQuotaKeys")
+		}
 	}
 
 	input.VirtualResourceCreateInput, err = manager.SVirtualResourceBaseManager.ValidateCreateData(ctx, userCred, ownerId, query, input.VirtualResourceCreateInput)
@@ -700,7 +664,7 @@ func (manager *SDiskManager) ValidateFsFeatures(fsType string, feature *api.Disk
 			return httperrors.NewInputParameterError("only ext4 fs can set fs_features.ext4, current is %q", fsType)
 		}
 		if feature.Ext4.ReservedBlocksPercentage < 0 || feature.Ext4.ReservedBlocksPercentage >= 100 {
-			return httperrors.NewInputParameterError("ext4.reserved_blocks_percentage must in range [1, 99]")
+			return httperrors.NewInputParameterError("ext4.reserved_blocks_percentage must be in range [1, 99]")
 		}
 	}
 	if feature.F2fs != nil {
@@ -708,7 +672,7 @@ func (manager *SDiskManager) ValidateFsFeatures(fsType string, feature *api.Disk
 			return httperrors.NewInputParameterError("only f2fs fs can set fs_features.f2fs, current is %q", fsType)
 		}
 		if feature.F2fs.OverprovisionRatioPercentage < 0 || feature.F2fs.OverprovisionRatioPercentage >= 100 {
-			return httperrors.NewInputParameterError("f2fs.reserved_blocks_percentage must in range [1, 99]")
+			return httperrors.NewInputParameterError("f2fs.reserved_blocks_percentage must be in range [1, 99]")
 		}
 	}
 	return nil
@@ -816,7 +780,7 @@ func (disk *SDisk) SetStorageByHost(hostId string, diskConfig *api.DiskConfig, s
 	return err
 }
 
-func getDiskResourceRequirements(ctx context.Context, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, input api.DiskCreateInput, count int) SQuota {
+func getDiskResourceRequirements(ctx context.Context, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, input api.DiskCreateInput, count int) (SQuota, error) {
 	req := SQuota{
 		Storage: input.SizeMb * count,
 	}
@@ -833,10 +797,14 @@ func getDiskResourceRequirements(ctx context.Context, userCred mcclient.TokenCre
 			input.Hypervisor,
 		)
 	} else {
-		quotaKey, _ = diskCreateInput2ComputeQuotaKeys(input, ownerId)
+		var err error
+		quotaKey, err = diskCreateInput2ComputeQuotaKeys(input, ownerId)
+		if err != nil {
+			return SQuota{}, errors.Wrap(err, "diskCreateInput2ComputeQuotaKeys")
+		}
 	}
 	req.SetKeys(quotaKey)
-	return req
+	return req, nil
 }
 
 func (disk *SDisk) OnMetadataUpdated(ctx context.Context, userCred mcclient.TokenCredential) {
@@ -881,7 +849,14 @@ func (manager *SDiskManager) OnCreateComplete(ctx context.Context, items []db.IM
 		log.Errorf("!!!data.Unmarshal api.DiskCreateInput fail %s", err)
 	}
 
-	pendingUsage := getDiskResourceRequirements(ctx, userCred, ownerId, input, len(items))
+	pendingUsage, err := getDiskResourceRequirements(ctx, userCred, ownerId, input, len(items))
+	if err != nil {
+		for i := range items {
+			disk := items[i].(*SDisk)
+			disk.SetStatus(ctx, userCred, api.DISK_ALLOC_FAILED, err.Error())
+		}
+		return
+	}
 	parentTaskId, _ := data[0].GetString("parent_task_id")
 	RunBatchCreateTask(ctx, items, userCred, data, pendingUsage, SRegionQuota{}, "DiskBatchCreateTask", parentTaskId)
 }
@@ -1275,7 +1250,7 @@ func (disk *SDisk) doResize(ctx context.Context, userCred mcclient.TokenCredenti
 	addDisk := sizeMb - disk.DiskSize
 	storage, _ := disk.GetStorage()
 	if storage == nil {
-		return httperrors.NewInternalServerError("disk has no valid storage")
+		return httperrors.NewInternalServerError("disk has no available storage")
 	}
 
 	var guestdriver IGuestDriver
@@ -1302,7 +1277,7 @@ func (disk *SDisk) doResize(ctx context.Context, userCred mcclient.TokenCredenti
 	pendingUsage := SQuota{Storage: int(addDisk)}
 	keys, err := disk.GetQuotaKeys()
 	if err != nil {
-		return httperrors.NewInternalServerError("disk.GetQuotaKeys fail %s", err)
+		return httperrors.NewInternalServerError("disk.GetQuotaKeys failed %s", err)
 	}
 	pendingUsage.SetKeys(keys)
 	err = quotas.CheckSetPendingQuota(ctx, userCred, &pendingUsage)
@@ -1447,7 +1422,7 @@ func (self *SDisk) PerformSave(ctx context.Context, userCred mcclient.TokenCrede
 	}
 	cnt, err := self.GetRuningGuestCount()
 	if err != nil {
-		return nil, httperrors.NewInternalServerError("GetRuningGuestCount fail %s", err)
+		return nil, httperrors.NewInternalServerError("GetRunningGuestCount failed %s", err)
 	}
 	if cnt > 0 {
 		return nil, httperrors.NewResourceNotReadyError("Save disk when not being USED")
@@ -1483,7 +1458,7 @@ func (self *SDisk) ValidateDeleteCondition(ctx context.Context, info api.DiskDet
 		return httperrors.NewNotEmptyError("Virtual disk %s(%s) used by virtual servers", self.Name, self.Id)
 	}
 	if self.IsNotDeletablePrePaid() {
-		return httperrors.NewForbiddenError("not allow to delete prepaid disk in valid status")
+		return httperrors.NewForbiddenError("not allowed to delete prepaid disk in valid status")
 	}
 	return self.SVirtualResourceBase.ValidateDeleteCondition(ctx, nil)
 }
@@ -1497,18 +1472,18 @@ func (self *SDisk) validateDeleteCondition(ctx context.Context, isPurge bool) er
 		}
 		host, _ := storage.GetMasterHost()
 		if host == nil {
-			return httperrors.NewBadRequestError("storage of disk %s no valid host", self.Id)
+			return httperrors.NewBadRequestError("disk %s storage has no available host", self.Id)
 		}
 	}
 	cnt, err := self.GetGuestDiskCount()
 	if err != nil {
-		return httperrors.NewInternalServerError("GetGuestDiskCount for disk %s fail %s", self.Id, err)
+		return httperrors.NewInternalServerError("GetGuestDiskCount for disk %s failed %s", self.Id, err)
 	}
 	if cnt > 0 {
 		return httperrors.NewNotEmptyError("Virtual disk %s(%s) used by virtual servers", self.Name, self.Id)
 	}
 	if !isPurge && self.IsNotDeletablePrePaid() {
-		return httperrors.NewForbiddenError("not allow to delete prepaid disk in valid status")
+		return httperrors.NewForbiddenError("not allowed to delete prepaid disk in valid status")
 	}
 	return self.SVirtualResourceBase.ValidateDeleteCondition(ctx, nil)
 }
@@ -1776,16 +1751,20 @@ func (manager *SDiskManager) SyncDisks(ctx context.Context, userCred mcclient.To
 	}
 
 	for i := 0; i < len(commondb); i += 1 {
-		skip, key := IsNeedSkipSync(commonext[i])
-		if skip {
-			log.Infof("delete disk %s(%s) with tag key or value: %s", commonext[i].GetName(), commonext[i].GetGlobalId(), key)
-			err := commondb[i].RealDelete(ctx, userCred)
-			if err != nil {
-				syncResult.DeleteError(err)
+		guest := commondb[i].GetGuest()
+		// 仅独立磁盘判断是否需要通过标签跳过同步，避免虚拟机有标签，磁盘没标签导致磁盘不断同步删除后再同步
+		if gotypes.IsNil(guest) {
+			skip, key := IsNeedSkipSync(commonext[i])
+			if skip {
+				log.Infof("delete disk %s(%s) with tag key or value: %s", commonext[i].GetName(), commonext[i].GetGlobalId(), key)
+				err := commondb[i].RealDelete(ctx, userCred)
+				if err != nil {
+					syncResult.DeleteError(err)
+					continue
+				}
+				syncResult.Delete()
 				continue
 			}
-			syncResult.Delete()
-			continue
 		}
 		if !xor {
 			err = commondb[i].syncWithCloudDisk(ctx, userCred, provider, commonext[i], -1, syncOwnerId, storage.ManagerId)
@@ -1952,6 +1931,9 @@ func (self *SDisk) syncWithCloudDisk(ctx context.Context, userCred mcclient.Toke
 		if iops := extDisk.GetIops(); iops > 0 {
 			self.Iops = iops
 		}
+		if tp := extDisk.GetThroughput(); tp > 0 {
+			self.Throughput = tp
+		}
 		if extDisk.GetIsAutoDelete() {
 			self.AutoDelete = true
 		}
@@ -2033,6 +2015,7 @@ func (manager *SDiskManager) newFromCloudDisk(ctx context.Context, userCred mccl
 	disk.StorageId = storage.Id
 
 	disk.Iops = extDisk.GetIops()
+	disk.Throughput = extDisk.GetThroughput()
 	disk.DiskFormat = extDisk.GetDiskFormat()
 	disk.DiskSize = extDisk.GetDiskSizeMB()
 	disk.AutoDelete = extDisk.GetIsAutoDelete()
@@ -2361,7 +2344,7 @@ func fillDiskConfigByStorage(ctx context.Context, userCred mcclient.TokenCredent
 		return errors.Wrap(httperrors.ErrInvalidStatus, "storage not online")
 	}
 	if storage.StorageType == api.STORAGE_NVME_PT {
-		return httperrors.NewBadRequestError("storage type %s require assign isolated device", api.STORAGE_NVME_PT)
+		return httperrors.NewBadRequestError("storage type %s requires an assigned isolated device", api.STORAGE_NVME_PT)
 	}
 	diskConfig.Storage = storage.Id
 	diskConfig.Backend = storage.StorageType
@@ -2504,7 +2487,13 @@ func (self *SDisk) RealDelete(ctx context.Context, userCred mcclient.TokenCreden
 			return err
 		}
 	}
+	SnapshotPolicyResourceManager.RemoveByResource(self.Id, api.SNAPSHOT_POLICY_TYPE_DISK)
 	return self.SVirtualResourceBase.Delete(ctx, userCred)
+}
+
+func (self *SDisk) DoPendingDelete(ctx context.Context, userCred mcclient.TokenCredential) error {
+	SnapshotPolicyResourceManager.RemoveByResource(self.Id, api.SNAPSHOT_POLICY_TYPE_DISK)
+	return self.SVirtualResourceBase.DoPendingDelete(ctx, userCred)
 }
 
 func (self *SDisk) RecordLastAttachedHost(ctx context.Context, userCred mcclient.TokenCredential, hostId string) error {
@@ -2549,7 +2538,7 @@ func (self *SDisk) PerformSyncstatus(ctx context.Context, userCred mcclient.Toke
 		return nil, err
 	}
 	if count > 0 {
-		return nil, httperrors.NewBadRequestError("Disk has %d task active, can't sync status", count)
+		return nil, httperrors.NewBadRequestError("Disk has %d active tasks and cannot sync status", count)
 	}
 
 	return nil, self.StartSyncstatus(ctx, userCred, "")
@@ -2569,10 +2558,10 @@ func (self *SDisk) PerformPurge(ctx context.Context, userCred mcclient.TokenCred
 	if provider != nil && utils.IsInStringArray(provider.Provider, []string{api.CLOUD_PROVIDER_HUAWEI, api.CLOUD_PROVIDER_HCSO, api.CLOUD_PROVIDER_HCS}) {
 		cnt, err := self.GetSnapshotCount()
 		if err != nil {
-			return nil, httperrors.NewInternalServerError("GetSnapshotCount fail %s", err)
+			return nil, httperrors.NewInternalServerError("GetSnapshotCount failed %s", err)
 		}
 		if cnt > 0 {
-			return nil, httperrors.NewForbiddenError("not allow to purge. Virtual disk must not have snapshots")
+			return nil, httperrors.NewForbiddenError("not allowed to purge virtual disk must not have snapshots")
 		}
 	}
 
@@ -2584,10 +2573,10 @@ func (self *SDisk) CustomizeDelete(ctx context.Context, userCred mcclient.TokenC
 		if provider := self.GetCloudprovider(); provider != nil && utils.IsInStringArray(provider.Provider, []string{api.CLOUD_PROVIDER_HUAWEI, api.CLOUD_PROVIDER_HCSO, api.CLOUD_PROVIDER_HCS}) {
 			cnt, err := self.GetSnapshotCount()
 			if err != nil {
-				return httperrors.NewInternalServerError("GetSnapshotCount fail %s", err)
+				return httperrors.NewInternalServerError("GetSnapshotCount failed %s", err)
 			}
 			if cnt > 0 {
-				return httperrors.NewForbiddenError("not allow to delete. Virtual disk must not have snapshots")
+				return httperrors.NewForbiddenError("not allowed to delete virtual disk must not have snapshots")
 			}
 		} else if storage, _ := self.GetStorage(); storage != nil && storage.StorageType == api.STORAGE_RBD {
 			scnt, err := self.GetSnapshotCount()
@@ -2595,7 +2584,7 @@ func (self *SDisk) CustomizeDelete(ctx context.Context, userCred mcclient.TokenC
 				return err
 			}
 			if scnt > 0 {
-				return httperrors.NewBadRequestError("not allow to delete %s disk with snapshots", storage.StorageType)
+				return httperrors.NewBadRequestError("not allowed to delete %s disk with snapshots", storage.StorageType)
 			}
 		}
 	}

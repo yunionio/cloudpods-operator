@@ -410,13 +410,19 @@ func getTenant(ctx context.Context, projectId string, name string, domainId stri
 	return db.TenantCacheManager.FetchTenantByNameInDomain(ctx, name, domainId)
 }
 
-func createTenant(ctx context.Context, name, domainId, desc string) (string, string, error) {
+func createTenant(ctx context.Context, name, domainId, desc string, tags map[string]string) (string, string, error) {
 	s := auth.GetAdminSession(ctx, options.Options.Region)
 	params := jsonutils.NewDict()
 	params.Add(jsonutils.NewString(name), "generate_name")
 
 	params.Add(jsonutils.NewString(domainId), "domain_id")
 	params.Add(jsonutils.NewString(desc), "description")
+	meta := map[string]string{}
+	for k, v := range tags {
+		k = db.USER_TAG_PREFIX + strings.TrimPrefix(k, db.USER_TAG_PREFIX)
+		meta[k] = v
+	}
+	params.Set("__meta__", jsonutils.Marshal(meta))
 
 	resp, err := identity.Projects.Create(s, params)
 	if err != nil {
@@ -440,7 +446,7 @@ func (cprvd *SCloudprovider) syncProject(ctx context.Context, userCred mcclient.
 	}
 
 	desc := fmt.Sprintf("auto create from cloud provider %s (%s)", cprvd.Name, cprvd.Id)
-	domainId, projectId, err := account.getOrCreateTenant(ctx, cprvd.Name, "", cprvd.ProjectId, desc)
+	domainId, projectId, err := account.getOrCreateTenant(ctx, cprvd.Name, "", cprvd.ProjectId, desc, nil)
 	if err != nil {
 		return errors.Wrap(err, "getOrCreateTenant")
 	}
@@ -693,7 +699,7 @@ func (cprvd *SCloudprovider) PerformChangeProject(ctx context.Context, userCred 
 	}
 	if cprvd.DomainId != tenant.DomainId {
 		if !db.IsAdminAllowPerform(ctx, userCred, cprvd, "change-project") {
-			return nil, httperrors.NewForbiddenError("not allow to change project across domain")
+			return nil, httperrors.NewForbiddenError("not allowed to change project across domain")
 		}
 		if account.ShareMode == api.CLOUD_ACCOUNT_SHARE_MODE_ACCOUNT_DOMAIN && account.DomainId != tenant.DomainId {
 			return nil, httperrors.NewInvalidStatusError("cannot change to a different domain from a private cloud account")
@@ -791,7 +797,7 @@ func (cprvd *SCloudprovider) markSyncing(userCred mcclient.TokenCredential) erro
 	return nil
 }
 
-func (cprvd *SCloudprovider) markEndSyncWithLock(ctx context.Context, userCred mcclient.TokenCredential) error {
+func (cprvd *SCloudprovider) markEndSyncWithLock(ctx context.Context, userCred mcclient.TokenCredential, deepSync bool) error {
 	err := func() error {
 		lockman.LockObject(ctx, cprvd)
 		defer lockman.ReleaseObject(ctx, cprvd)
@@ -819,7 +825,7 @@ func (cprvd *SCloudprovider) markEndSyncWithLock(ctx context.Context, userCred m
 	if err != nil {
 		return errors.Wrapf(err, "GetCloudaccount")
 	}
-	return account.MarkEndSyncWithLock(ctx, userCred)
+	return account.MarkEndSyncWithLock(ctx, userCred, deepSync)
 }
 
 func (cprvd *SCloudprovider) markEndSync(userCred mcclient.TokenCredential) error {
@@ -1594,7 +1600,7 @@ func (provider *SCloudprovider) syncCloudproviderRegions(ctx context.Context, us
 		}
 	}
 	if syncCnt == 0 {
-		err := provider.markEndSyncWithLock(ctx, userCred)
+		err := provider.markEndSyncWithLock(ctx, userCred, false)
 		if err != nil {
 			log.Errorf("markEndSyncWithLock for %s error: %v", provider.Name, err)
 		}
