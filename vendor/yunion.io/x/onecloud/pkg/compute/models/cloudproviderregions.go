@@ -179,7 +179,7 @@ func (self *SCloudproviderregion) PostUpdate(ctx context.Context, userCred mccli
 }
 
 func (manager *SCloudproviderregion) ValidateCreateData(ctx context.Context, userCred mcclient.TokenCredential, ownerId mcclient.IIdentityProvider, query jsonutils.JSONObject, data *jsonutils.JSONDict) (*jsonutils.JSONDict, error) {
-	return nil, httperrors.NewForbiddenError("not allow to create")
+	return nil, httperrors.NewForbiddenError("not allowed to create")
 }
 
 func (self *SCloudproviderregion) ValidateDeleteCondition(ctx context.Context, info jsonutils.JSONObject) error {
@@ -317,7 +317,7 @@ func (self *SCloudproviderregion) markEndSync(ctx context.Context, userCred mccl
 	if err != nil {
 		return errors.Wrapf(err, "GetProvider")
 	}
-	err = provider.markEndSyncWithLock(ctx, userCred)
+	err = provider.markEndSyncWithLock(ctx, userCred, *deepSync)
 	if err != nil {
 		return errors.Wrapf(err, "markEndSyncWithLock")
 	}

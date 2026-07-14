@@ -226,7 +226,7 @@ func GetCapabilities(ctx context.Context, userCred mcclient.TokenCredential, que
 	if scope == rbacscope.ScopeSystem {
 		result := policy.PolicyManager.Allow(scope, userCred, consts.GetServiceType(), "capabilities", policy.PolicyActionList)
 		if result.Result.IsDeny() {
-			return capa, httperrors.NewForbiddenError("not allow to query system capability")
+			return capa, httperrors.NewForbiddenError("not allowed to query system capability")
 		}
 		domainId = ""
 	}
@@ -315,7 +315,7 @@ func GetAvailableHostCount(ctx context.Context, userCred mcclient.TokenCredentia
 
 	domainId, _ := query.GetString("domain_id")
 	q := HostManager.Query().Equals("enabled", true).
-		Equals("host_status", "online").Equals("host_type", api.HOST_TYPE_HYPERVISOR)
+		Equals("host_status", "online").In("host_type", []string{api.HOST_TYPE_HYPERVISOR, api.HOST_TYPE_CONTAINER, api.HOST_TYPE_KVM})
 	if len(domainId) > 0 {
 		ownerId := &db.SOwnerId{DomainId: domainId}
 		q = HostManager.FilterByOwner(ctx, q, HostManager, userCred, ownerId, rbacscope.ScopeDomain)
@@ -1032,22 +1032,25 @@ func getNetworkCountByFilter(ctx context.Context, userCred mcclient.TokenCredent
 
 	q := networks.Query()
 
-	if zone != nil && !utils.IsInStringArray(region.Provider, api.REGIONAL_NETWORK_PROVIDERS) {
-		wires := WireManager.Query("id").Equals("zone_id", zone.Id)
-		q = q.In("wire_id", wires.SubQuery())
-	} else if region != nil {
-		if utils.IsInStringArray(region.Provider, api.REGIONAL_NETWORK_PROVIDERS) {
-			wires := WireManager.Query().SubQuery()
-			vpcs := VpcManager.Query().SubQuery()
-			subq := wires.Query(wires.Field("id")).
-				Join(vpcs, sqlchemy.Equals(wires.Field("vpc_id"), vpcs.Field("id"))).
-				Filter(sqlchemy.Equals(vpcs.Field("cloudregion_id"), region.Id))
-			q = q.Filter(sqlchemy.In(q.Field("wire_id"), subq))
+	if zone != nil || region != nil {
+		wires := WireManager.Query("id")
+		var zoneFilter sqlchemy.ICondition
+		if zone != nil {
+			zoneFilter = sqlchemy.Equals(wires.Field("zone_id"), zone.Id)
 		} else {
 			subq := getRegionZoneSubq(region)
-			wires := WireManager.Query("id").In("zone_id", subq)
-			q = q.In("wire_id", wires.SubQuery())
+			zoneFilter = sqlchemy.In(wires.Field("zone_id"), subq)
 		}
+		vpcs := VpcManager.Query().SubQuery()
+		wires = wires.Join(vpcs, sqlchemy.Equals(wires.Field("vpc_id"), vpcs.Field("id")))
+		wires = wires.Filter(sqlchemy.OR(
+			zoneFilter,
+			sqlchemy.AND(
+				sqlchemy.IsNullOrEmpty(wires.Field("zone_id")),
+				sqlchemy.Equals(vpcs.Field("cloudregion_id"), region.Id),
+			),
+		))
+		q = q.In("wire_id", wires.SubQuery())
 	}
 
 	q = NetworkManager.FilterByOwner(ctx, q, NetworkManager, userCred, ownerId, scope)

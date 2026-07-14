@@ -1035,7 +1035,7 @@ func generateLivenessProbe(path string, port int32) *v1.Probe {
 		FailureThreshold:    3,
 		SuccessThreshold:    1,
 		TimeoutSeconds:      5,
-		Handler: v1.Handler{
+		ProbeHandler: v1.ProbeHandler{
 			HTTPGet: &v1.HTTPGetAction{
 				Path: path,
 				Port: intstr.IntOrString{
@@ -1055,7 +1055,7 @@ func generateReadinessProbe(path string, port int32) *v1.Probe {
 		FailureThreshold:    2,
 		SuccessThreshold:    3,
 		TimeoutSeconds:      3,
-		Handler: v1.Handler{
+		ProbeHandler: v1.ProbeHandler{
 			HTTPGet: &v1.HTTPGetAction{
 				Path: path,
 				Port: intstr.IntOrString{

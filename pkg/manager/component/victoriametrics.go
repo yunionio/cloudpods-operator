@@ -136,7 +136,7 @@ func (m *vmManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.On
 				},
 				ReadinessProbe: &corev1.Probe{
 					FailureThreshold: 3,
-					Handler: corev1.Handler{
+					ProbeHandler: corev1.ProbeHandler{
 						HTTPGet: &corev1.HTTPGetAction{
 							Path:   "/health",
 							Port:   intstr.FromInt(int(m.getContainerPort())),
@@ -150,7 +150,7 @@ func (m *vmManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.On
 				},
 				LivenessProbe: &corev1.Probe{
 					FailureThreshold: 10,
-					Handler: corev1.Handler{
+					ProbeHandler: corev1.ProbeHandler{
 						HTTPGet: &corev1.HTTPGetAction{
 							Path:   "/health",
 							Port:   intstr.FromInt(int(m.getContainerPort())),

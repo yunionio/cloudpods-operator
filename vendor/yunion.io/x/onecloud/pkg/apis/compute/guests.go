@@ -404,7 +404,7 @@ type GuestDiskInfo struct {
 	Throughput    int    `json:"throughput"`
 	Bps           int    `json:"bps"`
 	ImageId       string `json:"image_id,omitempty"`
-	Image         string `json:"image,omitemtpy"`
+	Image         string `json:"image,omitempty"`
 	StorageId     string `json:"storage_id"`
 	Preallocation string `json:"preallocation"`
 }
@@ -888,6 +888,10 @@ type ServerChangeConfigInput struct {
 	// 内存大小, 1024M, 1G
 	VmemSize string `json:"vmem_size"`
 
+	// 是否强制关机
+	// 若虚拟机不支持开机调整配置, 则需要指定此参数为true, 强制关机后, 再调整配置, 再启动虚拟机
+	ForceStop bool `json:"force_stop"`
+
 	// 调整完配置后是否自动启动
 	AutoStart bool `json:"auto_start"`
 
@@ -924,24 +928,25 @@ type ServerUpdateInput struct {
 }
 
 type GuestJsonDesc struct {
-	Name           string `json:"name"`
-	Hostname       string `json:"hostname"`
-	Description    string `json:"description"`
-	UUID           string `json:"uuid"`
-	Mem            int    `json:"mem"`
-	CpuSockets     int    `json:"cpu_sockets"`
-	Cpu            int    `json:"cpu"`
-	Vga            string `json:"vga"`
-	Vdi            string `json:"vdi"`
-	Machine        string `json:"machine"`
-	Bios           string `json:"bios"`
-	BootOrder      string `json:"boot_order"`
-	SrcIpCheck     bool   `json:"src_ip_check"`
-	SrcMacCheck    bool   `json:"src_mac_check"`
-	IsMaster       *bool  `json:"is_master"`
-	IsSlave        *bool  `json:"is_slave"`
-	IsVolatileHost bool   `json:"is_volatile_host"`
-	HostId         string `json:"host_id"`
+	Name            string `json:"name"`
+	Hostname        string `json:"hostname"`
+	Description     string `json:"description"`
+	UUID            string `json:"uuid"`
+	Mem             int    `json:"mem"`
+	CpuSockets      int    `json:"cpu_sockets"`
+	Cpu             int    `json:"cpu"`
+	Vga             string `json:"vga"`
+	Vdi             string `json:"vdi"`
+	Machine         string `json:"machine"`
+	Bios            string `json:"bios"`
+	BootOrder       string `json:"boot_order"`
+	SrcIpCheck      bool   `json:"src_ip_check"`
+	SrcMacCheck     bool   `json:"src_mac_check"`
+	IsMaster        *bool  `json:"is_master"`
+	IsSlave         *bool  `json:"is_slave"`
+	IsVolatileHost  bool   `json:"is_volatile_host"`
+	ExternalImageId string `json:"external_image_id"`
+	HostId          string `json:"host_id"`
 	// 宿主机管理IP
 	HostAccessIp string `json:"host_access_ip"`
 	// 宿主机公网IP（如果有）
@@ -1055,6 +1060,11 @@ type ServerChangeDiskStorageInput struct {
 	DiskId          string `json:"disk_id"`
 	TargetStorageId string `json:"target_storage_id"`
 	KeepOriginDisk  bool   `json:"keep_origin_disk"`
+}
+
+type ServerChangeDiskDriverInput struct {
+	DiskId string `json:"disk_id"`
+	Driver string `json:"driver"`
 }
 
 type ServerChangeDiskStorageInternalInput struct {
@@ -1456,12 +1466,17 @@ type ServerChangeIpaddrInput struct {
 	Reserve *bool `json:"reserve"`
 
 	RestartNetwork *bool `json:"restart_network"`
+
+	NoSync *bool `json:"no_sync"`
 }
 
 type ServerChangeBandwidthInput struct {
 	ServerNetworkInfo
 
 	Bandwidth int `json:"bandwidth"`
+
+	TxBwLimit int `json:"tx_bw_limit"`
+	RxBwLimit int `json:"rx_bw_limit"`
 
 	NoSync *bool `json:"no_sync"`
 }
@@ -1568,4 +1583,12 @@ type ServerChangeBillingTypeInput struct {
 type ServerPerformStatusInput struct {
 	apis.PerformStatusInput
 	Containers map[string]*ContainerPerformStatusInput `json:"containers"`
+}
+
+type ServerModificationType struct {
+	Name string `json:"name"`
+}
+
+type ServerModificationTypesOutput struct {
+	ModificationTypes []ServerModificationType `json:"modification_types"`
 }

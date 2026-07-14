@@ -872,6 +872,7 @@ func (self *SZone) purgeWires(ctx context.Context, managerId string) error {
 	bns := HostnetworkManager.Query("row_id").In("network_id", networks.SubQuery())
 	rdsnetworks := DBInstanceNetworkManager.Query("row_id").In("network_id", networks.SubQuery())
 	groupnetworks := GroupnetworkManager.Query("row_id").In("network_id", networks.SubQuery())
+	guestnetworks := GuestnetworkManager.Query("row_id").In("network_id", networks.SubQuery())
 	lbnetworks := LoadbalancernetworkManager.Query("row_id").In("network_id", networks.SubQuery())
 	netmacs := NetworkIpMacManager.Query("id").In("network_id", networks.SubQuery())
 	netaddrs := NetworkAddressManager.Query("id").In("network_id", networks.SubQuery())
@@ -888,6 +889,7 @@ func (self *SZone) purgeWires(ctx context.Context, managerId string) error {
 		{manager: NetworkAddressManager, key: "id", q: netaddrs},
 		{manager: NetworkIpMacManager, key: "id", q: netmacs},
 		{manager: LoadbalancernetworkManager, key: "row_id", q: lbnetworks},
+		{manager: GuestnetworkManager, key: "row_id", q: guestnetworks},
 		{manager: GroupnetworkManager, key: "row_id", q: groupnetworks},
 		{manager: DBInstanceNetworkManager, key: "row_id", q: rdsnetworks},
 		{manager: HostnetworkManager, key: "row_id", q: bns},
@@ -921,8 +923,10 @@ func (cprvd *SCloudprovider) purge(ctx context.Context, userCred mcclient.TokenC
 	dnsVpcs := DnsZoneVpcManager.Query("row_id").In("dns_zone_id", dnszones.SubQuery())
 	ssls := SSLCertificateManager.Query("id").Equals("manager_id", cprvd.Id)
 	quotas := CloudproviderQuotaManager.Query("id").Equals("manager_id", cprvd.Id)
+	projects := ExternalProjectManager.Query("id").Equals("manager_id", cprvd.Id)
 
 	pairs := []purgePair{
+		{manager: ExternalProjectManager, key: "id", q: projects},
 		{manager: CloudproviderQuotaManager, key: "id", q: quotas},
 		{manager: SSLCertificateManager, key: "id", q: ssls},
 		{manager: DnsZoneVpcManager, key: "row_id", q: dnsVpcs},
@@ -947,16 +951,5 @@ func (cprvd *SCloudprovider) purge(ctx context.Context, userCred mcclient.TokenC
 }
 
 func (caccount *SCloudaccount) purge(ctx context.Context, userCred mcclient.TokenCredential) error {
-	projects := ExternalProjectManager.Query("id").Equals("cloudaccount_id", caccount.Id)
-
-	pairs := []purgePair{
-		{manager: ExternalProjectManager, key: "id", q: projects},
-	}
-	for i := range pairs {
-		err := pairs[i].purgeAll(ctx)
-		if err != nil {
-			return err
-		}
-	}
 	return caccount.SEnabledStatusInfrasResourceBase.Delete(ctx, userCred)
 }

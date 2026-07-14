@@ -86,8 +86,10 @@ const (
 	MonitorLoki              = "monitor-loki"
 	MonitorPrometheus        = "prometheus-monitor-monitor-stack-prometheus"
 
-	MonitorBucketThanos = "thanos"
-	MonitorBucketLoki   = "loki"
+	MonitorBucketThanos                 = "thanos"
+	MonitorBucketLoki                   = "loki"
+	MonitorBucketAiProxy                = "aiproxy-log"
+	MonitorBucketAiProxyRetentionDays   = 90
 )
 
 const (

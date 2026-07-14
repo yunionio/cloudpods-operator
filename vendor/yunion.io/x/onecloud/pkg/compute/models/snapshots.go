@@ -439,7 +439,8 @@ func (manager *SSnapshotManager) FetchCustomizeColumns(
 
 func (self *SSnapshot) GetShortDesc(ctx context.Context) *jsonutils.JSONDict {
 	res := self.SVirtualResourceBase.GetShortDesc(ctx)
-	res.Add(jsonutils.NewInt(int64(self.VirtualSize)), "size")
+	res.Add(jsonutils.NewInt(int64(self.VirtualSize)), "virtual_size")
+	res.Add(jsonutils.NewInt(int64(self.Size)), "size")
 	res.Add(jsonutils.NewString(self.DiskId), "disk_id")
 	disk, _ := self.GetDisk()
 	if disk != nil {
@@ -771,7 +772,7 @@ func (self *SSnapshot) ValidateDeleteCondition(ctx context.Context, info *api.Sn
 	if gotypes.IsNil(info) {
 		count, err := InstanceSnapshotJointManager.Query().Equals("snapshot_id", self.Id).CountWithError()
 		if err != nil {
-			return httperrors.NewInternalServerError("Fetch instance snapshot error %s", err)
+			return httperrors.NewInternalServerError("fetch instance snapshot failed %s", err)
 		}
 		if count > 0 {
 			return httperrors.NewBadRequestError("snapshot referenced by instance snapshot")
@@ -839,7 +840,7 @@ func (self *SSnapshot) PerformSyncstatus(ctx context.Context, userCred mcclient.
 		return nil, err
 	}
 	if count > 0 {
-		return nil, httperrors.NewBadRequestError("Snapshot has %d task active, can't sync status", count)
+		return nil, httperrors.NewBadRequestError("Snapshot has %d active tasks and cannot sync status", count)
 	}
 
 	return nil, StartResourceSyncStatusTask(ctx, userCred, self, "SnapshotSyncstatusTask", "")
@@ -870,12 +871,12 @@ func (self *SSnapshotManager) PerformDeleteDiskSnapshots(ctx context.Context, us
 	}
 	snapshots := self.GetDiskSnapshots(diskId)
 	if snapshots == nil || len(snapshots) == 0 {
-		return nil, httperrors.NewNotFoundError("Disk %s dose not have snapshot", diskId)
+		return nil, httperrors.NewNotFoundError("Disk %s does not have snapshot", diskId)
 	}
 	snapshotIds := []string{}
 	for i := 0; i < len(snapshots); i++ {
 		if snapshots[i].FakeDeleted == false {
-			return nil, httperrors.NewBadRequestError("Can not delete disk snapshots, have manual snapshot")
+			return nil, httperrors.NewBadRequestError("Cannot delete disk snapshots, has manual snapshots")
 		}
 		snapshotIds = append(snapshotIds, snapshots[i].Id)
 	}
@@ -1010,6 +1011,18 @@ func (self *SSnapshot) SyncWithCloudSnapshot(ctx context.Context, userCred mccli
 		self.DiskType = ext.GetDiskType()
 		self.VirtualSize = int(ext.GetSizeMb())
 		self.Size = int(ext.GetSizeMb())
+		disk, _ := self.GetDisk()
+		if gotypes.IsNil(disk) && len(ext.GetDiskId()) > 0 {
+			disk, err := db.FetchByExternalIdAndManagerId(DiskManager, ext.GetDiskId(), func(q *sqlchemy.SQuery) *sqlchemy.SQuery {
+				sq := StorageManager.Query().SubQuery()
+				return q.Join(sq, sqlchemy.Equals(q.Field("storage_id"), sq.Field("id"))).Filter(sqlchemy.Equals(sq.Field("manager_id"), self.ManagerId))
+			})
+			if err != nil {
+				log.Errorf("snapshot %s missing disk?", self.Name)
+			} else {
+				self.DiskId = disk.GetId()
+			}
+		}
 
 		self.CloudregionId = region.Id
 		return nil

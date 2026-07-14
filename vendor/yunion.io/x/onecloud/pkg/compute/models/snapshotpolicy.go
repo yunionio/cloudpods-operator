@@ -93,11 +93,11 @@ func (manager *SSnapshotPolicyManager) ValidateCreateData(
 	input *api.SSnapshotPolicyCreateInput,
 ) (*api.SSnapshotPolicyCreateInput, error) {
 	if input.RetentionDays < -1 || input.RetentionDays == 0 || input.RetentionDays > options.Options.RetentionDaysLimit {
-		return nil, httperrors.NewInputParameterError("Retention days must in 1~%d or -1", options.Options.RetentionDaysLimit)
+		return nil, httperrors.NewInputParameterError("Retention days must be in range 1~%d or -1", options.Options.RetentionDaysLimit)
 	}
 
 	if input.RetentionCount > options.Options.RetentionCountLimit {
-		return nil, httperrors.NewInputParameterError("Retention count must less than %d", options.Options.RetentionCountLimit)
+		return nil, httperrors.NewInputParameterError("Retention count must be less than %d", options.Options.RetentionCountLimit)
 	}
 
 	var err error
@@ -154,12 +154,12 @@ func (self *SSnapshotPolicy) ValidateUpdateData(ctx context.Context, userCred mc
 
 	if input.RetentionDays != nil {
 		if *input.RetentionDays < -1 || *input.RetentionDays == 0 || *input.RetentionDays > options.Options.RetentionDaysLimit {
-			return nil, httperrors.NewInputParameterError("Retention days must in 1~%d or -1", options.Options.RetentionDaysLimit)
+			return nil, httperrors.NewInputParameterError("Retention days must be in range 1~%d or -1", options.Options.RetentionDaysLimit)
 		}
 	}
-	if input.RegentionCount != nil {
-		if *input.RegentionCount > options.Options.RetentionCountLimit {
-			return nil, httperrors.NewInputParameterError("Retention count must less than %d", options.Options.RetentionCountLimit)
+	if input.RetentionCount != nil {
+		if *input.RetentionCount > options.Options.RetentionCountLimit {
+			return nil, httperrors.NewInputParameterError("Retention count must be less than %d", options.Options.RetentionCountLimit)
 		}
 	}
 
@@ -489,6 +489,24 @@ func (sp *SSnapshotPolicy) PerformBindDisks(
 			return nil, err
 		}
 		disk := diskObj.(*SDisk)
+		// 磁盘只能绑定一个快照策略
+		cnt, err := SnapshotPolicyResourceManager.GetBindingCount(disk.Id, api.SNAPSHOT_POLICY_TYPE_DISK)
+		if err != nil {
+			return nil, errors.Wrap(err, "GetBindingCount")
+		}
+		if cnt > 0 {
+			return nil, httperrors.NewConflictError("disk %s already bound to a snapshot policy", disk.Name)
+		}
+		// 若磁盘所属主机已绑定主机快照策略，则磁盘不能再绑定
+		if guest := disk.GetGuest(); guest != nil {
+			guestCnt, err := SnapshotPolicyResourceManager.GetBindingCount(guest.Id, api.SNAPSHOT_POLICY_TYPE_SERVER)
+			if err != nil {
+				return nil, errors.Wrap(err, "GetBindingCount for guest")
+			}
+			if guestCnt > 0 {
+				return nil, httperrors.NewConflictError("guest %s already has server snapshot policy, disk cannot bind snapshot policy", guest.Name)
+			}
+		}
 		if len(sp.ManagerId) > 0 {
 			storage, err := disk.GetStorage()
 			if err != nil {
@@ -717,6 +735,11 @@ func (manager *SSnapshotPolicyManager) ListItemFilter(
 	}
 	if len(input.Type) > 0 {
 		q = q.Equals("type", input.Type)
+	}
+
+	if len(input.ResourceId) > 0 {
+		sq := SnapshotPolicyResourceManager.Query("snapshotpolicy_id").In("resource_id", input.ResourceId).SubQuery()
+		q = q.In("id", sq)
 	}
 
 	return q, nil

@@ -22,8 +22,18 @@ import (
 )
 
 type ContainerKeyValue struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
+	Key       string                `json:"key"`
+	Value     string                `json:"value"`
+	ValueFrom *ContainerValueSource `json:"value_from"`
+}
+
+type ContainerValueSource struct {
+	Credential *ContainerValueSourceCredential `json:"credential"`
+}
+
+type ContainerValueSourceCredential struct {
+	Id  string `json:"id"`
+	Key string `json:"key"`
 }
 
 type ContainerLifecyleHandlerType string
@@ -367,6 +377,11 @@ const (
 	CONTAINER_VOLUME_MOUNT_HOST_PATH_TYPE_DIRECTORY ContainerVolumeMountHostPathType = "directory"
 	CONTAINER_VOLUME_MOUNT_HOST_PATH_TYPE_FILE      ContainerVolumeMountHostPathType = "file"
 )
+
+type HostPathRequirement struct {
+	Path string                           `json:"path"`
+	Type ContainerVolumeMountHostPathType `json:"type"`
+}
 
 type ContainerVolumeMountHostPathAutoCreateConfig struct {
 	Uid         uint   `json:"uid"`

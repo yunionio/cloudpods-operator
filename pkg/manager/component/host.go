@@ -246,7 +246,7 @@ func (m *hostManager) newHostPrivilegedDaemonSet(
 				},
 				WorkingDir: "/opt/cloud",
 				StartupProbe: &corev1.Probe{
-					Handler: corev1.Handler{
+					ProbeHandler: corev1.ProbeHandler{
 						HTTPGet: &corev1.HTTPGetAction{
 							Path:   "/ping",
 							Port:   intstr.FromInt(8885),

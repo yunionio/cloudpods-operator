@@ -144,15 +144,20 @@ type ComputeOptions struct {
 	HostOfflineMaxSeconds        int `help:"Maximal seconds interval that a host considered offline during which it did not ping region, default is 3 minues" default:"180"`
 	HostOfflineDetectionInterval int `help:"Interval to check offline hosts, default is half a minute" default:"30"`
 
+	LbaagentOfflineMaxSeconds       int `help:"Maximal seconds interval that a lbagent considered offline during which it did not ping region, default is 3 minues" default:"90"`
+	LbagentOfflineDetectionInterval int `help:"Interval to check offline lbagents, default is one minute" default:"60"`
+
 	ManagedHostSyncStatusIntervalSeconds int `help:"interval to automatically sync status of managed hosts, default is 5 minutes" default:"300"`
 
 	MinimalIpAddrReusedIntervalSeconds int `help:"Minimal seconds when a release IP address can be reallocate" default:"30"`
 
-	CloudSyncWorkerCount         int `help:"how many current synchronization threads" default:"5"`
-	CloudProviderSyncWorkerCount int `help:"how many current providers synchronize their regions, practically no limit" default:"10"`
-	CloudAutoSyncIntervalSeconds int `help:"frequency to check auto sync tasks" default:"300"`
-	DefaultSyncIntervalSeconds   int `help:"minimal synchronization interval, default 15 minutes" default:"900"`
-	MaxCloudAccountErrorCount    int `help:"maximal consecutive error count allow for a cloud account" default:"5"`
+	CloudSyncWorkerCount             int `help:"how many current synchronization threads" default:"5"`
+	CloudProviderSyncWorkerCount     int `help:"how many current providers synchronize their regions, practically no limit" default:"10"`
+	CloudAccountProbeWorkerCount     int `help:"how many workers for auto cloud account status probe" default:"10"`
+	CloudAccountSyncProbeWorkerCount int `help:"how many workers for cloud account sync probe before resource sync" default:"10"`
+	CloudAutoSyncIntervalSeconds     int `help:"frequency to check auto sync tasks" default:"300"`
+	DefaultSyncIntervalSeconds       int `help:"minimal synchronization interval, default 15 minutes" default:"900"`
+	MaxCloudAccountErrorCount        int `help:"maximal consecutive error count allow for a cloud account" default:"5"`
 
 	EnableSyncName bool `help:"enable name sync" default:"true"`
 
@@ -205,9 +210,10 @@ type ComputeOptions struct {
 	SkipServerBySysTagKeys         string   `help:"skip server,disk sync and create with system tags" default:""`
 	SkipServerByUserTagKeys        string   `help:"skip server,disk sync and create with user tags" default:""`
 	SkipServerByUserTagValues      []string `help:"skip server,disk sync and create with user tag values"`
+	SkipServerByUserTags           []string `help:"skip server,disk sync and create with tags, format: key=value"`
 	RetentionServerByUserTagKeys   []string `help:"retain server,disk with user tags" default:""`
 	RetentionServerByUserTagValues []string `help:"retain server,disk with user tag values" default:""`
-	RetentionServerByUserTags      []string `help:"retain server,disk with user tags" default:""`
+	RetentionServerByUserTags      []string `help:"retain server,disk with tags, format: key=value"`
 	// 修改标签时不再同步至云上, 云账号同步资源时不会冲掉本地打的标签(key相同的会覆盖), 云账号开启只读同步和此参数效果相同,且仅影响开启只读同步的账号
 	KeepTagLocalization bool `help:"keep tag localization, not synchronized to the cloud" default:"false"`
 
@@ -256,6 +262,8 @@ type ComputeEEOptions struct {
 	ServerStatusSyncIntervalMinutes int `default:"5" help:"Interval to sync server status, defualt is 5 minutes"`
 	// 跳过新增资源同步时间范围
 	SkipServerStatusSyncTimeRange string `help:"Skip server status sync time range example: 08:00-18:00"`
+	// 公共云公告同步时间周期
+	PublicCloudNoticesSyncIntervalHours int `default:"3" help:"Interval to sync public cloud notices, defualt is 3 hours"`
 }
 
 type SCapabilityOptions struct {

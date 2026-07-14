@@ -19,14 +19,9 @@ import (
 	"yunion.io/x/onecloud/pkg/mcclient/modules/tasks"
 )
 
-var Tasks tasks.TasksManager
-
 func init() {
-	Tasks = tasks.TasksManager{
-		ResourceManager: modules.NewMonitorV2Manager("task", "tasks",
-			[]string{},
-			[]string{"Id", "Obj_name", "Obj_Id", "Task_name", "Stage", "Created_at"},
-		),
-	}
-	modules.Register(&Tasks)
+	Tasks, ArchivedTasks = tasks.NewTaskManagers(modules.NewMonitorV2Manager)
 }
+
+var Tasks tasks.TasksManager
+var ArchivedTasks tasks.TasksManager

@@ -47,6 +47,7 @@ import (
 	"yunion.io/x/onecloud/pkg/compute/options"
 	"yunion.io/x/onecloud/pkg/httperrors"
 	"yunion.io/x/onecloud/pkg/mcclient"
+	"yunion.io/x/onecloud/pkg/util/logclient"
 	"yunion.io/x/onecloud/pkg/util/rbacutils"
 	"yunion.io/x/onecloud/pkg/util/stringutils2"
 )
@@ -118,6 +119,11 @@ type SElasticip struct {
 
 	// 区域Id
 	// CloudregionId string `width:"36" charset:"ascii" nullable:"false" list:"user" create:"required"`
+
+	// 下行带宽限制，单位mbps
+	RxBwLimit int `nullable:"false" default:"0" list:"user"`
+	// 上行带宽限制，单位mbps
+	TxBwLimit int `nullable:"false" default:"0" list:"user"`
 }
 
 // 弹性公网IP列表
@@ -257,7 +263,7 @@ func (manager *SElasticipManager) ListItemFilter(
 			}
 			q = q.IsNullOrEmpty("associate_type")
 		default:
-			return nil, httperrors.NewInputParameterError("Not support associate type %s, only support %s", associateType, api.EIP_ASSOCIATE_VALID_TYPES)
+			return nil, httperrors.NewInputParameterError("associate type %s is not supported; supported types: %s", associateType, api.EIP_ASSOCIATE_VALID_TYPES)
 		}
 	}
 
@@ -397,6 +403,8 @@ func (self *SElasticip) GetShortDesc(ctx context.Context) *jsonutils.JSONDict {
 	// desc.Add(jsonutils.NewString(self.ChargeType), "charge_type")
 
 	desc.Add(jsonutils.NewInt(int64(self.Bandwidth)), "bandwidth")
+	desc.Add(jsonutils.NewInt(int64(self.RxBwLimit)), "rx_bw_limit")
+	desc.Add(jsonutils.NewInt(int64(self.TxBwLimit)), "tx_bw_limit")
 	desc.Add(jsonutils.NewString(self.Mode), "mode")
 	desc.Add(jsonutils.NewString(self.IpAddr), "ip_addr")
 	desc.Add(jsonutils.NewString(self.BgpType), "bgp_type")
@@ -599,6 +607,8 @@ func (self *SElasticip) SyncWithCloudEip(ctx context.Context, userCred mcclient.
 		}
 		if bandwidth := ext.GetBandwidth(); bandwidth != 0 {
 			self.Bandwidth = bandwidth
+			self.RxBwLimit = bandwidth
+			self.TxBwLimit = bandwidth
 		}
 		self.IpAddr = ext.GetIpAddr()
 		self.Mode = ext.GetMode()
@@ -682,6 +692,8 @@ func (manager *SElasticipManager) newFromCloudEip(ctx context.Context, userCred 
 		eip.ChargeType = billing_api.NET_CHARGE_TYPE_BY_TRAFFIC
 	}
 	eip.Bandwidth = extEip.GetBandwidth()
+	eip.RxBwLimit = extEip.GetBandwidth()
+	eip.TxBwLimit = extEip.GetBandwidth()
 	if networkId := extEip.GetINetworkId(); len(networkId) > 0 {
 		network, err := db.FetchByExternalIdAndManagerId(NetworkManager, networkId, func(q *sqlchemy.SQuery) *sqlchemy.SQuery {
 			wire := WireManager.Query().SubQuery()
@@ -920,8 +932,8 @@ func (self *SElasticip) AssociateLoadbalancer(ctx context.Context, userCred mccl
 		if self.AssociateType == api.EIP_ASSOCIATE_TYPE_LOADBALANCER && self.AssociateId == lb.Id {
 			return nil
 		}
-		if self.GetAssociateResource() != nil {
-			return fmt.Errorf("eip has been associated!!")
+		if res := self.GetAssociateResource(); res != nil {
+			return fmt.Errorf("eip has been associated %s %s %s !!", res.Keyword(), res.GetName(), res.GetId())
 		}
 	}
 	_, err := db.Update(self, func() error {
@@ -952,8 +964,8 @@ func (self *SElasticip) AssociateInstance(ctx context.Context, userCred mcclient
 		if self.AssociateType == insType && self.AssociateId == ins.GetId() {
 			return nil
 		}
-		if self.GetAssociateResource() != nil {
-			return fmt.Errorf("eip has been associated!!")
+		if res := self.GetAssociateResource(); res != nil {
+			return fmt.Errorf("eip has been associated %s %s %s !!", res.Keyword(), res.GetName(), res.GetId())
 		}
 	}
 	_, err := db.Update(self, func() error {
@@ -984,8 +996,8 @@ func (self *SElasticip) AssociateInstanceGroup(ctx context.Context, userCred mcc
 		if self.AssociateType == insType && self.AssociateId == ins.GetId() {
 			return nil
 		}
-		if self.GetAssociateResource() != nil {
-			return fmt.Errorf("eip has been associated!!")
+		if res := self.GetAssociateResource(); res != nil {
+			return fmt.Errorf("eip has been associated %s %s %s !!", res.Keyword(), res.GetName(), res.GetId())
 		}
 	}
 	_, err := db.Update(self, func() error {
@@ -1067,7 +1079,7 @@ func (manager *SElasticipManager) ValidateCreateData(ctx context.Context, userCr
 	}
 
 	if !utils.IsInStringArray(string(input.ChargeType), []string{string(billing_api.NET_CHARGE_TYPE_BY_BANDWIDTH), string(billing_api.NET_CHARGE_TYPE_BY_TRAFFIC)}) {
-		return input, httperrors.NewInputParameterError("charge type %s not supported", string(input.ChargeType))
+		return input, httperrors.NewInputParameterError("charge type %s is not supported", string(input.ChargeType))
 	}
 
 	input.VirtualResourceCreateInput, err = manager.SVirtualResourceBaseManager.ValidateCreateData(ctx, userCred, ownerId, query, input.VirtualResourceCreateInput)
@@ -1185,7 +1197,7 @@ func (self *SElasticip) PerformAssociate(ctx context.Context, userCred mcclient.
 	}
 
 	if self.Status != api.EIP_STATUS_READY {
-		return input, httperrors.NewInvalidStatusError("eip cannot associate in status %s", self.Status)
+		return input, httperrors.NewInvalidStatusError("EIP cannot be associated in status %s", self.Status)
 	}
 
 	if self.Mode == api.EIP_MODE_INSTANCE_PUBLICIP {
@@ -1218,7 +1230,7 @@ func (self *SElasticip) PerformAssociate(ctx context.Context, userCred mcclient.
 		defer lockman.ReleaseObject(ctx, server)
 
 		if server.PendingDeleted {
-			return input, httperrors.NewInvalidStatusError("cannot associate pending delete server")
+			return input, httperrors.NewInvalidStatusError("cannot associate EIP with server pending deletion")
 		}
 		// IMPORTANT: this serves as a guard against a guest to have multiple
 		// associated elastic_ips
@@ -1243,13 +1255,13 @@ func (self *SElasticip) PerformAssociate(ctx context.Context, userCred mcclient.
 			}
 			for _, gn := range gns {
 				if gn.NetworkId == self.NetworkId {
-					return input, httperrors.NewInputParameterError("cannot associate eip with same network")
+					return input, httperrors.NewInputParameterError("cannot associate EIP with the same network")
 				}
 			}
 		}
 		serverRegion, _ := server.getRegion()
 		if serverRegion == nil {
-			return input, httperrors.NewInputParameterError("server region is not found???")
+			return input, httperrors.NewInputParameterError("server region not found")
 		}
 
 		eipRegion, err := self.GetRegion()
@@ -1270,7 +1282,7 @@ func (self *SElasticip) PerformAssociate(ctx context.Context, userCred mcclient.
 
 		srvHost, _ := server.GetHost()
 		if srvHost == nil {
-			return input, httperrors.NewInputParameterError("server host is not found???")
+			return input, httperrors.NewInputParameterError("server host not found")
 		}
 
 		if srvHost.ManagerId != self.ManagerId {
@@ -1295,14 +1307,14 @@ func (self *SElasticip) PerformAssociate(ctx context.Context, userCred mcclient.
 			return input, errors.Wrap(err, "grp.isEipAssociable")
 		}
 		if net.Id == self.NetworkId {
-			return input, httperrors.NewInputParameterError("cannot associate eip with same network")
+			return input, httperrors.NewInputParameterError("cannot associate EIP with the same network")
 		}
 
 		eipZone, _ := self.GetZone()
 		if eipZone != nil {
 			insZone, _ := net.GetZone()
 			if eipZone.Id != insZone.Id {
-				return input, httperrors.NewInputParameterError("cannot associate eip and instance in different zone")
+				return input, httperrors.NewInputParameterError("cannot associate EIP and instance in different zones")
 			}
 		}
 
@@ -1335,7 +1347,7 @@ func (self *SElasticip) PerformAssociate(ctx context.Context, userCred mcclient.
 			}
 			for _, net := range nets {
 				if net.Id == self.NetworkId {
-					return input, httperrors.NewInputParameterError("cannot associate eip with same network")
+					return input, httperrors.NewInputParameterError("cannot associate EIP with the same network")
 				}
 			}
 		}
@@ -1344,7 +1356,7 @@ func (self *SElasticip) PerformAssociate(ctx context.Context, userCred mcclient.
 		defer lockman.ReleaseObject(ctx, lb)
 
 		if lb.PendingDeleted {
-			return input, httperrors.NewInvalidStatusError("cannot associate with pending deleted loadbalancer")
+			return input, httperrors.NewInvalidStatusError("cannot associate with loadbalancer pending deletion")
 		}
 		eips, _ := lb.GetEips()
 		if len(eips) > 0 {
@@ -1625,6 +1637,8 @@ func (a SEipNetworks) Less(i, j int) bool {
 
 type NewEipForVMOnHostArgs struct {
 	Bandwidth     int
+	RxBwLimit     int
+	TxBwLimit     int
 	BgpType       string
 	ChargeType    billing_api.TNetChargeType
 	AutoDellocate bool
@@ -1640,7 +1654,6 @@ type NewEipForVMOnHostArgs struct {
 
 func (manager *SElasticipManager) NewEipForVMOnHost(ctx context.Context, userCred mcclient.TokenCredential, args *NewEipForVMOnHostArgs) (*SElasticip, error) {
 	var (
-		bw            = args.Bandwidth
 		bgpType       = args.BgpType
 		chargeType    = args.ChargeType
 		autoDellocate = args.AutoDellocate
@@ -1682,7 +1695,10 @@ func (manager *SElasticipManager) NewEipForVMOnHost(ctx context.Context, userCre
 	eip.Mode = api.EIP_MODE_STANDALONE_EIP
 	// do not implicitly auto dellocate EIP, should be set by user explicitly
 	// eip.AutoDellocate = tristate.True
-	eip.Bandwidth = bw
+	eip.Bandwidth = args.Bandwidth
+	eip.RxBwLimit = args.RxBwLimit
+	eip.TxBwLimit = args.TxBwLimit
+
 	eip.ChargeType = billing_api.TNetChargeType(chargeType)
 	eip.BgpType = args.BgpType
 	eip.AutoDellocate = tristate.NewFromBool(autoDellocate)
@@ -1845,14 +1861,13 @@ func (eip *SElasticip) AllocateAndAssociateInstance(ctx context.Context, userCre
 	return eip.startEipAllocateTask(ctx, userCred, params, parentTaskId)
 }
 
-func (self *SElasticip) PerformChangeBandwidth(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
-	if self.Status != api.EIP_STATUS_READY {
-		return nil, httperrors.NewInvalidStatusError("cannot change bandwidth in status %s", self.Status)
+func (self *SElasticip) PerformChangeBandwidth(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input api.ElasticipChangeBandwidthInput) (jsonutils.JSONObject, error) {
+	if err := input.Validate(); err != nil {
+		return nil, httperrors.NewInputParameterError("%v", err)
 	}
 
-	bandwidth, err := data.Int("bandwidth")
-	if err != nil || bandwidth <= 0 {
-		return nil, httperrors.NewInputParameterError("Invalid bandwidth")
+	if self.Status != api.EIP_STATUS_READY {
+		return nil, httperrors.NewInvalidStatusError("cannot change bandwidth in status %s", self.Status)
 	}
 
 	if self.IsManaged() {
@@ -1861,24 +1876,23 @@ func (self *SElasticip) PerformChangeBandwidth(ctx context.Context, userCred mcc
 			return nil, err
 		}
 
-		if err := factory.ValidateChangeBandwidth(self.AssociateId, bandwidth); err != nil {
+		if err := factory.ValidateChangeBandwidth(self.AssociateId, input.BandwidthMb); err != nil {
 			return nil, httperrors.NewInputParameterError("%v", err)
 		}
 	}
 
-	err = self.StartEipChangeBandwidthTask(ctx, userCred, bandwidth)
+	err := self.StartEipChangeBandwidthTask(ctx, userCred, input)
 	if err != nil {
 		return nil, httperrors.NewGeneralError(err)
 	}
 	return nil, nil
 }
 
-func (self *SElasticip) StartEipChangeBandwidthTask(ctx context.Context, userCred mcclient.TokenCredential, bandwidth int64) error {
+func (self *SElasticip) StartEipChangeBandwidthTask(ctx context.Context, userCred mcclient.TokenCredential, input api.ElasticipChangeBandwidthInput) error {
 
 	self.SetStatus(ctx, userCred, api.EIP_STATUS_CHANGE_BANDWIDTH, "change bandwidth")
 
-	params := jsonutils.NewDict()
-	params.Add(jsonutils.NewInt(bandwidth), "bandwidth")
+	params := jsonutils.Marshal(input).(*jsonutils.JSONDict)
 
 	task, err := taskman.TaskManager.NewTask(ctx, "EipChangeBandwidthTask", self, userCred, params, "", "", nil)
 	if err != nil {
@@ -1889,24 +1903,35 @@ func (self *SElasticip) StartEipChangeBandwidthTask(ctx context.Context, userCre
 	return nil
 }
 
-func (self *SElasticip) DoChangeBandwidth(ctx context.Context, userCred mcclient.TokenCredential, bandwidth int) error {
+func (self *SElasticip) DoChangeBandwidth(ctx context.Context, userCred mcclient.TokenCredential, input api.ElasticipChangeBandwidthInput) error {
 	changes := jsonutils.NewDict()
+	obw := api.ElasticipChangeBandwidthInput{
+		BandwidthMb: int64(self.Bandwidth),
+		RxBwLimitMb: int64(self.RxBwLimit),
+		TxBwLimitMb: int64(self.TxBwLimit),
+	}
 	changes.Add(jsonutils.NewInt(int64(self.Bandwidth)), "obw")
+	changes.Add(jsonutils.Marshal(obw), "obw_details")
 
 	_, err := db.Update(self, func() error {
-		self.Bandwidth = bandwidth
+		self.Bandwidth = int(input.BandwidthMb)
+		self.RxBwLimit = int(input.RxBwLimitMb)
+		self.TxBwLimit = int(input.TxBwLimitMb)
 		return nil
 	})
-
-	self.SetStatus(ctx, userCred, api.EIP_STATUS_READY, "finish change bandwidth")
-
 	if err != nil {
+		self.SetStatus(ctx, userCred, api.EIP_STATUS_READY, "change bandwidth failed")
+		logclient.AddActionLogWithContext(ctx, self, logclient.ACT_CHANGE_BANDWIDTH, changes, userCred, false)
 		log.Errorf("DoChangeBandwidth update fail %s", err)
 		return err
 	}
 
-	changes.Add(jsonutils.NewInt(int64(bandwidth)), "nbw")
+	self.SetStatus(ctx, userCred, api.EIP_STATUS_READY, "finish change bandwidth")
+
+	changes.Add(jsonutils.NewInt(int64(input.BandwidthMb)), "nbw")
+	changes.Add(jsonutils.Marshal(input), "nbw_details")
 	db.OpsLog.LogEvent(self, db.ACT_CHANGE_BANDWIDTH, changes, userCred)
+	logclient.AddActionLogWithContext(ctx, self, logclient.ACT_CHANGE_BANDWIDTH, changes, userCred, true)
 
 	return nil
 }
@@ -1916,6 +1941,8 @@ type EipUsage struct {
 	PublicIpBandwidth int
 	EIPCount          int
 	EipBandwidth      int
+	EipRxBwLimit      int
+	EipTxBwLimit      int
 	EIPUsedCount      int
 }
 
@@ -1962,6 +1989,8 @@ func (manager *SElasticipManager) TotalCount(
 	q2 := q2sq.Query(
 		sqlchemy.COUNT("eip_count", q2sq.Field("id")),
 		sqlchemy.SUM("eip_bandwidth", q2sq.Field("bandwidth")),
+		sqlchemy.SUM("eip_rx_bw_limit", q2sq.Field("rx_bw_limit")),
+		sqlchemy.SUM("eip_tx_bw_limit", q2sq.Field("tx_bw_limit")),
 	).Equals("mode", api.EIP_MODE_STANDALONE_EIP)
 	q2 = manager.usageQ(ctx, scope, ownerId, q2, rangeObjs, providers, brands, cloudEnv, policyResult)
 	q3sq := manager.Query().SubQuery()
