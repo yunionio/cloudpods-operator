@@ -16,6 +16,7 @@ package compute
 
 import (
 	"fmt"
+	"strings"
 
 	"yunion.io/x/pkg/errors"
 	"yunion.io/x/pkg/util/regutils"
@@ -136,6 +137,24 @@ type SSecgroupRuleUpdateInput struct {
 	Description string `json:"description"`
 }
 
+func IsValidSecgroupRuleCIDR(cidr string) bool {
+	isInvalidCidr := func(cidr string) bool {
+		return !regutils.MatchCIDR(cidr) && !regutils.MatchIP4Addr(cidr) && !regutils.MatchCIDR6(cidr) && !regutils.MatchIP6Addr(cidr)
+	}
+
+	if strings.Contains(cidr, ",") {
+		cidrs := strings.Split(cidr, ",")
+		for i := range cidrs {
+			if isInvalidCidr(cidrs[i]) {
+				return false
+			}
+		}
+	} else if isInvalidCidr(cidr) {
+		return false
+	}
+	return true
+}
+
 func (input *SSecgroupRuleResource) Check() error {
 	priority := 1
 	if input.Priority != nil {
@@ -159,8 +178,8 @@ func (input *SSecgroupRuleResource) Check() error {
 	}
 
 	if len(input.CIDR) > 0 {
-		if !regutils.MatchCIDR(input.CIDR) && !regutils.MatchIP4Addr(input.CIDR) && !regutils.MatchCIDR6(input.CIDR) && !regutils.MatchIP6Addr(input.CIDR) {
-			return fmt.Errorf("invalid ip address: %s", input.CIDR)
+		if !IsValidSecgroupRuleCIDR(input.CIDR) {
+			return fmt.Errorf("invalid cidr: %s", input.CIDR)
 		}
 	} else {
 		// empty CIDR means both IPv4 and IPv6
@@ -361,6 +380,8 @@ type GuestnetworksecgroupDetails struct {
 	Ifname       string `json:"ifname"`
 	IpAddr       string `json:"ip_addr"`
 	Ip6Addr      string `json:"ip_6_addr"`
+	NetworkId    string `json:"network_id"`
+	NetworkName  string `json:"network_name"`
 
 	Admin bool `json:"admin"`
 }

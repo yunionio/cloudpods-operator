@@ -175,7 +175,7 @@ func (man *SLoadbalancerClusterManager) ValidateCreateData(
 	input := apis.StandaloneResourceCreateInput{}
 	err := data.Unmarshal(&input)
 	if err != nil {
-		return nil, httperrors.NewInternalServerError("unmarshal StandaloneResourceCreateInput fail %s", err)
+		return nil, httperrors.NewInternalServerError("unmarshal StandaloneResourceCreateInput failed %s", err)
 	}
 	input, err = man.SStandaloneResourceBaseManager.ValidateCreateData(ctx, userCred, ownerId, query, input)
 	if err != nil {
@@ -265,7 +265,7 @@ func (lbc *SLoadbalancerCluster) refCounts() (map[string]int, error) {
 		q := man.Query().Equals("cluster_id", lbc.Id)
 		n, err := q.CountWithError()
 		if err != nil {
-			return nil, httperrors.NewInternalServerError("get lbcluster refcount fail %v", err)
+			return nil, httperrors.NewInternalServerError("get lbcluster refcount failed: %v", err)
 		}
 		if n > 0 {
 			ret[man.KeywordPlural()] = n
@@ -296,6 +296,7 @@ func (man *SLoadbalancerClusterManager) FetchCustomizeColumns(
 		}
 		lbc := objs[i].(*SLoadbalancerCluster)
 		rows[i].RefCounts, _ = lbc.refCounts()
+		rows[i].WireId, _ = lbc.inferWireId()
 	}
 
 	return rows
@@ -520,7 +521,7 @@ func (cluster *SLoadbalancerCluster) selfInitParams() error {
 	params := SLoadbalancerClusterParams{
 		VirtualRouterId:   newRouterId,
 		Preempt:           false,
-		AdvertInt:         5,
+		AdvertInt:         1,
 		Pass:              seclib.RandomPassword(6),
 		GarpMasterRefresh: 29,
 	}
@@ -630,4 +631,15 @@ func (cluster *SLoadbalancerCluster) PerformParamsPatch(ctx context.Context, use
 		}
 	}
 	return nil, nil
+}
+
+func (cluster *SLoadbalancerCluster) inferWireId() (string, error) {
+	lbAgents, err := LoadbalancerAgentManager.getByClusterId(cluster.Id)
+	if err != nil {
+		return "", errors.Wrap(err, "LoadbalancerAgentManager.getByClusterId")
+	}
+	if len(lbAgents) == 0 {
+		return "", errors.Wrap(err, "no lbagents")
+	}
+	return lbAgents[0].inferWireId()
 }

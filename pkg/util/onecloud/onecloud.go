@@ -23,7 +23,7 @@ import (
 	"yunion.io/x/pkg/errors"
 	"yunion.io/x/pkg/util/httputils"
 
-	ansibleapi "yunion.io/x/onecloud/pkg/apis/ansible"
+	ansibleapi "yunion.io/x/onecloud/pkg/apis/ansibleserver"
 	devtoolapi "yunion.io/x/onecloud/pkg/apis/devtool"
 	llmapi "yunion.io/x/onecloud/pkg/apis/llm"
 	monitorapi "yunion.io/x/onecloud/pkg/apis/monitor"

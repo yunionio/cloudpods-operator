@@ -128,6 +128,7 @@ type IGuestDriver interface {
 	RequestDetachDisksFromGuestForDelete(ctx context.Context, guest *SGuest, task taskman.ITask) error
 
 	RequestUndeployGuestOnHost(ctx context.Context, guest *SGuest, host *SHost, task taskman.ITask) error
+	IsNeedCleanDisksAfterUndeploy() bool
 
 	OnDeleteGuestFinalCleanup(ctx context.Context, guest *SGuest, userCred mcclient.TokenCredential) error
 
@@ -143,7 +144,8 @@ type IGuestDriver interface {
 	GetAttachDiskStatus() ([]string, error)
 	GetRebuildRootStatus() ([]string, error)
 	IsAllowSaveImageOnRunning() bool
-	GetChangeInstanceTypeStatus() ([]string, error)
+	// IsChangeInstanceTypeWhileRunningSupported 是否支持在虚拟机运行（开机）状态下调整 CPU/内存/实例规格
+	IsChangeInstanceTypeWhileRunningSupported(guest *SGuest) (bool, error)
 	GetDeployStatus() ([]string, error)
 	ValidateResizeDisk(guest *SGuest, disk *SDisk, storage *SStorage) error
 	CanKeepDetachDisk() bool
@@ -230,6 +232,8 @@ type IGuestDriver interface {
 	StartChangeDiskStorageTask(guest *SGuest, ctx context.Context, userCred mcclient.TokenCredential, params *api.ServerChangeDiskStorageInternalInput, parentTaskId string) error
 	RequestChangeDiskStorage(ctx context.Context, userCred mcclient.TokenCredential, guest *SGuest, input *api.ServerChangeDiskStorageInternalInput, task taskman.ITask) error
 	RequestSwitchToTargetStorageDisk(ctx context.Context, userCred mcclient.TokenCredential, guest *SGuest, input *api.ServerChangeDiskStorageInternalInput, task taskman.ITask) error
+
+	RequestResetUefiFirmwareVars(ctx context.Context, userCred mcclient.TokenCredential, guest *SGuest) error
 
 	RequestSyncIsolatedDevice(ctx context.Context, guest *SGuest, task taskman.ITask) error
 

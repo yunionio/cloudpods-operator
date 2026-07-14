@@ -60,11 +60,11 @@ func (pm PortMappingEnvs) IsZero() bool {
 }
 
 type PortMapping struct {
-	Protocol        string                           `json:"protocol"`
-	ContainerPort   int                              `json:"container_port"`
-	RemoteIps       []string                         `json:"remote_ips"`
-	FirstPortOffset *int                             `json:"first_port_offset"`
-	Envs            []computeapi.GuestPortMappingEnv `json:"envs"`
+	Protocol        string                           `json:"protocol" yaml:"protocol"`
+	ContainerPort   int                              `json:"container_port" yaml:"container_port"`
+	RemoteIps       []string                         `json:"remote_ips" yaml:"remote_ips,omitempty"`
+	FirstPortOffset *int                             `json:"first_port_offset" yaml:"first_port_offset,omitempty"`
+	Envs            []computeapi.GuestPortMappingEnv `json:"envs" yaml:"envs,omitempty"`
 }
 
 type PortMappings []PortMapping
@@ -111,10 +111,11 @@ func (s Envs) IsZero() bool {
 type LLMSkuDetails struct {
 	apis.SharableVirtualResourceDetails
 	// 当前大模型套餐包含的实例个数。
-	LLMCapacity int
-	Image       string
-	ImageLabel  string
-	ImageName   string
+	LLMCapacity int    `json:"llm_capacity"`
+	Image       string `json:"image"`
+	ImageLabel  string `json:"image_label"`
+	ImageName   string `json:"image_name"`
+	AppName     string `json:"app_name"`
 
 	MountedModelDetails []MountedModelInfo `json:"mounted_model_details"`
 
@@ -124,6 +125,20 @@ type LLMSkuDetails struct {
 	LLMType string `json:"llm_type"`
 	// LLMSpec 从 SKU 持久化字段带出，保证 list/show 与 create 一致
 	LLMSpec *LLMSpec `json:"llm_spec,omitempty"`
+
+	// Model source
+	Source              string   `json:"source"`
+	HuggingfaceRepoId   string   `json:"huggingface_repo_id"`
+	HuggingfaceFilename string   `json:"huggingface_filename"`
+	ModelScopeModelId   string   `json:"model_scope_model_id"`
+	ModelScopeFilePath  string   `json:"model_scope_file_path"`
+	LocalPath           string   `json:"local_path"`
+	PreferHosts         []string `json:"prefer_hosts,omitempty"`
+	// Model categories
+	Categories []string `json:"categories,omitempty"`
+	// Inference backend version and parameters
+	BackendVersion    string   `json:"backend_version"`
+	BackendParameters []string `json:"backend_parameters,omitempty"`
 }
 
 type MountedAppResourceDetails struct {
@@ -136,8 +151,13 @@ type LLMSKuBaseCreateInput struct {
 	Cpu       int `json:"cpu"`
 	Memory    int `json:"memory"`
 	Bandwidth int `json:"bandwidth"`
+	// VramClaimMb is the estimated VRAM (MiB) the inference instance will
+	// require. Optional — if 0, the deployment create task will auto-fill it
+	// from the mounted InstantModel's weight_size_bytes.
+	VramClaimMb int `json:"vram_claim_mb,omitempty"`
 
 	Volumes      *Volumes          `json:"volumes"`
+	HostPaths    *HostPaths        `json:"host_paths"`
 	PortMappings *PortMappings     `json:"port_mappings"`
 	Devices      *Devices          `json:"devices"`
 	Envs         *Envs             `json:"envs"`
@@ -152,10 +172,12 @@ type LLMSkuBaseUpdateInput struct {
 
 	// RequstSyncImage *bool `json:"request_sync_image"`
 
-	DiskSizeMB  *int     `json:"disk_size_mb"`
-	TemplateId  *string  `json:"template_id"`
-	StorageType *string  `json:"storage_type"`
-	Volumes     *Volumes `json:"volumes"`
+	DiskSize    *int       `json:"disk_size" yunion-deprecated-by:"disk_size_mb"`
+	DiskSizeMB  *int       `json:"disk_size_mb"`
+	TemplateId  *string    `json:"template_id"`
+	StorageType *string    `json:"storage_type"`
+	Volumes     *Volumes   `json:"volumes"`
+	HostPaths   *HostPaths `json:"host_paths"`
 
 	Bandwidth    *int              `json:"bandwidth"`
 	PortMappings *PortMappings     `json:"port_mappings"`
@@ -168,8 +190,10 @@ type LLMSkuListInput struct {
 	apis.SharableVirtualResourceListInput
 	MountedModelResourceListInput
 
-	LLMType  string   `json:"llm_type"`
-	LLMTypes []string `json:"llm_types"`
+	LLMType    string   `json:"llm_type"`
+	LLMTypes   []string `json:"llm_types"`
+	Source     string   `json:"source"`
+	Categories string   `json:"categories"`
 }
 
 type LLMSkuCreateInput struct {
@@ -178,11 +202,29 @@ type LLMSkuCreateInput struct {
 
 	LLMImageId string `json:"llm_image_id"`
 	LLMType    string `json:"llm_type"`
+	// ModelSpec is the normalized model import input used by SKU import flows.
+	// Catalog/model-set imports should expand the selected model spec into this
+	// shape before creating the SKU.
+	ModelSpec *InstantModelImportInput `json:"model_spec,omitempty"`
 
 	// LLMSpec:
 	// - ollama/vllm: backend builds llm_spec from llm_image_id + mounted_models; for vllm preferred model should be set in llm_spec.vllm.preferred_model.
 	// - dify: client must send llm_spec with type "dify" and dify payload.
 	LLMSpec *LLMSpec `json:"llm_spec,omitempty"`
+
+	// Model source
+	Source              string   `json:"source"`
+	HuggingfaceRepoId   string   `json:"huggingface_repo_id"`
+	HuggingfaceFilename string   `json:"huggingface_filename"`
+	ModelScopeModelId   string   `json:"model_scope_model_id"`
+	ModelScopeFilePath  string   `json:"model_scope_file_path"`
+	LocalPath           string   `json:"local_path"`
+	PreferHosts         []string `json:"prefer_hosts,omitempty"`
+	// Model categories
+	Categories []string `json:"categories"`
+	// Inference backend version and parameters
+	BackendVersion    string   `json:"backend_version"`
+	BackendParameters []string `json:"backend_parameters"`
 }
 
 type LLMSkuUpdateInput struct {
@@ -195,6 +237,19 @@ type LLMSkuUpdateInput struct {
 	// - dify: send full spec to update image ids.
 	// - ollama/vllm: backend may build from llm_image_id/mounted_models; for vllm preferred model should be set in llm_spec.vllm.preferred_model.
 	LLMSpec *LLMSpec `json:"llm_spec,omitempty"`
+
+	// Model source
+	Source              *string `json:"source,omitempty"`
+	HuggingfaceRepoId   *string `json:"huggingface_repo_id,omitempty"`
+	HuggingfaceFilename *string `json:"huggingface_filename,omitempty"`
+	ModelScopeModelId   *string `json:"model_scope_model_id,omitempty"`
+	ModelScopeFilePath  *string `json:"model_scope_file_path,omitempty"`
+	LocalPath           *string `json:"local_path,omitempty"`
+	// Model categories
+	Categories *[]string `json:"categories,omitempty"`
+	// Inference backend version and parameters
+	BackendVersion    *string   `json:"backend_version,omitempty"`
+	BackendParameters *[]string `json:"backend_parameters,omitempty"`
 }
 
 // type LLMModelCloneInput struct {
@@ -212,7 +267,7 @@ type LLMSkuUpdateInput struct {
 
 // type DifySkuCreateInput struct {
 // 	LLMSKuBaseCreateInput
-//
+
 // 	PostgresImageId     string `json:"postgres_image_id"`
 // 	RedisImageId        string `json:"redis_image_id"`
 // 	NginxImageId        string `json:"nginx_image_id"`
@@ -226,7 +281,7 @@ type LLMSkuUpdateInput struct {
 
 // type DifySkuUpdateInput struct {
 // 	LLMSkuBaseUpdateInput
-//
+
 // 	PostgresImageId     string `json:"postgres_image_id"`
 // 	RedisImageId        string `json:"redis_image_id"`
 // 	NginxImageId        string `json:"nginx_image_id"`

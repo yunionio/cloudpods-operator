@@ -18,6 +18,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"yunion.io/x/cloudmux/pkg/cloudprovider"
@@ -41,6 +42,7 @@ import (
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/mcclient/auth"
 	"yunion.io/x/onecloud/pkg/mcclient/modules/identity"
+	ctxutil "yunion.io/x/onecloud/pkg/util/ctx"
 	"yunion.io/x/onecloud/pkg/util/logclient"
 	"yunion.io/x/onecloud/pkg/util/stringutils2"
 )
@@ -76,7 +78,6 @@ type SExternalProject struct {
 	Priority int `default:"0" list:"user" update:"user" list:"user"`
 
 	// swagger: ignore
-	// 将在3.12之后版本移除
 	CloudaccountId string `width:"36" charset:"ascii" nullable:"true"`
 }
 
@@ -359,7 +360,7 @@ func (self *SExternalProject) SyncWithCloudProject(ctx context.Context, userCred
 		if account.AutoCreateProject {
 			desc := fmt.Sprintf("auto create from cloud project %s (%s)", self.Name, self.ExternalId)
 			var err error
-			domainId, projectId, err = account.getOrCreateTenant(ctx, self.Name, "", "", desc)
+			domainId, projectId, err = account.getOrCreateTenant(ctx, self.Name, "", "", desc, nil)
 			if err != nil {
 				return errors.Wrapf(err, "getOrCreateTenant")
 			}
@@ -381,7 +382,7 @@ func (self *SExternalProject) SyncWithCloudProject(ctx context.Context, userCred
 					var isMatch bool
 					domainId, projectId, newProj, isMatch = rule.IsMatchTags(extTags)
 					if isMatch && len(newProj) > 0 {
-						domainId, projectId, err = account.getOrCreateTenant(ctx, newProj, "", "", "auto create from tag")
+						domainId, projectId, err = account.getOrCreateTenant(ctx, newProj, "", "", "auto create from tag", nil)
 						if err != nil {
 							log.Errorf("getOrCreateTenant(%s) error: %v", newProj, err)
 							continue
@@ -396,7 +397,7 @@ func (self *SExternalProject) SyncWithCloudProject(ctx context.Context, userCred
 			domainId, projectId = account.DomainId, account.ProjectId
 			desc := fmt.Sprintf("auto create from cloud project %s (%s)", self.Name, self.ExternalId)
 			var err error
-			domainId, projectId, err = account.getOrCreateTenant(ctx, self.Name, self.DomainId, "", desc)
+			domainId, projectId, err = account.getOrCreateTenant(ctx, self.Name, self.DomainId, "", desc, nil)
 			if err != nil {
 				return errors.Wrapf(err, "getOrCreateTenant")
 			}
@@ -418,7 +419,7 @@ func (self *SExternalProject) SyncWithCloudProject(ctx context.Context, userCred
 		}
 		if cache.PendingDeleted {
 			desc := fmt.Sprintf("auto create from cloud project %s (%s)", self.Name, self.ExternalId)
-			_, self.ProjectId, err = account.getOrCreateTenant(ctx, self.Name, self.DomainId, "", desc)
+			_, self.ProjectId, err = account.getOrCreateTenant(ctx, self.Name, self.DomainId, "", desc, nil)
 			if err != nil {
 				return errors.Wrapf(err, "getOrCreateTenant")
 			}
@@ -457,7 +458,7 @@ func (self *SExternalProject) SyncWithCloudProject(ctx context.Context, userCred
 	return nil
 }
 
-func (account *SCloudaccount) getOrCreateTenant(ctx context.Context, name, domainId, projectId, desc string) (string, string, error) {
+func (account *SCloudaccount) getOrCreateTenant(ctx context.Context, name, domainId, projectId, desc string, tags map[string]string) (string, string, error) {
 	if len(domainId) == 0 {
 		domainId = account.DomainId
 	}
@@ -471,17 +472,26 @@ func (account *SCloudaccount) getOrCreateTenant(ctx context.Context, name, domai
 		if errors.Cause(err) != sql.ErrNoRows {
 			return "", "", errors.Wrapf(err, "getTenan")
 		}
-		return createTenant(ctx, name, domainId, desc)
+		return createTenant(ctx, name, domainId, desc, tags)
 	}
 	if tenant.PendingDeleted {
-		return createTenant(ctx, name, domainId, desc)
+		return createTenant(ctx, name, domainId, desc, tags)
 	}
 	share := account.GetSharedInfo()
 	if tenant.DomainId == account.DomainId || (share.PublicScope == rbacscope.ScopeSystem ||
 		(share.PublicScope == rbacscope.ScopeDomain && utils.IsInStringArray(tenant.DomainId, share.SharedDomains))) {
+		if len(tags) > 0 {
+			meta := map[string]string{}
+			for k, v := range tags {
+				k = strings.TrimPrefix(k, db.USER_TAG_PREFIX)
+				meta[k] = v
+			}
+			s := auth.GetAdminSession(ctx, consts.GetRegion())
+			identity.Projects.PerformAction(s, tenant.Id, "user-metadata", jsonutils.Marshal(meta))
+		}
 		return tenant.DomainId, tenant.Id, nil
 	}
-	return createTenant(ctx, name, domainId, desc)
+	return createTenant(ctx, name, domainId, desc, tags)
 }
 
 func (cp *SCloudprovider) newFromCloudProject(ctx context.Context, userCred mcclient.TokenCredential, localProject *db.STenant, extProject cloudprovider.ICloudProject) (*SExternalProject, error) {
@@ -516,7 +526,7 @@ func (cp *SCloudprovider) newFromCloudProject(ctx context.Context, userCred mccl
 			for _, rule := range *pm.Rules {
 				domainId, projectId, newProj, isMatch := rule.IsMatchTags(extTags)
 				if isMatch && len(newProj) > 0 {
-					domainId, projectId, err = account.getOrCreateTenant(context.TODO(), newProj, "", "", "auto create from tag")
+					domainId, projectId, err = account.getOrCreateTenant(context.TODO(), newProj, "", "", "auto create from tag", nil)
 					if err != nil {
 						log.Errorf("getOrCreateTenant(%s) error: %v", newProj, err)
 						continue
@@ -532,7 +542,7 @@ func (cp *SCloudprovider) newFromCloudProject(ctx context.Context, userCred mccl
 		}
 		if !find && account.AutoCreateProject {
 			desc := fmt.Sprintf("auto create from cloud project %s (%s)", project.Name, project.ExternalId)
-			domainId, projectId, err := account.getOrCreateTenant(ctx, project.Name, project.DomainId, "", desc)
+			domainId, projectId, err := account.getOrCreateTenant(ctx, project.Name, project.DomainId, "", desc, nil)
 			if err != nil {
 				log.Errorf("failed to get or create tenant %s(%s) %v", project.Name, project.ExternalId, err)
 			} else {
@@ -542,7 +552,7 @@ func (cp *SCloudprovider) newFromCloudProject(ctx context.Context, userCred mccl
 		}
 	} else if account.AutoCreateProject {
 		desc := fmt.Sprintf("auto create from cloud project %s (%s)", project.Name, project.ExternalId)
-		domainId, projectId, err := account.getOrCreateTenant(ctx, project.Name, project.DomainId, "", desc)
+		domainId, projectId, err := account.getOrCreateTenant(ctx, project.Name, project.DomainId, "", desc, nil)
 		if err != nil {
 			log.Errorf("failed to get or create tenant %s(%s) %v", project.Name, project.ExternalId, err)
 		} else {
@@ -556,7 +566,7 @@ func (cp *SCloudprovider) newFromCloudProject(ctx context.Context, userCred mccl
 		return nil, errors.Wrapf(err, "Insert")
 	}
 
-	if project.IsMaxPriority() {
+	if account.AutoCreateProject && project.IsMaxPriority() {
 		tags, _ := extProject.GetTags()
 		if len(tags) > 0 {
 			s := auth.GetAdminSession(ctx, consts.GetRegion())
@@ -738,7 +748,7 @@ func (manager *SExternalProjectManager) InitializeData() error {
 	projects := []SExternalProject{}
 	err := db.FetchModelObjects(manager, q, &projects)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "db.FetchModelObjects")
 	}
 	for i := range projects {
 		if len(projects[i].CloudaccountId) > 0 {
@@ -757,6 +767,23 @@ func (manager *SExternalProjectManager) InitializeData() error {
 					return err
 				}
 			}
+		}
+	}
+	return manager.removeOrphanedProjects()
+}
+
+func (manager *SExternalProjectManager) removeOrphanedProjects() error {
+	sq := CloudproviderManager.Query("id").Distinct().SubQuery()
+	q := manager.Query().NotIn("manager_id", sq)
+	projects := []SExternalProject{}
+	err := db.FetchModelObjects(manager, q, &projects)
+	if err != nil {
+		return errors.Wrapf(err, "db.FetchModelObjects")
+	}
+	for i := range projects {
+		err = projects[i].Delete(ctxutil.CtxWithTime(), auth.AdminCredential())
+		if err != nil {
+			return errors.Wrapf(err, "Delete")
 		}
 	}
 	return nil

@@ -76,7 +76,7 @@ func newEtcdProbe(isSecure bool) *v1.Probe {
 		cmd = fmt.Sprintf("ETCDCTL_API=3 etcdctl --endpoints=https://localhost:%d %s endpoint status", EtcdClientPort, tlsFlags)
 	}
 	return &v1.Probe{
-		Handler: v1.Handler{
+		ProbeHandler: v1.ProbeHandler{
 			Exec: &v1.ExecAction{
 				Command: []string{"/bin/sh", "-ec", cmd},
 			},
