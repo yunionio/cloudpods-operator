@@ -33,10 +33,13 @@ import (
 	"yunion.io/x/pkg/gotypes"
 
 	"yunion.io/x/onecloud/pkg/apis"
+	identity_apis "yunion.io/x/onecloud/pkg/apis/identity"
+	"yunion.io/x/onecloud/pkg/cloudcommon/tsdb"
 	"yunion.io/x/onecloud/pkg/hostman/hostinfo/hostconsts"
 	"yunion.io/x/onecloud/pkg/hostman/system_service"
 	agentmodels "yunion.io/x/onecloud/pkg/lbagent/models"
 	agentutils "yunion.io/x/onecloud/pkg/lbagent/utils"
+	"yunion.io/x/onecloud/pkg/mcclient/auth"
 	"yunion.io/x/onecloud/pkg/util/sysutils"
 )
 
@@ -187,6 +190,13 @@ func (h *HaproxyHelper) handleUseCorpusCmd(ctx context.Context, cmd *LbagentCmd)
 				return err
 			}
 		}
+		// refresh telegraf URL from service catalog
+		s := auth.GetAdminSession(ctx, h.opts.Region)
+		tsdbSrc, _ := tsdb.GetDefaultServiceSource(s, identity_apis.EndpointInterfacePublic)
+		if tsdbSrc != nil && len(tsdbSrc.URLs) > 0 {
+			agentParams.AgentModel.Params.Telegraf.InfluxDbOutputUrl = tsdbSrc.URLs[0]
+			agentParams.SetTelegrafParams("influx_db_output_url", tsdbSrc.URLs[0])
+		}
 		if agentParams.AgentModel.Params.Telegraf.InfluxDbOutputUrl != "" {
 			agentParams.SetTelegrafParams("haproxy_input_stats_socket", h.haproxyStatsSocketFile())
 			// telegraf config
@@ -198,7 +208,7 @@ func (h *HaproxyHelper) handleUseCorpusCmd(ctx context.Context, cmd *LbagentCmd)
 				p := filepath.Join(dir, "telegraf.conf")
 				err := os.WriteFile(p, d, agentutils.FileModeFile)
 				if err == nil {
-					err := h.reloadTelegraf(ctx, agentParams)
+					err := h.reloadTelegraf(ctx, agentParams, tsdbSrc)
 					if err != nil {
 						log.Errorf("reloading telegraf.conf failed: %s", err)
 					}
@@ -420,15 +430,15 @@ func (h *HaproxyHelper) telegrafPidFile() *agentutils.PidFile {
 	return pf
 }
 
-func (h *HaproxyHelper) reloadTelegraf(ctx context.Context, agentParams *agentmodels.AgentParams) error {
+func (h *HaproxyHelper) reloadTelegraf(ctx context.Context, agentParams *agentmodels.AgentParams, tsdbSrc *tsdb.TSDBServiceSource) error {
 	if h.opts.EnableRemoteExecutor {
-		return h.remoteReloadTelegraf(ctx, agentParams)
+		return h.remoteReloadTelegraf(ctx, agentParams, tsdbSrc)
 	} else {
 		return h.localReloadTelegraf(ctx)
 	}
 }
 
-func (h *HaproxyHelper) remoteReloadTelegraf(ctx context.Context, agentParams *agentmodels.AgentParams) error {
+func (h *HaproxyHelper) remoteReloadTelegraf(ctx context.Context, agentParams *agentmodels.AgentParams, tsdbSrc *tsdb.TSDBServiceSource) error {
 	telegraf := system_service.GetService("telegraf")
 	conf := map[string]interface{}{}
 	conf["hostname"] = h.getHostname()
@@ -442,7 +452,13 @@ func (h *HaproxyHelper) remoteReloadTelegraf(ctx context.Context, agentParams *a
 		hostconsts.TELEGRAF_TAG_KEY_HOST_TYPE: hostconsts.TELEGRAF_TAG_ONECLOUD_HOST_TYPE_LBAGENT,
 	}
 	conf["nics"] = h.getNicsTelegrafConf()
-	if len(agentParams.AgentModel.Params.Telegraf.InfluxDbOutputUrl) > 0 {
+	if tsdbSrc != nil && len(tsdbSrc.URLs) > 0 {
+		conf[apis.SERVICE_TYPE_INFLUXDB] = map[string]interface{}{
+			"url":       tsdbSrc.URLs,
+			"database":  agentParams.AgentModel.Params.Telegraf.InfluxDbOutputName,
+			"tsdb_type": tsdbSrc.Type,
+		}
+	} else if len(agentParams.AgentModel.Params.Telegraf.InfluxDbOutputUrl) > 0 {
 		conf[apis.SERVICE_TYPE_INFLUXDB] = map[string]interface{}{
 			"url": []string{
 				agentParams.AgentModel.Params.Telegraf.InfluxDbOutputUrl,
@@ -452,13 +468,13 @@ func (h *HaproxyHelper) remoteReloadTelegraf(ctx context.Context, agentParams *a
 	}
 	conf["haproxy"] = map[string]interface{}{
 		"interval":          agentParams.AgentModel.Params.Telegraf.HaproxyInputInterval,
-		"stats_socket_path": h.haproxyStatsSocketFile(),
+		"stats_socket_path": filepath.Join("/hostfs", h.haproxyStatsSocketFile()),
 	}
 	oldConf := telegraf.GetConf()
 	log.Debugf("old config: %s", oldConf)
 	log.Debugf("new config: %s", conf)
 	if gotypes.IsNil(oldConf) || !reflect.DeepEqual(oldConf, conf) {
-		log.Debugf("telegraf config: %s", conf)
+		log.Debugf("telegraf config: %s", telegraf.GetConfig(conf))
 		telegraf.SetConf(conf)
 		telegraf.BgReloadConf(conf)
 	}
@@ -562,6 +578,7 @@ func (h *HaproxyHelper) reloadKeepalived(ctx context.Context) error {
 	{
 		proc, confirmed, err := pidFile.ConfirmOrUnlink()
 		if confirmed {
+			log.Infof("[keepalived] sending SIGHUP to reload keepalived(%d)", proc.Pid)
 			// send SIGHUP to reload
 			err := proc.Signal(syscall.SIGHUP)
 			if err != nil {
@@ -593,10 +610,8 @@ func (h *HaproxyHelper) reloadKeepalived(ctx context.Context) error {
 		"--log-console",
 		"--dont-fork",
 	}
-	err := h.runService(args)
-	if err != nil {
-		return errors.Wrapf(err, "run service %s", strings.Join(args, " "))
-	}
+	log.Infof("[keepalived] not exists, start keepalived services with args: %s", strings.Join(args, " "))
+	go h.runService(args)
 	return nil
 }
 
@@ -634,28 +649,28 @@ func (h *HaproxyHelper) startCmd(args []string) (*exec.Cmd, error) {
 	return cmd, nil
 }
 
-func (h *HaproxyHelper) runService(args []string) error {
+func (h *HaproxyHelper) runService(args []string) {
+	for {
+		err := h.runServiceOnce(args)
+		if err != nil {
+			log.Errorf("service %s exited with error: %s", strings.Join(args, " "), err)
+			time.Sleep(1 * time.Second)
+		}
+	}
+}
+
+func (h *HaproxyHelper) runServiceOnce(args []string) error {
 	log.Infof("run service %s", strings.Join(args, " "))
 
 	name := args[0]
 	args = args[1:]
 	cmd := exec.Command(name, args...)
 
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		log.Errorf("service %s stdout pipe error: %s", cmd.String(), err)
-		return errors.Wrapf(err, "service %s stdout pipe error", cmd.String())
-	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		log.Errorf("service %s stderr pipe error: %s", cmd.String(), err)
-		return errors.Wrapf(err, "service %s stderr pipe error", cmd.String())
-	}
 	drain := func(out io.ReadCloser, isErr bool) {
 		defer out.Close()
 		buf := make([]byte, 1024)
 		for {
-			n, err := stdout.Read(buf)
+			n, err := out.Read(buf)
 			if err != nil {
 				log.Errorf("read pipe error: %s", err)
 				return
@@ -667,17 +682,28 @@ func (h *HaproxyHelper) runService(args []string) error {
 			}
 		}
 	}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		log.Errorf("service %s stdout pipe error: %s", cmd.String(), err)
+		return errors.Wrapf(err, "service %s stdout pipe error", cmd.String())
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		log.Errorf("service %s stderr pipe error: %s", cmd.String(), err)
+		return errors.Wrapf(err, "service %s stderr pipe error", cmd.String())
+	}
 	err = cmd.Start()
 	if err != nil {
 		return errors.Wrapf(err, "start service %s", cmd.String())
 	}
-	go func(cmd *exec.Cmd) {
+	go drain(stdout, false)
+	go drain(stderr, true)
+	{
 		err := cmd.Wait()
 		if err != nil {
 			log.Errorf("service %s exited with error: %s", cmd.String(), err)
+			return errors.Wrapf(err, "service %s exited with error", cmd.String())
 		}
-	}(cmd)
-	go drain(stdout, false)
-	go drain(stderr, true)
+	}
 	return nil
 }

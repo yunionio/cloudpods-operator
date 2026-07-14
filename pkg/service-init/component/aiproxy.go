@@ -1,7 +1,7 @@
 package component
 
 import (
-	"yunion.io/x/onecloud/pkg/cloudcommon/options"
+	aiproxyoptions "yunion.io/x/onecloud/pkg/aiproxy/options"
 	"yunion.io/x/pkg/errors"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
@@ -18,14 +18,9 @@ type aiProxy struct {
 	*baseService
 }
 
-type AiProxyOptions struct {
-	options.CommonOptions
-	options.DBOptions
-}
-
 func NewAiProxy() Component {
 	return &aiProxy{
-		baseService: newBaseService(v1alpha1.AiProxyComponentType, new(AiProxyOptions)),
+		baseService: newBaseService(v1alpha1.AiProxyComponentType, new(aiproxyoptions.SAiProxyOptions)),
 	}
 }
 
@@ -48,7 +43,7 @@ func (r aiProxy) GetDefaultCloudUser(cfg *v1alpha1.OnecloudClusterConfig) *v1alp
 }
 
 func (r aiProxy) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig) (interface{}, error) {
-	opt := &AiProxyOptions{}
+	opt := &aiproxyoptions.SAiProxyOptions{}
 	if err := option.SetOptionsDefault(opt, constants.ServiceTypeAiProxy); err != nil {
 		return nil, errors.Wrap(err, "set aiproxy option")
 	}
@@ -67,6 +62,7 @@ func (r aiProxy) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudC
 	option.SetServiceCommonOptions(&opt.CommonOptions, oc, config.ServiceCommonOptions, cfg.CommonConfig)
 	opt.Port = config.Port
 	opt.AutoSyncTable = true
+	option.SetAiProxyAPILogS3Options(opt, oc)
 
 	return opt, nil
 }

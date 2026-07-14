@@ -22,6 +22,7 @@ import (
 	"yunion.io/x/log"
 	"yunion.io/x/structarg"
 
+	computeapi "yunion.io/x/onecloud/pkg/apis/compute"
 	common_options "yunion.io/x/onecloud/pkg/cloudcommon/options"
 	"yunion.io/x/onecloud/pkg/util/fileutils2"
 	"yunion.io/x/onecloud/pkg/util/ovnutils"
@@ -96,6 +97,9 @@ type SHostOptions struct {
 	AgentTempPath  string `help:"Path for ESXi agent"`
 	AgentTempLimit int    `help:"Maximal storage space for ESXi agent, in GB" default:"10"`
 
+	RecycleServerfiles         bool `help:"Recycle instead of remove deleted servers file" default:"true"`
+	RecycleServerfilesKeepDays int  `help:"How long recycled files kept, default 28 days" default:"28"`
+
 	RecycleDiskfile         bool `help:"Recycle instead of remove deleted disk file" default:"true"`
 	RecycleDiskfileKeepDays int  `help:"How long recycled files kept, default 28 days" default:"28"`
 	AlwaysRecycleDiskfile   bool `help:"Always recycle disk files, no matter what" default:"true"`
@@ -118,6 +122,8 @@ type SHostOptions struct {
 	ChntpwPath          string `help:"path to chntpw tool" default:"/usr/local/bin/chntpw.static"`
 	OvmfPath            string `help:"Path to OVMF.fd" default:"/opt/cloud/contrib/OVMF.fd"`
 	OvmfVarsPath        string `help:"Path to OVMF_VARS.fd" default:"/opt/cloud/contrib/OVMF_VARS.fd"`
+	Ovmf4MCodePath      string `help:"Path to OVMF_CODE_4M.fd" default:"/opt/cloud/contrib/OVMF_CODE_4M.fd"`
+	Ovmf4MCodeVarsPath  string `help:"Path to OVMF_VARS_4M.fd" default:"/opt/cloud/contrib/OVMF_VARS_4M.code.fd"`
 	SecbootOvmfPath     string `help:"Path to secboot ovmf fd" default:"/opt/cloud/contrib/OVMF_CODE_4M.secboot.fd"`
 	SecbootOvmfVarsPath string `help:"Path to secboot ovmf vars fd" default:"/opt/cloud/contrib/OVMF_VARS_4M.fd"`
 
@@ -196,6 +202,8 @@ type SHostOptions struct {
 	SdnEnableTapMan bool   `help:"enable tap service" default:"$SDN_ENABLE_TAP_MAN|true"`
 	TapBridgeName   string `help:"bridge name for tap service" default:"brtap"`
 
+	HostLocalBridgeName string `help:"bridge name for host local network" default:"brlocal"`
+
 	SdnAllowConntrackInvalid       bool `help:"allow packets marked by conntrack as INVALID to pass" default:"$SDN_ALLOW_CONNTRACK_INVALID|false"`
 	SdnFetchDataFromComputeService bool `help:"fetch network releated data from compute service" default:"$SDN_FETCH_DATA_FROM_COMPUTE_SERVICE|true"`
 
@@ -245,6 +253,8 @@ type SHostOptions struct {
 	EnableQemuDebugLog  bool   `help:"enable qemu debug logs" default:"false"`
 	ResetDiskTmpDir     string `help:"auto reset disk after guest shutdown will write disk to tmpdir"`
 
+	GuestMaxMemSizeMb int `help:"guest maximal mem size, default 0 is not set" default:"0"`
+
 	// container related endpoint
 	// EnableContainerRuntime   bool   `help:"enable container runtime" default:"false"`
 	ContainerRuntimeEndpoint                 string `help:"endpoint of container runtime service" default:"unix:///var/run/onecloud/containerd/containerd.sock"`
@@ -266,10 +276,30 @@ type SHostOptions struct {
 	EnableDirtyRecoverySeconds int  `help:"Seconds to delay enable dirty guests recovery feature, default 15 minutes" default:"900"`
 	EnableContainerCniPortmap  bool `help:"Use container cni portmap plugin" default:"false"`
 	DisableReconcileContainer  bool `help:"disable reconcile container" default:"false"`
+
+	// Container log rotation (Docker-style max-size and max-file)
+	ContainerLogMaxSize  string `help:"Max size of container log file before rotation (e.g. 10m, 100k). Disabled if empty or <= 0" default:"256m"`
+	ContainerLogMaxFiles int    `help:"Max number of container log files to keep (current + rotated). Disabled if <= 0" default:"1"`
+
+	PortMappingRangeStart int `default:"20000" help:"port mapping range start for guest port mapping allocation"`
+	PortMappingRangeEnd   int `default:"25000" help:"port mapping range end for guest port mapping allocation"`
 }
 
 func (o SHostOptions) HostLocalNetconfPath(br string) string {
 	return filepath.Join(o.ServersPath, fmt.Sprintf("host_local_netconf_%s.json", br))
+}
+
+func (o SHostOptions) NicBridgeDevName(bridge string) string {
+	switch bridge {
+	case computeapi.HostVpcBridge:
+		return o.OvnIntegrationBridge
+	case computeapi.HostTapBridge:
+		return o.TapBridgeName
+	case computeapi.HostLocalBridge:
+		return o.HostLocalBridgeName
+	default:
+		return bridge
+	}
 }
 
 var (

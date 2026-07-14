@@ -65,7 +65,7 @@ type SGuestdisk struct {
 
 	ImagePath string `width:"256" charset:"ascii" nullable:"false" get:"user" create:"required"` // Column(VARCHAR(256, charset='ascii'), nullable=False)
 
-	Driver    string `width:"32" charset:"ascii" nullable:"true" list:"user" update:"user"` // Column(VARCHAR(32, charset='ascii'), nullable=True)
+	Driver    string `width:"32" charset:"ascii" nullable:"true" list:"user"`               // Column(VARCHAR(32, charset='ascii'), nullable=True)
 	CacheMode string `width:"32" charset:"ascii" nullable:"true" list:"user" update:"user"` // Column(VARCHAR(32, charset='ascii'), nullable=True)
 	AioMode   string `width:"32" charset:"ascii" nullable:"true" get:"user" update:"user"`  // Column(VARCHAR(32, charset='ascii'), nullable=True)
 	Iops      int    `nullable:"true" default:"0" list:"user" update:"user"`
@@ -89,7 +89,7 @@ func (self *SGuestdisk) ValidateUpdateData(ctx context.Context, userCred mcclien
 			Filter(sqlchemy.NotEquals(guestdisk.Field("disk_id"), self.DiskId)).
 			Filter(sqlchemy.Equals(guestdisk.Field("index"), index)).CountWithError()
 		if err != nil {
-			return input, httperrors.NewInternalServerError("check disk index uniqueness fail %s", err)
+			return input, httperrors.NewInternalServerError("check disk index uniqueness failed %s", err)
 		}
 		if count > 0 {
 			return input, httperrors.NewInputParameterError("DISK Index %d has been occupied", index)
@@ -106,7 +106,7 @@ func (self *SGuestdisk) ValidateUpdateData(ctx context.Context, userCred mcclien
 			cacheMode = input.CacheMode
 		}
 		if input.AioMode == "native" && cacheMode != "none" {
-			return input, httperrors.NewBadRequestError("Aio mode %s with cache mode %s not supported", input.AioMode, cacheMode)
+			return input, httperrors.NewBadRequestError("AIO mode %s with cache mode %s is not supported", input.AioMode, cacheMode)
 		}
 	}
 
@@ -208,14 +208,18 @@ func (self *SGuestdisk) GetDiskJsonDescAtHost(ctx context.Context, host *SHost, 
 		Bps:        self.Bps,
 		Size:       disk.DiskSize,
 		PCIPath:    disk.PCIPath,
+		StorageId:  disk.StorageId,
 	}
 	desc.TemplateId = disk.GetTemplateId()
 	storage, _ := disk.GetStorage()
 	desc.StorageType = storage.StorageType
+	desc.StorageExternalId = storage.GetExternalId()
+	desc.StoragecacheId = storage.StoragecacheId
 	if len(desc.TemplateId) > 0 {
 		storagecacheimg := StoragecachedimageManager.GetStoragecachedimage(storage.StoragecacheId, desc.TemplateId)
 		if storagecacheimg != nil {
 			desc.ImagePath = storagecacheimg.Path
+			desc.ImageInfo.ImageExternalId = storagecacheimg.ExternalId
 		}
 	}
 	if utils.IsInStringArray(host.HostType, []string{api.HOST_TYPE_HYPERVISOR, api.HOST_TYPE_CONTAINER}) {

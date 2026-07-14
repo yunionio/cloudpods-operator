@@ -34,6 +34,7 @@ import (
 
 	"yunion.io/x/onecloud/pkg/apis"
 	api "yunion.io/x/onecloud/pkg/apis/compute"
+	identityapi "yunion.io/x/onecloud/pkg/apis/identity"
 	"yunion.io/x/onecloud/pkg/cloudcommon/db"
 	"yunion.io/x/onecloud/pkg/cloudcommon/db/lockman"
 	"yunion.io/x/onecloud/pkg/cloudcommon/db/taskman"
@@ -113,7 +114,7 @@ func (manager *SWireManager) ValidateCreateData(
 	}
 
 	if input.Mtu < 0 || input.Mtu > 1000000 {
-		return input, httperrors.NewOutOfRangeError("mtu must be range of 0~1000000")
+		return input, httperrors.NewOutOfRangeError("mtu must be in range 0~1000000")
 	}
 
 	if input.VpcId == "" {
@@ -168,6 +169,9 @@ func (wire *SWire) ValidateUpdateData(ctx context.Context, userCred mcclient.Tok
 }
 
 func (wire *SWire) ValidateDeleteCondition(ctx context.Context, info *api.WireDetails) error {
+	if wire.Id == api.DEFAULT_HOST_LOCAL_WIRE_ID {
+		return httperrors.NewProtectedResourceError("not allowed to delete default host local wire")
+	}
 	if gotypes.IsNil(info) {
 		info = &api.WireDetails{}
 		usage, err := WireManager.TotalResourceCount([]string{wire.Id})
@@ -260,6 +264,10 @@ func (wire *SWire) GetVpcId() string {
 }
 
 func (manager *SWireManager) getWiresByVpcAndZone(vpc *SVpc, zone *SZone) ([]SWire, error) {
+	return manager.getWiresByVpcZoneAndManager(vpc, zone, nil)
+}
+
+func (manager *SWireManager) getWiresByVpcZoneAndManager(vpc *SVpc, zone *SZone, provider *SCloudprovider) ([]SWire, error) {
 	wires := make([]SWire, 0)
 	q := manager.Query()
 	if vpc != nil {
@@ -267,6 +275,9 @@ func (manager *SWireManager) getWiresByVpcAndZone(vpc *SVpc, zone *SZone) ([]SWi
 	}
 	if zone != nil {
 		q = q.Equals("zone_id", zone.Id)
+	}
+	if provider != nil {
+		q = q.Equals("manager_id", provider.Id)
 	}
 	err := db.FetchModelObjects(manager, q, &wires)
 	if err != nil {
@@ -291,7 +302,7 @@ func (manager *SWireManager) SyncWires(
 	remoteWires := make([]cloudprovider.ICloudWire, 0)
 	syncResult := compare.SyncResult{}
 
-	dbWires, err := manager.getWiresByVpcAndZone(vpc, zone)
+	dbWires, err := manager.getWiresByVpcZoneAndManager(vpc, zone, provider)
 	if err != nil {
 		syncResult.Error(err)
 		return nil, nil, syncResult
@@ -1155,6 +1166,12 @@ func chooseCandidateNetworksByNetworkType(nets []SNetwork, isExit bool, serverTy
 
 func (manager *SWireManager) InitializeData() error {
 	{
+		err := manager.initHostLocalWire()
+		if err != nil {
+			return errors.Wrap(err, "initHostLocalWire")
+		}
+	}
+	{
 		err := manager.initVpcId()
 		if err != nil {
 			return errors.Wrap(err, "initVpcId")
@@ -1965,4 +1982,37 @@ func (wire *SWire) Delete(ctx context.Context, userCred mcclient.TokenCredential
 		return errors.Wrap(err, "NetworkAdditionalWireManager.DeleteWire")
 	}
 	return wire.SStatusInfrasResourceBase.Delete(ctx, userCred)
+}
+
+func (manager *SWireManager) initHostLocalWire() error {
+	if _, err := manager.FetchById(api.DEFAULT_HOST_LOCAL_WIRE_ID); err != nil {
+		if err == sql.ErrNoRows {
+			defWire := SWire{}
+			defWire.SetModelManager(WireManager, &defWire)
+
+			defWire.Id = api.DEFAULT_HOST_LOCAL_WIRE_ID
+			defWire.Name = api.DEFAULT_HOST_LOCAL_WIRE_NAME
+			defWire.VpcId = api.DEFAULT_VPC_ID
+			defWire.ZoneId = ""    // host local wire is not associated with a zone
+			defWire.ManagerId = "" // host local wire is not associated with a manager
+			defWire.IsEmulated = false
+			defWire.ExternalId = "" // host local wire is not associated with an external id
+			defWire.IsPublic = true
+			defWire.PublicScope = string(rbacscope.ScopeSystem)
+			defWire.Status = api.WIRE_STATUS_AVAILABLE
+			defWire.Description = "Host local wire"
+			defWire.Bandwidth = 10000
+			defWire.Mtu = 1500
+			defWire.ScheduleRank = 0
+			defWire.DomainId = identityapi.DEFAULT_DOMAIN_ID
+			err = manager.TableSpec().Insert(context.TODO(), &defWire)
+			if err != nil {
+				log.Errorf("Insert default host local wire fail: %s", err)
+			}
+			return err
+		} else {
+			return err
+		}
+	}
+	return nil
 }

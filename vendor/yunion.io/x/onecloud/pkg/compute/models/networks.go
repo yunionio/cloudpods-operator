@@ -1165,7 +1165,7 @@ func isValidNetworkInfo(ctx context.Context, userCred mcclient.TokenCredential, 
 			} else {
 				used, err := net.isAddressUsed(ctx, netConfig.Address)
 				if err != nil {
-					return httperrors.NewInternalServerError("isAddressUsed fail %s", err)
+					return httperrors.NewInternalServerError("isAddressUsed failed %s", err)
 				}
 				if used && netConfig.Address != reuseAddr {
 					return httperrors.NewInputParameterError("Address %s has been used", netConfig.Address)
@@ -1195,7 +1195,7 @@ func isValidNetworkInfo(ctx context.Context, userCred mcclient.TokenCredential, 
 			} else {
 				used, err := net.isAddress6Used(ctx, netConfig.Address6)
 				if err != nil {
-					return httperrors.NewInternalServerError("isAddress6Used fail %s", err)
+					return httperrors.NewInternalServerError("isAddress6Used failed %s", err)
 				}
 				if used && netConfig.Address6 != reuseAddr6 {
 					return httperrors.NewInputParameterError("v6 address %s has been used", netConfig.Address6)
@@ -1215,7 +1215,7 @@ func isValidNetworkInfo(ctx context.Context, userCred mcclient.TokenCredential, 
 		}
 		freeCnt, err := net.getFreeAddressCount()
 		if err != nil {
-			return httperrors.NewInternalServerError("getFreeAddressCount fail %s", err)
+			return httperrors.NewInternalServerError("getFreeAddressCount failed %s", err)
 		}
 		if reuseAddr != "" {
 			freeCnt += 1
@@ -1565,7 +1565,7 @@ func (net *SNetwork) reserveIpWithDurationAndStatus(ctx context.Context, userCre
 		}
 		used, err = net.isAddress6Used(ctx, addr6.String())
 		if err != nil {
-			return httperrors.NewInternalServerError("isAddress6Used fail %s", err)
+			return httperrors.NewInternalServerError("isAddress6Used failed %s", err)
 		}
 		addrType = api.AddressTypeIPv6
 		ipstr = addr6.String()
@@ -1579,7 +1579,7 @@ func (net *SNetwork) reserveIpWithDurationAndStatus(ctx context.Context, userCre
 		}
 		used, err = net.isAddressUsed(ctx, ipstr)
 		if err != nil {
-			return httperrors.NewInternalServerError("isAddressUsed fail %s", err)
+			return httperrors.NewInternalServerError("isAddressUsed failed %s", err)
 		}
 		addrType = api.AddressTypeIPv4
 	} else {
@@ -1856,6 +1856,11 @@ func (manager *SNetworkManager) ValidateCreateData(ctx context.Context, userCred
 	} else {
 		return input, httperrors.NewInputParameterError("zone and vpc info required when wire is absent")
 	}
+	{
+		if wire.Id == api.DEFAULT_HOST_LOCAL_WIRE_ID {
+			input.ServerType = api.NETWORK_TYPE_HOSTLOCAL
+		}
+	}
 
 	input.WireId = wire.Id
 	if vpc.Status != api.VPC_STATUS_AVAILABLE {
@@ -1864,11 +1869,11 @@ func (manager *SNetworkManager) ValidateCreateData(ctx context.Context, userCred
 	if input.ServerType == api.NETWORK_TYPE_EIP && vpc.Id != api.DEFAULT_VPC_ID {
 		return input, httperrors.NewInputParameterError("eip network can only exist in default vpc, got %s(%s)", vpc.Name, vpc.Id)
 	}
-	if input.ServerType != api.NETWORK_TYPE_EIP {
-		input.BgpType = ""
-	}
+	// if input.ServerType != api.NETWORK_TYPE_EIP {
+	//	input.BgpType = ""
+	// }
 	// check class metadata
-	if wire != nil {
+	{ // wire != nil
 		var projectId string
 		if len(input.ProjectId) > 0 {
 			projectId = input.ProjectId
@@ -1986,6 +1991,9 @@ func (manager *SNetworkManager) ValidateCreateData(ctx context.Context, userCred
 		if ipEnd.NetAddr(masklen) != netAddr {
 			return input, httperrors.NewInputParameterError("start and end ip not in the same subnet")
 		}
+		if wire.Id == api.DEFAULT_HOST_LOCAL_WIRE_ID && len(input.GuestGateway) == 0 {
+			return input, httperrors.NewInputParameterError("host local wire only support gateway ip")
+		}
 	}
 
 	var (
@@ -2044,6 +2052,9 @@ func (manager *SNetworkManager) ValidateCreateData(ctx context.Context, userCred
 		netAddr6 = ip6Start.NetAddr(masklen6)
 		if !ip6End.NetAddr(masklen6).Equals(netAddr6) {
 			return input, httperrors.NewInputParameterError("v6 start and end ip not in the same subnet")
+		}
+		if wire.Id == api.DEFAULT_HOST_LOCAL_WIRE_ID && len(input.GuestGateway6) == 0 {
+			return input, httperrors.NewInputParameterError("host local wire only support gateway v6 ip")
 		}
 	}
 
@@ -2225,6 +2236,10 @@ func (snet *SNetwork) validateUpdateData(ctx context.Context, userCred mcclient.
 		if endIp.NetAddr(masklen) != netAddr {
 			return input, httperrors.NewInputParameterError("start, end ip must be in the same subnet")
 		}
+
+		if snet.WireId == api.DEFAULT_HOST_LOCAL_WIRE_ID && input.GuestGateway != nil && len(*input.GuestGateway) == 0 {
+			return input, httperrors.NewInputParameterError("host local wire only support gateway ip")
+		}
 	} else {
 		startIp, _ := netutils.NewIPV4Addr(snet.GuestIpStart)
 		netAddr = startIp.NetAddr(masklen)
@@ -2287,6 +2302,9 @@ func (snet *SNetwork) validateUpdateData(ctx context.Context, userCred mcclient.
 		if !netRange.EndIp().NetAddr(masklen6).Equals(netAddr6) {
 			return input, httperrors.NewInputParameterError("start, end v6 ip must be in the same subnet")
 		}
+		if snet.WireId == api.DEFAULT_HOST_LOCAL_WIRE_ID && input.GuestGateway6 != nil && len(*input.GuestGateway6) == 0 {
+			return input, httperrors.NewInputParameterError("host local wire only support gateway ip")
+		}
 	} else if len(snet.GuestIp6Start) > 0 {
 		startIp, _ := netutils.NewIPV6Addr(snet.GuestIp6Start)
 		netAddr6 = startIp.NetAddr(masklen6)
@@ -2342,12 +2360,17 @@ func (snet *SNetwork) validateUpdateData(ctx context.Context, userCred mcclient.
 
 	if input.IsAutoAlloc != nil && *input.IsAutoAlloc {
 		if snet.ServerType != api.NETWORK_TYPE_GUEST && snet.ServerType != api.NETWORK_TYPE_HOSTLOCAL {
-			return input, httperrors.NewInputParameterError("network server_type %s not support auto alloc", snet.ServerType)
+			return input, httperrors.NewInputParameterError("network server_type %s does not support auto allocation", snet.ServerType)
 		}
 	}
 
-	if len(input.ServerType) > 0 && !api.IsInNetworkTypes(input.ServerType, api.ALL_NETWORK_TYPES) {
-		return input, errors.Wrapf(httperrors.ErrInputParameter, "invalid server_type %q", input.ServerType)
+	if len(input.ServerType) > 0 {
+		if !api.IsInNetworkTypes(input.ServerType, api.ALL_NETWORK_TYPES) {
+			return input, errors.Wrapf(httperrors.ErrInputParameter, "invalid server_type %q", input.ServerType)
+		}
+		if snet.WireId == api.DEFAULT_HOST_LOCAL_WIRE_ID && input.ServerType != api.NETWORK_TYPE_HOSTLOCAL {
+			return input, httperrors.NewInputParameterError("host local wire only support hostlocal server_type")
+		}
 	}
 
 	return input, nil
@@ -2611,16 +2634,16 @@ func (snet *SNetwork) isOneCloudVpcNetwork() bool {
 /*func parseIpToIntArray(ip string) ([]int, error) {
 	ipSp := strings.Split(strings.Trim(ip, "."), ".")
 	if len(ipSp) > 4 {
-		return nil, httperrors.NewInputParameterError("Parse Ip Failed")
+		return nil, httperrors.NewInputParameterError("failed to parse IP address")
 	}
 	ipIa := []int{}
 	for i := 0; i < len(ipSp); i++ {
 		val, err := strconv.Atoi(ipSp[i])
 		if err != nil {
-			return nil, httperrors.NewInputParameterError("Parse Ip Failed")
+			return nil, httperrors.NewInputParameterError("failed to parse IP address")
 		}
 		if val < 0 || val > 255 {
-			return nil, httperrors.NewInputParameterError("Parse Ip Failed")
+			return nil, httperrors.NewInputParameterError("failed to parse IP address")
 		}
 		ipIa = append(ipIa, val)
 	}
@@ -2706,28 +2729,42 @@ func (manager *SNetworkManager) ListItemFilter(
 		hostsQ := hosts.SubQuery()
 		classicWiresIdQ = classicWiresIdQ.Join(hostsQ, sqlchemy.Equals(netifs.Field("baremetal_id"), hostsQ.Field("id")))
 
-		wireIdQ := classicWiresIdQ.SubQuery()
+		wireIdQueries := []sqlchemy.IQuery{
+			classicWiresIdQ,
+		}
 
-		if input.HostType == api.HOST_TYPE_HYPERVISOR {
-			// should consider VPC network
-			vpcHostQ := HostManager.Query().IsNotEmpty("ovn_version")
-			if len(input.HostType) > 0 {
-				vpcHostQ = vpcHostQ.Equals("host_type", input.HostType)
-			}
+		if input.HostType == api.HOST_TYPE_HYPERVISOR || input.HostType == api.HOST_TYPE_CONTAINER {
+			vpcHostQ := HostManager.Query().Equals("host_type", input.HostType)
 			if len(input.HostId) > 0 {
 				vpcHostQ = vpcHostQ.In("id", input.HostId)
 			}
+			hostCnt, err := vpcHostQ.CountWithError()
+			if err != nil {
+				return nil, errors.Wrap(err, "vpcHostQ.CountWithError")
+			}
+			if hostCnt > 0 {
+				// should consider host local wire
+				hostLocalWireQ := WireManager.Query("id").Equals("id", api.DEFAULT_HOST_LOCAL_WIRE_ID)
+				wireIdQueries = append(wireIdQueries, hostLocalWireQ)
+			}
+			vpcHostQ = vpcHostQ.IsNotEmpty("ovn_version")
 			vpcHostCnt, err := vpcHostQ.CountWithError()
 			if err != nil {
 				return nil, errors.Wrap(err, "vpcHostQ.CountWithError")
 			}
 			if vpcHostCnt > 0 {
+				// should consider VPC network wire
 				vpcWiresIdQ := WireManager.Query("id").NotEquals("vpc_id", api.DEFAULT_VPC_ID)
-
-				wireIdUnion := sqlchemy.Union(classicWiresIdQ, vpcWiresIdQ)
-				wireIdQ = wireIdUnion.Query().SubQuery()
+				wireIdQueries = append(wireIdQueries, vpcWiresIdQ)
 			}
 		}
+		var wireIdQ *sqlchemy.SSubQuery
+		if len(wireIdQueries) > 1 {
+			wireIdQ = sqlchemy.Union(wireIdQueries...).Query().SubQuery()
+		} else {
+			wireIdQ = classicWiresIdQ.SubQuery()
+		}
+
 		additionalQ := NetworkAdditionalWireManager.Query("network_id")
 		additionalQ = additionalQ.Join(wireIdQ, sqlchemy.Equals(wireIdQ.Field("id"), additionalQ.Field("wire_id")))
 		q = q.Filter(sqlchemy.OR(
@@ -2936,6 +2973,18 @@ func (manager *SNetworkManager) ListItemFilter(
 		hostschedtags := HostschedtagManager.Query().Equals("schedtag_id", schedTagObj.GetId()).SubQuery()
 		subq = subq.Join(hostschedtags, sqlchemy.Equals(hostschedtags.Field("host_id"), subq.Field("baremetal_id")))
 		q = q.In("wire_id", subq.SubQuery())
+	}
+
+	if len(input.LbClusterId) > 0 {
+		lbClusterObj, err := LoadbalancerClusterManager.FetchByIdOrName(ctx, userCred, input.LbClusterId)
+		if err != nil {
+			return nil, httperrors.NewResourceNotFoundError2(LoadbalancerClusterManager.Keyword(), input.LbClusterId)
+		}
+		lbCluster := lbClusterObj.(*SLoadbalancerCluster)
+		lbWireId, _ := lbCluster.inferWireId()
+		if len(lbWireId) > 0 {
+			q = q.Equals("wire_id", lbWireId)
+		}
 	}
 
 	return q, nil
@@ -3186,7 +3235,7 @@ func (snet *SNetwork) CheckInvalidToMerge(ctx context.Context, net *SNetwork, al
 	}*/
 
 	if len(failReason) > 0 {
-		err := httperrors.NewInputParameterError("Invalid Target Network %s: inconsist %s", net.GetId(), strings.Join(failReason, ","))
+		err := httperrors.NewInputParameterError("invalid target network %s: inconsistent %s", net.GetId(), strings.Join(failReason, ","))
 		return "", "", err
 	}
 
@@ -3290,7 +3339,7 @@ func (snet *SNetwork) PerformSplit(ctx context.Context, userCred mcclient.TokenC
 		} else {
 			input.Name, err = db.GenerateName(ctx, NetworkManager, userCred, fmt.Sprintf("%s#", snet.Name))
 			if err != nil {
-				return httperrors.NewInternalServerError("GenerateName fail %s", err)
+				return httperrors.NewInternalServerError("GenerateName failed %s", err)
 			}
 		}
 
@@ -3477,7 +3526,7 @@ func (manager *SNetworkManager) PerformTryCreateNetwork(ctx context.Context, use
 
 			newNetwork.Name, err = db.GenerateName(ctx, NetworkManager, userCred, fmt.Sprintf("%s#", nm.Name))
 			if err != nil {
-				return httperrors.NewInternalServerError("GenerateName fail %s", err)
+				return httperrors.NewInternalServerError("GenerateName failed %s", err)
 			}
 
 			return NetworkManager.TableSpec().Insert(ctx, newNetwork)
@@ -4059,4 +4108,67 @@ func (net SNetwork) HasIPv4Addr() bool {
 
 func (net SNetwork) HasIPv6Addr() bool {
 	return len(net.GuestIp6Start) > 0 && len(net.GuestIp6End) > 0
+}
+
+func (manager *SNetworkManager) CustomizeFilterList(ctx context.Context, q *sqlchemy.SQuery, userCred mcclient.TokenCredential, query jsonutils.JSONObject) (*db.CustomizeListFilters, error) {
+	filters := db.NewCustomizeListFilters()
+
+	if query.Contains("usable") {
+		isUsable := jsonutils.QueryBoolean(query, "usable", false)
+		addrCountFilter := func(obj jsonutils.JSONObject) (bool, error) {
+			portsStats := struct {
+				PortsUsed  int
+				Ports6Used int
+				Ports      int
+				Ports6     int
+			}{}
+			err := obj.Unmarshal(&portsStats)
+			if err != nil {
+				return false, err
+			}
+			if portsStats.PortsUsed < portsStats.Ports || portsStats.Ports6Used < portsStats.Ports6 {
+				return true, nil
+			}
+			return false, nil
+		}
+
+		if isUsable {
+			filters.Append(addrCountFilter)
+		}
+	}
+
+	return filters, nil
+}
+
+func (manager *SNetworkManager) findClassicNetworksByIp(ipstr string) ([]SNetwork, error) {
+	ip4Addr, err := netutils.NewIPV4Addr(ipstr)
+	if err != nil {
+		return nil, errors.Wrap(err, "netutils.NewIPV4Addr")
+	}
+	q := manager.Query()
+	wirsQ := WireManager.Query().Equals("vpc_id", api.DEFAULT_VPC_ID).SubQuery()
+	q = q.Join(wirsQ, sqlchemy.Equals(q.Field("wire_id"), wirsQ.Field("id")))
+
+	// ipv4 address, exactly
+	ipStart := sqlchemy.INET_ATON(q.Field("guest_ip_start"))
+	ipEnd := sqlchemy.INET_ATON(q.Field("guest_ip_end"))
+
+	ipConst := sqlchemy.INET_ATON(q.StringField(ip4Addr.String()))
+
+	ipCondtion := sqlchemy.AND(
+		sqlchemy.IsNotNull(q.Field("guest_ip_start")),
+		sqlchemy.IsNotNull(q.Field("guest_ip_end")),
+		sqlchemy.IsNotEmpty(q.Field("guest_ip_start")),
+		sqlchemy.IsNotEmpty(q.Field("guest_ip_end")),
+		sqlchemy.GE(ipEnd, ipConst),
+		sqlchemy.LE(ipStart, ipConst),
+	)
+	q = q.Filter(ipCondtion)
+
+	networks := make([]SNetwork, 0)
+	err = db.FetchModelObjects(manager, q, &networks)
+	if err != nil {
+		return nil, errors.Wrap(err, "FetchModelObjects")
+	}
+	return networks, nil
 }

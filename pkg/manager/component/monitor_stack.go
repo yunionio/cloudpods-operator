@@ -91,6 +91,14 @@ func (m *monitorStackManager) Sync(oc *v1alpha1.OnecloudCluster) error {
 			return errors.Wrapf(err, "get %q service %q", constants.MonitorStackNamespace, constants.MonitorMinioName)
 		}
 
+		if err := m.ensureAiProxyAPILogBucket(oc, minioSvc); err != nil {
+			return errors.Wrap(err, "ensure aiproxy api log bucket")
+		}
+
+		if err := m.syncAiProxyAPILogBucketLifecycle(oc, minioSvc); err != nil {
+			return errors.Wrap(err, "sync aiproxy api log bucket lifecycle")
+		}
+
 		if err := m.syncThanos(s, &oc.Spec, spec, minioSvc, status); err != nil {
 			return errors.Wrapf(err, "sync thanos component")
 		}
@@ -332,6 +340,57 @@ func (m *monitorStackManager) newMinioClient(spec *v1alpha1.ObjectStoreConfig) (
 		return nil, errors.Wrap(err, "new minio client")
 	}
 	return cli, nil
+}
+
+func (m *monitorStackManager) ensureAiProxyAPILogBucket(oc *v1alpha1.OnecloudCluster, minioSvc *v1.Service) error {
+	if oc.Spec.AiProxy.Disable {
+		return nil
+	}
+	storeSpec := m.getMinioAuthConfig(&oc.Spec.MonitorStack.Minio, minioSvc, constants.MonitorBucketAiProxy)
+	cli, err := m.newMinioClient(storeSpec)
+	if err != nil {
+		return errors.Wrap(err, "new minio client")
+	}
+	ctx := context.Background()
+	exists, err := cli.BucketExists(ctx, constants.MonitorBucketAiProxy)
+	if err != nil {
+		return errors.Wrap(err, "check bucket exists")
+	}
+	if exists {
+		return nil
+	}
+	if err := cli.MakeBucket(ctx, constants.MonitorBucketAiProxy, minio.MakeBucketOptions{}); err != nil {
+		return errors.Wrap(err, "make bucket")
+	}
+	return nil
+}
+
+func (m *monitorStackManager) syncAiProxyAPILogBucketLifecycle(oc *v1alpha1.OnecloudCluster, minioSvc *v1.Service) error {
+	if oc.Spec.AiProxy.Disable {
+		return nil
+	}
+	storeSpec := m.getMinioAuthConfig(&oc.Spec.MonitorStack.Minio, minioSvc, constants.MonitorBucketAiProxy)
+	cli, err := m.newMinioClient(storeSpec)
+	if err != nil {
+		return errors.Wrap(err, "new minio client")
+	}
+	if err := cli.SetBucketLifecycle(context.Background(), constants.MonitorBucketAiProxy, &lifecycle.Configuration{
+		Rules: []lifecycle.Rule{
+			{
+				ID:     "Expire aiproxy API logs",
+				Status: "Enabled",
+				RuleFilter: lifecycle.Filter{
+					Prefix: "",
+				},
+				Expiration: lifecycle.Expiration{
+					Days: lifecycle.ExpirationDays(constants.MonitorBucketAiProxyRetentionDays),
+				},
+			},
+		},
+	}); err != nil {
+		return errors.Wrap(err, "set lifecycle policy")
+	}
+	return nil
 }
 
 func (m *monitorStackManager) syncBucketPolicy(spec *v1alpha1.MonitorStackSpec) error {

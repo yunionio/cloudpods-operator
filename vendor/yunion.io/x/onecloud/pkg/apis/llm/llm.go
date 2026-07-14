@@ -21,6 +21,7 @@ type LLMBaseListDetails struct {
 	LLMImage      string `json:"llm_image"`
 	LLMImageLable string `json:"llm_image_lable"`
 	LLMImageName  string `json:"llm_image_name"`
+	AppName       string `json:"app_name"`
 
 	VcpuCount  int      `json:"vcpu_count"`
 	VmemSizeMb int      `json:"vmem_size_mb"`
@@ -58,7 +59,10 @@ type LLMListDetails struct {
 	LLMSku  string `json:"llm_sku"`
 	LLMType string `json:"llm_type"`
 
-	MountedModels []MountedModelInfo `json:"mounted_models"`
+	LLMDeploymentId string `json:"llm_deployment_id"`
+	LLMDeployment   string `json:"llm_deployment"`
+
+	MountedModelInfos []MountedModelInfo `json:"mounted_model_infos"`
 }
 
 type LLMBaseCreateInput struct {
@@ -76,18 +80,31 @@ type LLMBaseCreateInput struct {
 
 type LLMCreateInput struct {
 	LLMBaseCreateInput
+	// MountedModels overrides the SKU's mounted_models when non-empty.
+	MountedModelResourceCreateInput
 
-	LLMSkuId   string   `json:"llm_sku_id"`
-	LLMImageId string   `json:"llm_image_id"`
-	LLMSpec    *LLMSpec `json:"llm_spec,omitempty"`
+	LLMSkuId        string   `json:"llm_sku_id"`
+	LLMImageId      string   `json:"llm_image_id"`
+	LLMDeploymentId string   `json:"llm_deployment_id"`
+	LLMSpec         *LLMSpec `json:"llm_spec,omitempty"`
+
+	// Devices/HostPaths override the corresponding sku fields when set.
+	HostPaths *HostPaths `json:"host_paths,omitempty"`
+	Devices   *Devices   `json:"devices,omitempty"`
 }
 
 // LLMUpdateInput is the request body for updating an LLM (including llm_spec overrides).
 type LLMUpdateInput struct {
 	apis.VirtualResourceBaseUpdateInput
+	// MountedModels overrides the SKU's mounted_models when non-empty.
+	MountedModelResourceUpdateInput
 
 	InstantModelQuotaGb *int     `json:"instant_model_quota_gb,omitempty"`
 	LLMSpec             *LLMSpec `json:"llm_spec,omitempty"`
+
+	// Devices/HostPaths override the corresponding sku fields when set.
+	HostPaths *HostPaths `json:"host_paths,omitempty"`
+	Devices   *Devices   `json:"devices,omitempty"`
 }
 
 type LLMBaseListInput struct {
@@ -110,10 +127,11 @@ type LLMBaseListInput struct {
 type LLMListInput struct {
 	LLMBaseListInput
 
-	LLMSku   string   `json:"llm_sku"`
-	LLMImage string   `json:"llm_image"`
-	LLMTypes []string `json:"llm_types"` // filter by linked SKU's llm_types (e.g. [dify, openclaw])
-	LLMType  string   `json:"llm_type"`  // filter by linked SKU's llm_type (e.g. dify)
+	LLMSku        string   `json:"llm_sku"`
+	LLMImage      string   `json:"llm_image"`
+	LLMTypes      []string `json:"llm_types"`      // filter by linked SKU's llm_types (e.g. [dify, openclaw])
+	LLMType       string   `json:"llm_type"`       // filter by linked SKU's llm_type (e.g. dify)
+	LLMDeployment string   `json:"llm_deployment"` // filter by LLMDeployment deployment
 }
 
 type ModelInfo struct {
@@ -225,4 +243,15 @@ type LLMAccessInfo struct {
 	Username string            `json:"username,omitempty"`
 	Password string            `json:"password,omitempty"`
 	Extra    map[string]string `json:"extra,omitempty"`
+}
+
+type LLMProviderModelsInput struct {
+	URL          string        `json:"url"`
+	ProviderType LLMClientType `json:"provider_type"`
+}
+
+type LLMProviderModelsOutput struct {
+	ProviderType LLMClientType `json:"provider_type"`
+	URL          string        `json:"url"`
+	Models       []string      `json:"models"`
 }

@@ -142,7 +142,7 @@ func (m *SContainerManager) ListItemFilter(ctx context.Context, q *sqlchemy.SQue
 }
 
 func (m *SContainerManager) GetContainersByPod(guestId string) ([]SContainer, error) {
-	q := m.Query().Equals("guest_id", guestId)
+	q := m.Query().Equals("guest_id", guestId).Asc("created_at")
 	ctrs := make([]SContainer, 0)
 	if err := db.FetchModelObjects(m, q, &ctrs); err != nil {
 		return nil, errors.Wrap(err, "db.FetchModelObjects")
@@ -177,6 +177,9 @@ func (m *SContainerManager) ValidateSpec(ctx context.Context, userCred mcclient.
 		if _, err := m.GetImageCredential(ctx, userCred, spec.ImageCredentialId); err != nil {
 			return errors.Wrapf(err, "get image credential by id: %s", spec.ImageCredentialId)
 		}
+	}
+	if err := m.ValidateSpecEnvs(ctx, userCred, spec); err != nil {
+		return errors.Wrap(err, "validate envs")
 	}
 
 	if pod != nil {
@@ -231,6 +234,35 @@ func (m *SContainerManager) ValidateSpec(ctx context.Context, userCred mcclient.
 	return nil
 }
 
+func (m *SContainerManager) ValidateSpecEnvs(ctx context.Context, userCred mcclient.TokenCredential, spec *api.ContainerSpec) error {
+	var errs []error
+	for _, env := range spec.Envs {
+		if env.ValueFrom == nil {
+			continue
+		}
+		if env.ValueFrom.Credential != nil {
+			credId := env.ValueFrom.Credential.Id
+			if credId == "" {
+				errs = append(errs, errors.Wrapf(errors.ErrEmpty, "credential id is empty"))
+				continue
+			}
+			credKey := env.ValueFrom.Credential.Key
+			if credKey == "" {
+				errs = append(errs, errors.Wrapf(errors.ErrEmpty, "credential key is empty"))
+				continue
+			}
+			cred, err := m.GetSecretCredential(ctx, userCred, credId)
+			if err != nil {
+				errs = append(errs, errors.Wrapf(err, "get secret credential %s", credId))
+			}
+			_, ok := cred[credKey]
+			if !ok {
+				errs = append(errs, errors.Wrapf(errors.ErrNotFound, "env %s secret credential %s key %s not found", env.Key, credId, credKey))
+			}
+		}
+	}
+	return errors.NewAggregate(errs)
+}
 func (m *SContainerManager) ValidateSpecLifecycle(ctx context.Context, cred mcclient.TokenCredential, spec *api.ContainerSpec) error {
 	if spec.Lifecyle == nil {
 		return nil
@@ -262,6 +294,11 @@ func (m *SContainerManager) ValidateSpecRootFs(ctx context.Context, userCred mcc
 		return nil
 	}
 	rootFs := spec.RootFs
+	if rootFs.Disk != nil {
+		if rootFs.Disk.SubDirectory == "" {
+			rootFs.Disk.SubDirectory = "rootfs"
+		}
+	}
 	drv, err := GetContainerRootFsDriverWithError(rootFs.Type)
 	if err != nil {
 		return errors.Wrapf(err, "get container volume mount driver %q", rootFs.Type)
@@ -738,20 +775,24 @@ func (c *SContainer) StartDeleteTask(ctx context.Context, userCred mcclient.Toke
 	return task.ScheduleRun(nil)
 }
 
-func (m *SContainerManager) GetImageCredential(ctx context.Context, userCred mcclient.TokenCredential, id string) (*apis.ContainerPullImageAuthConfig, error) {
+func (m *SContainerManager) getKeystoneCredential(ctx context.Context, userCred mcclient.TokenCredential, id string) (jsonutils.JSONObject, error) {
 	s := auth.GetSession(ctx, userCred, options.Options.Region)
-	ret, err := identitymod.Credentials.GetById(s, id, nil)
-	if err != nil {
-		if errors.Cause(err) == errors.ErrNotFound || strings.Contains(err.Error(), "NotFound") {
-			ret, err = identitymod.Credentials.GetByName(s, id, nil)
-			if err != nil {
-				return nil, errors.Wrapf(err, "get credential by id or name of %s", id)
-			}
+	if cred, err := identitymod.Credentials.GetById(s, id, nil); err == nil {
+		return cred, nil
+	} else if errors.Cause(err) == errors.ErrNotFound || strings.Contains(err.Error(), "NotFound") {
+		cred2, err2 := identitymod.Credentials.GetByName(s, id, nil)
+		if err2 != nil {
+			return nil, errors.Wrapf(err2, "get credential by id or name of %s", id)
 		}
+		return cred2, nil
+	} else {
 		return nil, errors.Wrapf(err, "get credentials by id with %s", userCred.String())
 	}
+}
+
+func (m *SContainerManager) parseKeystoneCredentialBlob(ret jsonutils.JSONObject, expectedType string) (jsonutils.JSONObject, error) {
 	credType, _ := ret.GetString("type")
-	if credType != identityapi.CONTAINER_IMAGE_TYPE {
+	if credType != expectedType {
 		return nil, httperrors.NewNotSupportedError("unsupported credential type %s", credType)
 	}
 	blobStr, err := ret.GetString("blob")
@@ -761,6 +802,18 @@ func (m *SContainerManager) GetImageCredential(ctx context.Context, userCred mcc
 	obj, err := jsonutils.ParseString(blobStr)
 	if err != nil {
 		return nil, errors.Wrapf(err, "json parse string: %s", blobStr)
+	}
+	return obj, nil
+}
+
+func (m *SContainerManager) GetImageCredential(ctx context.Context, userCred mcclient.TokenCredential, id string) (*apis.ContainerPullImageAuthConfig, error) {
+	ret, err := m.getKeystoneCredential(ctx, userCred, id)
+	if err != nil {
+		return nil, err
+	}
+	obj, err := m.parseKeystoneCredentialBlob(ret, identityapi.CONTAINER_IMAGE_TYPE)
+	if err != nil {
+		return nil, err
 	}
 	blob := new(identityapi.CredentialContainerImageBlob)
 	if err := obj.Unmarshal(blob); err != nil {
@@ -773,6 +826,22 @@ func (m *SContainerManager) GetImageCredential(ctx context.Context, userCred mcc
 		ServerAddress: blob.ServerAddress,
 		IdentityToken: blob.IdentityToken,
 		RegistryToken: blob.RegistryToken,
+	}
+	return out, nil
+}
+
+func (m *SContainerManager) GetSecretCredential(ctx context.Context, userCred mcclient.TokenCredential, id string) (map[string]string, error) {
+	ret, err := m.getKeystoneCredential(ctx, userCred, id)
+	if err != nil {
+		return nil, err
+	}
+	obj, err := m.parseKeystoneCredentialBlob(ret, identityapi.CONTAINER_SECRET_TYPE)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]string{}
+	if err := obj.Unmarshal(&out); err != nil {
+		return nil, errors.Wrap(err, "unmarshal blob")
 	}
 	return out, nil
 }
@@ -797,6 +866,24 @@ func (c *SContainer) GetHostPullImageInput(ctx context.Context, userCred mcclien
 		input.Auth = cred
 	}
 	return input, nil
+}
+
+func (c *SContainer) GetSecretCredentials(ctx context.Context, userCred mcclient.TokenCredential) (map[string]string, error) {
+	ret := make(map[string]string, 0)
+	for _, env := range c.Spec.Envs {
+		if env.ValueFrom == nil {
+			continue
+		}
+		if env.ValueFrom.Credential != nil {
+			credId := env.ValueFrom.Credential.Id
+			cred, err := GetContainerManager().GetSecretCredential(ctx, userCred, credId)
+			if err != nil {
+				return nil, errors.Wrapf(err, "GetSecretCredential %s", credId)
+			}
+			ret[credId] = base64.StdEncoding.EncodeToString([]byte(jsonutils.Marshal(cred).String()))
+		}
+	}
+	return ret, nil
 }
 
 func (c *SContainer) StartPullImageTask(ctx context.Context, userCred mcclient.TokenCredential, input *hostapi.ContainerPullImageInput, parentTaskId string) error {
@@ -876,6 +963,11 @@ func (c *SContainer) ToHostContainerSpec(ctx context.Context, userCred mcclient.
 		return nil, errors.Wrap(err, "GetHostPullImageInput")
 	}
 	hSpec.ImageCredentialToken = base64.StdEncoding.EncodeToString([]byte(jsonutils.Marshal(pullInput.Auth).String()))
+	secretCredentials, err := c.GetSecretCredentials(ctx, userCred)
+	if err != nil {
+		return nil, errors.Wrap(err, "GetSecretCredentials")
+	}
+	hSpec.SecretCredentials = secretCredentials
 	return hSpec, nil
 }
 

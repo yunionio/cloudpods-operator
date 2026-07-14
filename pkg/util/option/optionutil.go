@@ -7,6 +7,7 @@ import (
 	"yunion.io/x/pkg/util/reflectutils"
 	"yunion.io/x/structarg"
 
+	aiproxyoptions "yunion.io/x/onecloud/pkg/aiproxy/options"
 	"yunion.io/x/onecloud/pkg/cloudcommon/options"
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
@@ -80,4 +81,14 @@ func SetClickhouseOptions(opt *options.DBOptions, clickhouse v1alpha1.Clickhouse
 		opt.Clickhouse = fmt.Sprintf("tcp://%s:%d?database=%s&read_timeout=10&write_timeout=20&username=%s&password=%s", formattedHost, clickhouse.Port, input.Database, input.Username, input.Password)
 		opt.OpsLogWithClickhouse = true
 	}
+}
+
+func SetAiProxyAPILogS3Options(opt *aiproxyoptions.SAiProxyOptions, oc *v1alpha1.OnecloudCluster) {
+	if oc.Spec.MonitorStack.Disable {
+		return
+	}
+	minio := oc.Spec.MonitorStack.Minio
+	opt.APILogS3Endpoint = fmt.Sprintf("http://%s.%s.svc:9000", constants.MonitorMinioName, constants.MonitorStackNamespace)
+	opt.APILogS3AccessKey = minio.AccessKey
+	opt.APILogS3SecretKey = minio.SecretKey
 }

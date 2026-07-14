@@ -17,6 +17,7 @@ package models
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"yunion.io/x/cloudmux/pkg/cloudprovider"
 	"yunion.io/x/jsonutils"
@@ -33,6 +34,7 @@ import (
 	"yunion.io/x/onecloud/pkg/compute/options"
 	"yunion.io/x/onecloud/pkg/httperrors"
 	"yunion.io/x/onecloud/pkg/mcclient"
+	"yunion.io/x/onecloud/pkg/util/hashcache"
 	"yunion.io/x/onecloud/pkg/util/stringutils2"
 )
 
@@ -44,6 +46,8 @@ type SZoneManager struct {
 }
 
 var ZoneManager *SZoneManager
+
+var networkUsableZoneIdsCache = hashcache.NewCache(256, 10*time.Minute)
 
 func init() {
 	ZoneManager = &SZoneManager{
@@ -682,7 +686,39 @@ func filterResult(q *sqlchemy.SQuery) ([]string, error) {
 	return results, nil
 }
 
+func networkUsableZoneIdsCacheKey(usableNet, usableVpc bool, query *api.ZoneListInput) string {
+	type cacheKey struct {
+		UsableNet       bool     `json:"usable_net"`
+		UsableVpc       bool     `json:"usable_vpc"`
+		CloudregionId   []string `json:"cloudregion_id,omitempty"`
+		CloudproviderId []string `json:"cloudprovider_id,omitempty"`
+	}
+	key := cacheKey{
+		UsableNet: usableNet,
+		UsableVpc: usableVpc,
+	}
+	if query != nil {
+		key.CloudregionId = query.CloudregionId
+		key.CloudproviderId = query.CloudproviderId
+	}
+	return jsonutils.Marshal(key).String()
+}
+
 func NetworkUsableZoneIds(usableNet, usableVpc bool, query *api.ZoneListInput) ([]string, error) {
+	cacheKey := networkUsableZoneIdsCacheKey(usableNet, usableVpc, query)
+	if cached := networkUsableZoneIdsCache.AtomicGet(cacheKey); cached != nil {
+		return cached.([]string), nil
+	}
+
+	ret, err := queryNetworkUsableZoneIds(usableNet, usableVpc, query)
+	if err != nil {
+		return nil, err
+	}
+	networkUsableZoneIdsCache.AtomicSet(cacheKey, ret)
+	return ret, nil
+}
+
+func queryNetworkUsableZoneIds(usableNet, usableVpc bool, query *api.ZoneListInput) ([]string, error) {
 	vpcs, err := zoneUsableVpc(usableVpc, query)
 	if err != nil {
 		return nil, errors.Wrap(err, "zoneUsableVpc")
@@ -814,6 +850,22 @@ func (manager *SZoneManager) ListItemFilter(
 	if len(brandStrs) > 0 {
 		subq := queryCloudregionIdsByProviders("brand", brandStrs)
 		q = q.In("cloudregion_id", subq.SubQuery())
+	}
+
+	if query.ReadOnly != nil {
+		sq := CloudaccountManager.Query("provider").Equals("read_only", *query.ReadOnly).SubQuery()
+		regions := CloudregionManager.Query("id")
+		if *query.ReadOnly {
+			regions = regions.In("provider", sq)
+		} else {
+			regions = regions.Filter(
+				sqlchemy.OR(
+					sqlchemy.In(regions.Field("provider"), sq),
+					sqlchemy.Equals(regions.Field("provider"), api.CLOUD_PROVIDER_ONECLOUD),
+				),
+			)
+		}
+		q = q.In("cloudregion_id", regions.SubQuery())
 	}
 
 	q, err = managedResourceFilterByRegion(ctx, q, query.RegionalFilterListInput, "", nil)
@@ -989,7 +1041,7 @@ func (manager *SZoneManager) ValidateCreateData(ctx context.Context, userCred mc
 	input.CloudregionId = region.Id
 	input.Status = api.ZONE_ENABLE
 	if region.Provider != api.CLOUD_PROVIDER_ONECLOUD {
-		return nil, httperrors.NewNotSupportedError("not support create %s zone", region.Provider)
+		return nil, httperrors.NewNotSupportedError("creating %s zones is not supported for this region", region.Provider)
 	}
 
 	input.StatusStandaloneResourceCreateInput, err = manager.SStatusStandaloneResourceBaseManager.ValidateCreateData(ctx, userCred, ownerId, query, input.StatusStandaloneResourceCreateInput)

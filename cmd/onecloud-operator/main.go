@@ -24,7 +24,6 @@ import (
 	"os"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
@@ -134,16 +133,19 @@ func main() {
 
 	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicCli, resyncDuration)
 
-	rl := resourcelock.EndpointsLock{
-		EndpointsMeta: metav1.ObjectMeta{
-			Namespace: ns,
-			Name:      "onecloud-controller-manager",
-		},
-		Client: kubeCli.CoreV1(),
-		LockConfig: resourcelock.ResourceLockConfig{
+	rl, err := resourcelock.New(
+		resourcelock.LeasesResourceLock,
+		ns,
+		"onecloud-controller-manager",
+		kubeCli.CoreV1(),
+		kubeCli.CoordinationV1(),
+		resourcelock.ResourceLockConfig{
 			Identity:      hostName,
 			EventRecorder: &record.FakeRecorder{},
 		},
+	)
+	if err != nil {
+		klog.Fatalf("failed to create resource lock: %v", err)
 	}
 
 	if err := k8sutil2.InitClusterVersion(kubeCli); err != nil {
@@ -177,7 +179,7 @@ func main() {
 		}
 		go wait.Forever(func() {
 			leaderelection.RunOrDie(controllerCtx, leaderelection.LeaderElectionConfig{
-				Lock:          &rl,
+				Lock:          rl,
 				LeaseDuration: leaseDuration,
 				RenewDeadline: renewDuration,
 				RetryPeriod:   retryPeriod,

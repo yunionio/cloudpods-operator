@@ -280,10 +280,12 @@ func (p *SLoadbalancerAgentParamsTelegraf) updateBy(pp *SLoadbalancerAgentParams
 }
 
 func (p *SLoadbalancerAgentParamsTelegraf) initDefault(data *jsonutils.JSONDict) {
-	if p.InfluxDbOutputUrl == "" {
+	{
 		baseOpts := &options.Options
 		u, _ := tsdb.GetDefaultServiceSourceURL(auth.GetAdminSession(context.Background(), baseOpts.Region), identity_apis.EndpointInterfacePublic)
-		p.InfluxDbOutputUrl = u
+		if u != "" {
+			p.InfluxDbOutputUrl = u
+		}
 		p.InfluxDbOutputUnsafeSsl = true
 	}
 	if p.HaproxyInputInterval == 0 {
@@ -422,7 +424,7 @@ func (man *SLoadbalancerAgentManager) ValidateCreateData(ctx context.Context, us
 	input := apis.StandaloneResourceCreateInput{}
 	err := data.Unmarshal(&input)
 	if err != nil {
-		return nil, httperrors.NewInternalServerError("unmarshal StandaloneResourceCreateInput fail %s", err)
+		return nil, httperrors.NewInternalServerError("unmarshal StandaloneResourceCreateInput failed %s", err)
 	}
 	input, err = man.SStandaloneResourceBaseManager.ValidateCreateData(ctx, userCred, ownerId, query, input)
 	if err != nil {
@@ -587,6 +589,8 @@ func (manager *SLoadbalancerAgentManager) FetchCustomizeColumns(
 			StandaloneResourceDetails:       stdRows[i],
 			LoadbalancerClusterResourceInfo: clusterRows[i],
 		}
+		lbagent := objs[i].(*SLoadbalancerAgent)
+		rows[i].WireId, _ = lbagent.inferWireId()
 	}
 
 	return rows
@@ -605,7 +609,7 @@ func (manager *SLoadbalancerAgentManager) FetchCustomizeColumns(
 		q.GroupBy(clusterQuery.Field("name"))
 		q.AppendField(clusterQuery.Field("name", "cluster"))
 	default:
-		return q, httperrors.NewBadRequestError("unsupport field %s", field)
+		return q, httperrors.NewBadRequestError("unsupported field %s", field)
 	}
 	return q, nil
 }*/
@@ -733,7 +737,20 @@ func (lbagent *SLoadbalancerAgent) PerformJoinCluster(
 	if len(peerAgents) >= 2 {
 		return nil, errors.Wrap(httperrors.ErrTooLarge, "too many agents")
 	}
-	priority := 255
+
+	clusterWireId, err := cluster.inferWireId()
+	if err != nil {
+		return nil, errors.Wrap(err, "cluster.inferWireId")
+	}
+	agentWireId, err := lbagent.inferWireId()
+	if err != nil {
+		return nil, errors.Wrap(err, "lbagent.inferWireId")
+	}
+	if clusterWireId != agentWireId {
+		return nil, errors.Wrap(httperrors.ErrInvalidStatus, "cluster and agent must be on the same wire")
+	}
+
+	priority := 200
 	if input.Priority > 0 {
 		for i := range peerAgents {
 			if input.Priority == peerAgents[i].Priority {
@@ -844,6 +861,44 @@ func (lbagent *SLoadbalancerAgent) PerformParamsPatch(ctx context.Context, userC
 	return nil, nil
 }
 
+func (manager *SLoadbalancerAgentManager) HbDetectionTask(ctx context.Context, userCred mcclient.TokenCredential, isStart bool) {
+	q := manager.Query().NotEquals("ha_state", api.LB_HA_STATE_UNKNOWN)
+	q = q.Filter(sqlchemy.OR(
+		sqlchemy.LT(q.Field("hb_last_seen"), time.Now().Add(-time.Duration(options.Options.LbaagentOfflineMaxSeconds)*time.Second)),
+		sqlchemy.IsNull(q.Field("hb_last_seen")),
+	))
+	lbagents := []SLoadbalancerAgent{}
+	err := db.FetchModelObjects(manager, q, &lbagents)
+	if err != nil {
+		log.Errorf("LoadbalancerAgentManager.HbDetectionTask error %s", err)
+		return
+	}
+	for i := range lbagents {
+		lbagent := &lbagents[i]
+		diff, err := db.Update(lbagent, func() error {
+			lbagent.HaState = api.LB_HA_STATE_UNKNOWN
+			return nil
+		})
+		if err != nil {
+			log.Errorf("LoadbalancerAgentManager.HbDetectionTask error %s", err)
+			continue
+		}
+		db.OpsLog.LogEvent(lbagent, db.ACT_UPDATE, diff, userCred)
+		logclient.AddActionLogWithContext(ctx, lbagent, logclient.ACT_UPDATE, diff, userCred, true)
+	}
+}
+
+func (lbagent *SLoadbalancerAgent) inferWireId() (string, error) {
+	nets, err := NetworkManager.findClassicNetworksByIp(lbagent.IP)
+	if err != nil {
+		return "", errors.Wrap(err, "NetworkManager.findClassicNetworksByIp")
+	}
+	if len(nets) == 0 {
+		return "", errors.Wrapf(errors.ErrNotFound, "no networks found for ip %s", lbagent.IP)
+	}
+	return nets[0].WireId, nil
+}
+
 const (
 	loadbalancerKeepalivedConfTmplDefault = `
 global_defs {
@@ -864,11 +919,13 @@ vrrp_instance YunionLB {
 	{{ if .vrrp.unicast_peer -}} unicast_peer { {{- println }}
 		{{- range .vrrp.unicast_peer }}		{{ println . }} {{- end }}
 	}
+	unicast_src_ip {{ .vrrp.unicast_src_ip }}
 	{{- end }}
 	priority {{ .vrrp.priority }}
 	advert_int {{ .vrrp.advert_int }}
 	garp_master_refresh {{ .vrrp.garp_master_refresh }}
 	{{ if .vrrp.preempt -}} preempt {{- else -}} nopreempt {{- end }}
+	{{ if .vrrp.preempt -}} preempt_delay 300 {{- else -}} state BACKUP {{- end }}
 	virtual_ipaddress {
 		{{- printf "\n" }}
 		{{- range .vrrp.addresses }}		{{ println . }} {{- end }}
@@ -910,6 +967,8 @@ listen stats
 	urls = ["{{ .telegraf.influx_db_output_url }}"]
 	database = "{{ .telegraf.influx_db_output_name }}"
 	insecure_skip_verify = {{ .telegraf.influx_db_output_unsafe_ssl }}
+	skip_database_creation = true
+	timeout = "30s"
 
 [[inputs.haproxy]]
 	interval = "{{ .telegraf.haproxy_input_interval }}s"

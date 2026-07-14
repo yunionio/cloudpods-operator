@@ -1335,7 +1335,7 @@ func (self *SGuest) SyncVMIsolateDevices(ctx context.Context, userCred mcclient.
 }
 
 func (guest *SGuest) GetContainers() ([]SContainer, error) {
-	q := GetContainerManager().Query().Equals("guest_id", guest.Id)
+	q := GetContainerManager().Query().Equals("guest_id", guest.Id).Asc("created_at")
 	ret := []SContainer{}
 	err := db.FetchModelObjects(GetContainerManager(), q, &ret)
 	if err != nil {
@@ -2907,7 +2907,7 @@ func SyncCloudProject(ctx context.Context, userCred mcclient.TokenCredential, mo
 						domainId, projectId, newProj, isMatch := rule.IsMatchTags(extTags)
 						if isMatch {
 							if len(newProj) > 0 {
-								domainId, projectId, err = account.getOrCreateTenant(ctx, newProj, "", "", "auto create from tag")
+								domainId, projectId, err = account.getOrCreateTenant(ctx, newProj, "", "", "auto create from tag", nil)
 								if err != nil {
 									return nil, errors.Wrapf(err, "getOrCreateTenant(%s)", newProj)
 								}

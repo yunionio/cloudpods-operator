@@ -99,6 +99,8 @@ type NetworkConfig struct {
 	// 若指定镜像的网络驱动方式，此参数会被覆盖
 	Driver         string `json:"driver"`
 	BwLimit        int    `json:"bw_limit"`
+	TxBwLimit      int    `json:"tx_bw_limit"`
+	RxBwLimit      int    `json:"rx_bw_limit"`
 	Vip            bool   `json:"vip"`
 	Reserved       bool   `json:"reserved"`
 	NumQueues      int    `json:"num_queues"`
@@ -196,6 +198,11 @@ type DiskConfig struct {
 	// 关机后自动重置磁盘
 	// required: false
 	AutoReset bool `json:"auto_reset"`
+
+	// 是否跟随主机删除而自动删除
+	// 默认跟随主机创建的磁盘为 true
+	// required: false
+	AutoDelete *bool `json:"auto_delete,omitempty"`
 
 	// 磁盘存储格式
 	// enum: ["qcow2", "raw", "docker", "iso", "vmdk", "vmdkflatver1", "vmdkflatver2", "vmdkflat", "vmdksparse", "vmdksparsever1", "vmdksparsever2", "vmdksepsparse", "vhd"]
@@ -313,6 +320,12 @@ type IsolatedDeviceConfig struct {
 	WireId       string `json:"wire_id"`
 	DiskIndex    *int8  `json:"disk_index"`
 	DevicePath   string `json:"device_path"`
+	// MemoryMb is the minimum on-device memory in MiB required from the
+	// candidate isolated_device (e.g. NVIDIA GPU VRAM). 0 means no constraint.
+	// The scheduler excludes devices whose memory_size > 0 and is below this
+	// threshold; devices with memory_size == 0 are treated as unknown and
+	// allowed through to avoid penalising hosts that haven't reported yet.
+	MemoryMb int `json:"memory_mb,omitempty"`
 }
 
 type BaremetalDiskConfig struct {
@@ -359,7 +372,10 @@ type ServerConfigs struct {
 	PreferRegion string `json:"prefer_region_id"`
 
 	// 调度到指定可用区,优先级低于prefer_host_id
-	PreferZone string `json:"prefer_zone_id"`
+	PreferZone string `json:"prefer_zone_id" yunion-deprecated-by:"prefer_zones"`
+
+	// 调度到指定可用区列表,优先级低于prefer_host_id
+	PreferZones []string `json:"prefer_zones"`
 
 	// 调度使用指定二层网络, 优先级低于prefer_host_id
 	PreferWire string `json:"prefer_wire_id"`
@@ -439,6 +455,9 @@ type ServerConfigs struct {
 	// required: false
 	Schedtags []*SchedtagConfig `json:"schedtags"`
 
+	// 宿主机路径调度约束，仅检查 auto_create=false 的 host_path
+	HostPathRequirements []apis.HostPathRequirement `json:"host_path_requirements,omitempty"`
+
 	// 透传设备列表
 	// required: false
 	IsolatedDevices []*IsolatedDeviceConfig `json:"isolated_devices"`
@@ -465,6 +484,20 @@ func NewServerConfigs() *ServerConfigs {
 		BaremetalDiskConfigs: make([]*BaremetalDiskConfig, 0),
 		InstanceGroupIds:     make([]string, 0),
 	}
+}
+
+func (c *ServerConfigs) GetPreferZones() []string {
+	if len(c.PreferZones) > 0 {
+		return c.PreferZones
+	}
+	if c.PreferZone != "" {
+		return []string{c.PreferZone}
+	}
+	return nil
+}
+
+func (c *ServerConfigs) HasPreferZone() bool {
+	return len(c.GetPreferZones()) > 0
 }
 
 type DeployConfig struct {
@@ -639,6 +672,10 @@ type ServerCreateInput struct {
 	// 指定此参数后会创建新的弹性公网IP并绑定到新建的虚拟机
 	// 此参数优先级低于public_ip
 	EipBw int `json:"eip_bw,omitzero"`
+	// 弹性公网IP上行带宽
+	EipTxBw int `json:"eip_tx_bw,omitzero"`
+	// 弹性公网IP下行带宽
+	EipRxBw int `json:"eip_rx_bw,omitzero"`
 	// 弹性公网IP线路类型
 	EipBgpType string `json:"eip_bgp_type,omitzero"`
 	// 弹性公网IP计费类型
@@ -685,6 +722,11 @@ type ServerCreateInput struct {
 	// 安全组Id列表
 	Secgroups []string `json:"secgroups"`
 
+	// GCP 网络标记(network tags)，仅对 Google 云有效
+	// 传入后可不指定安全组，创建时直接作为实例 tags 下发
+	// required: false
+	NetworkTags []string `json:"network_tags"`
+
 	// swagger:ignore
 	OsType string `json:"os_type"`
 	// swagger:ignore
@@ -720,6 +762,13 @@ type ServerCreateInput struct {
 	KickstartConfig *KickstartConfig `json:"kickstart_config,omitempty"`
 
 	Pod *PodCreateInput `json:"pod"`
+}
+
+func (c *KickstartConfig) IsEnabled() bool {
+	if c.Enabled != nil && !*c.Enabled {
+		return false
+	}
+	return true
 }
 
 // ServerUpdateKickstartStatusInput 更新虚拟机 kickstart 状态的输入

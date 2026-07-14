@@ -21,7 +21,7 @@ type ansibleServer struct {
 
 func NewAnsibleServer() Component {
 	return &ansibleServer{
-		baseService: newBaseService(v1alpha1.AnsibleServerComponentType, new(options.AnsibleServerOptions)),
+		baseService: newBaseService(v1alpha1.AnsibleServerComponentType, new(options.SAnsibleServerOptions)),
 	}
 }
 
