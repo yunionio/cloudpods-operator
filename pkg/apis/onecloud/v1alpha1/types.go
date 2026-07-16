@@ -584,6 +584,8 @@ type Etcd struct {
 	EnableTls *bool `json:"enableTls"`
 	// client service nodePort
 	ClientNodePort int `json:"clientNodePort"`
+	// etcd backend quota size MB
+	EtcdBackendQuotaSize *int64 `json:"etcdBackendQuotaSize"`
 }
 
 // Mysql describes a mysql server

@@ -24,13 +24,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
-
 	"yunion.io/x/jsonutils"
 	"yunion.io/x/log"
-	"yunion.io/x/pkg/errors"
-
-	"yunion.io/x/onecloud/pkg/mcclient"
-
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/controller"
@@ -38,6 +33,8 @@ import (
 	"yunion.io/x/onecloud-operator/pkg/util/etcdutil"
 	"yunion.io/x/onecloud-operator/pkg/util/k8sutil"
 	"yunion.io/x/onecloud-operator/pkg/util/retryutil"
+	"yunion.io/x/onecloud/pkg/mcclient"
+	"yunion.io/x/pkg/errors"
 )
 
 type etcdManager struct {
@@ -101,6 +98,13 @@ func (m *etcdManager) getProductVersions() []v1alpha1.ProductVersion {
 		v1alpha1.ProductVersionBaremetal,
 		v1alpha1.ProductVersionAI,
 	}
+}
+
+func (m *etcdManager) getEtcdBackendQuotaSize() int64 {
+	if m.oc.Spec.Etcd.EtcdBackendQuotaSize != nil && (*m.oc.Spec.Etcd.EtcdBackendQuotaSize*1024*1024) > etcdBackendQuotaSize {
+		return *m.oc.Spec.Etcd.EtcdBackendQuotaSize * 1024 * 1024
+	}
+	return etcdBackendQuotaSize
 }
 
 func (m *etcdManager) isSyncing() bool {
@@ -249,7 +253,7 @@ func (m *etcdManager) membersDefrag() {
 			log.Errorf("fetch etcd status failed: %s", err)
 			return
 		}
-		if status.DbSize > etcdBackendQuotaSize/2 {
+		if status.DbSize > (m.getEtcdBackendQuotaSize() / 2) {
 			ctx, cancel = context.WithTimeout(context.Background(), constants.EtcdDefaultRequestTimeout)
 			defer cancel()
 			_, err = etcdcli.Compact(ctx, status.Header.Revision)
@@ -481,7 +485,7 @@ func (m *etcdManager) newEtcdCommand(mb *etcdutil.Member, state, token string, i
 		"--max-wals %d",
 		dataDir, mb.Name, mb.PeerURL(), mb.ListenPeerURL(), mb.ListenClientURL(),
 		mb.ClientURL(), strings.Join(initialCluster, ","), state,
-		etcdBackendQuotaSize, etcdAutoCompactionRetention, etcdMaxWALFileCount)
+		m.getEtcdBackendQuotaSize(), etcdAutoCompactionRetention, etcdMaxWALFileCount)
 	if mb.SecurePeer {
 		commands += fmt.Sprintf(" --peer-client-cert-auth=true --peer-trusted-ca-file=%[1]s/peer-ca.crt --peer-cert-file=%[1]s/peer.crt --peer-key-file=%[1]s/peer.key", peerTLSDir)
 	}
