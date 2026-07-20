@@ -58,6 +58,12 @@ func (m *mcpServerManager) GetServiceName() string {
 }
 
 func (m *mcpServerManager) Sync(oc *v1alpha1.OnecloudCluster) error {
+	isEE := IsEnterpriseEdition(oc)
+	imageName := oc.Spec.McpServer.ImageName
+	// 版本在 CE/EE 间切换时清空 ImageName，让 defaults 按 edition 重新选 mcp-server / mcp-server-ee
+	if (imageName == constants.McpServerCEImageName && isEE) || (imageName == constants.McpServerEEImageName && !isEE) {
+		oc.Spec.McpServer.ImageName = ""
+	}
 	return syncComponent(m, oc, "")
 }
 
