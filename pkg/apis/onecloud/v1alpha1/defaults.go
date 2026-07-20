@@ -215,7 +215,6 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool, isEEOr
 		ExtdbComponentType:           nHP(&obj.Extdb.DeploymentSpec, useHyperImage),
 		BillingComponentType:         nHP(&obj.Billing.DeploymentSpec, useHyperImage),
 		LLMComponentType:             nHP(&obj.LLM.DeploymentSpec, useHyperImage),
-		McpServerComponentType:       nHP(&obj.McpServer.DeploymentSpec, useHyperImage),
 		AiProxyComponentType:         nHP(&obj.AiProxy.DeploymentSpec, useHyperImage),
 	} {
 		SetDefaults_DeploymentSpec(spec.DeploymentSpec, getImage(
@@ -230,8 +229,9 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool, isEEOr
 
 	// CE or EE parts
 	for cType, spec := range map[ComponentType]*hyperImagePair{
-		CloudmuxComponentType: nHP(obj.Cloudmux.ToDeploymentSpec(), false),
-		CloudmonComponentType: nHP(&obj.Cloudmon.DeploymentSpec, useHyperImage),
+		CloudmuxComponentType:  nHP(obj.Cloudmux.ToDeploymentSpec(), false),
+		CloudmonComponentType:  nHP(&obj.Cloudmon.DeploymentSpec, useHyperImage),
+		McpServerComponentType: nHP(&obj.McpServer.DeploymentSpec, useHyperImage),
 	} {
 		SetDefaults_DeploymentSpec(spec.DeploymentSpec,
 			getEditionImage(
