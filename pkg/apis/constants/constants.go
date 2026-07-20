@@ -61,6 +61,9 @@ const (
 
 	RegionCEImageName = "region"
 	RegionEEImageName = "region-ee"
+
+	McpServerCEImageName = "mcp-server"
+	McpServerEEImageName = "mcp-server-ee"
 )
 
 const (
