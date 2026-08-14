@@ -845,6 +845,9 @@ func containDiffsWithRtnAlert(input monitorapi.CommonAlertUpdateInput, rtnAlert 
 		if details[i].Comparator != inputQuery[i].Comparator {
 			return conDiff, nil
 		}
+		if condi.Query.From != inputQuery[i].From {
+			return conDiff, nil
+		}
 		oldSel := jsonutils.Marshal(&condi.Query.Model.Selects)
 		newSel := jsonutils.Marshal(&inputQuery[i].Model.Selects)
 		if !oldSel.Equals(newSel) {
@@ -911,6 +914,13 @@ func newCommonalertQuery(tem CommonAlertTem) monitorapi.CommonAlertQuery {
 	alertQ := new(monitorapi.AlertQuery)
 	alertQ.Model = metricQ
 	alertQ.From = "60m"
+	if tem.ConditionType == monitorapi.METRIC_QUERY_TYPE_NO_DATA {
+		from := tem.From
+		if from == "" {
+			from = "10m"
+		}
+		alertQ.From = from
+	}
 
 	commonAlert := monitorapi.CommonAlertQuery{
 		AlertQuery: alertQ,
