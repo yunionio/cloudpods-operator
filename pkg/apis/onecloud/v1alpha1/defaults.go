@@ -279,6 +279,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool, isEEOr
 	SetDefaults_KeystoneSpec(&obj.Keystone, obj.ImageRepository, obj.Version, useHyperImage, isEE)
 	SetDefaults_RegionSpec(&obj.RegionServer, obj.ImageRepository, obj.Version, useHyperImage, isEE)
 	SetDefaults_RegionDNSSpec(&obj.RegionDNS, obj.ImageRepository, obj.Version)
+	SetDefaults_MonitorSpec(&obj.Monitor, obj.ImageRepository, obj.Version, useHyperImage, isEE)
 	setDefaults_Cloudmux(obj, &obj.Cloudmux)
 
 	nHP := newHyperImagePair
@@ -298,7 +299,6 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool, isEEOr
 		AutoUpdateComponentType:      nHP(&obj.AutoUpdate.DeploymentSpec, useHyperImage),
 		OvnNorthComponentType:        nHP(&obj.OvnNorth, false),
 		VpcAgentComponentType:        nHP(&obj.VpcAgent.DeploymentSpec, useHyperImage),
-		MonitorComponentType:         nHP(&obj.Monitor.DeploymentSpec, useHyperImage),
 		ServiceOperatorComponentType: nHP(&obj.ServiceOperator.DeploymentSpec, false),
 		ItsmComponentType:            nHP(&obj.Itsm.DeploymentSpec, false),
 		CloudIdComponentType:         nHP(&obj.CloudId.DeploymentSpec, useHyperImage),
@@ -729,6 +729,19 @@ func SetDefaults_RegionDNSSpec(obj *RegionDNSSpec, imageRepo, version string) {
 		RegionDNSComponentType, obj.ImageName,
 		version, obj.Tag,
 		false, false,
+	))
+}
+
+func SetDefaults_MonitorSpec(
+	obj *DeploymentServicePortSpec,
+	imageRepo, version string,
+	useHyperImage, isEE bool,
+) {
+	SetDefaults_DeploymentSpec(&obj.DeploymentSpec, getEditionImage(
+		imageRepo, obj.Repository,
+		MonitorComponentType, obj.ImageName,
+		version, obj.Tag,
+		useHyperImage, isEE,
 	))
 }
 

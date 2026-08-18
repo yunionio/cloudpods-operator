@@ -48,14 +48,14 @@ const (
         try_files $uri $uri/ /index.html;
     }
 
-    location /overview {
+    location ~ ^/(overview|overview-private|charts) {
         proxy_pass http://localhost:8080;
         proxy_redirect   off;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto https;
-   }
+    }
 
     location /docs {
         proxy_pass http://localhost:8081;
@@ -64,7 +64,7 @@ const (
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto https;
-   }
+    }
 `
 
 	WebNginxConfigTemplate = `
