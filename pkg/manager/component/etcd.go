@@ -395,8 +395,10 @@ func (m *etcdManager) customPodSpec(pod *corev1.Pod, mb *etcdutil.Member, state,
 	shareProcessNamespace := true
 	pod.Spec.ShareProcessNamespace = &shareProcessNamespace
 
-	pod.Spec.InitContainers[0].Image = fmt.Sprintf("%s:%s",
-		path.Join(imageRepository, constants.BusyboxImageName), constants.BusyboxImageVersion)
+	if m.oc.Spec.Etcd.Pod == nil || len(m.oc.Spec.Etcd.Pod.BusyboxImage) == 0 {
+		pod.Spec.InitContainers[0].Image = fmt.Sprintf("%s:%s",
+			path.Join(imageRepository, constants.BusyboxImageName), constants.BusyboxImageVersion)
+	}
 
 	pod.Spec.DNSPolicy = corev1.DNSClusterFirst
 	if pod.Spec.Tolerations == nil {
