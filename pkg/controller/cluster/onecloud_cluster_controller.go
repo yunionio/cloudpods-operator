@@ -105,7 +105,7 @@ func NewController(
 	ingInformer := dynamicInformerFactory.ForResource(cv.GetIngressGVR())
 
 	dsInformer := kubeInformerFactory.Apps().V1().DaemonSets()
-	cronInformer := kubeInformerFactory.Batch().V1beta1().CronJobs()
+	cronInformer := kubeInformerFactory.Batch().V1().CronJobs()
 
 	ocControl := controller.NewClusterControl(cli, ocInformer.Lister(), recorder)
 	deployControl := controller.NewDeploymentControl(kubeCli, deployInformer.Lister(), recorder)
