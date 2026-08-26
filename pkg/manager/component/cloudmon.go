@@ -45,7 +45,7 @@ func (m *cloudmonManager) ensureOldCronjobsDeleted(oc *v1alpha1.OnecloudCluster)
 		v1alpha1.CloudmonPingComponentType, v1alpha1.CloudmonReportHostComponentType,
 		v1alpha1.CloudmonReportServerComponentType, v1alpha1.CloudmonReportUsageComponentType,
 	} {
-		if _, err := m.kubeCli.BatchV1beta1().CronJobs(oc.GetNamespace()).
+		if _, err := m.kubeCli.BatchV1().CronJobs(oc.GetNamespace()).
 			Get(context.Background(), controller.NewClusterComponentName(oc.GetName(), componentType), metav1.GetOptions{}); err != nil && !errors.IsNotFound(err) {
 			return err
 		} else if err == nil {

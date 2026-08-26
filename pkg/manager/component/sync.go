@@ -17,7 +17,7 @@ package component
 import (
 	"github.com/pkg/errors"
 	apps "k8s.io/api/apps/v1"
-	batchv1 "k8s.io/api/batch/v1beta1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/klog"
