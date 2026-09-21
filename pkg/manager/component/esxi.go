@@ -189,6 +189,12 @@ func (m *esxiManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 	podTemplate.Containers[0].VolumeMounts = volMounts
 	podTemplate.Volumes = podVols
 
+	// esxi-agent must run on x86 (amd64) nodes
+	if podTemplate.NodeSelector == nil {
+		podTemplate.NodeSelector = make(map[string]string)
+	}
+	podTemplate.NodeSelector[corev1.LabelArchStable] = "amd64"
+
 	// add pod label for pod affinity
 	if dm.Spec.Template.ObjectMeta.Labels == nil {
 		dm.Spec.Template.ObjectMeta.Labels = make(map[string]string)
