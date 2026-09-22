@@ -341,12 +341,11 @@ type DiskAllocateInput struct {
 	BackupId string
 	Backup   *DiskAllocateFromBackupInput
 
-	SnapshotUrl        string
-	SnapshotOutOfChain bool
-	Protocol           string
-	SrcDiskId          string
-	SrcPool            string
-	ExistingPath       string
+	SnapshotUrl  string
+	Protocol     string
+	SrcDiskId    string
+	SrcPool      string
+	ExistingPath string
 
 	// vmware
 	HostIp    string
@@ -358,17 +357,20 @@ type DiskAllocateInput struct {
 }
 
 type DiskAllocateFromBackupInput struct {
-	BackupId                string
-	BackupStorageId         string
-	BackupStorageAccessInfo *jsonutils.JSONDict
-	DiskConfig              *DiskConfig           `json:"disk_config"`
-	BackupAsTar             *DiskBackupAsTarInput `json:"backup_as_tar"`
+	BackupId                string                    `json:"backup_id"`
+	BackupStorageId         string                    `json:"backup_storage_id"`
+	BackupStorageAccessInfo *SBackupStorageAccessInfo `json:"backup_storage_access_info"`
+	DiskConfig              *DiskConfig               `json:"disk_config"`
+	BackupAsTar             *DiskBackupAsTarInput     `json:"backup_as_tar"`
+	BackupFilePath          string                    `json:"backup_file_path"`
 }
 
 type DiskDeleteInput struct {
 	SkipRecycle      *bool
 	EsxiFlatFilePath string
 	CleanSnapshots   bool
+
+	SnapshotIds []string
 }
 
 type DiskResetInput struct {

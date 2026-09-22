@@ -14,7 +14,11 @@
 
 package options
 
-import common_options "yunion.io/x/onecloud/pkg/cloudcommon/options"
+import (
+	"strings"
+
+	common_options "yunion.io/x/onecloud/pkg/cloudcommon/options"
+)
 
 type LLMOptions struct {
 	common_options.CommonOptions
@@ -29,12 +33,32 @@ type LLMOptions struct {
 	ImportTaskWorkerCount int `help:"import task worker count" default:"8"`
 	StartTaskWorkerCount  int `help:"start task worker count" default:"128"`
 
+	LLMBenchmarkWorkDir              string `help:"llm benchmark working directory" default:"/opt/cloud/workspace/llm/benchmarks"`
+	LLMBenchmarkDefaultImage         string `help:"default GuideLLM benchmark image" default:"registry.cn-beijing.aliyuncs.com/cloudpods/guidellm:v0.7.0-amd64"`
+	LLMBenchmarkRunnerCPU            int    `help:"llm benchmark runner cpu" default:"1"`
+	LLMBenchmarkRunnerMemoryMB       int    `help:"llm benchmark runner memory MB" default:"2048"`
+	LLMBenchmarkDefaultRequestRate   int    `help:"default benchmark request rate" default:"1"`
+	LLMBenchmarkDefaultTotalRequests int    `help:"default benchmark total requests" default:"100"`
+	LLMBenchmarkDefaultInputTokens   int    `help:"default synthetic prompt tokens" default:"1024"`
+	LLMBenchmarkDefaultOutputTokens  int    `help:"default synthetic output tokens" default:"128"`
+	LLMBenchmarkMaxDurationSeconds   int    `help:"max benchmark duration seconds" default:"3600"`
+	LLMBenchmarkMaxRequestRate       int    `help:"max benchmark request rate" default:"100"`
+	LLMBenchmarkMaxTotalRequests     int    `help:"max benchmark total requests" default:"100000"`
+	ArtifactS3Endpoint               string `help:"MinIO/S3 endpoint for benchmark artifacts; empty disables upload" default:"http://monitor-minio.onecloud-monitoring.svc:9000"`
+	ArtifactS3AccessKey              string `help:"MinIO/S3 access key for benchmark artifacts" default:"monitor-admin"`
+	ArtifactS3SecretKey              string `help:"MinIO/S3 secret key for benchmark artifacts" default:"monitor-admin"`
+	ArtifactS3Bucket                 string `help:"MinIO/S3 bucket for benchmark artifacts" default:"llm-benchmark"`
+	ArtifactS3Secure                 bool   `help:"Use HTTPS for benchmark artifact endpoint without scheme" default:"false"`
+	ArtifactS3Prefix                 string `help:"MinIO/S3 object key prefix for benchmark artifacts" default:"llm-benchmarks"`
+
 	// MCP Agent 配置
-	MCPServerURL    string `help:"MCP Server URL" default:"http://default-mcp-server:30876"`
-	MCPAgentTimeout int    `help:"MCP Agent request timeout in seconds" default:"120"`
+	MCPServerURL string `help:"MCP Server URL" default:"http://default-mcp-server:30876"`
+	// MCPAgentTimeout 单次 MCP tools/call（含 server-create 等待）超时；须大于 mcp-server 的 ServerCreateWaitSeconds
+	MCPAgentTimeout int `help:"MCP Agent tools/call timeout in seconds (cover public-cloud server create wait)" default:"600"`
 
 	MCPAgentUserCharLimit      int `help:"MCP Agent user char limit" default:"3200"`
 	MCPAgentAssistantCharLimit int `help:"MCP Agent assistant char limit" default:"6400"`
+	MCPAgentMaxToolRounds      int `help:"Max MCP tool-call rounds per chat request" default:"16"`
 
 	// LLM model catalog (browsable curated entries). Value can be either an
 	// http(s) URL or a local file path; sources without an http:// or https://
@@ -55,3 +79,28 @@ type LLMOptions struct {
 var (
 	Options LLMOptions
 )
+
+const DefaultPlatformName = "Cloudpods"
+
+// ResolvedPlatformName 返回配置中的平台展示名，空则回退 DefaultPlatformName。
+func ResolvedPlatformName() string {
+	name := strings.TrimSpace(Options.PlatformName)
+	if name == "" {
+		return DefaultPlatformName
+	}
+	return name
+}
+
+func OnOptionsChange(oldO, newO interface{}) bool {
+	oldOpts := oldO.(*LLMOptions)
+	newOpts := newO.(*LLMOptions)
+
+	changed := false
+	if common_options.OnCommonOptionsChange(&oldOpts.CommonOptions, &newOpts.CommonOptions) {
+		changed = true
+	}
+	if common_options.OnDBOptionsChange(&oldOpts.DBOptions, &newOpts.DBOptions) {
+		changed = true
+	}
+	return changed
+}

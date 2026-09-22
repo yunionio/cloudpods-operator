@@ -20,11 +20,11 @@ require (
 	k8s.io/apimachinery v0.26.2
 	k8s.io/client-go v0.26.2
 	k8s.io/klog v0.3.3
-	yunion.io/x/jsonutils v1.0.1-0.20250507052344-1abcf4f443b1
+	yunion.io/x/jsonutils v1.0.1-0.20260917025845-3108cd9a32ea
 	yunion.io/x/log v1.0.1-0.20240305175729-7cf2d6cd5a91
-	yunion.io/x/onecloud v0.0.0-20260714035243-b4e5fbb0b7e9
-	yunion.io/x/pkg v1.10.4-0.20260422030155-01b100134978
-	yunion.io/x/structarg v0.0.0-20231017124457-df4d5009457c
+	yunion.io/x/onecloud v0.0.0-20260922171328-887515918a37
+	yunion.io/x/pkg v1.10.4-0.20260918012554-27cd9d2e093b
+	yunion.io/x/structarg v0.0.0-20260917033311-96c7653334ac
 )
 
 require (
@@ -48,10 +48,11 @@ require (
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
 	github.com/go-openapi/jsonreference v0.20.0 // indirect
-	github.com/go-openapi/swag v0.19.14 // indirect
+	github.com/go-openapi/swag v0.19.15 // indirect
 	github.com/go-playground/locales v0.13.0 // indirect
 	github.com/go-playground/universal-translator v0.17.0 // indirect
 	github.com/go-playground/validator/v10 v10.4.1 // indirect
+	github.com/go-yaml/yaml v2.1.0+incompatible // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang-plus/errors v1.0.0 // indirect
 	github.com/golang-plus/uuid v1.0.0 // indirect
@@ -59,7 +60,7 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/gnostic v0.5.7-v3refs // indirect
-	github.com/google/go-cmp v0.6.0 // indirect
+	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
@@ -141,10 +142,10 @@ require (
 	sigs.k8s.io/json v0.0.0-20220713155537-f223a00ba0e2 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
-	yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20260713095315-82d7fa1ff932 // indirect
+	yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20260916101522-bf8649bcb146 // indirect
 	yunion.io/x/executor v0.0.0-20260312022053-f538abd2b005 // indirect
 	yunion.io/x/s3cli v0.0.0-20241221171442-1c11599d28e1 // indirect
-	yunion.io/x/sqlchemy v1.1.3-0.20251231025938-b0a38f6e9fab // indirect
+	yunion.io/x/sqlchemy v1.1.3-0.20260917035232-d682485b3a12 // indirect
 )
 
 replace (
