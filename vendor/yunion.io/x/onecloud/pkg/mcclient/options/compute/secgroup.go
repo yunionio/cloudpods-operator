@@ -28,18 +28,22 @@ import (
 )
 
 type SecgroupListOptions struct {
+	_ struct{} `mcp-desc:"列出安全组。可用 search/server/vpc-id 等过滤；详情 climc_secgroup_show，规则 climc_secgroup_rule_list"`
+
 	baseoptions.BaseListOptions
 
-	Equals         string `help:"Secgroup ID or Name, filter secgroups whose rules equals the specified one"`
-	Server         string `help:"Filter secgroups bound to specified server"`
-	Ip             string `help:"Filter secgroup by ip"`
-	Ports          string `help:"Filter secgroup by ports"`
-	Direction      string `help:"Filter secgroup by ports" choices:"all|in|out"`
-	DBInstance     string `help:"Filter secgroups bound to specified rds" json:"dbinstance"`
-	Cloudregion    string `help:"Filter secgroups by region"`
-	VpcId          string
-	Cloudaccount   string `help:"Filter secgroups by account"`
-	LoadbalancerId string
+	Equals         string `help:"Secgroup ID or Name, filter secgroups whose rules equals the specified one" mcp:"true"`
+	Server         string `help:"Filter secgroups bound to specified server" mcp:"true"`
+	Ip             string `help:"Filter secgroup by ip" mcp:"true"`
+	Ports          string `help:"Filter secgroup by ports" mcp:"true"`
+	Direction      string `help:"Filter secgroup by direction" choices:"all|in|out" mcp:"true"`
+	DBInstance     string `help:"Filter secgroups bound to specified rds" json:"dbinstance" mcp:"true"`
+	Cloudregion    string `help:"Filter secgroups by region" mcp:"true"`
+	VpcId          string `mcp:"true"`
+	Cloudaccount   string `help:"Filter secgroups by account" mcp:"true"`
+	LoadbalancerId string `mcp:"true"`
+
+	IpSetId []string `help:"Filter secgroups by ip set" mcp:"true"`
 }
 
 func (opts *SecgroupListOptions) Params() (jsonutils.JSONObject, error) {
@@ -47,10 +51,12 @@ func (opts *SecgroupListOptions) Params() (jsonutils.JSONObject, error) {
 }
 
 type SecgroupCreateOptions struct {
+	_ struct{} `mcp-desc:"创建安全组。NAME 必填；可传 rules（安全规则字符串数组）与 vpc-id。创建后可用 climc_secgroup_rule_create 继续加规则"`
+
 	baseoptions.BaseCreateOptions
-	VpcId string
-	Tags  []string
-	Rules []string `help:"security rule to create"`
+	VpcId string   `mcp:"true"`
+	Tags  []string `mcp:"true"`
+	Rules []string `help:"security rule to create" mcp:"true"`
 }
 
 func (opts *SecgroupCreateOptions) Params() (jsonutils.JSONObject, error) {
@@ -84,7 +90,7 @@ func (opts *SecgroupCreateOptions) Params() (jsonutils.JSONObject, error) {
 }
 
 type SecgroupIdOptions struct {
-	ID string `help:"ID or Name of security group destination"`
+	ID string `help:"ID or Name of security group"`
 }
 
 func (opts *SecgroupIdOptions) GetId() string {
@@ -93,6 +99,19 @@ func (opts *SecgroupIdOptions) GetId() string {
 
 func (opts *SecgroupIdOptions) Params() (jsonutils.JSONObject, error) {
 	return nil, nil
+}
+
+// SecgroupShowOptions / SecgroupDeleteOptions 单独包装，避免与其它 Perform 复用 IdOptions 时注册。
+type SecgroupShowOptions struct {
+	_ struct{} `mcp-desc:"查询安全组详情。ID 可用 climc_secgroup_list 返回的 id/name"`
+
+	SecgroupIdOptions
+}
+
+type SecgroupDeleteOptions struct {
+	_ struct{} `mcp-desc:"删除安全组。若尚不知 id，先用 climc_secgroup_list 定位；确认无虚机绑定后再删"`
+
+	SecgroupIdOptions
 }
 
 type SecgroupMergeOptions struct {
@@ -108,10 +127,10 @@ type SecgroupsAddRuleOptions struct {
 	SecgroupIdOptions
 	DIRECTION   string `help:"Direction of rule" choices:"in|out"`
 	PROTOCOL    string `help:"Protocol of rule" choices:"any|tcp|udp|icmp"`
-	ACTION      string `help:"Actin of rule" choices:"allow|deny"`
+	ACTION      string `help:"Action of rule" choices:"allow|deny"`
 	PRIORITY    int    `help:"Priority for rule, range 1 ~ 100"`
-	Cidr        string `help:"IP or CIRD for rule"`
-	Description string `help:"Desciption for rule"`
+	Cidr        string `help:"IP or CIDR for rule"`
+	Description string `help:"Description for rule"`
 	Ports       string `help:"Port for rule"`
 }
 

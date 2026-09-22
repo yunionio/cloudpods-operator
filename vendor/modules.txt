@@ -91,7 +91,7 @@ github.com/go-openapi/jsonpointer
 ## explicit; go 1.13
 github.com/go-openapi/jsonreference
 github.com/go-openapi/jsonreference/internal
-# github.com/go-openapi/swag v0.19.14
+# github.com/go-openapi/swag v0.19.15
 ## explicit; go 1.11
 github.com/go-openapi/swag
 # github.com/go-playground/locales v0.13.0
@@ -107,6 +107,9 @@ github.com/go-playground/validator/v10
 # github.com/go-sql-driver/mysql v1.6.0
 ## explicit; go 1.10
 github.com/go-sql-driver/mysql
+# github.com/go-yaml/yaml v2.1.0+incompatible
+## explicit
+github.com/go-yaml/yaml
 # github.com/gogo/protobuf v1.3.2
 ## explicit; go 1.15
 github.com/gogo/protobuf/gogoproto
@@ -146,8 +149,8 @@ github.com/google/gnostic/extensions
 github.com/google/gnostic/jsonschema
 github.com/google/gnostic/openapiv2
 github.com/google/gnostic/openapiv3
-# github.com/google/go-cmp v0.6.0
-## explicit; go 1.13
+# github.com/google/go-cmp v0.7.0
+## explicit; go 1.21
 github.com/google/go-cmp/cmp
 github.com/google/go-cmp/cmp/internal/diff
 github.com/google/go-cmp/cmp/internal/flags
@@ -1038,7 +1041,7 @@ sigs.k8s.io/structured-merge-diff/v4/value
 # sigs.k8s.io/yaml v1.3.0
 ## explicit; go 1.12
 sigs.k8s.io/yaml
-# yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20260713095312-995dd1831cd6
+# yunion.io/x/cloudmux v0.3.10-0-alpha.1.0.20260916101519-866f1e3144cf
 ## explicit; go 1.24
 yunion.io/x/cloudmux/pkg/apis
 yunion.io/x/cloudmux/pkg/apis/billing
@@ -1054,14 +1057,14 @@ yunion.io/x/cloudmux/pkg/multicloud/objectstore/provider
 ## explicit; go 1.12
 yunion.io/x/executor/apis
 yunion.io/x/executor/client
-# yunion.io/x/jsonutils v1.0.1-0.20250507052344-1abcf4f443b1
+# yunion.io/x/jsonutils v1.0.1-0.20260917025845-3108cd9a32ea
 ## explicit; go 1.18
 yunion.io/x/jsonutils
 # yunion.io/x/log v1.0.1-0.20240305175729-7cf2d6cd5a91
 ## explicit; go 1.12
 yunion.io/x/log
 yunion.io/x/log/hooks
-# yunion.io/x/onecloud v0.0.0-20260714035258-73d7cbbb1f53
+# yunion.io/x/onecloud v0.0.0-20260922165722-171561b0780b
 ## explicit; go 1.24
 yunion.io/x/onecloud/cmd/climc/shell
 yunion.io/x/onecloud/locales
@@ -1233,7 +1236,7 @@ yunion.io/x/onecloud/pkg/util/yunionmeta
 yunion.io/x/onecloud/pkg/vpcagent/options
 yunion.io/x/onecloud/pkg/webconsole/options
 yunion.io/x/onecloud/pkg/yunionconf/options
-# yunion.io/x/pkg v1.10.4-0.20260422030155-01b100134978
+# yunion.io/x/pkg v1.10.4-0.20260918012554-27cd9d2e093b
 ## explicit; go 1.18
 yunion.io/x/pkg/appctx
 yunion.io/x/pkg/errors
@@ -1281,11 +1284,11 @@ yunion.io/x/pkg/utils
 # yunion.io/x/s3cli v0.0.0-20241221171442-1c11599d28e1
 ## explicit; go 1.12
 yunion.io/x/s3cli
-# yunion.io/x/sqlchemy v1.1.3-0.20251231025938-b0a38f6e9fab
+# yunion.io/x/sqlchemy v1.1.3-0.20260917035232-d682485b3a12
 ## explicit; go 1.17
 yunion.io/x/sqlchemy
 yunion.io/x/sqlchemy/backends/clickhouse
-# yunion.io/x/structarg v0.0.0-20231017124457-df4d5009457c
+# yunion.io/x/structarg v0.0.0-20260917033311-96c7653334ac
 ## explicit; go 1.12
 yunion.io/x/structarg
 # github.com/jaypipes/ghw => github.com/zexi/ghw v0.9.1
