@@ -341,12 +341,11 @@ type DiskAllocateInput struct {
 	BackupId string                       `json:"backup_id"`
 	Backup   *DiskAllocateFromBackupInput `json:"backup"`
 
-	SnapshotUrl        string `json:"snapshot_url"`
-	SnapshotOutOfChain bool   `json:"snapshot_out_of_chain"`
-	Protocol           string `json:"protocol"`
-	SrcDiskId          string `json:"src_disk_id"`
-	SrcPool            string `json:"src_pool"`
-	ExistingPath       string `json:"existing_path"`
+	SnapshotUrl  string `json:"snapshot_url"`
+	Protocol     string `json:"protocol"`
+	SrcDiskId    string `json:"src_disk_id"`
+	SrcPool      string `json:"src_pool"`
+	ExistingPath string `json:"existing_path"`
 
 	// vmware
 	HostIp    string                     `json:"host_ip"`
@@ -358,17 +357,19 @@ type DiskAllocateInput struct {
 }
 
 type DiskAllocateFromBackupInput struct {
-	BackupId                string                `json:"backup_id"`
-	BackupStorageId         string                `json:"backup_storage_id"`
-	BackupStorageAccessInfo *jsonutils.JSONDict   `json:"backup_storage_access_info"`
-	DiskConfig              *DiskConfig           `json:"disk_config"`
-	BackupAsTar             *DiskBackupAsTarInput `json:"backup_as_tar"`
+	BackupId                string                    `json:"backup_id"`
+	BackupStorageId         string                    `json:"backup_storage_id"`
+	BackupStorageAccessInfo *SBackupStorageAccessInfo `json:"backup_storage_access_info"`
+	DiskConfig              *DiskConfig               `json:"disk_config"`
+	BackupAsTar             *DiskBackupAsTarInput     `json:"backup_as_tar"`
+	BackupFilePath          string                    `json:"backup_file_path"`
 }
 
 type DiskDeleteInput struct {
-	SkipRecycle      *bool  `json:"skip_recycle"`
-	EsxiFlatFilePath string `json:"esxi_flat_file_path"`
-	CleanSnapshots   bool   `json:"clean_snapshots"`
+	SkipRecycle      *bool    `json:"skip_recycle"`
+	EsxiFlatFilePath string   `json:"esxi_flat_file_path"`
+	CleanSnapshots   bool     `json:"clean_snapshots"`
+	SnapshotIds      []string `json:"snapshot_ids"`
 }
 
 type DiskResetInput struct {
