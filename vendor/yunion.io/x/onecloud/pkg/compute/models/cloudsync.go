@@ -513,6 +513,42 @@ func syncRegionSecGroup(
 	}
 }
 
+func syncRegionIpSets(
+	ctx context.Context,
+	userCred mcclient.TokenCredential,
+	syncResults SSyncResultSet,
+	provider *SCloudprovider,
+	localRegion *SCloudregion,
+	remoteRegion cloudprovider.ICloudRegion,
+	syncRange *SSyncRange,
+) {
+	ipSets, err := func() ([]cloudprovider.ICloudIpSet, error) {
+		defer syncResults.AddRequestCost(IpSetManager)()
+		return remoteRegion.GetIIpSets()
+	}()
+	if err != nil {
+		if errors.Cause(err) == cloudprovider.ErrNotImplemented || errors.Cause(err) == cloudprovider.ErrNotSupported {
+			return
+		}
+		msg := fmt.Sprintf("GetIIpSets for region %s provider %s failed %s", localRegion.Name, provider.Name, err)
+		log.Errorf("%s", msg)
+		return
+	}
+
+	result := func() compare.SyncResult {
+		defer syncResults.AddSqlCost(IpSetManager)()
+		return localRegion.SyncIpSets(ctx, userCred, provider, ipSets, syncRange.Xor)
+	}()
+	syncResults.Add(IpSetManager, result)
+
+	notes := fmt.Sprintf("SyncIpSets for region %s provider %s result: %s", localRegion.Name, provider.Name, result.Result())
+	log.Infof("%s", notes)
+	provider.SyncError(result, notes, userCred)
+	if result.IsError() {
+		return
+	}
+}
+
 func syncVpcSecGroup(
 	ctx context.Context,
 	userCred mcclient.TokenCredential,
@@ -1294,35 +1330,31 @@ func (self *SGuest) SyncVMIsolateDevices(ctx context.Context, userCred mcclient.
 	if err != nil {
 		return err
 	}
-	devs, err := self.GetIsolatedDevices()
+	gdevs, err := self.GetGuestIsolatedDevices()
 	if err != nil {
 		return errors.Wrapf(err, "GetIsolatedDevices")
 	}
 	result := compare.SyncResult{}
-	for i := range devs {
-		if !utils.IsInStringArray(devs[i].ExternalId, externalIds) {
-			_, err = db.Update(&devs[i], func() error {
-				devs[i].GuestId = ""
-				return nil
-			})
+	for i := range gdevs {
+		dev := gdevs[i].GetIsolatedDevice()
+		if !utils.IsInStringArray(dev.ExternalId, externalIds) {
+			err = gdevs[i].Detach(ctx, userCred)
 			if err != nil {
 				return err
 			}
 			result.Delete()
 		}
 	}
-	devs = []SIsolatedDevice{}
+	devs := []SIsolatedDevice{}
 	sq := HostManager.Query("id").Equals("manager_id", host.ManagerId).SubQuery()
 	q := IsolatedDeviceManager.Query().In("host_id", sq).In("external_id", externalIds)
 	err = db.FetchModelObjects(IsolatedDeviceManager, q, &devs)
 	if err != nil {
 		return err
 	}
+
 	for i := range devs {
-		_, err = db.Update(&devs[i], func() error {
-			devs[i].GuestId = self.Id
-			return nil
-		})
+		err = self.attachIsolatedDevice(ctx, userCred, &devs[i], nil, nil, nil, "")
 		if err != nil {
 			return err
 		}
@@ -2492,6 +2524,9 @@ func syncPublicCloudProviderInfo(
 				syncRegionEips(ctx, userCred, syncResults, provider, localRegion, remoteRegion, syncRange)
 			}
 
+			if syncRange.IsNotSkipSyncResource(IpSetManager) {
+				syncRegionIpSets(ctx, userCred, syncResults, provider, localRegion, remoteRegion, syncRange)
+			}
 			if syncRange.IsNotSkipSyncResource(SecurityGroupManager) {
 				syncRegionSecGroup(ctx, userCred, syncResults, provider, localRegion, remoteRegion, syncRange)
 			}
@@ -2775,16 +2810,19 @@ func syncOnPremiseCloudProviderInfo(
 		}
 
 		if syncRange.NeedSyncResource(cloudprovider.CLOUD_CAPABILITY_COMPUTE) || syncRange.NeedSyncResource(cloudprovider.CLOUD_CAPABILITY_NETWORK) {
-			remoteVpcs, err := iregion.GetIVpcs()
-			if err != nil {
-				msg := fmt.Sprintf("GetIVpcs for provider %s failed %s", provider.GetName(), err)
-				log.Errorf("%s", msg)
-				return err
-			}
-			{
-				// sync wires
-				localVpc := VpcManager.FetchDefaultVpc()
-				syncVpcWires(ctx, userCred, syncResults, provider, localVpc, remoteVpcs[0], zone, syncRange)
+			// Proxmox does not sync remote L2 wires; host-nics attach to on-premise wires only
+			if provider.Provider != api.CLOUD_PROVIDER_PROXMOX {
+				remoteVpcs, err := iregion.GetIVpcs()
+				if err != nil {
+					msg := fmt.Sprintf("GetIVpcs for provider %s failed %s", provider.GetName(), err)
+					log.Errorf("%s", msg)
+					return err
+				}
+				{
+					// sync wires
+					localVpc := VpcManager.FetchDefaultVpc()
+					syncVpcWires(ctx, userCred, syncResults, provider, localVpc, remoteVpcs[0], zone, syncRange)
+				}
 			}
 		}
 
@@ -3034,6 +3072,13 @@ func SyncCloudproviderResources(ctx context.Context, userCred mcclient.TokenCred
 		syncSSLCertificates(ctx, userCred, SSyncResultSet{}, provider, driver, syncRange.Xor)
 	}
 
+	if syncRange.IsNotSkipSyncResource(IpSetManager) {
+		err = syncProviderIpSets(ctx, userCred, SSyncResultSet{}, provider, driver, syncRange.Xor)
+		if err != nil {
+			log.Errorf("syncProviderIpSets error: %v", err)
+		}
+	}
+
 	return nil
 }
 
@@ -3153,6 +3198,29 @@ func syncSSLCertificates(ctx context.Context, userCred mcclient.TokenCredential,
 
 	result := provider.SyncSSLCertificates(ctx, userCred, iEss)
 	notes := fmt.Sprintf("SyncSSLCertificates for provider %s result: %s", provider.Name, result.Result())
+	log.Infof("%s", notes)
+	provider.SyncError(result, notes, userCred)
+	return nil
+}
+
+func syncProviderIpSets(ctx context.Context, userCred mcclient.TokenCredential, syncResults SSyncResultSet, provider *SCloudprovider, driver cloudprovider.ICloudProvider, xor bool) error {
+	ipSets, err := func() ([]cloudprovider.ICloudIpSet, error) {
+		defer syncResults.AddRequestCost(IpSetManager)()
+		return driver.GetIIpSets()
+	}()
+	if err != nil {
+		if errors.Cause(err) == cloudprovider.ErrNotImplemented || errors.Cause(err) == cloudprovider.ErrNotSupported {
+			return nil
+		}
+		return err
+	}
+
+	result := func() compare.SyncResult {
+		defer syncResults.AddSqlCost(IpSetManager)()
+		return provider.SyncIpSets(ctx, userCred, ipSets, xor)
+	}()
+	syncResults.Add(IpSetManager, result)
+	notes := fmt.Sprintf("Sync ip sets for provider %s result: %s", provider.Name, result.Result())
 	log.Infof("%s", notes)
 	provider.SyncError(result, notes, userCred)
 	return nil

@@ -34,10 +34,17 @@ type IsolateDeviceDetails struct {
 
 	SIsolatedDevice
 
+	// 设备厂商，由 vendor_device_id 经 ID_VENDOR_MAP 翻译
+	Vendor string `json:"vendor"`
+
+	MemoryAllocated int
+	AllocatedCount  int
+
 	// 云主机名称
-	Guest string `json:"guest"`
+	Guest    []string `json:"guest"`
+	GuestIds []string `json:"guest_ids"`
 	// 云主机状态
-	GuestStatus string `json:"guest_status"`
+	GuestStatus []string `json:"guest_status"`
 }
 
 type IsolatedDeviceListInput struct {
@@ -70,6 +77,9 @@ type IsolatedDeviceListInput struct {
 	// 设备VENDOE编号
 	VendorDeviceId []string `json:"vendor_device_id"`
 
+	// 设备厂商，如 HYGON / NVIDIA
+	Vendor []string `json:"vendor"`
+
 	// NUMA节点序号
 	NumaNode []uint8 `json:"numa_node"`
 
@@ -94,6 +104,9 @@ type IsolatedDeviceCreateInput struct {
 	// 设备类型USB/GPU
 	// example: GPU
 	DevType string `json:"dev_type"`
+
+	// DEVICE sharing mode
+	SharingMode string `json:"sharing_mode"`
 
 	// 设备型号
 	// # Specific device name read from lspci command, e.g. `Tesla K40m` ...
@@ -137,9 +150,28 @@ type IsolatedDeviceUpdateInput struct {
 	DeviceMinor int    `json:"device_minor"`
 }
 
+type SDelIsolatedDeviceInput struct {
+	Device string
+	Index  int
+}
+
+type SAddIsolatedDeviceInput struct {
+	Device        string
+	GpuType       string
+	MemoryRequest *int
+}
+
+type SetIsolatedDeviceInput struct {
+	AddDevices []SAddIsolatedDeviceInput
+	DelDevices []SDelIsolatedDeviceInput
+	AutoStart  bool
+}
+
 type IsolatedDeviceJsonDesc struct {
 	Id                  string `json:"id"`
 	DevType             string `json:"dev_type"`
+	GpuType             string `json:"gpu_type"`
+	SharingMode         string `json:"sharing_mode"`
 	Model               string `json:"model"`
 	Addr                string `json:"addr"`
 	VendorDeviceId      string `json:"vendor_device_id"`
@@ -152,6 +184,8 @@ type IsolatedDeviceJsonDesc struct {
 	MemorySize          int    `json:"memory_size"`
 	MdevId              string `json:"mdev_id"`
 	NumaNode            int8   `json:"numa_node"`
+	MemoryLimit         int    `json:"memory_limit"`
+	SmUtilLimit         int    `json:"sm_util_limit"`
 }
 
 type IsolatedDeviceModelCreateInput struct {
@@ -367,4 +401,29 @@ type HostIsolatedDeviceModelDetails struct {
 	DevType           string
 	HotPluggable      bool
 	DisableAutoDetect bool
+}
+
+type IsolatedDeviceFilterListInput struct {
+	IsolateDeviceIds []string `json:"isolate_device_ids"`
+}
+
+type GuestIsolatedDeviceListInput struct {
+	GuestJointsListInput
+
+	IsolatedDeviceListInput
+	IsolatedDeviceFilterListInput
+}
+
+type GuestIsolatedDeviceDetails struct {
+	GuestJointResourceDetails
+	SGuestIsolatedDevice
+	SIsolatedDevice
+	HostResourceInfo
+	apis.SharableResourceBaseInfo
+
+	// 设备厂商，由 vendor_device_id 经 ID_VENDOR_MAP 翻译
+	Vendor string `json:"vendor"`
+
+	MemoryAllocated int
+	AllocatedCount  int
 }

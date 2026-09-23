@@ -131,6 +131,8 @@ type ServerListInput struct {
 
 	SnapshotpolicyId string `json:"snapshotpolicy_id"`
 
+	IsolatedDeviceId string `json:"isolated_device_id"`
+
 	// 是否调度到宿主机上
 	WithHost *bool `json:"with_host"`
 
@@ -513,6 +515,28 @@ type ConvertToKvmInput struct {
 	// dest guest network configs
 	Networks []*NetworkConfig `json:"networks"`
 
+	// dest guest disk storage configs; length must equal guest disks when set
+	// support per-disk backend/storage/medium/schedtags; overrides sys/data disk prefers
+	Disks []*DiskConfig `json:"disks"`
+
+	// Prefer disk backend for system disk, e.g. local/lvm/slvm/nfs/rbd
+	SysDiskBackend string `json:"sys_disk_backend"`
+	// Prefer storage id or name for system disk
+	SysPreferStorage string `json:"sys_prefer_storage"`
+	// Prefer medium for system disk, e.g. rotate/ssd/hybrid
+	SysDiskMedium string `json:"sys_disk_medium"`
+	// Prefer disk schedtags for system disk
+	SysDiskSchedtags []*SchedtagConfig `json:"sys_disk_schedtags"`
+
+	// Prefer disk backend for data disks, e.g. local/lvm/slvm/nfs/rbd
+	DataDiskBackend string `json:"data_disk_backend"`
+	// Prefer storage id or name for data disks
+	DataPreferStorage string `json:"data_prefer_storage"`
+	// Prefer medium for data disks, e.g. rotate/ssd/hybrid
+	DataDiskMedium string `json:"data_disk_medium"`
+	// Prefer disk schedtags for data disks
+	DataDiskSchedtags []*SchedtagConfig `json:"data_disk_schedtags"`
+
 	// deploy telegraf after convert
 	DeployTelegraf bool `json:"deploy_telegraf"`
 }
@@ -686,13 +710,21 @@ type ServerStopInput struct {
 	// 是否强制关机
 	IsForce bool `json:"is_force"`
 
-	// 关机等待时间，如果是强制关机，则等待时间为0，如果不设置，默认为30秒
-	TimeoutSecs int `json:"timeout_secs"`
+	// 关机等待时间，如果不是强制关机，超过关机时间可能关机失败。linux默认则等待时间为60秒，windows 120秒
+	TimeoutSecs *int `json:"timeout_secs"`
 
 	// 是否关机停止计费, 若平台不支持停止计费，此参数无作用
 	// 若包年包月机器关机设置此参数，则先转换计费模式到按量计费，再关机不收费
 	// 目前仅阿里云，腾讯云此参数生效
 	StopCharging bool `json:"stop_charging"`
+}
+
+type ServerRestartInput struct {
+	// 是否强制关机
+	IsForce bool `json:"is_force"`
+
+	// 关机等待时间，如果不是强制关机，超过关机时间可能关机失败。linux默认则等待时间为60秒，windows 120秒
+	TimeoutSecs *int `json:"timeout_secs"`
 }
 
 type ServerSaveImageInput struct {
@@ -888,8 +920,9 @@ type ServerChangeConfigInput struct {
 	// 内存大小, 1024M, 1G
 	VmemSize string `json:"vmem_size"`
 
-	// 是否强制关机
-	// 若虚拟机不支持开机调整配置, 则需要指定此参数为true, 强制关机后, 再调整配置, 再启动虚拟机
+	// 是否允许强制关机
+	// 仅当虚拟机不支持开机调整配置, 或开机状态下降配(降低CPU/内存), 或ARM架构时时生效: 需指定为true以允许强制关机后再调整配置并启动;
+	// 若已支持开机变配, 即使传入该参数也不会强制关机
 	ForceStop bool `json:"force_stop"`
 
 	// 调整完配置后是否自动启动
@@ -1063,8 +1096,10 @@ type ServerChangeDiskStorageInput struct {
 }
 
 type ServerChangeDiskDriverInput struct {
-	DiskId string `json:"disk_id"`
-	Driver string `json:"driver"`
+	DiskId    string `json:"disk_id"`
+	Driver    string `json:"driver"`
+	CacheMode string `json:"cache_mode"`
+	AioMode   string `json:"aio_mode"`
 }
 
 type ServerChangeDiskStorageInternalInput struct {
@@ -1299,6 +1334,12 @@ type ServerSetPasswordInput struct {
 	AutoStart     bool
 }
 
+type ServerSetIsoInput struct {
+	CdromOrdinal int64  `json:"cdrom_ordinal"`
+	ImageId      string `json:"image_id"`
+	BootIndex    *int8  `json:"boot_index"`
+}
+
 type ServerInsertVfdInput struct {
 	FloppyOrdinal int64  `json:"floppy_ordinal"`
 	ImageId       string `json:"image_id"`
@@ -1481,6 +1522,13 @@ type ServerChangeBandwidthInput struct {
 	NoSync *bool `json:"no_sync"`
 }
 
+// ServerSetPortMappingInput 设置服务器指定网卡的端口映射
+type ServerSetPortMappingInput struct {
+	ServerNetworkInfo
+	// 端口映射规则列表；传空数组表示清空该网卡的所有端口映射
+	PortMappings GuestPortMappings `json:"port_mappings"`
+}
+
 type ServerChangeConfigSpecs struct {
 	CpuSockets    int    `json:"cpu_sockets"`
 	VcpuCount     int    `json:"vcpu_count"`
@@ -1508,6 +1556,8 @@ type ServerChangeConfigSettings struct {
 
 	AutoStart   bool `json:"auto_start"`
 	GuestOnline bool `json:"guest_online"`
+	// 需要强制关机后再调整配置(仅不支持在线变配/降配时为true), 并在完成后自动启动
+	ForceStop bool `json:"force_stop"`
 
 	// 设置虚拟网卡的流量上限
 	SetTrafficLimits []ServerNicTrafficLimit `json:"set_traffic_limits"`
@@ -1519,6 +1569,10 @@ type ServerChangeConfigSettings struct {
 
 func (conf ServerChangeConfigSettings) CpuChanged() bool {
 	return conf.VcpuCount != conf.Old.VcpuCount
+}
+
+func (conf ServerChangeConfigSettings) CpuReduced() bool {
+	return conf.VcpuCount < conf.Old.VcpuCount
 }
 
 func (conf ServerChangeConfigSettings) AddedCpu() int {
@@ -1533,6 +1587,10 @@ func (conf ServerChangeConfigSettings) ExtraCpuChanged() bool {
 	return conf.ExtraCpuCount != conf.Old.ExtraCpuCount
 }
 
+func (conf ServerChangeConfigSettings) ExtraCpuReduced() bool {
+	return conf.ExtraCpuCount < conf.Old.ExtraCpuCount
+}
+
 func (conf ServerChangeConfigSettings) AddedExtraCpu() int {
 	addCpu := conf.ExtraCpuCount - conf.Old.ExtraCpuCount
 	if addCpu < 0 {
@@ -1543,6 +1601,10 @@ func (conf ServerChangeConfigSettings) AddedExtraCpu() int {
 
 func (conf ServerChangeConfigSettings) MemChanged() bool {
 	return conf.VmemSize != conf.Old.VmemSize
+}
+
+func (conf ServerChangeConfigSettings) MemReduced() bool {
+	return conf.VmemSize < conf.Old.VmemSize
 }
 
 func (conf ServerChangeConfigSettings) InstanceTypeChanged() bool {
@@ -1557,6 +1619,11 @@ func (conf ServerChangeConfigSettings) AddedMem() int {
 	return addMem
 }
 
+// ConfigReduced 是否为降配(降低CPU/内存)
+func (conf ServerChangeConfigSettings) ConfigReduced() bool {
+	return conf.CpuReduced() || conf.MemReduced() || conf.ExtraCpuReduced()
+}
+
 func (conf ServerChangeConfigSettings) AddedDisk() int {
 	var size int
 	for _, resize := range conf.Resize {
@@ -1569,8 +1636,36 @@ func (conf ServerChangeConfigSettings) AddedDisk() int {
 }
 
 type ServerReleasedIsolatedDevice struct {
-	DevType string `json:"dev_type"`
-	Model   string `json:"model"`
+	DevType       string `json:"dev_type"`
+	Model         string `json:"model"`
+	GpuType       string `json:"gpu_type"`
+	SharingMode   string `json:"sharing_mode"`
+	MemoryRequest int    `json:"memory_request"`
+}
+
+type ServerAttachIsolatedDeviceBase struct {
+	AutoStart     bool   `json:"auto_start"`
+	GpuType       string `json:"gpu_type"`
+	MemoryRequest *int   `json:"memory_request"`
+	SharingMode   string `json:"sharing_mode"`
+	Count         *int   `json:"count"`
+}
+
+type ServerAttachIsolatedDeviceInput struct {
+	ServerAttachIsolatedDeviceBase
+	Device string `json:"device"`
+	Model  string `json:"model"`
+}
+
+type ServerDetachIsolatedDeviceInputBase struct {
+	Device string `json:"device"`
+	Index  *int   `json:"index"`
+}
+type ServerDetachIsolatedDeviceInput struct {
+	Devices   []ServerDetachIsolatedDeviceInputBase `json:"devices"`
+	IsForce   bool                                  `json:"is_force"`
+	DetachAll bool                                  `json:"detach_all"`
+	AutoStart bool                                  `json:"auto_start"`
 }
 
 type ServerChangeBillingTypeInput struct {

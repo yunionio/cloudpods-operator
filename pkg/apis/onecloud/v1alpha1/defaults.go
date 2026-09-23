@@ -210,7 +210,7 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool, isEEOr
 		SuggestionComponentType:      nHP(&obj.Suggestion.DeploymentSpec, useHyperImage),
 		ScheduledtaskComponentType:   nHP(&obj.Scheduledtask.DeploymentSpec, useHyperImage),
 		ReportComponentType:          nHP(&obj.Report.DeploymentSpec, useHyperImage),
-		APIMapComponentType:          nHP(&obj.APIMap.DeploymentSpec, useHyperImage),
+		ApiMapComponentType:          nHP(&obj.ApiMap.DeploymentSpec, useHyperImage),
 		BastionHostComponentType:     nHP(&obj.BastionHost.DeploymentSpec, useHyperImage),
 		ExtdbComponentType:           nHP(&obj.Extdb.DeploymentSpec, useHyperImage),
 		BillingComponentType:         nHP(&obj.Billing.DeploymentSpec, useHyperImage),
@@ -224,8 +224,6 @@ func SetDefaults_OnecloudClusterSpec(obj *OnecloudClusterSpec, isEE bool, isEEOr
 			spec.Supported, isEE,
 		))
 	}
-	// disable the apimap service defaultly
-	obj.APIMap.Disable = true
 
 	// CE or EE parts
 	for cType, spec := range map[ComponentType]*hyperImagePair{
@@ -493,7 +491,7 @@ func setDefaults_Components_ServicePort(obj *OnecloudClusterSpec) {
 		newSP(&obj.VictoriaMetrics.Service, constants.VictoriaMetricsPort),
 		newSP(&obj.Monitor.Service, constants.MonitorPort),
 		newSP(&obj.Scheduledtask.Service, constants.ScheduledtaskPort),
-		newSP(&obj.APIMap.Service, constants.APIMapPort),
+		newSP(&obj.ApiMap.Service, constants.ApiMapPort),
 		newSP(&obj.Report.Service, constants.ReportPort),
 		newSP(&obj.APIGateway.APIService, constants.APIGatewayPort),
 		newSP(&obj.APIGateway.WSService, constants.APIWebsocketPort),
@@ -808,6 +806,7 @@ func SetDefaults_OnecloudClusterConfig(obj *OnecloudClusterConfig) {
 		&obj.S3gateway:                           {constants.S3gatewayAdminUser, constants.S3gatewayPort},
 		&obj.EsxiAgent.ServiceCommonOptions:      {constants.EsxiAgentAdminUser, constants.EsxiAgentPort},
 		&obj.VpcAgent.ServiceCommonOptions:       {constants.VpcAgentAdminUser, constants.VpcAgentPort},
+		&obj.ApiMap.ServiceCommonOptions:         {constants.ApiMapAdminUser, constants.ApiMapPort},
 		&obj.ServiceOperator:                     {constants.ServiceOperatorAdminUser, constants.ServiceOperatorPort},
 		&obj.Lbagent.ServiceCommonOptions:        {constants.LbagentAdminUser, constants.LbagentPort},
 		&obj.McpServer.ServiceCommonOptions:      {constants.McpServerAdminUser, constants.McpServerPort},
