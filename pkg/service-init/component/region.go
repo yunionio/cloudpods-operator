@@ -80,9 +80,10 @@ func (r region) GetConfig(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudCl
 	opt.DNSServer = spec.DNSServer
 
 	opt.PortV2 = config.Port
-	if err := r.setBaremetalPrepareConfigure(oc, cfg, opt); err != nil {
+	// not set BaremetalPreparePackageUrl defaultly
+	/* if err := r.setBaremetalPrepareConfigure(oc, cfg, opt); err != nil {
 		return nil, errors.Wrap(err, "setBaremetalPrepareConfiguration")
-	}
+	}*/
 	return opt, nil
 }
 
