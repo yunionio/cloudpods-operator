@@ -78,9 +78,15 @@ func (s PortMappings) IsZero() bool {
 }
 
 type Device struct {
-	DevType    string `json:"dev_type"`
-	Model      string `json:"model"`
-	DevicePath string `json:"device_path"`
+	DevType     string `json:"dev_type"`
+	SharingMode string `json:"sharing_mode,omitempty"`
+	Vendor      string `json:"vendor,omitempty"`
+	Model       string `json:"model"`
+	DevicePath  string `json:"device_path"`
+	// MemoryMb is optional per-device VRAM (MiB) for HAMI. When > 0 it is used
+	// as MemoryMb/MemoryRequest on pod create; otherwise claim is split evenly.
+	MemoryMb    int `json:"memory_mb,omitempty"`
+	SmUtilLimit int `json:"sm_util_limit,omitempty"`
 }
 
 type Devices []Device
@@ -139,6 +145,10 @@ type LLMSkuDetails struct {
 	// Inference backend version and parameters
 	BackendVersion    string   `json:"backend_version"`
 	BackendParameters []string `json:"backend_parameters,omitempty"`
+
+	// VramClaimMb is computed from mounted InstantModel weight_size_bytes
+	// (EstimateClaimMb). Not persisted on the SKU row.
+	VramClaimMb int `json:"vram_claim_mb"`
 }
 
 type MountedAppResourceDetails struct {
@@ -151,10 +161,11 @@ type LLMSKuBaseCreateInput struct {
 	Cpu       int `json:"cpu"`
 	Memory    int `json:"memory"`
 	Bandwidth int `json:"bandwidth"`
-	// VramClaimMb is the estimated VRAM (MiB) the inference instance will
-	// require. Optional — if 0, the deployment create task will auto-fill it
-	// from the mounted InstantModel's weight_size_bytes.
-	VramClaimMb int `json:"vram_claim_mb,omitempty"`
+
+	// EnableCgroupCpu enables CPU CFS quota on the pod/container. Inference SKUs default to false.
+	EnableCgroupCpu *bool `json:"enable_cgroup_cpu"`
+	// EnableCgroupMemory enables memory hard limit on the pod/container. Inference SKUs default to false.
+	EnableCgroupMemory *bool `json:"enable_cgroup_memory"`
 
 	Volumes      *Volumes          `json:"volumes"`
 	HostPaths    *HostPaths        `json:"host_paths"`
@@ -169,6 +180,9 @@ type LLMSkuBaseUpdateInput struct {
 
 	Cpu    *int `json:"cpu"`
 	Memory *int `json:"memory"`
+
+	EnableCgroupCpu    *bool `json:"enable_cgroup_cpu"`
+	EnableCgroupMemory *bool `json:"enable_cgroup_memory"`
 
 	// RequstSyncImage *bool `json:"request_sync_image"`
 
@@ -245,6 +259,9 @@ type LLMSkuUpdateInput struct {
 	ModelScopeModelId   *string `json:"model_scope_model_id,omitempty"`
 	ModelScopeFilePath  *string `json:"model_scope_file_path,omitempty"`
 	LocalPath           *string `json:"local_path,omitempty"`
+	// PreferHosts updates SKU prefer_hosts. Omitted means unchanged; an explicit
+	// value is required for local_path SKUs and rejected otherwise.
+	PreferHosts []string `json:"prefer_hosts"`
 	// Model categories
 	Categories *[]string `json:"categories,omitempty"`
 	// Inference backend version and parameters
@@ -252,9 +269,13 @@ type LLMSkuUpdateInput struct {
 	BackendParameters *[]string `json:"backend_parameters,omitempty"`
 }
 
-// type LLMModelCloneInput struct {
-// 	Name string `json:"name"`
-// }
+// LLMSkuCloneInput is the body for POST /llm_skus/{id}/clone.
+// Specs are copied from the source SKU; the caller supplies a new name.
+type LLMSkuCloneInput struct {
+	Name         string `json:"name"`
+	GenerateName string `json:"generate_name"`
+	Description  string `json:"description"`
+}
 
 // type LLMModelSyncImageRequestTaskInput struct {
 // 	Request bool `json:"request"`
@@ -292,3 +313,31 @@ type LLMSkuUpdateInput struct {
 // 	DifySSRFImageId     string `json:"dify_ssrf_image_id"`
 // 	DifyWeaviateImageId string `json:"dify_weaviate_image_id"`
 // }
+
+// LLMSchedulableCheckInput is the body for
+// POST /llm_skus/{id}/schedulable-check. Specs come from the SKU; the body is empty.
+type LLMSchedulableCheckInput struct{}
+
+// LLMSchedulableHostInfo describes GPU availability on one candidate host.
+type LLMSchedulableHostInfo struct {
+	HostId        string `json:"host_id"`
+	HostName      string `json:"host_name"`
+	GpuAvailable  int    `json:"gpu_available"`
+	BestGpuVramMb int    `json:"best_gpu_vram_mb"`
+	BestGpuModel  string `json:"best_gpu_model,omitempty"`
+}
+
+// LLMSchedulableCheckOutput mirrors GPUStack's ModelEvaluationResult:
+// a yes/no verdict plus per-host detail so the caller can surface a
+// meaningful message ("not enough VRAM on any host", "host X qualifies", …).
+type LLMSchedulableCheckOutput struct {
+	Schedulable        bool                     `json:"schedulable"`
+	VramClaimMb        int                      `json:"vram_claim_mb"`
+	PerDevMinMb        int                      `json:"per_dev_min_mb"`
+	GpuCount           int                      `json:"gpu_count"`
+	Reason             string                   `json:"reason,omitempty"`
+	FilteredCandidates jsonutils.JSONObject     `json:"filtered_candidates,omitempty"`
+	Hosts              []LLMSchedulableHostInfo `json:"hosts,omitempty"`
+	TotalGpuHosts      int                      `json:"total_gpu_hosts"`
+	QualifiedHosts     int                      `json:"qualified_hosts"`
+}

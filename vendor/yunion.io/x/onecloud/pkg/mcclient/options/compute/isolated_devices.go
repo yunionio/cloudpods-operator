@@ -31,16 +31,46 @@ type DeviceListOptions struct {
 
 	DevType        []string `help:"filter by dev_type"`
 	Model          []string `help:"filter by model"`
+	Vendor         []string `help:"filter by vendor, e.g. HYGON, NVIDIA"`
 	Addr           []string `help:"filter by addr"`
 	DevicePath     []string `help:"filter by device path"`
 	VendorDeviceId []string `help:"filter by vendor device id(PCIID)"`
-	NumaNode       []uint8  `help:"fitler by numa node index"`
+	NumaNode       []uint8  `help:"filter by numa node index"`
 	Index          *int     `help:"filter by index"`
 	DeviceMinor    *int     `help:"filter by device minor"`
 }
 
 func (o *DeviceListOptions) Params() (jsonutils.JSONObject, error) {
 	return options.ListStructToParams(o)
+}
+
+type ServerDeviceListOptions struct {
+	DeviceListOptions
+	IsolateDeviceIds []string `json:"isolate_device_ids"`
+}
+
+func (o *ServerDeviceListOptions) Params() (jsonutils.JSONObject, error) {
+	return options.ListStructToParams(o)
+}
+
+type DeviceCreateOptions struct {
+	options.BaseCreateOptions
+
+	HostId         string
+	DevType        string
+	SharingMode    string
+	Model          string
+	HotPluggable   bool
+	Addr           string
+	DevicePath     string
+	VendorDeviceId string
+	MemorySize     int
+	VirtualNum     int
+	NumaNode       int
+}
+
+func (o *DeviceCreateOptions) Params() (jsonutils.JSONObject, error) {
+	return jsonutils.Marshal(o), nil
 }
 
 type DeviceShowOptions struct {

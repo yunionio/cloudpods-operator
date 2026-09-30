@@ -40,8 +40,15 @@ const (
 	CONTAINER_DEV_NVIDIA_GPU       = "NVIDIA_GPU"
 	CONTAINER_DEV_NVIDIA_MPS       = "NVIDIA_MPS"
 	CONTAINER_DEV_NVIDIA_GPU_SHARE = "NVIDIA_GPU_SHARE"
+	CONTAINER_DEV_NVIDIA_HAMI      = "NVIDIA_HAMI"
 	CONTAINER_DEV_ASCEND_NPU       = "ASCEND_NPU"
+	CONTAINER_DEV_ASCEND_NPU_HAMI  = "ASCEND_NPU_HAMI"
 	CONTAINER_DEV_VASTAITECH_GPU   = "VASTAITECH_GPU"
+	CONTAINER_DEV_HYGON_DCU        = "HYGON_DCU"
+	CONTAINER_DEV_HYGON_DCU_HAMI   = "HYGON_DCU_HAMI"
+	CONTAINER_DEV_ILUVATAR_GPU     = "ILUVATAR_GPU"
+	CONTAINER_DEV_THEAD_PPU        = "THEAD_PPU"
+	CONTAINER_DEV_KUNLUNXIN_XPU    = "KUNLUNXIN_XPU"
 )
 
 var (
@@ -49,14 +56,21 @@ var (
 		CONTAINER_DEV_CPH_AMD_GPU,
 		CONTAINER_DEV_NVIDIA_GPU,
 		CONTAINER_DEV_NVIDIA_MPS,
+		CONTAINER_DEV_NVIDIA_HAMI,
 		CONTAINER_DEV_NVIDIA_GPU_SHARE,
 		CONTAINER_DEV_VASTAITECH_GPU,
+		CONTAINER_DEV_HYGON_DCU,
+		CONTAINER_DEV_HYGON_DCU_HAMI,
+		CONTAINER_DEV_ILUVATAR_GPU,
+		CONTAINER_DEV_THEAD_PPU,
+		CONTAINER_DEV_KUNLUNXIN_XPU,
 	}
 )
 
-var NVIDIA_GPU_TYPES = []string{
+var CONTAINER_NVIDIA_GPU_TYPES = []string{
 	CONTAINER_DEV_NVIDIA_GPU,
 	CONTAINER_DEV_NVIDIA_MPS,
+	CONTAINER_DEV_NVIDIA_HAMI,
 	CONTAINER_DEV_NVIDIA_GPU_SHARE,
 }
 
@@ -198,10 +212,11 @@ type ContainerHostDevice struct {
 }
 
 type ContainerIsolatedDevice struct {
-	Index   *int                                   `json:"index"`
-	Id      string                                 `json:"id"`
-	OnlyEnv []*apis.ContainerIsolatedDeviceOnlyEnv `json:"only_env"`
-	CDI     *apis.ContainerIsolatedDeviceCDI       `json:"cdi"`
+	Index                    *int                                   `json:"index"`
+	Id                       string                                 `json:"id"`
+	GuestIsolatedDeviceIndex int                                    `json:"guest_isolated_device_index"`
+	OnlyEnv                  []*apis.ContainerIsolatedDeviceOnlyEnv `json:"only_env"`
+	CDI                      *apis.ContainerIsolatedDeviceCDI       `json:"cdi"`
 }
 
 type ContainerDevice struct {
@@ -257,7 +272,7 @@ type ContainerCommitExternalRegistry struct {
 }
 
 type ContainerCommitInput struct {
-	// Container registry id from kubeserver
+	// Container registry id from glance (or kubeserver during migration)
 	RegistryId       string                           `json:"registry_id"`
 	ExternalRegistry *ContainerCommitExternalRegistry `json:"external_registry"`
 	// image name

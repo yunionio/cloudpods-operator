@@ -16,6 +16,7 @@ package models
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	"yunion.io/x/jsonutils"
@@ -168,9 +169,119 @@ func (self *SGuest) StartConvertToKvmTask(
 	}
 }
 
+func isConvertSysDisk(disk *api.DiskConfig) bool {
+	if disk.DiskType == api.DISK_TYPE_SYS {
+		return true
+	}
+	if len(disk.DiskType) > 0 {
+		return false
+	}
+	return disk.Index == 0
+}
+
+func fetchPreferStorageId(ctx context.Context, userCred mcclient.TokenCredential, preferStorage string) (string, error) {
+	if len(preferStorage) == 0 {
+		return "", nil
+	}
+	storageObj, err := StorageManager.FetchByIdOrName(ctx, userCred, preferStorage)
+	if err != nil {
+		if errors.Cause(err) == sql.ErrNoRows {
+			return "", httperrors.NewResourceNotFoundError2(StorageManager.Keyword(), preferStorage)
+		}
+		return "", errors.Wrapf(err, "StorageManager.FetchByIdOrName %s", preferStorage)
+	}
+	return storageObj.GetId(), nil
+}
+
+type convertDiskPrefer struct {
+	backend   string
+	storageId string
+	medium    string
+	schedtags []*api.SchedtagConfig
+}
+
+func convertDiskTypePrefer(disk *api.DiskConfig, data *api.ConvertToKvmInput, sysStorageId, dataStorageId string) convertDiskPrefer {
+	if isConvertSysDisk(disk) {
+		return convertDiskPrefer{
+			backend:   data.SysDiskBackend,
+			storageId: sysStorageId,
+			medium:    data.SysDiskMedium,
+			schedtags: data.SysDiskSchedtags,
+		}
+	}
+	return convertDiskPrefer{
+		backend:   data.DataDiskBackend,
+		storageId: dataStorageId,
+		medium:    data.DataDiskMedium,
+		schedtags: data.DataDiskSchedtags,
+	}
+}
+
+// applyConvertDiskConfigs applies target storage preference for convert-to-kvm.
+// Priority: per-disk Disks configs > sys/data DiskBackend / PreferStorage / Medium / DiskSchedtags.
+// When nothing is specified, disks keep cleared Backend/Storage (scheduler default, usually local).
+func applyConvertDiskConfigs(ctx context.Context, userCred mcclient.TokenCredential, disks []*api.DiskConfig, data *api.ConvertToKvmInput) error {
+	if data == nil || len(disks) == 0 {
+		return nil
+	}
+
+	if data.Disks != nil && len(data.Disks) != len(disks) {
+		return httperrors.NewInputParameterError("input disk configs length must equal guest disks length")
+	}
+
+	sysPreferStorageId, err := fetchPreferStorageId(ctx, userCred, data.SysPreferStorage)
+	if err != nil {
+		return err
+	}
+	dataPreferStorageId, err := fetchPreferStorageId(ctx, userCred, data.DataPreferStorage)
+	if err != nil {
+		return err
+	}
+
+	for i := range disks {
+		prefer := convertDiskTypePrefer(disks[i], data, sysPreferStorageId, dataPreferStorageId)
+		var perDisk *api.DiskConfig
+		if data.Disks != nil {
+			perDisk = data.Disks[i]
+		}
+
+		if perDisk != nil && len(perDisk.Backend) > 0 {
+			disks[i].Backend = perDisk.Backend
+		} else if len(prefer.backend) > 0 {
+			disks[i].Backend = prefer.backend
+		}
+
+		if perDisk != nil && len(perDisk.Storage) > 0 {
+			id, err := fetchPreferStorageId(ctx, userCred, perDisk.Storage)
+			if err != nil {
+				return err
+			}
+			disks[i].Storage = id
+		} else if len(prefer.storageId) > 0 {
+			disks[i].Storage = prefer.storageId
+		}
+
+		if perDisk != nil && len(perDisk.Medium) > 0 {
+			disks[i].Medium = perDisk.Medium
+		} else if len(prefer.medium) > 0 {
+			disks[i].Medium = prefer.medium
+		}
+
+		if perDisk != nil && perDisk.Schedtags != nil {
+			disks[i].Schedtags = perDisk.Schedtags
+		} else if prefer.schedtags != nil {
+			disks[i].Schedtags = prefer.schedtags
+		}
+	}
+	return nil
+}
+
 func (self *SGuest) createConvertedServer(ctx context.Context, userCred mcclient.TokenCredential, data *api.ConvertToKvmInput) (*SGuest, *api.ServerCreateInput, error) {
 	// set guest pending usage
 	pendingUsage, pendingRegionUsage, err := self.getGuestUsage(1)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "getGuestUsage")
+	}
 	keys, err := self.GetQuotaKeys()
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "GetQuotaKeys")
@@ -210,6 +321,7 @@ func (self *SGuest) createConvertedServer(ctx context.Context, userCred mcclient
 			createInput.Disks[i].Format = ""
 			createInput.Disks[i].Backend = ""
 			createInput.Disks[i].Medium = ""
+			createInput.Disks[i].Storage = ""
 		}
 		gns, err := self.GetNetworks("")
 		if err != nil {
@@ -229,6 +341,12 @@ func (self *SGuest) createConvertedServer(ctx context.Context, userCred mcclient
 		createInput.Disks[0].ImageId = ""
 	}
 
+	err = applyConvertDiskConfigs(ctx, userCred, createInput.Disks, data)
+	if err != nil {
+		quotas.CancelPendingUsage(ctx, userCred, &pendingUsage, &pendingUsage, false)
+		return nil, nil, errors.Wrap(err, "applyConvertDiskConfigs")
+	}
+
 	if data.Networks != nil && len(data.Networks) != len(createInput.Networks) {
 		return nil, nil, httperrors.NewInputParameterError("input network configs length  must equal guestnetworks length")
 	}
@@ -246,11 +364,20 @@ func (self *SGuest) createConvertedServer(ctx context.Context, userCred mcclient
 	}
 
 	schedDesc := self.ToSchedDesc()
+	// convert creates a new guest; do not treat as migrate (HostId would force shared
+	// backends to require an existing storage_id accessible on the candidate host)
+	schedDesc.HostId = ""
 	schedDesc.PreferHost = data.PreferHost
 	for i := range schedDesc.Disks {
 		schedDesc.Disks[i].Backend = ""
 		schedDesc.Disks[i].Medium = ""
 		schedDesc.Disks[i].Storage = ""
+		schedDesc.Disks[i].DiskId = ""
+	}
+	err = applyConvertDiskConfigs(ctx, userCred, schedDesc.Disks, data)
+	if err != nil {
+		quotas.CancelPendingUsage(ctx, userCred, &pendingUsage, &pendingUsage, false)
+		return nil, nil, errors.Wrap(err, "applyConvertDiskConfigs schedDesc")
 	}
 	schedDesc.Networks = data.Networks
 	schedDesc.Hypervisor = api.HYPERVISOR_KVM

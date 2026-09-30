@@ -405,7 +405,7 @@ func (d *SBaseBridgeDriver) ConfirmToConfig() (bool, string, error) {
 				return false, "", fmt.Errorf("bridge %s (%s) should have no ipv4 address", d.bridge, d.bridge.Addr)
 			}
 			if !d.bridge.IsSecretInterface() {
-				return false, "", fmt.Errorf("%s should have address in 169.254.0.0/16", d.bridge)
+				return false, fmt.Sprintf("bridge %s no ip and should have address in 169.254.0.0/16", d.bridge), nil
 			}
 		}
 		if len(d.ip6) > 0 {
@@ -477,7 +477,9 @@ func (d *SBaseBridgeDriver) SetupAddresses() error {
 	if d.inter != nil {
 		// first shutdown the origin interface
 		ifname := d.inter.String()
-		tryUnmanageInterface(ifname)
+		if len(d.inter.Addr) > 0 || len(d.inter.Addr6) > 0 {
+			tryUnmanageInterface(ifname)
+		}
 		if err := d.inter.FlushAddrs(); err != nil {
 			return errors.Wrapf(err, "bridge %s slave ifname: %s flush addrs fail", br, ifname)
 		}

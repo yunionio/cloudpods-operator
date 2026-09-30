@@ -542,7 +542,7 @@ func (self *SGuest) PerformMigrateForecast(ctx context.Context, userCred mcclien
 		}
 	}
 
-	schedParams := self.GetSchedMigrateParams(userCred, input)
+	schedParams := self.GetSchedMigrateParams(ctx, userCred, input)
 	if input.ConvertToKvm {
 		schedParams.Hypervisor = api.HYPERVISOR_KVM
 	}
@@ -557,12 +557,19 @@ func (self *SGuest) PerformMigrateForecast(ctx context.Context, userCred mcclien
 }
 
 func (self *SGuest) GetSchedMigrateParams(
-	userCred mcclient.TokenCredential,
+	ctx context.Context, userCred mcclient.TokenCredential,
 	input *api.ServerMigrateForecastInput,
 ) *schedapi.ScheduleInput {
 	schedDesc := self.ToSchedDesc()
 	if input.PreferHostId != "" {
 		schedDesc.ServerConfig.PreferHost = input.PreferHostId
+	} else {
+		createParams, err := self.GetCreateParams(ctx, userCred)
+		if err != nil {
+			log.Errorf("GetSchedMigrateParams failed get create params: %s", err)
+		} else {
+			schedDesc.Schedtags = createParams.Schedtags
+		}
 	}
 
 	schedDesc.ResetCpuNumaPin = input.ResetCpuNumaPin
@@ -925,6 +932,10 @@ func (self *SGuest) PerformDeploy(
 		input.ResetPassword = true
 	}
 
+	if err := ValidateDeployConfigs(input.DeployConfigs); err != nil {
+		return nil, err
+	}
+
 	driver, err := self.GetDriver()
 	if err != nil {
 		return nil, errors.Wrapf(err, "GetDriver")
@@ -1168,6 +1179,18 @@ func (self *SGuest) StartResumeTask(ctx context.Context, userCred mcclient.Token
 	return driver.StartResumeTask(ctx, userCred, self, nil, parentTaskId)
 }
 
+func isolatedDeviceRestoreKey(devType, sharingMode, model string) string {
+	return devType + "\x00" + sharingMode + "\x00" + model
+}
+
+func parseIsolatedDeviceRestoreKey(key string) (devType, sharingMode, model string, ok bool) {
+	segs := strings.SplitN(key, "\x00", 3)
+	if len(segs) != 3 {
+		return "", "", "", false
+	}
+	return segs[0], segs[1], segs[2], true
+}
+
 func (self *SGuest) PerformRestoreVirtualIsolatedDevices(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
 	config := self.GetMetadataJson(ctx, api.VM_METADATA_VIRTUAL_ISOLATED_DEVICE_CONFIG, userCred)
 	if config == nil {
@@ -1178,21 +1201,18 @@ func (self *SGuest) PerformRestoreVirtualIsolatedDevices(ctx context.Context, us
 	if err != nil {
 		return nil, errors.Wrap(err, "unmarshal virtual dev configs")
 	}
-	devs, err := self.GetIsolatedDevices()
+	devs, err := self.GetGuestIsolatedDevices()
 	if err != nil {
 		return nil, errors.Wrap(err, "GetIsolatedDevices")
 	}
 	devCount := map[string]int{}
 	for i := range devConfigs {
-		key := devConfigs[i].DevType + "-" + devConfigs[i].Model
-		if cnt, ok := devCount[key]; ok {
-			devCount[key] = cnt + 1
-		} else {
-			devCount[key] = 1
-		}
+		key := isolatedDeviceRestoreKey(devConfigs[i].DevType, devConfigs[i].SharingMode, devConfigs[i].Model)
+		devCount[key] = devCount[key] + 1
 	}
 	for i := range devs {
-		key := devConfigs[i].DevType + "-" + devConfigs[i].Model
+		isoDev := devs[i].GetIsolatedDevice()
+		key := isolatedDeviceRestoreKey(isoDev.DevType, isoDev.SharingMode, isoDev.Model)
 		if cnt, ok := devCount[key]; ok {
 			devCount[key] = cnt - 1
 		}
@@ -1210,10 +1230,14 @@ func (self *SGuest) PerformRestoreVirtualIsolatedDevices(ctx context.Context, us
 		if cnt <= 0 {
 			continue
 		}
-		segs := strings.SplitN(key, "-", 2)
+		devType, sharingMode, model, ok := parseIsolatedDeviceRestoreKey(key)
+		if !ok {
+			return nil, errors.Errorf("invalid restore key %q", key)
+		}
 		devConfig := &api.IsolatedDeviceConfig{
-			Model:   segs[1],
-			DevType: segs[0],
+			Model:       model,
+			DevType:     devType,
+			SharingMode: sharingMode,
 		}
 		err := IsolatedDeviceManager.attachHostDeviceToGuestByModel(ctx, self, host, devConfig, userCred, usedDeviceMap, nil)
 		if err != nil {
@@ -1397,15 +1421,20 @@ func (self *SGuest) NotifyAdminServerEvent(ctx context.Context, event string, pr
 	notifyclient.SystemNotifyWithCtx(ctx, priority, event, kwargs)
 }
 
-func (self *SGuest) StartGuestStopTask(ctx context.Context, userCred mcclient.TokenCredential, timeoutSecs int, isForce, stopCharging bool, parentTaskId string) error {
+func (self *SGuest) StartGuestStopTask(ctx context.Context, userCred mcclient.TokenCredential, timeoutSecs *int, isForce, stopCharging bool, parentTaskId string) error {
 	if len(parentTaskId) == 0 {
 		self.SetStatus(ctx, userCred, api.VM_START_STOP, "")
 	}
 	params := jsonutils.NewDict()
+	timeout := options.Options.DefaultGuestStopTimeout
 	if isForce {
+		timeout = options.Options.DefaultGuestForceStopTimeout
 		params.Add(jsonutils.NewBool(isForce), "is_force")
+	}
+	if timeoutSecs != nil {
+		params.Add(jsonutils.NewInt(int64(*timeoutSecs)), "timeout")
 	} else {
-		params.Add(jsonutils.NewInt(int64(timeoutSecs)), "timeout")
+		params.Add(jsonutils.NewInt(int64(timeout)), "timeout")
 	}
 	params.Add(jsonutils.NewBool(stopCharging), "stop_charging")
 	if len(parentTaskId) > 0 {
@@ -1490,6 +1519,56 @@ func (self *SGuest) GetDetailsKickstart(ctx context.Context, userCred mcclient.T
 	return result, nil
 }
 
+func (self *SGuest) PerformSetIso(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input *api.ServerSetIsoInput) (jsonutils.JSONObject, error) {
+	if !utils.IsInStringArray(self.Hypervisor, []string{api.HYPERVISOR_KVM, api.HYPERVISOR_BAREMETAL}) {
+		return nil, httperrors.NewNotAcceptableError("Not allow for hypervisor %s", self.Hypervisor)
+	}
+	if !utils.IsInStringArray(self.Status, []string{api.VM_RUNNING, api.VM_READY}) {
+		return nil, httperrors.NewServerStatusError("Set ISO not allowed in status %s", self.Status)
+	}
+	if input.ImageId != "" {
+		isoImage, err := parseIsoInfo(ctx, userCred, input.ImageId)
+		if err != nil {
+			return nil, errors.Wrap(err, "parseIsoInfo")
+		}
+		input.ImageId = isoImage.Id
+	}
+
+	cdrom := self.getCdrom(false, input.CdromOrdinal)
+	if input.BootIndex != nil {
+		bd8 := *input.BootIndex
+		if cdrom == nil || cdrom.BootIndex != bd8 {
+			if isDup, err := self.isBootIndexDuplicated(bd8); err != nil {
+				return nil, err
+			} else if isDup {
+				return nil, httperrors.NewInputParameterError("boot index %d is duplicated", bd8)
+			}
+		}
+	}
+	srcImage := ""
+	if cdrom != nil {
+		srcImage = cdrom.ImageId
+	}
+	if srcImage == "" && input.ImageId == "" {
+		return nil, nil
+	} else if srcImage != "" && input.ImageId != "" {
+		if srcImage == input.ImageId {
+			return nil, nil
+		}
+		// eject && insert
+		err := self.StartEjectisoTask(ctx, input.CdromOrdinal, userCred, input.BootIndex, input.ImageId, "")
+		return nil, err
+	} else if srcImage == "" && input.ImageId != "" {
+		// insert only
+		err := self.StartInsertIsoTask(ctx, input.CdromOrdinal, input.ImageId, false, input.BootIndex, self.HostId, userCred, "")
+		return nil, err
+	} else {
+		// eject only
+		err := self.StartEjectisoTask(ctx, input.CdromOrdinal, userCred, nil, "", "")
+		return nil, err
+	}
+}
+
 // 挂载ISO镜像
 func (self *SGuest) PerformInsertiso(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
 	if !utils.IsInStringArray(self.Hypervisor, []string{api.HYPERVISOR_KVM, api.HYPERVISOR_BAREMETAL}) {
@@ -1544,16 +1623,23 @@ func (self *SGuest) PerformEjectiso(ctx context.Context, userCred mcclient.Token
 		return nil, httperrors.NewBadRequestError("No ISO to eject")
 	}
 	if utils.IsInStringArray(self.Status, []string{api.VM_RUNNING, api.VM_READY}) {
-		err := self.StartEjectisoTask(ctx, cdromOrdinal, userCred, "")
+		err := self.StartEjectisoTask(ctx, cdromOrdinal, userCred, nil, "", "")
 		return nil, err
 	} else {
 		return nil, httperrors.NewServerStatusError("Eject ISO not allowed in status %s", self.Status)
 	}
 }
 
-func (self *SGuest) StartEjectisoTask(ctx context.Context, cdromOrdinal int64, userCred mcclient.TokenCredential, parentTaskId string) error {
+func (self *SGuest) StartEjectisoTask(ctx context.Context, cdromOrdinal int64, userCred mcclient.TokenCredential, bootIndex *int8, newImageId, parentTaskId string) error {
 	data := jsonutils.NewDict()
 	data.Add(jsonutils.NewInt(cdromOrdinal), "cdrom_ordinal")
+	if newImageId != "" {
+		data.Add(jsonutils.NewString(newImageId), "new_image_id")
+		if bootIndex != nil {
+			data.Add(jsonutils.NewInt(int64(*bootIndex)), "boot_index")
+		}
+	}
+
 	task, err := taskman.TaskManager.NewTask(ctx, "GuestEjectISOTask", self, userCred, data, parentTaskId, "", nil)
 	if err != nil {
 		return err
@@ -1689,11 +1775,11 @@ func (self *SGuest) StartInsertVfdTask(ctx context.Context, floppyOrdinal int64,
 }
 
 func (self *SGuest) RebalanceVirtualIsolatedDevices(ctx context.Context, userCred mcclient.TokenCredential) error {
-	devs, err := self.GetIsolatedDevices()
+	guestDevs, err := self.GetGuestIsolatedDevices()
 	if err != nil {
 		return errors.Wrap(err, "guest get isolated devices")
 	}
-	if len(devs) == 0 {
+	if len(guestDevs) == 0 {
 		return nil
 	}
 	host, err := self.GetHost()
@@ -1701,16 +1787,19 @@ func (self *SGuest) RebalanceVirtualIsolatedDevices(ctx context.Context, userCre
 		return errors.Wrap(err, "guest get host")
 	}
 	var numaNodeBalance = true
-	detachDevs := make([]SIsolatedDevice, 0)
+	detachDevs := make([]SGuestIsolatedDevice, 0)
 	originDevConfigs := make([]api.IsolatedDeviceConfig, 0)
-	for i := range devs {
-		if utils.IsInStringArray(devs[i].DevType, api.VITRUAL_DEVICE_TYPES) {
+	for i := range guestDevs {
+		dev := guestDevs[i].GetIsolatedDevice()
+		if dev.SharingMode == api.DEVICE_SHARING_MODE_UNLIMITED {
 			originDevConfigs = append(originDevConfigs, api.IsolatedDeviceConfig{
-				Model:   devs[i].Model,
-				DevType: devs[i].DevType,
+				Model:         dev.Model,
+				DevType:       dev.DevType,
+				MemoryRequest: guestDevs[i].DeviceMemorySize,
+				SmUtilLimit:   guestDevs[i].SmUtilLimit,
 			})
-			detachDevs = append(detachDevs, devs[i])
-			isBalance, err := host.VirtualDeviceNumaBalance(devs[i].DevType, devs[i].NumaNode)
+			detachDevs = append(detachDevs, guestDevs[i])
+			isBalance, err := host.VirtualDeviceNumaBalance(dev.Model, dev.NumaNode)
 			if err != nil {
 				return errors.Wrap(err, "VirtualDeviceNumaBalance")
 			}
@@ -1728,20 +1817,24 @@ func (self *SGuest) RebalanceVirtualIsolatedDevices(ctx context.Context, userCre
 		lockman.LockObject(ctx, host)
 		defer lockman.ReleaseObject(ctx, host)
 
+		detachedDevConfigs := []*api.IsolatedDeviceConfig{}
 		for i := 0; i < len(detachDevs); i++ {
 			err := self.detachIsolateDevice(ctx, userCred, &detachDevs[i])
 			if err != nil {
 				return errors.Wrapf(err, "detach device %s", detachDevs[i].GetId())
 			}
+			dev := detachDevs[i].GetIsolatedDevice()
+			detachedDevConfigs = append(detachedDevConfigs, &api.IsolatedDeviceConfig{
+				Model:         dev.Model,
+				DevType:       dev.DevType,
+				MemoryRequest: detachDevs[i].DeviceMemorySize,
+				SmUtilLimit:   detachDevs[i].SmUtilLimit,
+			})
 		}
 
 		usedDeviceMap := map[string]*SIsolatedDevice{}
-		for i := range detachDevs {
-			devConfig := &api.IsolatedDeviceConfig{
-				Model:   detachDevs[i].Model,
-				DevType: detachDevs[i].DevType,
-			}
-			err := IsolatedDeviceManager.attachHostDeviceToGuestByModel(ctx, self, host, devConfig, userCred, usedDeviceMap, nil)
+		for i := range detachedDevConfigs {
+			err := IsolatedDeviceManager.attachHostDeviceToGuestByModel(ctx, self, host, detachedDevConfigs[i], userCred, usedDeviceMap, nil)
 			if err != nil {
 				return errors.Wrap(err, "attachHostDeviceToGuestByModel")
 			}
@@ -2347,12 +2440,16 @@ func (self *SGuest) GetReleasedIsolatedDevices(ctx context.Context, userCred mcc
 	return devs, nil
 }
 
-func (self *SGuest) SetReleasedIsolatedDevices(ctx context.Context, userCred mcclient.TokenCredential, devs []SIsolatedDevice) error {
+func (self *SGuest) SetReleasedIsolatedDevices(ctx context.Context, userCred mcclient.TokenCredential, devs []SGuestIsolatedDevice) error {
 	records := make([]api.ServerReleasedIsolatedDevice, 0)
-	for _, dev := range devs {
+	for i := range devs {
+		dev := devs[i].GetIsolatedDevice()
 		record := api.ServerReleasedIsolatedDevice{
-			DevType: dev.DevType,
-			Model:   dev.Model,
+			DevType:       dev.DevType,
+			Model:         dev.Model,
+			GpuType:       devs[i].GpuType,
+			SharingMode:   dev.SharingMode,
+			MemoryRequest: devs[i].DeviceMemorySize,
 		}
 		records = append(records, record)
 	}
@@ -2362,14 +2459,14 @@ func (self *SGuest) SetReleasedIsolatedDevices(ctx context.Context, userCred mcc
 	return nil
 }
 
-func (self *SGuest) DetachIsolatedDevices(ctx context.Context, userCred mcclient.TokenCredential, devs []SIsolatedDevice) error {
+func (self *SGuest) DetachIsolatedDevices(ctx context.Context, userCred mcclient.TokenCredential, devs []SGuestIsolatedDevice) error {
 	host, _ := self.GetHost()
 	lockman.LockObject(ctx, host)
 	defer lockman.ReleaseObject(ctx, host)
 	for i := 0; i < len(devs); i++ {
 		// check first
-		dev := devs[i]
-		if !utils.IsInStringArray(dev.DevType, api.VALID_ATTACH_TYPES) {
+		dev := devs[i].GetIsolatedDevice()
+		if !dev.IsValidAttachDev() {
 			if devModel, err := IsolatedDeviceModelManager.GetByDevType(dev.DevType); err != nil {
 				msg := fmt.Sprintf("Can't separately detach dev type %s", dev.DevType)
 				logclient.AddActionLogWithContext(ctx, self, logclient.ACT_GUEST_DETACH_ISOLATED_DEVICE, msg, userCred, false)
@@ -2393,12 +2490,11 @@ func (self *SGuest) DetachIsolatedDevices(ctx context.Context, userCred mcclient
 }
 
 // 卸载透传设备
-func (self *SGuest) PerformDetachIsolatedDevice(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
+func (self *SGuest) PerformDetachIsolatedDevice(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input *api.ServerDetachIsolatedDeviceInput) (jsonutils.JSONObject, error) {
 	if self.Hypervisor != api.HYPERVISOR_KVM && self.Hypervisor != api.HYPERVISOR_POD {
 		return nil, httperrors.NewNotAcceptableError("Not allow for hypervisor %s", self.Hypervisor)
 	}
-	forceDetach := jsonutils.QueryBoolean(data, "is_force", false)
-	if !forceDetach {
+	if !input.IsForce {
 		if !utils.IsInStringArray(self.GetStatus(), []string{api.VM_READY, api.VM_RUNNING}) ||
 			(self.Hypervisor == api.HYPERVISOR_POD && self.GetStatus() != api.VM_READY) {
 			msg := fmt.Sprintf("Can't detach isolated device when guest is %s", self.GetStatus())
@@ -2413,36 +2509,52 @@ func (self *SGuest) PerformDetachIsolatedDevice(ctx context.Context, userCred mc
 		}
 	}
 
-	var detachAllDevice = jsonutils.QueryBoolean(data, "detach_all", false)
-	devs := make([]SIsolatedDevice, 0)
-	if !detachAllDevice {
-		device, err := data.GetString("device")
+	devs := make([]SGuestIsolatedDevice, 0)
+	if !input.DetachAll {
+		for i := range input.Devices {
+			device := input.Devices[i].Device
+			if input.Devices[i].Index == nil {
+				msg := "Missing isolated device index"
+				logclient.AddActionLogWithContext(ctx, self, logclient.ACT_GUEST_DETACH_ISOLATED_DEVICE, msg, userCred, false)
+				return nil, httperrors.NewBadRequestError("%s", msg)
+			}
+			index := *input.Devices[i].Index
+			iDev, err := IsolatedDeviceManager.FetchByIdOrName(ctx, userCred, device)
+			if err != nil {
+				msgFmt := "Isolated device %s not found"
+				msg := fmt.Sprintf(msgFmt, device)
+				logclient.AddActionLogWithContext(ctx, self, logclient.ACT_GUEST_DETACH_ISOLATED_DEVICE, msg, userCred, false)
+				return nil, httperrors.NewBadRequestError(msgFmt, device)
+			}
+			dev := iDev.(*SIsolatedDevice)
+			gdev, err := dev.GetGuestIsolatedDevice(self.Id, index)
+			if err != nil {
+				msg := err.Error()
+				logclient.AddActionLogWithContext(ctx, self, logclient.ACT_GUEST_DETACH_ISOLATED_DEVICE, msg, userCred, false)
+				return nil, httperrors.NewBadRequestError("%s", msg)
+			}
+			devs = append(devs, *gdev)
+		}
+
+	} else {
+		var err error
+		devs, err = self.GetGuestIsolatedDevices()
 		if err != nil {
-			msg := "Missing isolated device"
+			msg := err.Error()
 			logclient.AddActionLogWithContext(ctx, self, logclient.ACT_GUEST_DETACH_ISOLATED_DEVICE, msg, userCred, false)
 			return nil, httperrors.NewBadRequestError("%s", msg)
 		}
-		iDev, err := IsolatedDeviceManager.FetchByIdOrName(ctx, userCred, device)
-		if err != nil {
-			msgFmt := "Isolated device %s not found"
-			msg := fmt.Sprintf(msgFmt, device)
-			logclient.AddActionLogWithContext(ctx, self, logclient.ACT_GUEST_DETACH_ISOLATED_DEVICE, msg, userCred, false)
-			return nil, httperrors.NewBadRequestError(msgFmt, device)
-		}
-		devs = append(devs, *iDev.(*SIsolatedDevice))
-	} else {
-		devs, _ = self.GetIsolatedDevices()
 	}
 	if err := self.DetachIsolatedDevices(ctx, userCred, devs); err != nil {
 		return nil, err
 	}
-	if forceDetach {
+	if input.IsForce {
 		return nil, nil
 	}
-	return nil, self.StartIsolatedDevicesSyncTask(ctx, userCred, jsonutils.QueryBoolean(data, "auto_start", false), "")
+	return nil, self.StartIsolatedDevicesSyncTask(ctx, userCred, input.AutoStart, "")
 }
 
-func (self *SGuest) startDetachIsolateDeviceWithoutNic(ctx context.Context, userCred mcclient.TokenCredential, device string) error {
+func (self *SGuest) startDetachIsolateDeviceWithoutNic(ctx context.Context, userCred mcclient.TokenCredential, device string, index int) error {
 	iDev, err := IsolatedDeviceManager.FetchByIdOrName(ctx, userCred, device)
 	if err != nil {
 		msgFmt := "Isolated device %s not found"
@@ -2451,25 +2563,28 @@ func (self *SGuest) startDetachIsolateDeviceWithoutNic(ctx context.Context, user
 		return httperrors.NewBadRequestError(msgFmt, device)
 	}
 	dev := iDev.(*SIsolatedDevice)
-	return self.DetachIsolatedDevices(ctx, userCred, []SIsolatedDevice{*dev})
+	gdev, err := dev.GetGuestIsolatedDevice(self.Id, index)
+	if err != nil {
+		msgFmt := "Isolated device %s index %d not found"
+		msg := fmt.Sprintf(msgFmt, device, index)
+		logclient.AddActionLogWithContext(ctx, self, logclient.ACT_GUEST_DETACH_ISOLATED_DEVICE, msg, userCred, false)
+		return httperrors.NewBadRequestError(msgFmt, device)
+	}
+	return self.DetachIsolatedDevices(ctx, userCred, []SGuestIsolatedDevice{*gdev})
 }
 
-func (self *SGuest) detachIsolateDevice(ctx context.Context, userCred mcclient.TokenCredential, dev *SIsolatedDevice) error {
-	if dev.GuestId != self.Id {
+func (self *SGuest) detachIsolateDevice(ctx context.Context, userCred mcclient.TokenCredential, gdev *SGuestIsolatedDevice) error {
+	if gdev.GuestId != self.Id {
 		msg := "Isolated device is not attached to this guest"
 		logclient.AddActionLogWithContext(ctx, self, logclient.ACT_GUEST_DETACH_ISOLATED_DEVICE, msg, userCred, false)
 		return httperrors.NewBadRequestError("%s", msg)
 	}
+	dev := gdev.GetIsolatedDevice()
 	drv, _ := self.GetDriver()
-	if err := drv.BeforeDetachIsolatedDevice(ctx, userCred, self, dev); err != nil {
-		return errors.Wrapf(err, "BeforeDetachIsolatedDevice %s of guest %s", jsonutils.Marshal(dev), self.GetId())
+	if err := drv.BeforeDetachIsolatedDevice(ctx, userCred, self, gdev); err != nil {
+		return errors.Wrapf(err, "BeforeDetachIsolatedDevice %s of guest %s", jsonutils.Marshal(gdev), self.GetId())
 	}
-	_, err := db.Update(dev, func() error {
-		dev.GuestId = ""
-		dev.NetworkIndex = -1
-		dev.DiskIndex = -1
-		return nil
-	})
+	err := gdev.Detach(ctx, userCred)
 	if err != nil {
 		return err
 	}
@@ -2478,7 +2593,7 @@ func (self *SGuest) detachIsolateDevice(ctx context.Context, userCred mcclient.T
 }
 
 // 挂载透传设备
-func (self *SGuest) PerformAttachIsolatedDevice(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
+func (self *SGuest) PerformAttachIsolatedDevice(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input *api.ServerAttachIsolatedDeviceInput) (jsonutils.JSONObject, error) {
 	if self.Hypervisor != api.HYPERVISOR_KVM && self.Hypervisor != api.HYPERVISOR_POD {
 		return nil, httperrors.NewNotAcceptableError("Not allow for hypervisor %s", self.Hypervisor)
 	}
@@ -2489,20 +2604,29 @@ func (self *SGuest) PerformAttachIsolatedDevice(ctx context.Context, userCred mc
 		return nil, httperrors.NewInvalidStatusError("%s", msg)
 	}
 	var err error
-	autoStart := jsonutils.QueryBoolean(data, "auto_start", false)
-	if data.Contains("device") {
-		device, _ := data.GetString("device")
-		err = self.StartAttachIsolatedDeviceGpuOrUsb(ctx, userCred, device, autoStart)
-	} else if data.Contains("model") {
-		vmodel, _ := data.GetString("model")
-		var count int64 = 1
-		if data.Contains("count") {
-			count, _ = data.Int("count")
+	if input.GpuType != "" && !utils.IsInStringArray(input.GpuType, []string{api.GPU_VGA, api.GPU_HPC}) {
+		return nil, httperrors.NewInputParameterError("gpu_type %s not vaild", input.GpuType)
+	}
+	if input.MemoryRequest != nil && *input.MemoryRequest <= 0 {
+		return nil, httperrors.NewBadRequestError("guest attach gpu memory request count must > 0")
+	}
+
+	if input.Device != "" {
+		err = self.StartAttachIsolatedDeviceGpuOrUsb(ctx, userCred, input.Device, input.GpuType, input.MemoryRequest, input.AutoStart)
+	} else if input.Model != "" {
+		if !utils.IsInStringArray(input.SharingMode, api.VAILD_SHARING_MODES) {
+			return nil, httperrors.NewInputParameterError("shaing_mode %s not valid", input.SharingMode)
+		}
+
+		var count int = 1
+		if input.Count != nil {
+			count = *input.Count
 		}
 		if count < 1 {
 			return nil, httperrors.NewBadRequestError("guest attach gpu count must > 0")
 		}
-		err = self.StartAttachIsolatedDevices(ctx, userCred, vmodel, int(count), autoStart)
+		input.Count = &count
+		err = self.StartAttachIsolatedDevices(ctx, userCred, input.Model, input.GpuType, input.SharingMode, count, input.MemoryRequest, input.AutoStart)
 	} else {
 		return nil, httperrors.NewMissingParameterError("device||model")
 	}
@@ -2513,101 +2637,104 @@ func (self *SGuest) PerformAttachIsolatedDevice(ctx context.Context, userCred mc
 	return nil, nil
 }
 
-func (self *SGuest) StartAttachIsolatedDevices(ctx context.Context, userCred mcclient.TokenCredential, devModel string, count int, autoStart bool) error {
-	if err := self.startAttachIsolatedDevices(ctx, userCred, devModel, count); err != nil {
+func (self *SGuest) StartAttachIsolatedDevices(ctx context.Context, userCred mcclient.TokenCredential, devModel, gpuType, sharingMode string, count int, memoryRequest *int, autoStart bool) error {
+	if err := self.startAttachIsolatedDevices(ctx, userCred, devModel, gpuType, sharingMode, count, memoryRequest); err != nil {
 		return err
 	}
 	// perform post attach task
 	return self.StartIsolatedDevicesSyncTask(ctx, userCred, autoStart, "")
 }
 
-func (self *SGuest) AttachIsolatedDevices(ctx context.Context, userCred mcclient.TokenCredential, devModelCount map[string]int) error {
+func (self *SGuest) AttachIsolatedDevices(ctx context.Context, userCred mcclient.TokenCredential, devModelCount map[string]int, gpuType, sharingMode string, memoryRequest *int) error {
 	host, _ := self.GetHost()
 	lockman.LockObject(ctx, host)
 	defer lockman.ReleaseObject(ctx, host)
+	attachedGpus, err := self.GetGuestIsolatedDevices()
+	if err != nil {
+		return errors.Wrap(err, "get isolated devices")
+	}
+	attachedAddrs := map[string]struct{}{}
+	for i := range attachedGpus {
+		dev := attachedGpus[i].GetIsolatedDevice()
+		attachedAddrs[dev.Addr] = struct{}{}
+		gdev := attachedGpus[i].GetIsolatedDevice()
+		if sharingMode == api.DEVICE_SHARING_MODE_MDEV {
+			if gdev.SharingMode == api.DEVICE_SHARING_MODE_MDEV {
+				return httperrors.NewBadRequestError("Nvidia vgpu count exceed > 1")
+			} else if gdev.DevType == api.GPU_TYPE {
+				return httperrors.NewBadRequestError("Nvidia vgpu can't passthrough with other gpus")
+			}
+		}
+	}
 
-	unusedDevs := []SIsolatedDevice{}
 	for devModel, count := range devModelCount {
-		devs, err := IsolatedDeviceManager.GetUnusedDevsOnHost(host.Id, devModel, count)
+		devs, err := IsolatedDeviceManager.GetAvailableIsolatedDeviceOnHost(host.Id, devModel, sharingMode)
 		if err != nil {
 			return httperrors.NewInternalServerError("fetch gpu failed %s", err)
 		}
-		if len(devs) == 0 || len(devs) != count {
+		if len(devs) == 0 {
 			return httperrors.NewBadRequestError("required %d %s isolated devices on host %s, but not enough are available", count, devModel, host.GetName())
 		}
-		dev := devs[0]
-		if !utils.IsInStringArray(dev.DevType, api.VALID_ATTACH_TYPES) {
-			if devModel, err := IsolatedDeviceModelManager.GetByDevType(dev.DevType); err != nil {
-				return httperrors.NewBadRequestError("Can't separately attach dev type %s", dev.DevType)
+		avaDevs := make([]SIsolatedDevice, 0)
+		avaDevCnt := 0
+		for i := range devs {
+			dev := devs[i]
+			if _, ok := attachedAddrs[dev.Addr]; ok {
+				continue
+			}
+			if dev.SharingMode == api.DEVICE_SHARING_MODE_HAMI {
+				if memoryRequest == nil || *memoryRequest <= 0 {
+					return httperrors.NewBadRequestError("dev sharing_mode %s memory request invalid", dev.SharingMode)
+				}
+				if dev.IsEnough(*memoryRequest) {
+					avaDevs = append(avaDevs, dev)
+					avaDevCnt += 1
+				}
 			} else {
-				if !devModel.HotPluggable.Bool() && self.GetStatus() == api.VM_RUNNING {
-					return httperrors.NewBadRequestError("dev type %s model %s unhotpluggable", dev.DevType, devModel.Model)
+				cnt, err := dev.getAllocatedCount()
+				if err != nil {
+					return errors.Wrap(err, "getAllocatedCount")
+				}
+				if dev.VirtualNum > cnt {
+					avaCnt := dev.VirtualNum - cnt
+					avaDevCnt += avaCnt
+					for j := 0; j < avaCnt; j++ {
+						avaDevs = append(avaDevs, dev)
+					}
 				}
 			}
 		}
-		if dev.DevType == api.LEGACY_VGPU_TYPE {
-			attachedGpus, err := self.GetIsolatedDevices()
-			if err != nil {
-				return errors.Wrap(err, "get isolated devices")
-			}
-			for i := range attachedGpus {
-				if attachedGpus[i].DevType == api.LEGACY_VGPU_TYPE {
-					return httperrors.NewBadRequestError("Nvidia vGPU count cannot exceed 1")
-				} else if utils.IsInStringArray(attachedGpus[i].DevType, api.VALID_GPU_TYPES) {
-					return httperrors.NewBadRequestError("Nvidia vGPU cannot passthrough with other gpus")
-				}
-			}
-		} else if dev.DevType == api.CONTAINER_DEV_NVIDIA_MPS {
-			allDevs, err := IsolatedDeviceManager.GetUnusedDevsOnHost(host.Id, devModel, -1)
-			if err != nil {
-				return httperrors.NewInternalServerError("fetch gpu failed %s", err)
-			}
-			attachedGpus, err := self.GetIsolatedDevices()
-			if err != nil {
-				return httperrors.NewInternalServerError("get attached isolated devices %s", err)
-			}
-			attachedAddrs := map[string]struct{}{}
-			for i := range attachedGpus {
-				addr := strings.Split(attachedGpus[i].Addr, "-")[0]
-				attachedAddrs[addr] = struct{}{}
-			}
-			validDevs := []SIsolatedDevice{}
-			for i := range allDevs {
-				devAddr := strings.Split(allDevs[i].Addr, "-")[0]
-				if _, ok := attachedAddrs[devAddr]; ok {
-					continue
-				}
-				validDevs = append(validDevs, allDevs[i])
-			}
-			if len(validDevs) < count {
-				return httperrors.NewInsufficientResourceError("required %d %s isolated devices on host %s, but not enough are available", count, devModel, host.GetName())
-			}
-			devs = validDevs[:count]
+		if avaDevCnt < count {
+			return httperrors.NewInsufficientResourceError("Available device count %d less then request count %d", avaDevCnt, count)
 		}
-		unusedDevs = append(unusedDevs, devs...)
-	}
-	defer func() { go host.ClearSchedDescCache() }()
-	for i := 0; i < len(unusedDevs); i++ {
-		if err := self.attachIsolatedDevice(ctx, userCred, &unusedDevs[i], nil, nil); err != nil {
-			return errors.Wrapf(err, "attach device %s", unusedDevs[i].GetId())
+		dev := avaDevs[0]
+		if !dev.HotPluggable && self.GetStatus() == api.VM_RUNNING {
+			return httperrors.NewBadRequestError("dev type %s model %s unhotpluggable", dev.DevType, dev.Model)
+		}
+
+		for k := 0; k < count; k++ {
+			if err := self.attachIsolatedDevice(ctx, userCred, &avaDevs[k], nil, nil, memoryRequest, gpuType); err != nil {
+				return errors.Wrapf(err, "attach device %s", avaDevs[k].GetId())
+			}
 		}
 	}
+	go host.ClearSchedDescCache()
 	return nil
 }
 
-func (self *SGuest) startAttachIsolatedDevices(ctx context.Context, userCred mcclient.TokenCredential, devModel string, count int) error {
-	return self.AttachIsolatedDevices(ctx, userCred, map[string]int{devModel: count})
+func (self *SGuest) startAttachIsolatedDevices(ctx context.Context, userCred mcclient.TokenCredential, devModel, gpuType, sharingMode string, count int, memoryRequest *int) error {
+	return self.AttachIsolatedDevices(ctx, userCred, map[string]int{devModel: count}, gpuType, sharingMode, memoryRequest)
 }
 
-func (self *SGuest) StartAttachIsolatedDeviceGpuOrUsb(ctx context.Context, userCred mcclient.TokenCredential, device string, autoStart bool) error {
-	if err := self.startAttachIsolatedDevGeneral(ctx, userCred, device); err != nil {
+func (self *SGuest) StartAttachIsolatedDeviceGpuOrUsb(ctx context.Context, userCred mcclient.TokenCredential, device, gpuType string, memoryRequest *int, autoStart bool) error {
+	if err := self.startAttachIsolatedDevGeneral(ctx, userCred, device, gpuType, memoryRequest); err != nil {
 		return err
 	}
 	// perform post attach task
 	return self.StartIsolatedDevicesSyncTask(ctx, userCred, autoStart, "")
 }
 
-func (self *SGuest) startAttachIsolatedDevGeneral(ctx context.Context, userCred mcclient.TokenCredential, device string) error {
+func (self *SGuest) startAttachIsolatedDevGeneral(ctx context.Context, userCred mcclient.TokenCredential, device, gpuType string, memoryRequest *int) error {
 	iDev, err := IsolatedDeviceManager.FetchByIdOrName(ctx, userCred, device)
 	if err != nil {
 		msgFmt := "Isolated device %s not found"
@@ -2616,29 +2743,45 @@ func (self *SGuest) startAttachIsolatedDevGeneral(ctx context.Context, userCred 
 		return httperrors.NewBadRequestError(msgFmt, device)
 	}
 	dev := iDev.(*SIsolatedDevice)
-	if !utils.IsInStringArray(dev.DevType, api.VALID_ATTACH_TYPES) {
-		if devModel, err := IsolatedDeviceModelManager.GetByDevType(dev.DevType); err != nil {
-			return httperrors.NewBadRequestError("Can't separately attach dev type %s", dev.DevType)
-		} else {
-			if !devModel.HotPluggable.Bool() && self.GetStatus() == api.VM_RUNNING {
-				return httperrors.NewBadRequestError("dev type %s model %s unhotpluggable", dev.DevType, devModel.Model)
-			}
+	gdevs, err := self.GetGuestIsolatedDevices()
+	if err != nil {
+		return err
+	}
+	for i := range gdevs {
+		if gdevs[i].IsolatedDeviceId == dev.Id {
+			return httperrors.NewBadRequestError("device %s is already in used by guest %s", dev.Id, self.GetName())
 		}
 	}
-	if !utils.IsInStringArray(self.GetStatus(), []string{api.VM_READY, api.VM_RUNNING}) {
-		return httperrors.NewInvalidStatusError("Can't attach GPU when status is %q", self.GetStatus())
+	if !dev.HotPluggable && self.GetStatus() == api.VM_RUNNING {
+		return httperrors.NewBadRequestError("dev type %s model %s unhotpluggable", dev.DevType, dev.Model)
 	}
 
-	if dev.DevType == api.LEGACY_VGPU_TYPE {
-		devs, err := self.GetIsolatedDevices()
+	if !utils.IsInStringArray(self.GetStatus(), []string{api.VM_READY, api.VM_RUNNING}) {
+		return httperrors.NewInvalidStatusError("Can't attach isolated device when status is %q", self.GetStatus())
+	}
+
+	reqCnt := 1
+	if dev.SharingMode == api.DEVICE_SHARING_MODE_HAMI {
+		if memoryRequest == nil || *memoryRequest <= 0 {
+			return httperrors.NewBadRequestError("Dev sharing_mode %s memory request invalid", dev.SharingMode)
+		}
+		reqCnt = *memoryRequest
+	}
+	if !dev.IsEnough(reqCnt) {
+		return httperrors.NewBadRequestError("Dev %s is not enough", dev.GetName())
+	}
+
+	if dev.SharingMode == api.DEVICE_SHARING_MODE_MDEV {
+		devs, err := self.GetGuestIsolatedDevices()
 		if err != nil {
 			return errors.Wrap(err, "get isolated devices")
 		}
 		for i := range devs {
-			if devs[i].DevType == api.LEGACY_VGPU_TYPE {
-				return httperrors.NewBadRequestError("Nvidia vGPU count cannot exceed 1")
-			} else if utils.IsInStringArray(devs[i].DevType, api.VALID_GPU_TYPES) {
-				return httperrors.NewBadRequestError("Nvidia vGPU cannot passthrough with other gpus")
+			gdev := devs[i].GetIsolatedDevice()
+			if gdev.SharingMode == api.DEVICE_SHARING_MODE_MDEV {
+				return httperrors.NewBadRequestError("Nvidia vgpu count exceed > 1")
+			} else if gdev.DevType == api.GPU_TYPE {
+				return httperrors.NewBadRequestError("Nvidia vgpu can't passthrough with other gpus")
 			}
 		}
 	}
@@ -2646,7 +2789,7 @@ func (self *SGuest) startAttachIsolatedDevGeneral(ctx context.Context, userCred 
 	host, _ := self.GetHost()
 	lockman.LockObject(ctx, host)
 	defer lockman.ReleaseObject(ctx, host)
-	err = self.attachIsolatedDevice(ctx, userCred, dev, nil, nil)
+	err = self.attachIsolatedDevice(ctx, userCred, dev, nil, nil, memoryRequest, gpuType)
 	var msg string
 	if err != nil {
 		msg = err.Error()
@@ -2657,39 +2800,53 @@ func (self *SGuest) startAttachIsolatedDevGeneral(ctx context.Context, userCred 
 	return err
 }
 
-func (self *SGuest) attachIsolatedDevice(ctx context.Context, userCred mcclient.TokenCredential, dev *SIsolatedDevice, networkIndex *int, diskIndex *int8) error {
-	if len(dev.GuestId) > 0 {
-		return fmt.Errorf("Isolated device already attached to another guest: %s", dev.GuestId)
+func (self *SGuest) attachIsolatedDevice(ctx context.Context, userCred mcclient.TokenCredential, dev *SIsolatedDevice, networkIndex *int, diskIndex *int8, memoryRequest *int, gpuType string) error {
+	if dev.IsFull() {
+		return fmt.Errorf("Isolated device already allocated")
 	}
 	if dev.HostId != self.HostId {
 		return fmt.Errorf("Isolated device and guest are not located in the same host")
 	}
+
+	lockman.LockObject(ctx, self)
+	defer lockman.ReleaseObject(ctx, self)
+	// guest isolated device attach
+	guestIsolatedDevice := SGuestIsolatedDevice{}
+	guestIsolatedDevice.SetModelManager(GuestIsolatedDeviceManager, &guestIsolatedDevice)
+	guestIsolatedDevice.GuestId = self.Id
+	guestIsolatedDevice.IsolatedDeviceId = dev.Id
+	guestIsolatedDevice.Index = self.getIsolatedDeviceIndex()
+
+	if networkIndex != nil {
+		guestIsolatedDevice.NetworkIndex = *networkIndex
+	}
+	if diskIndex != nil {
+		guestIsolatedDevice.DiskIndex = *diskIndex
+	}
+	if dev.SharingMode == api.DEVICE_SHARING_MODE_HAMI && memoryRequest != nil {
+		guestIsolatedDevice.DeviceMemorySize = *memoryRequest
+		guestIsolatedDevice.SmUtilLimit = int((float64(*memoryRequest) / float64(dev.MemorySize)) * 100.0)
+	}
+	if utils.IsInStringArray(gpuType, []string{api.GPU_HPC, api.GPU_VGA}) {
+		guestIsolatedDevice.GpuType = gpuType
+	}
+
 	drv, _ := self.GetDriver()
-	if err := drv.BeforeAttachIsolatedDevice(ctx, userCred, self, dev); err != nil {
-		return errors.Wrapf(err, "BeforeAttachIsolatedDevice %s of guest %s", jsonutils.Marshal(dev), self.GetId())
+	if err := drv.BeforeAttachIsolatedDevice(ctx, userCred, self, &guestIsolatedDevice); err != nil {
+		return errors.Wrapf(err, "BeforeAttachIsolatedDevice %s of guest %s", jsonutils.Marshal(guestIsolatedDevice), self.GetId())
 	}
-	if _, err := db.Update(dev, func() error {
-		dev.GuestId = self.Id
-		if networkIndex != nil {
-			dev.NetworkIndex = *networkIndex
-		} else {
-			dev.NetworkIndex = -1
-		}
-		if diskIndex != nil {
-			dev.DiskIndex = *diskIndex
-		} else {
-			dev.DiskIndex = -1
-		}
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "db.Update")
+
+	err := GuestIsolatedDeviceManager.TableSpec().Insert(ctx, &guestIsolatedDevice)
+	if err != nil {
+		return err
 	}
+
 	db.OpsLog.LogEvent(self, db.ACT_GUEST_ATTACH_ISOLATED_DEVICE, dev.GetShortDesc(ctx), userCred)
 	return nil
 }
 
 // 设置透传设备
-func (self *SGuest) PerformSetIsolatedDevice(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
+func (self *SGuest) PerformSetIsolatedDevice(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input *api.SetIsolatedDeviceInput) (jsonutils.JSONObject, error) {
 	if self.Hypervisor != api.HYPERVISOR_KVM && self.Hypervisor != api.HYPERVISOR_POD {
 		return nil, httperrors.NewNotAcceptableError("Not allow for hypervisor %s", self.Hypervisor)
 	}
@@ -2697,46 +2854,27 @@ func (self *SGuest) PerformSetIsolatedDevice(ctx context.Context, userCred mccli
 		(self.Hypervisor == api.HYPERVISOR_POD && self.GetStatus() != api.VM_READY) {
 		return nil, httperrors.NewInvalidStatusError("Can't set isolated device when guest is %s", self.GetStatus())
 	}
-	var addDevs []string
-	{
-		addDevices, err := data.Get("add_devices")
-		if err == nil {
-			arrAddDev, ok := addDevices.(*jsonutils.JSONArray)
-			if ok {
-				addDevs = arrAddDev.GetStringArray()
-			} else {
-				return nil, httperrors.NewInputParameterError("attach devices is not string array")
-			}
-		}
-	}
-
-	var delDevs []string
-	{
-		delDevices, err := data.Get("del_devices")
-		if err == nil {
-			arrDelDev, ok := delDevices.(*jsonutils.JSONArray)
-			if ok {
-				delDevs = arrDelDev.GetStringArray()
-			} else {
-				return nil, httperrors.NewInputParameterError("detach devices is not string array")
-			}
-		}
-	}
+	var addDevs = input.AddDevices
+	var delDevs = input.DelDevices
 
 	// detach first
 	for i := 0; i < len(delDevs); i++ {
-		err := self.startDetachIsolateDeviceWithoutNic(ctx, userCred, delDevs[i])
+		err := self.startDetachIsolateDeviceWithoutNic(ctx, userCred, delDevs[i].Device, delDevs[i].Index)
 		if err != nil {
 			return nil, err
 		}
 	}
 	for i := 0; i < len(addDevs); i++ {
-		err := self.startAttachIsolatedDevGeneral(ctx, userCred, addDevs[i])
+		if addDevs[i].GpuType != "" && !utils.IsInStringArray(addDevs[i].GpuType, []string{api.GPU_VGA, api.GPU_HPC}) {
+			return nil, httperrors.NewInputParameterError("gpu_type %s not vaild", addDevs[i].GpuType)
+		}
+
+		err := self.startAttachIsolatedDevGeneral(ctx, userCred, addDevs[i].Device, addDevs[i].GpuType, addDevs[i].MemoryRequest)
 		if err != nil {
 			return nil, err
 		}
 	}
-	return nil, self.StartIsolatedDevicesSyncTask(ctx, userCred, jsonutils.QueryBoolean(data, "auto_start", false), "")
+	return nil, self.StartIsolatedDevicesSyncTask(ctx, userCred, input.AutoStart, "")
 }
 
 func (self *SGuest) StartIsolatedDevicesSyncTask(ctx context.Context, userCred mcclient.TokenCredential, autoStart bool, parentId string) error {
@@ -2753,7 +2891,8 @@ func (self *SGuest) StartIsolatedDevicesSyncTask(ctx context.Context, userCred m
 	}
 }
 
-func (self *SGuest) findGuestnetworkByInfo(info api.ServerNetworkInfo) (*SGuestnetwork, error) {
+// FindGuestnetworkByInfo 根据 ip / ip6 / mac / index 定位虚机网卡
+func (self *SGuest) FindGuestnetworkByInfo(info api.ServerNetworkInfo) (*SGuestnetwork, error) {
 	if len(info.IpAddr) > 0 {
 		gn, err := self.GetGuestnetworkByIp(info.IpAddr)
 		if err != nil {
@@ -2824,9 +2963,9 @@ func (self *SGuest) PerformChangeIpaddr(
 
 	reserve := (input.Reserve != nil && *input.Reserve)
 
-	gn, err := self.findGuestnetworkByInfo(input.ServerNetworkInfo)
+	gn, err := self.FindGuestnetworkByInfo(input.ServerNetworkInfo)
 	if err != nil {
-		return nil, errors.Wrap(err, "findGuestnetworkByInfo")
+		return nil, errors.Wrap(err, "FindGuestnetworkByInfo")
 	}
 
 	var conf *api.NetworkConfig
@@ -3251,6 +3390,9 @@ func (self *SGuest) PerformAttachnetwork(
 		if err != nil {
 			return nil, err
 		}
+		if len(input.Nets[i].PortMappings) > 0 && !self.SupportPortMapping() {
+			return nil, httperrors.NewUnsupportOperationError("hypervisor %s does not support port_mapping", self.Hypervisor)
+		}
 		if IsExitNetworkInfo(ctx, userCred, input.Nets[i]) {
 			enicCnt += 1
 			// ebw = input.BwLimit
@@ -3396,9 +3538,9 @@ func (guest *SGuest) PerformChangeBandwidth(
 		return nil, httperrors.NewBadRequestError("Bandwidth, tx_bw_limit and rx_bw_limit must be non-negative")
 	}
 
-	guestnic, err := guest.findGuestnetworkByInfo(input.ServerNetworkInfo)
+	guestnic, err := guest.FindGuestnetworkByInfo(input.ServerNetworkInfo)
 	if err != nil {
-		return nil, errors.Wrap(err, "findGuestnetworkByInfo")
+		return nil, errors.Wrap(err, "FindGuestnetworkByInfo")
 	}
 
 	if guestnic.BwLimit != int(input.Bandwidth) || guestnic.TxBwLimit != int(input.TxBwLimit) || guestnic.RxBwLimit != int(input.RxBwLimit) {
@@ -3428,6 +3570,45 @@ func (guest *SGuest) PerformChangeBandwidth(
 		return nil, guest.StartSyncTask(ctx, userCred, false, "")
 	}
 	return nil, nil
+}
+
+// Set port mappings of a guest nic
+// 由独立的 GuestSetPortMappingTask 完成：先请求宿主机设置/分配 host_port，再同步配置到宿主机
+// 仅 kvm / pod 支持
+func (self *SGuest) PerformSetPortMapping(
+	ctx context.Context,
+	userCred mcclient.TokenCredential,
+	query jsonutils.JSONObject,
+	input api.ServerSetPortMappingInput,
+) (jsonutils.JSONObject, error) {
+	if !self.SupportPortMapping() {
+		return nil, httperrors.NewUnsupportOperationError("hypervisor %s does not support port_mapping", self.Hypervisor)
+	}
+	if !utils.IsInStringArray(self.Status, []string{api.VM_READY, api.VM_RUNNING}) {
+		return nil, httperrors.NewBadRequestError("Cannot set port mapping in status %s", self.Status)
+	}
+	for i := range input.PortMappings {
+		if err := validatePortMapping(input.PortMappings[i]); err != nil {
+			return nil, errors.Wrapf(err, "validate port mapping %s", jsonutils.Marshal(input.PortMappings[i]))
+		}
+	}
+	// 预先确认网卡存在，避免启动任务后才报错
+	if _, err := self.FindGuestnetworkByInfo(input.ServerNetworkInfo); err != nil {
+		return nil, errors.Wrap(err, "FindGuestnetworkByInfo")
+	}
+	return nil, self.StartGuestSetPortMappingTask(ctx, userCred, input)
+}
+
+func (self *SGuest) StartGuestSetPortMappingTask(ctx context.Context, userCred mcclient.TokenCredential, input api.ServerSetPortMappingInput) error {
+	// 先置进行中状态，让列表与操作入口立刻可见
+	if err := self.SetStatus(ctx, userCred, api.VM_SET_PORTMAPPING, "set port mappings"); err != nil {
+		return errors.Wrap(err, "SetStatus")
+	}
+	task, err := taskman.TaskManager.NewTask(ctx, "GuestSetPortMappingTask", self, userCred, jsonutils.Marshal(input).(*jsonutils.JSONDict), "", "")
+	if err != nil {
+		return errors.Wrap(err, "New GuestSetPortMappingTask")
+	}
+	return task.ScheduleRun(nil)
 }
 
 // 修改源地址检查
@@ -3486,6 +3667,16 @@ func (self *SGuest) PerformChangeConfig(ctx context.Context, userCred mcclient.T
 	if !utils.IsInStringArray(self.Status, []string{api.VM_RUNNING, api.VM_READY}) {
 		return nil, httperrors.NewInvalidStatusError("Cannot change config in status %s", self.Status)
 	}
+
+	if self.RescueMode {
+		return nil, httperrors.NewInvalidStatusError("Cannot change config in rescue mode")
+	}
+
+	// 停止计费模式下, 不允许调整配置
+	if len(self.ExternalId) > 0 && self.ShutdownMode == api.VM_SHUTDOWN_MODE_STOP_CHARGING && self.Status == api.VM_READY {
+		return nil, httperrors.NewInvalidStatusError("Cannot change config in ready status when shutdown mode is stop charging")
+	}
+
 	driver, err := self.GetDriver()
 	if err != nil {
 		return nil, err
@@ -3513,12 +3704,20 @@ func (self *SGuest) PerformChangeConfig(ctx context.Context, userCred mcclient.T
 		if err != nil {
 			return nil, err
 		}
-		if !runningOk && !input.ForceStop {
+		// 仅在不支持开机变配, 或开机降配时需要强制关机,或ARM架构时需要强制关机; force_stop 表示允许关机, 而非一定关机
+		needForceStop := !runningOk || confs.ConfigReduced() || apis.IsARM(self.OsArch)
+		if needForceStop && !input.ForceStop {
 			return nil, httperrors.NewInvalidStatusError("Cannot change config in %s for %s, requires force_stop to change config", self.Status, self.GetHypervisor())
+		}
+		if needForceStop {
+			// 走离线变配路径, 变配完成后自动启动
+			confs.ForceStop = true
+			confs.GuestOnline = false
+			confs.AutoStart = true
 		}
 	}
 
-	if self.PowerStates == api.VM_POWER_STATES_ON && (confs.CpuChanged() || confs.MemChanged()) {
+	if self.PowerStates == api.VM_POWER_STATES_ON && (confs.CpuChanged() || confs.MemChanged()) && !confs.ForceStop {
 		confs, err = driver.ValidateGuestHotChangeConfigInput(ctx, self, confs)
 		if err != nil {
 			return nil, httperrors.NewInvalidStatusError("cannot change CPU/Memory spec in power status %s: %s", self.PowerStates, err)
@@ -3569,7 +3768,7 @@ func (self *SGuest) PerformChangeConfig(ctx context.Context, userCred mcclient.T
 
 func (self *SGuest) ChangeConfToSchedDesc(addCpu, addExtraCpu, addMem int, schedInputDisks []*api.DiskConfig) *schedapi.ScheduleInput {
 	region, _ := self.GetRegion()
-	devs, _ := self.GetIsolatedDevices()
+	devs, _ := self.GetGuestIsolatedDevices()
 	desc := &schedapi.ScheduleInput{
 		ServerConfig: schedapi.ServerConfig{
 			ServerConfigs: &api.ServerConfigs{
@@ -3644,6 +3843,21 @@ func (self *SGuest) DoCancelPendingDelete(ctx context.Context, userCred mcclient
 	}
 	for _, disk := range disks {
 		disk.DoCancelPendingDelete(ctx, userCred)
+	}
+
+	instanceSnapshots, err := self.GetInstanceSnapshots()
+	if err != nil {
+		return err
+	}
+	for i := range instanceSnapshots {
+		instanceSnapshots[i].DoCancelPendingDelete(ctx, userCred)
+	}
+	snapshots, err := self.GetDiskSnapshotsNotInInstanceSnapshots(true)
+	if err != nil {
+		return err
+	}
+	for i := range snapshots {
+		snapshots[i].DoCancelPendingDelete(ctx, userCred)
 	}
 
 	if self.BillingType == billing_api.BILLING_TYPE_POSTPAID && !self.ExpiredAt.IsZero() {
@@ -3981,14 +4195,13 @@ func (self *SGuest) StartGuestStopAndFreezeTask(ctx context.Context, userCred mc
 }
 
 // 重启
-func (self *SGuest) PerformRestart(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
-	isForce := jsonutils.QueryBoolean(data, "is_force", false)
-	if utils.IsInStringArray(self.Status, []string{api.VM_RUNNING, api.VM_STOP_FAILED, api.VM_KICKSTART_INSTALLING, api.VM_KICKSTART_FAILED, api.VM_KICKSTART_COMPLETED}) || (isForce && self.Status == api.VM_STOPPING) {
+func (self *SGuest) PerformRestart(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input api.ServerRestartInput) (jsonutils.JSONObject, error) {
+	if utils.IsInStringArray(self.Status, []string{api.VM_RUNNING, api.VM_STOP_FAILED, api.VM_KICKSTART_INSTALLING, api.VM_KICKSTART_FAILED, api.VM_KICKSTART_COMPLETED}) || (input.IsForce && self.Status == api.VM_STOPPING) {
 		driver, err := self.GetDriver()
 		if err != nil {
 			return nil, err
 		}
-		return nil, driver.StartGuestRestartTask(self, ctx, userCred, isForce, "")
+		return nil, driver.StartGuestRestartTask(self, ctx, userCred, input.IsForce, input.TimeoutSecs, "")
 	}
 	return nil, httperrors.NewInvalidStatusError("Cannot do restart server in status %s", self.Status)
 }
@@ -4644,7 +4857,7 @@ func (self *SGuest) PerformCreateBackup(
 	if self.Hypervisor != api.HYPERVISOR_KVM {
 		return nil, httperrors.NewBadRequestError("Backup only support hypervisor kvm")
 	}
-	devs, _ := self.GetIsolatedDevices()
+	devs, _ := self.GetGuestIsolatedDevices()
 	if len(devs) > 0 {
 		return nil, httperrors.NewBadRequestError("Cannot create backup with isolated devices")
 	}
@@ -4859,15 +5072,18 @@ func (self *SGuest) PerformPostpaidExpire(ctx context.Context, userCred mcclient
 }
 
 // 续费
-func (self *SGuest) PerformRenew(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
-	durationStr, _ := data.GetString("duration")
-	if len(durationStr) == 0 {
-		return nil, httperrors.NewInputParameterError("missong duration")
+func (self *SGuest) PerformRenew(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, input apis.RenewInput) (jsonutils.JSONObject, error) {
+	if self.BillingType != billing_api.BILLING_TYPE_PREPAID {
+		return nil, httperrors.NewUnsupportOperationError("Only %s guest support renew operation", billing_api.BILLING_TYPE_PREPAID)
 	}
 
-	bc, err := billing.ParseBillingCycle(durationStr)
+	if len(input.Duration) == 0 {
+		return nil, httperrors.NewMissingParameterError("duration")
+	}
+
+	bc, err := billing.ParseBillingCycle(input.Duration)
 	if err != nil {
-		return nil, httperrors.NewInputParameterError("invalid duration %s: %s", durationStr, err)
+		return nil, httperrors.NewInputParameterError("invalid duration %s: %s", input.Duration, err)
 	}
 
 	driver, err := self.GetDriver()
@@ -4876,10 +5092,10 @@ func (self *SGuest) PerformRenew(ctx context.Context, userCred mcclient.TokenCre
 	}
 
 	if !driver.IsSupportedBillingCycle(bc) {
-		return nil, httperrors.NewInputParameterError("unsupported duration %s", durationStr)
+		return nil, httperrors.NewInputParameterError("unsupported duration %s", input.Duration)
 	}
 
-	err = self.startGuestRenewTask(ctx, userCred, durationStr, "")
+	err = self.startGuestRenewTask(ctx, userCred, input.Duration, "")
 	if err != nil {
 		return nil, err
 	}
@@ -5264,9 +5480,10 @@ func (self *SGuest) GenerateVirtInstallCommandLine(
 	}
 
 	// isolated devices
-	isolatedDevices, _ := self.GetIsolatedDevices()
+	isolatedDevices, _ := self.GetGuestIsolatedDevices()
 	for _, isolatedDev := range isolatedDevices {
-		cmd += L(fmt.Sprintf("--hostdev %s", isolatedDev.Addr))
+		dev := isolatedDev.GetIsolatedDevice()
+		cmd += L(fmt.Sprintf("--hostdev %s", dev.Addr))
 	}
 
 	if utils.IsInStringArray(self.Status, []string{api.VM_RUNNING, api.VM_BLOCK_STREAM}) {
@@ -5532,7 +5749,7 @@ func (self *SGuest) validateForBatchMigrate(ctx context.Context, rescueMode bool
 	if len(guest.BackupHostId) > 0 {
 		return guest, httperrors.NewBadRequestError("guest %s has backup, can't migrate", guest.Name)
 	}
-	devs, _ := guest.GetIsolatedDevices()
+	devs, _ := guest.GetGuestIsolatedDevices()
 	if len(devs) > 0 {
 		return guest, httperrors.NewBadRequestError("guest %s has isolated device, can't migrate", guest.Name)
 	}
@@ -5930,7 +6147,6 @@ func (self *SGuest) StartSnapshotResetTask(ctx context.Context, userCred mcclien
 	data.Add(jsonutils.NewBool(withMemory), "with_memory")
 	self.SetStatus(ctx, userCred, api.VM_START_SNAPSHOT_RESET, "start snapshot reset task")
 	instanceSnapshot.SetStatus(ctx, userCred, api.INSTANCE_SNAPSHOT_RESET, "start snapshot reset task")
-	log.Errorf("====data: %s", data)
 	if task, err := taskman.TaskManager.NewTask(
 		ctx, "InstanceSnapshotResetTask", instanceSnapshot, userCred, data, "", "", nil,
 	); err != nil {
@@ -5984,6 +6200,9 @@ func (self *SGuest) PerformSnapshotAndClone(
 	input.ServerCreateSnapshotParams = params
 	// set guest pending usage
 	pendingUsage, pendingRegionUsage, err := self.getGuestUsage(count)
+	if err != nil {
+		return nil, errors.Wrap(err, "getGuestUsage")
+	}
 	keys, err := self.GetQuotaKeys()
 	if err != nil {
 		quotas.CancelPendingUsage(ctx, userCred, snapshotUsage, snapshotUsage, false)
@@ -6108,8 +6327,12 @@ func (self *SGuest) GetDetailsJnlp(ctx context.Context, userCred mcclient.TokenC
 	return host.GetDetailsJnlp(ctx, userCred, query)
 }
 
-func (guest *SGuest) StartDeleteGuestSnapshots(ctx context.Context, userCred mcclient.TokenCredential, parentTaskId string) error {
-	task, err := taskman.TaskManager.NewTask(ctx, "GuestDeleteSnapshotsTask", guest, userCred, nil, parentTaskId, "", nil)
+func (guest *SGuest) StartDeleteGuestSnapshots(ctx context.Context, userCred mcclient.TokenCredential, parentTaskId string, deletePendingSnapshots bool) error {
+	data := jsonutils.NewDict()
+	if deletePendingSnapshots {
+		data.Add(jsonutils.JSONTrue, "delete_pending_snapshots")
+	}
+	task, err := taskman.TaskManager.NewTask(ctx, "GuestDeleteSnapshotsTask", guest, userCred, data, parentTaskId, "", nil)
 	if err != nil {
 		return err
 	}
@@ -6663,20 +6886,52 @@ func (self *SGuest) PerformChangeDiskDriver(ctx context.Context, userCred mcclie
 	if gd == nil {
 		return nil, httperrors.NewBadRequestError("failed get guest disk by disk id %s", input.DiskId)
 	}
-	if input.Driver == gd.Driver {
-		return nil, nil
+	var driverChanged = false
+	if input.Driver != "" {
+		if input.Driver != gd.Driver {
+			driverChanged = true
+		}
+		if !utils.IsInStringArray(input.Driver, []string{api.DISK_DRIVER_VIRTIO, api.DISK_DRIVER_PVSCSI, api.DISK_DRIVER_IDE, api.DISK_DRIVER_SCSI}) {
+			return nil, httperrors.NewInputParameterError("unknown driver %s", input.Driver)
+		}
 	}
-	if !utils.IsInStringArray(input.Driver, []string{api.DISK_DRIVER_VIRTIO, api.DISK_DRIVER_PVSCSI, api.DISK_DRIVER_IDE, api.DISK_DRIVER_SCSI}) {
-		return nil, httperrors.NewInputParameterError("unknown driver %s", input.Driver)
+	if input.CacheMode != "" && gd.CacheMode != input.CacheMode {
+		if input.CacheMode != "none" {
+			input.AioMode = "threads"
+		}
+		if !utils.IsInStringArray(input.CacheMode, []string{api.DISK_CACHE_MODE_WRITETHROGH, api.DISK_CACHE_MODE_DIRECTSYNC, api.DISK_CACHE_MODE_WRITEBACK, api.DISK_CACHE_MODE_NONE}) {
+			return nil, httperrors.NewInputParameterError("unknown cache_mode %s", input.CacheMode)
+		}
 	}
+	if input.AioMode != "" && gd.AioMode != input.AioMode {
+		if !utils.IsInStringArray(input.AioMode, []string{api.DISK_AIO_MODE_NATIVE, api.DISK_AIO_MOD_THREADS}) {
+			return nil, httperrors.NewInputParameterError("unknown aio_mode %s", input.AioMode)
+		}
+		cacheMode := gd.CacheMode
+		if input.CacheMode != "" {
+			cacheMode = input.CacheMode
+		}
+		if input.AioMode == "native" && cacheMode != "none" {
+			return nil, httperrors.NewBadRequestError("AIO mode %s with cache mode %s is not supported", input.AioMode, cacheMode)
+		}
+	}
+
 	_, err := db.Update(gd, func() error {
-		gd.Driver = input.Driver
+		if input.Driver != "" {
+			gd.Driver = input.Driver
+		}
+		if input.AioMode != "" {
+			gd.AioMode = input.AioMode
+		}
+		if input.CacheMode != "" {
+			gd.CacheMode = input.CacheMode
+		}
 		return nil
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed update disk driver")
 	}
-	if self.Bios == api.VM_BOOT_MODE_UEFI {
+	if driverChanged && self.Bios == api.VM_BOOT_MODE_UEFI {
 		drv, err := self.GetDriver()
 		if err != nil {
 			return nil, err
@@ -6937,7 +7192,7 @@ func (self *SGuest) PerformProbeIsolatedDevices(ctx context.Context, userCred mc
 			return nil, errors.Wrapf(err, "FetchById %q", id)
 		}
 		dev := devObj.(*SIsolatedDevice)
-		if dev.GuestId == "" {
+		if !dev.IsFull() {
 			devs = append(devs, dev)
 		}
 	}
@@ -7075,12 +7330,13 @@ func (self *SGuest) GetDetailsCpusetCores(ctx context.Context, userCred mcclient
 
 func (self *SGuest) GetDetailsNumaInfo(ctx context.Context, userCred mcclient.TokenCredential, _ *api.ServerGetNumaInfoInput) (*api.ServerGetNumaInfoResp, error) {
 	ret := new(api.ServerGetNumaInfoResp)
-	devs, _ := self.GetIsolatedDevices()
+	devs, _ := self.GetGuestIsolatedDevices()
 	if len(devs) > 0 {
 		ret.IsolatedDevicesNumaNode = make([]int8, 0)
 		for i := range devs {
-			if devs[i].NumaNode > 0 {
-				ret.IsolatedDevicesNumaNode = append(ret.IsolatedDevicesNumaNode, devs[i].NumaNode)
+			dev := devs[i].GetIsolatedDevice()
+			if dev.NumaNode > 0 {
+				ret.IsolatedDevicesNumaNode = append(ret.IsolatedDevicesNumaNode, dev.NumaNode)
 			}
 		}
 	}
@@ -7146,12 +7402,13 @@ func (self *SGuest) GetDetailsHardwareInfo(ctx context.Context, userCred mcclien
 	}
 
 	// fill GPU info
-	devs, err := self.GetIsolatedDevices()
+	devs, err := self.GetGuestIsolatedDevices()
 	if err != nil {
 		return nil, errors.Wrap(err, "get isolated devices")
 	}
 	gpuInfos := make([]*api.ServerHardwareInfoGPU, 0)
-	for _, dev := range devs {
+	for i := range devs {
+		dev := devs[i].GetIsolatedDevice()
 		if !dev.IsGPU() {
 			continue
 		}
@@ -7195,6 +7452,14 @@ func (self *SGuest) PerformCalculateRecordChecksum(ctx context.Context, userCred
 
 func (self *SGuest) PerformEnableMemclean(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
 	return nil, self.SetMetadata(ctx, api.VM_METADATA_ENABLE_MEMCLEAN, "true", userCred)
+}
+
+func (self *SGuest) PerformSetQemuVersion(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
+	if data.Contains(api.VM_METADATA_QEMU_VERSION) {
+		qemuVersion, _ := data.GetString(api.VM_METADATA_QEMU_VERSION)
+		return nil, self.SetMetadata(ctx, api.VM_METADATA_QEMU_VERSION, qemuVersion, userCred)
+	}
+	return nil, self.SetMetadata(ctx, api.VM_METADATA_QEMU_VERSION, "", userCred)
 }
 
 func (self *SGuest) PerformSetTpm(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
@@ -7374,7 +7639,7 @@ func (self *SGuest) PerformSetKickstart(ctx context.Context, userCred mcclient.T
 			return nil, errors.Wrap(err, "get driver for restart")
 		}
 
-		if err := driver.StartGuestRestartTask(self, ctx, userCred, false, "kickstart config updated"); err != nil {
+		if err := driver.StartGuestRestartTask(self, ctx, userCred, true, nil, "kickstart config updated"); err != nil {
 			return nil, errors.Wrap(err, "start restart task")
 		}
 
@@ -7420,7 +7685,7 @@ func (self *SGuest) PerformKickstartComplete(ctx context.Context, userCred mccli
 			if err != nil {
 				return nil, errors.Wrap(err, "get driver")
 			}
-			driver.StartGuestRestartTask(self, ctx, userCred, false, "")
+			driver.StartGuestRestartTask(self, ctx, userCred, true, nil, "")
 			return jsonutils.Marshal(map[string]string{
 				"status":  "success",
 				"message": "kickstart marked as completed, restarting VM",

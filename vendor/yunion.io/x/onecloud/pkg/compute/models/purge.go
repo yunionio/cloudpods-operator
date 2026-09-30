@@ -303,6 +303,7 @@ func (self *SCloudregion) purgeResources(ctx context.Context, managerId string) 
 	tables := TablestoreManager.Query("id").Equals("manager_id", managerId).Equals("cloudregion_id", self.Id)
 	wafs := WafInstanceManager.Query("id").Equals("manager_id", managerId).Equals("cloudregion_id", self.Id)
 	ipsets := WafIPSetManager.Query("id").Equals("manager_id", managerId).Equals("cloudregion_id", self.Id)
+	addressIpsets := IpSetManager.Query("id").Equals("manager_id", managerId).Equals("cloudregion_id", self.Id)
 	regsets := WafRegexSetManager.Query("id").Equals("manager_id", managerId).Equals("cloudregion_id", self.Id)
 	wafgroups := WafRuleGroupManager.Query("id").Equals("manager_id", managerId).Equals("cloudregion_id", self.Id)
 	cprs := CloudproviderRegionManager.Query("row_id").Equals("cloudprovider_id", managerId).Equals("cloudregion_id", self.Id)
@@ -312,6 +313,7 @@ func (self *SCloudregion) purgeResources(ctx context.Context, managerId string) 
 		{manager: WafRuleGroupManager, key: "id", q: wafgroups},
 		{manager: WafRegexSetManager, key: "id", q: regsets},
 		{manager: WafIPSetManager, key: "id", q: ipsets},
+		{manager: IpSetManager, key: "id", q: addressIpsets},
 		{manager: WafInstanceManager, key: "id", q: wafs},
 		{manager: TablestoreManager, key: "id", q: tables},
 		{manager: SnapshotManager, key: "id", q: snapshots},
@@ -635,7 +637,7 @@ func (self *purgePair) purgeAll(ctx context.Context) error {
 func (self *SZone) purgeStorages(ctx context.Context, managerId string) error {
 	storages := StorageManager.Query("id").Equals("manager_id", managerId).Equals("zone_id", self.Id)
 	schedtags := StorageschedtagManager.Query("row_id").In("storage_id", storages.SubQuery())
-	snapshots := SnapshotManager.Query("id").In("storage_id", storages.SubQuery()).IsTrue("fake_deleted")
+	snapshots := SnapshotManager.Query("id").In("storage_id", storages.SubQuery())
 	hoststorages := HoststorageManager.Query("row_id").In("storage_id", storages.SubQuery())
 	disks := DiskManager.Query("id").In("storage_id", storages.SubQuery())
 	diskbackups := DiskBackupManager.Query("id").In("disk_id", disks.SubQuery())
@@ -663,7 +665,7 @@ func (self *SZone) purgeStorages(ctx context.Context, managerId string) error {
 
 func (self *SStorage) purge(ctx context.Context, userCred mcclient.TokenCredential) error {
 	schedtags := StorageschedtagManager.Query("row_id").Equals("storage_id", self.Id)
-	snapshots := SnapshotManager.Query("id").Equals("storage_id", self.Id).IsTrue("fake_deleted")
+	snapshots := SnapshotManager.Query("id").Equals("storage_id", self.Id)
 	hoststorages := HoststorageManager.Query("row_id").Equals("storage_id", self.Id)
 	disks := DiskManager.Query("id").Equals("storage_id", self.Id)
 	diskbackups := DiskBackupManager.Query("id").In("disk_id", disks.SubQuery())

@@ -24,22 +24,24 @@ import (
 )
 
 type NetworkListOptions struct {
+	_ struct{} `mcp-desc:"【创建流程中的中间步骤】本工具不能完成创建。公有云须带 provider（如 [\"Aliyun\"]）及 region；查完网络后凑齐同云镜像与规格，立刻 climc_server_create。严禁只调用本工具后就停止"`
+
 	options.BaseListOptions
 
-	Ip         string   `help:"search networks that contain this IP"`
-	ZoneIds    []string `help:"search networks in zones"`
+	Ip         string   `help:"search networks that contain this IP" mcp:"true"`
+	ZoneIds    []string `help:"search networks in zones" mcp:"true"`
 	Wire       string   `help:"search networks belongs to a wire" json:"-"`
-	Host       string   `help:"search networks attached to a host"`
-	Vpc        string   `help:"search networks belongs to a VPC"`
-	Region     string   `help:"search networks belongs to a CloudRegion" json:"cloudregion"`
+	Host       string   `help:"search networks attached to a host" mcp:"true"`
+	Vpc        string   `help:"search networks belongs to a VPC" mcp:"true"`
+	Region     string   `help:"search networks belongs to a CloudRegion" json:"cloudregion" mcp:"true"`
 	City       string   `help:"search networks belongs to a city"`
-	Usable     *bool    `help:"search usable networks"`
-	ServerType string   `help:"search networks belongs to a ServerType" choices:"baremetal|container|eip|guest|ipmi|pxe|hostlocal"`
+	Usable     *bool    `help:"search usable networks" mcp:"true"`
+	ServerType string   `help:"search networks belongs to a ServerType" choices:"baremetal|container|eip|guest|ipmi|pxe|hostlocal" mcp:"true"`
 	Schedtag   string   `help:"filter networks by schedtag"`
 
 	HostSchedtagId string `help:"filter by host schedtag"`
 
-	IsAutoAlloc *bool `help:"search network with is_auto_alloc"`
+	IsAutoAlloc *bool `help:"search network with is_auto_alloc" mcp:"true"`
 	IsClassic   *bool `help:"search classic on-premise network"`
 
 	// Status string `help:"filter by network status"`
@@ -68,7 +70,7 @@ type NetworkCreateOptions struct {
 	WIRE    string `help:"ID or Name of wire in which the network is created"`
 	NETWORK string `help:"Name of new network"`
 	StartIp string `help:"Start of IPv4 address range" positional:"true" json:"start_ip"`
-	EndIp   string `help:"End of IPv4 address rnage" positional:"true" json:"end_ip"`
+	EndIp   string `help:"End of IPv4 address range" positional:"true" json:"end_ip"`
 	NetMask int64  `help:"Length of network mask" positional:"true" json:"net_mask"`
 	Gateway string `help:"Default gateway"`
 
@@ -82,7 +84,7 @@ type NetworkCreateOptions struct {
 	AllocPolicy string `help:"Address allocation policy" choices:"none|stepdown|stepup|random"`
 	ServerType  string `help:"Server type" choices:"baremetal|container|eip|guest|ipmi|pxe|hostlocal"`
 	IsAutoAlloc *bool  `help:"Auto allocation IP pool"`
-	BgpType     string `help:"Internet service provider name" positional:"false"`
+	BgpType     string `help:"BGP/line type (e.g. BGP, ChinaTelecom)" positional:"false"`
 	Desc        string `help:"Description" metavar:"DESCRIPTION"`
 }
 

@@ -180,6 +180,10 @@ const (
 	VM_QGA_SET_NETWORK        = "qga_set_network"
 	VM_QGA_SET_NETWORK_FAILED = "qga_set_network_failed"
 
+	// 设置端口映射
+	VM_SET_PORTMAPPING      = "set_portmapping"
+	VM_SET_PORTMAPPING_FAIL = "set_portmapping_fail"
+
 	// Kickstart自动安装相关状态
 	VM_KICKSTART_PENDING    = "kickstart_pending"    // kickstart配置完成，等待VM启动
 	VM_KICKSTART_INSTALLING = "kickstart_installing" // kickstart正在安装
@@ -319,6 +323,7 @@ var HYPERVISORS = []string{
 	HYPERVISOR_SANGFOR,
 	HYPERVISOR_ZETTAKIT,
 	HYPERVISOR_UIS,
+	HYPERVISOR_CAS,
 	HYPERVISOR_CNWARE,
 	HYPERVISOR_ROCKBASE,
 }
@@ -351,6 +356,8 @@ const (
 	VM_METADATA_DISABLE_AUTO_MERGE_SNAPSHOT = "disable_auto_merge_snapshot"
 
 	VM_METADATA_ENABLE_TPM = "enable_tpm"
+
+	VM_METADATA_QEMU_VERSION = "qemu_version"
 
 	VM_METADATA_RELEASED_DEVICES = "released_devices"
 

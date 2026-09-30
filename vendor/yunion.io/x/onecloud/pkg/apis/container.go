@@ -70,8 +70,10 @@ const (
 )
 
 type ContainerSecurityContext struct {
-	RunAsUser  *int64 `json:"run_as_user,omitempty"`
-	RunAsGroup *int64 `json:"run_as_group,omitempty"`
+	RunAsUser              *int64   `json:"run_as_user,omitempty"`
+	RunAsGroup             *int64   `json:"run_as_group,omitempty"`
+	SupplementalGroups     []int64  `json:"supplemental_groups,omitempty"`
+	SupplementalGroupNames []string `json:"supplemental_group_names,omitempty"`
 	// procMount denotes the type of proc mount to use for the containers.
 	// The default is DefaultProcMount which uses the container runtime defaults for
 	ProcMount       ContainerProcMountType `json:"proc_mount"`
@@ -121,6 +123,8 @@ type ContainerIsolatedDeviceCDI struct {
 type ContainerSpec struct {
 	// Image to use.
 	Image string `json:"image"`
+	// Container image id managed by glance
+	ContainerImageId string `json:"container_image_id"`
 	// Image pull policy
 	ImagePullPolicy ImagePullPolicy `json:"image_pull_policy"`
 	// Image credential id
@@ -134,17 +138,21 @@ type ContainerSpec struct {
 	// List of environment variable to set in the container.
 	Envs []*ContainerKeyValue `json:"envs"`
 	// Enable lxcfs
-	EnableLxcfs        bool                      `json:"enable_lxcfs"`
-	Capabilities       *ContainerCapability      `json:"capabilities"`
-	Privileged         bool                      `json:"privileged"`
-	DisableNoNewPrivs  bool                      `json:"disable_no_new_privs"`
-	Lifecyle           *ContainerLifecyle        `json:"lifecyle"`
-	CgroupDevicesAllow []string                  `json:"cgroup_devices_allow"`
-	CgroupPidsMax      int                       `json:"cgroup_pids_max"`
-	ResourcesLimit     *ContainerResources       `json:"resources_limit"`
-	SimulateCpu        bool                      `json:"simulate_cpu"`
-	ShmSizeMB          int                       `json:"shm_size_mb"`
-	SecurityContext    *ContainerSecurityContext `json:"security_context,omitempty"`
+	EnableLxcfs        bool                 `json:"enable_lxcfs"`
+	Capabilities       *ContainerCapability `json:"capabilities"`
+	Privileged         bool                 `json:"privileged"`
+	DisableNoNewPrivs  bool                 `json:"disable_no_new_privs"`
+	Lifecyle           *ContainerLifecyle   `json:"lifecyle"`
+	CgroupDevicesAllow []string             `json:"cgroup_devices_allow"`
+	CgroupPidsMax      int                  `json:"cgroup_pids_max"`
+	ResourcesLimit     *ContainerResources  `json:"resources_limit"`
+	// DisableCgroupCpuLimit skips setting CPU CFS quota for this container.
+	DisableCgroupCpuLimit bool `json:"disable_cgroup_cpu_limit"`
+	// DisableCgroupMemoryLimit skips setting memory hard limit for this container.
+	DisableCgroupMemoryLimit bool                      `json:"disable_cgroup_memory_limit"`
+	SimulateCpu              bool                      `json:"simulate_cpu"`
+	ShmSizeMB                int                       `json:"shm_size_mb"`
+	SecurityContext          *ContainerSecurityContext `json:"security_context,omitempty"`
 	// Periodic probe of container liveness.
 	// Container will be restarted if the probe fails.
 	// Cannot be updated.

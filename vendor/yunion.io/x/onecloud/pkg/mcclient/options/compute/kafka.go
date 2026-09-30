@@ -21,7 +21,16 @@ import (
 )
 
 type KafkaListOptions struct {
+	_ struct{} `mcp-desc:"列出 Kafka 实例。可用 search 等过滤；详情用 climc_kafka_show"`
+
 	options.BaseListOptions
+}
+
+// KafkaShowOptions 单独包装，避免 IdOption 被 delete/syncstatus 复用时误注册。
+type KafkaShowOptions struct {
+	_ struct{} `mcp-desc:"查询 Kafka 实例详情。ID 可用 climc_kafka_list 返回的 id/name"`
+
+	KafkaIdOption
 }
 
 func (opts *KafkaListOptions) Params() (jsonutils.JSONObject, error) {
@@ -44,7 +53,7 @@ type KafkaUpdateOptions struct {
 	KafkaIdOption
 	Name        string
 	Description string
-	Delete      string `help:"Lock or not lock dbinstance" choices:"enable|disable"`
+	Delete      string `help:"Lock or unlock Kafka deletion (disable=lock, enable=unlock)" choices:"enable|disable"`
 }
 
 func (opts *KafkaUpdateOptions) Params() (jsonutils.JSONObject, error) {

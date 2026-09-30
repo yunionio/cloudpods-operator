@@ -42,6 +42,7 @@ type SHostBaseOptions struct {
 
 	DefaultQemuVersion string `help:"Default qemu version" default:"10.0.7"`
 	NoHpet             bool   `help:"Disable qemu hpet timer" default:"true"`
+	QgaStopTimeout     int64  `default:"30" help:"Qemu guest agent stop timeout"`
 
 	CdromCount  int `help:"cdrom count" default:"1"`
 	FloppyCount int `help:"floppy count" default:"1"`
@@ -220,14 +221,15 @@ type SHostOptions struct {
 
 	DisableKVM bool `help:"force disable KVM" default:"false" json:"disable_kvm"`
 
-	DisableGPU          bool     `help:"force disable GPU detect" default:"false" json:"disable_gpu"`
-	DisableCustomDevice bool     `help:"force disable custom pci device detect" default:"false" json:"disable_custom_device"`
-	DisableUSB          bool     `help:"force disable USB detect" default:"true" json:"disable_usb"`
-	SRIOVNics           []string `help:"nics enable sriov" json:"sriov_nics"`
-	OvsOffloadNics      []string `help:"nics enable ovs offload" json:"ovs_offload_nics"`
-	PTNVMEConfigs       []string `help:"passthrough nvme disk pci address and size"`
-	AMDVgpuPFs          []string `help:"amd vgpu pf pci addresses"`
-	NVIDIAVgpuPFs       []string `help:"nvidia vgpu pf pci addresses"`
+	DisableGPU                           bool     `help:"force disable GPU detect" default:"false" json:"disable_gpu"`
+	DisableCustomDevice                  bool     `help:"force disable custom pci device detect" default:"false" json:"disable_custom_device"`
+	DisableUSB                           bool     `help:"force disable USB detect" default:"true" json:"disable_usb"`
+	DisablePassthroughWithVendorDeviceId bool     `help:"disable usb passthrough with vendor device id" default:"false" json:"disable_passthrough_with_vendor_device_id"`
+	SRIOVNics                            []string `help:"nics enable sriov" json:"sriov_nics"`
+	OvsOffloadNics                       []string `help:"nics enable ovs offload" json:"ovs_offload_nics"`
+	PTNVMEConfigs                        []string `help:"passthrough nvme disk pci address and size"`
+	AMDVgpuPFs                           []string `help:"amd vgpu pf pci addresses"`
+	NVIDIAVgpuPFs                        []string `help:"nvidia vgpu pf pci addresses"`
 
 	EthtoolEnableGso bool `help:"use ethtool to turn on or off GSO(generic segment offloading)" default:"true" json:"ethtool_enable_gso"`
 
@@ -269,9 +271,35 @@ type SHostOptions struct {
 	CudaMPSLogDirectory  string `help:"cuda mps log dir" default:"/tmp/nvidia-mps/log"`
 	CudaMPSReplicas      int    `help:"cuda mps replicas" default:"10"`
 
+	EnableCudaHAMI      bool   `help:"enable cuda hami" default:"true"`
+	HAMICoreLibvgpuPath string `help:"hami core libvgpu.so path" default:"/opt/cloud/hami/libvgpu.so"`
+
 	SkipCheckKernelMods []string `help:"skip check kernel modules"`
 
-	EnableContainerAscendNPU bool `help:"enable container npu" default:"false"`
+	EnableContainerAscendNPU     bool   `help:"enable container npu" default:"false"`
+	EnableContainerAscendNPUHami bool   `help:"enable container npu hami" default:"true"`
+	AscendNpuHamiShmPath         string `help:"ascend npu hami shm path" default:"/opt/cloud/hami-shared-region"`
+	AscendNpuHamiLibvnpuPath     string `help:"ascend npu hami libvnpu.so path" default:"/opt/cloud/hami/libvnpu.so"`
+
+	EnableContainerHygonDCU     bool   `help:"enable container hygon dcu" default:"true"`
+	EnableContainerHygonDCUHami bool   `help:"enable container hygon dcu hami" default:"false"`
+	HygonHyhalPath              string `help:"hygon hyhal driver path" default:"/opt/hyhal"`
+	HygonDtkPath                string `help:"hygon dtk toolkit path" default:"/opt/dtk"`
+	HygonHySmiPath              string `help:"hygon hy-smi path" default:"/opt/hyhal/bin/hy-smi"`
+	HygonVdevConfDir            string `help:"hygon vdcu config directory" default:"/etc/vdev"`
+	HygonVgpuCacheDir           string `help:"hygon vgpu vdev cache directory" default:"/usr/local/vgpu/dcu"`
+
+	EnableContainerIluvatarGPU bool   `help:"enable container iluvatar gpu" default:"true"`
+	IluvatarCorexHome          string `help:"iluvatar corex home" default:"/usr/local/corex-4.4.0"`
+	IluvatarIxsmiPath          string `help:"iluvatar ixsmi path" default:"/usr/local/corex-4.4.0/bin/ixsmi"`
+
+	EnableContainerTHeadPPU bool   `help:"enable container t-head ppu" default:"true"`
+	THeadPpuSdkHome         string `help:"t-head ppu sdk home" default:"/usr/local/PPU_SDK"`
+	THeadPpuSmiPath         string `help:"t-head ppu-smi path" default:"/usr/local/bin/ppu-smi"`
+
+	EnableContainerKunlunxinXPU bool   `help:"enable container kunlunxin xpu" default:"true"`
+	KunlunxinXreHome            string `help:"kunlunxin xre home" default:"/usr/local/xpu"`
+	KunlunxinXpuSmiPath         string `help:"kunlunxin xpu-smi path" default:"/usr/local/bin/xpu-smi"`
 
 	EnableDirtyRecoverySeconds int  `help:"Seconds to delay enable dirty guests recovery feature, default 15 minutes" default:"900"`
 	EnableContainerCniPortmap  bool `help:"Use container cni portmap plugin" default:"false"`

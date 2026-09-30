@@ -66,7 +66,9 @@ type DiskBackupCreateOptions struct {
 	AsTarIgnoreNotExistFile bool     `help:"ignore not exist file when using tar"`
 
 	DISKID          string `help:"disk id" json:"disk_id"`
-	BACKUPSTORAGEID string `help:"back storage id" json:"backup_storage_id"`
+	BACKUPSTORAGEID string `help:"backup storage id" json:"backup_storage_id"`
+
+	BackupPath string `help:"backup path" json:"backup_path"`
 }
 
 func (opts *DiskBackupCreateOptions) Params() (jsonutils.JSONObject, error) {
@@ -91,6 +93,9 @@ func (opts *DiskBackupCreateOptions) Params() (jsonutils.JSONObject, error) {
 	}
 	if opts.AsTarIgnoreNotExistFile {
 		input.BackupAsTar.IgnoreNotExistFile = opts.AsTarIgnoreNotExistFile
+	}
+	if opts.BackupPath != "" {
+		input.BackupFilePath = opts.BackupPath
 	}
 	return jsonutils.Marshal(input), nil
 }
@@ -152,7 +157,7 @@ type BackupStorageCreateOptions struct {
 	ObjectBucketUrl string `help:"object bucket url, required when storage_type is object"`
 	ObjectAccessKey string `help:"object storage access key, required when storage_type is object"`
 	ObjectSecret    string `help:"object storage secret, required when storage_type is object"`
-	ObjectSignVer   string `help:"object storage signing alogirithm version, optional" choices:"v2|v4"`
+	ObjectSignVer   string `help:"object storage signing algorithm version, optional" choices:"v2|v4"`
 
 	ObjectBucketUrlExt string `help:"object storage external access url, optional"`
 
@@ -172,7 +177,7 @@ type BackupStorageUpdateOptions struct {
 	ObjectBucketUrl string `help:"object bucket url, required when storage_type is object"`
 	ObjectAccessKey string `help:"object storage access key, required when storage_type is object"`
 	ObjectSecret    string `help:"object storage secret, required when storage_type is object"`
-	ObjectSignVer   string `help:"object storage signing alogirithm version, optional" choices:"v2|v4"`
+	ObjectSignVer   string `help:"object storage signing algorithm version, optional" choices:"v2|v4"`
 
 	ObjectBucketUrlExt string `help:"object storage external access url, optional"`
 }
