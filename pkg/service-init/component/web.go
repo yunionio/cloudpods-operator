@@ -203,16 +203,18 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }
 
-    location /api/v1/webconsole/sftp {
+    location ~ ^/api/v1/webconsole/.+/(download|upload)$ {
         client_max_body_size 0;
+        client_body_timeout 300;
         proxy_http_version 1.1;
         proxy_request_buffering off;
         proxy_buffering off;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $remote_addr;
-        rewrite ^/api/v1/(.*)$ /$1 break;
-        proxy_pass {{.WebconsoleURL}};
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+        proxy_pass {{.APIGatewayURL}};
     }
 
     location ~ ^/(vnc|spice|wmks|sol) {
