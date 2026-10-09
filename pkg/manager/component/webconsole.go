@@ -102,23 +102,44 @@ func (m *webconsoleManager) getService(oc *v1alpha1.OnecloudCluster, cfg *v1alph
 }
 
 func (m *webconsoleManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
+	// Shared by webconsole HTTP upload and guacd RDP drive redirection (Cloudpods disk).
+	const rdpDriveVol = "rdp-drive"
+	const rdpDrivePath = "/opt/cloudpods"
+
 	cf := func(volMounts []corev1.VolumeMount) []corev1.Container {
+		driveMount := corev1.VolumeMount{
+			Name:      rdpDriveVol,
+			MountPath: rdpDrivePath,
+		}
+		wcMounts := append(append([]corev1.VolumeMount{}, volMounts...), driveMount)
+		guacMounts := []corev1.VolumeMount{driveMount}
 		return []corev1.Container{
 			{
 				Name:            v1alpha1.WebComponentType.String(),
 				Image:           oc.Spec.Webconsole.Image,
 				ImagePullPolicy: oc.Spec.Webconsole.ImagePullPolicy,
 				Command:         []string{"/opt/yunion/bin/webconsole", "--config", "/etc/yunion/webconsole.conf"},
-				VolumeMounts:    volMounts,
+				VolumeMounts:    wcMounts,
 			},
 			{
 				Name:            v1alpha1.GuacdComponentType.String(),
 				Image:           oc.Spec.Webconsole.Guacd.Image,
 				ImagePullPolicy: oc.Spec.Webconsole.Guacd.ImagePullPolicy,
+				VolumeMounts:    guacMounts,
 			},
 		}
 	}
-	return m.newDefaultDeploymentNoInit(v1alpha1.WebconsoleComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.WebconsoleComponentType), v1alpha1.WebconsoleComponentType), &oc.Spec.Webconsole.DeploymentSpec, cf)
+	deploy, err := m.newDefaultDeploymentNoInit(v1alpha1.WebconsoleComponentType, "", oc, NewVolumeHelper(oc, controller.ComponentConfigMapName(oc, v1alpha1.WebconsoleComponentType), v1alpha1.WebconsoleComponentType), &oc.Spec.Webconsole.DeploymentSpec, cf)
+	if err != nil {
+		return nil, err
+	}
+	deploy.Spec.Template.Spec.Volumes = append(deploy.Spec.Template.Spec.Volumes, corev1.Volume{
+		Name: rdpDriveVol,
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
+	})
+	return deploy, nil
 }
 
 func (m *webconsoleManager) getDeploymentStatus(oc *v1alpha1.OnecloudCluster, zone string) *v1alpha1.DeploymentStatus {
