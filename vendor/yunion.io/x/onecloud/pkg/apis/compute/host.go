@@ -19,7 +19,6 @@ import (
 
 	cloudmux "yunion.io/x/cloudmux/pkg/apis/compute"
 	"yunion.io/x/jsonutils"
-
 	"yunion.io/x/onecloud/pkg/apis"
 	billing_api "yunion.io/x/onecloud/pkg/apis/billing"
 	"yunion.io/x/onecloud/pkg/cloudcommon/types"
@@ -501,6 +500,8 @@ type HostIpmiAttributes struct {
 	IpmiPresent *bool `json:"ipmi_present"`
 	// lan channel
 	IpmiLanChannel *uint8 `json:"ipmi_lan_channel"`
+	// RMCP+ cipher suite for ipmitool -C
+	IpmiCipherSuite *int `json:"ipmi_cipher_suite"`
 	// verified
 	IpmiVerified *bool `json:"ipmi_verified"`
 	// Redfish API support
@@ -776,7 +777,7 @@ type HostUploadGuestsStatusInput struct {
 }
 
 type HostIsolatedDeviceNumaStatsInput struct {
-	DevType string `json:"dev_type"`
+	Model string
 }
 
 type GuestUploadContainerStatusResponse struct {

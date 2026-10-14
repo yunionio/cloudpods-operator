@@ -24,9 +24,11 @@ import (
 )
 
 type ElasticCacheListOptions struct {
+	_ struct{} `mcp-desc:"列出 Redis/弹性缓存（elastic-cache）。可用 search 等过滤；详情用 climc_elastic_cache_show"`
+
 	options.BaseListOptions
 
-	SecgroupId string
+	SecgroupId string `mcp:"true"`
 }
 
 func (opts *ElasticCacheListOptions) Params() (jsonutils.JSONObject, error) {
@@ -45,6 +47,13 @@ func (opts *ElasticCacheIdOption) Params() (jsonutils.JSONObject, error) {
 	return nil, nil
 }
 
+// ElasticCacheShowOptions 单独包装，避免 IdOption 被 restart/delete 等复用时误注册。
+type ElasticCacheShowOptions struct {
+	_ struct{} `mcp-desc:"查询 Redis/弹性缓存详情。ID 可用 climc_elastic_cache_list 返回的 id/name"`
+
+	ElasticCacheIdOption
+}
+
 type ElasticCacheCreateOptions struct {
 	NAME          string
 	Manager       string
@@ -56,7 +65,7 @@ type ElasticCacheCreateOptions struct {
 	SecgroupIds   []string `help:"elastic cache security group. required by qcloud."`
 	Engine        string   `choices:"redis"`
 	EngineVersion string   `choices:"2.8|3.0|3.2|4.0|5.0"`
-	PrivateIP     string   `help:"private ip address in specificated network"`
+	PrivateIP     string   `help:"private ip address in specified network"`
 	Password      string   `help:"set auth password"`
 	InstanceType  string
 	CapacityMB    string   `help:"elastic cache capacity. required by huawei."`

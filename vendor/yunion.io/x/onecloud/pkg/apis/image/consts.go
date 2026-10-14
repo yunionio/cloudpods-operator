@@ -51,9 +51,13 @@ const (
 
 	LocalFilePrefix = "file://"
 	S3Prefix        = "s3://"
+	NfsPrefix       = "nfs://"
+
+	NfsSubDirName = "images"
 
 	IMAGE_STORAGE_DRIVER_LOCAL = "local"
 	IMAGE_STORAGE_DRIVER_S3    = "s3"
+	IMAGE_STORAGE_DRIVER_NFS   = "nfs"
 
 	// image properties
 	IMAGE_OS_ARCH              = "os_arch"
@@ -70,9 +74,11 @@ const (
 	IMAGE_PARTITION_TYPE       = "partition_type"
 	IMAGE_INSTALLED_CLOUDINIT  = "installed_cloud_init"
 	IMAGE_DISABLE_USB_KBD      = "disable_usb_kbd"
+	IMAGE_MACHINE_TYPE         = "machine_type"
 	IMAGE_VDI_PROTOCOL         = "vdi_protocol"
 	IMAGE_INTERNAL_PATH_MAP    = "internal_path_map"
 	IMAGE_USED_BY_POST_OVERLAY = "used_by_post_overlay"
+	IMAGE_WIN_VIRTIO_NET       = "win_virtio_net"
 
 	IMAGE_STATUS_UPDATING = "updating"
 )

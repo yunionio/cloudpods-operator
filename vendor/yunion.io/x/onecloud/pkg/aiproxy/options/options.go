@@ -22,12 +22,12 @@ type SAiProxyOptions struct {
 	common_options.CommonOptions
 	common_options.DBOptions
 
-	AdvertiseAddress             string `help:"Standby node address advertised to clients, e.g. http://10.0.0.2:30889; default derives from bind address and port" default:""`
+	AdvertiseAddress             string `help:"Standby node address advertised to clients, e.g. http://10.0.0.2:30889; default derives from bind address or local NIC IP and port" default:""`
 	NodeHeartbeatIntervalSeconds int    `help:"Interval in seconds for standby node registration heartbeat" default:"60"`
 
 	APILogEnabled               bool   `help:"Enable OpenAI API request JSONL logs" default:"true"`
 	APILogLocalDir              string `help:"Local directory for API JSONL logs" default:"/tmp/aiproxy-apilog"`
-	APILogUploadEnabled         bool   `help:"Upload closed API log hour files to S3" default:"true"`
+	APILogUploadEnabled         bool   `help:"Upload API logs to S3" default:"true"`
 	APILogUploadIntervalSeconds int    `help:"API log upload interval in seconds" default:"10"`
 	APILogSegmentMinutes        int    `help:"API log file segment duration in minutes" default:"60"`
 	APILogS3Endpoint            string `help:"S3 endpoint for API log upload" default:"http://monitor-minio.onecloud-monitoring.svc:9000"`

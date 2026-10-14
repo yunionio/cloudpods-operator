@@ -26,12 +26,14 @@ import (
 )
 
 type CloudaccountListOptions struct {
-	baseoptions.BaseListOptions
-	Capability []string `help:"capability filter" choices:"project|compute|network|loadbalancer|objectstore|rds|cache|event|tablestore"`
+	_ struct{} `mcp-desc:"列出云账号。可用 search/provider/status 等过滤；详情用 climc_cloud_account_show，同步用 climc_cloud_account_sync"`
 
-	ReadOnly *bool `help:"filter read only account" negative:"no-read-only"`
+	baseoptions.BaseListOptions
+	Capability []string `help:"capability filter" choices:"project|compute|network|loadbalancer|objectstore|rds|cache|event|tablestore" mcp:"true"`
+
+	ReadOnly *bool `help:"filter read only account" negative:"no-read-only" mcp:"true"`
 	//DistinctField string `help:"distinct field"`
-	ProxySetting string `help:"Proxy setting id or name"`
+	ProxySetting string `help:"Proxy setting id or name" mcp:"true"`
 	// 按宿主机数量排序
 	OrderByHostCount string
 	// 按虚拟机数量排序
@@ -71,7 +73,7 @@ type SProxmoxCredentialWithEnvironment struct {
 
 type SAzureCredential struct {
 	ClientID     string `help:"Azure client_id" positional:"true"`
-	ClientSecret string `help:"Azure clinet_secret" positional:"true"`
+	ClientSecret string `help:"Azure client_secret" positional:"true"`
 }
 
 type SAzureCredentialWithEnvironment struct {
@@ -79,7 +81,7 @@ type SAzureCredentialWithEnvironment struct {
 
 	SAzureCredential
 
-	Environment string `help:"Cloud environment" choices:"AzureGermanCloud|AzureChinaCloud|AzurePublicCloud" default:"AzureChinaCloud"`
+	Environment string `help:"Cloud environment" choices:"AzureGermanCloud|AzureChinaCloud|AzureUSGovernmentCloud|AzurePublicCloud" default:"AzureChinaCloud"`
 }
 
 type SQcloudCredential struct {
@@ -120,11 +122,11 @@ type SCloudAccountCreateBaseOptions struct {
 	Desc  string `help:"Description" token:"desc" json:"description"`
 	Brand string `help:"Brand of cloud account"`
 
-	AutoCreateProject            bool `help:"Enable the account with same name project"`
-	AutoCreateProjectForProvider bool `help:"Is Auto Create Project For Provider"`
+	AutoCreateProject            bool `help:"Auto create local projects from cloud projects/subscriptions"`
+	AutoCreateProjectForProvider bool `help:"Auto create local project for each cloud provider"`
 	EnableAutoSync               bool `help:"Enable automatically synchronize resources of this account"`
 
-	SyncIntervalSeconds int `help:"Interval to synchronize if auto sync is enable" metavar:"SECONDS"`
+	SyncIntervalSeconds int `help:"Interval to synchronize if auto sync is enabled" metavar:"SECONDS"`
 
 	Project       string `help:"project for this account"`
 	ProjectDomain string `help:"domain for this account"`
@@ -146,7 +148,7 @@ type SCloudAccountCreateBaseOptions struct {
 	EnableProjectSync  bool
 	EnableResourceSync bool
 
-	SkipSyncResources []string `help:"Skip sync resource, etc snapshot"`
+	SkipSyncResources []string `help:"Skip sync resource, e.g. snapshot"`
 
 	Currency string `choices:"CNY|USD"`
 }
@@ -509,6 +511,13 @@ func (opts *SCloudAccountIdOptions) Params() (jsonutils.JSONObject, error) {
 	return nil, nil
 }
 
+// CloudaccountShowOptions 单独包装，避免 SCloudAccountIdOptions 被 delete/enable 等复用时误注册。
+type CloudaccountShowOptions struct {
+	_ struct{} `mcp-desc:"查询云账号详情（含 sync_status、provider、余额等）。ID 可用 climc_cloud_account_list 返回的 id/name"`
+
+	SCloudAccountIdOptions
+}
+
 type SVMwareCloudAccountUpdateCredentialOptions struct {
 	SCloudAccountIdOptions
 	SUserPasswordCredential
@@ -691,7 +700,7 @@ type SCloudAccountUpdateBaseOptions struct {
 	SCloudAccountIdOptions
 	Name string `help:"New name to update"`
 
-	SyncIntervalSeconds    *int   `help:"auto synchornize interval in seconds"`
+	SyncIntervalSeconds    *int   `help:"auto synchronize interval in seconds"`
 	AutoCreateProject      *bool  `help:"automatically create local project for new remote project" negative:"no_auto_create_project"`
 	EnableAutoSyncResource *bool  `help:"automatically sync resources" negative:"disable_auto_sync_resource"`
 	ProxySetting           string `help:"proxy setting name or id" json:"proxy_setting"`
@@ -699,7 +708,7 @@ type SCloudAccountUpdateBaseOptions struct {
 
 	ReadOnly *bool `help:"is account read only" negative:"no_read_only"`
 
-	CleanLakeOfPermissions bool `help:"clean lake of permissions"`
+	CleanLakeOfPermissions bool `help:"clean lack of permissions"`
 
 	SkipSyncResources       []string
 	AddSkipSyncResources    []string
@@ -777,7 +786,7 @@ type SAzureCloudAccountUpdateOptions struct {
 	SCloudAccountUpdateBaseOptions
 
 	OptionsBalanceKey         string `help:"update cloud balance account key, such as Azure EA key" json:"-"`
-	RemoveOptionsBalanceKey   bool   `help:"remove cloud blance account key" json:"-"`
+	RemoveOptionsBalanceKey   bool   `help:"remove cloud balance account key" json:"-"`
 	RemoveOptionsBillingScope bool
 
 	OptionsBillingReportBucket       string `help:"update Azure bucket that stores account billing report" json:"-"`
@@ -1164,8 +1173,8 @@ func (opts *SApsaraCloudAccountCreateOptions) Params() (jsonutils.JSONObject, er
 
 type CloudaccountUpdateCredentialOptions struct {
 	SCloudAccountIdOptions
-	AccessKeyID     string `help:"Aiyun|HuaWei|Aws access_key_id"`
-	AccessKeySecret string `help:"Aiyun|HuaWei|Aws access_key_secret"`
+	AccessKeyID     string `help:"Aliyun|HuaWei|Aws access_key_id"`
+	AccessKeySecret string `help:"Aliyun|HuaWei|Aws access_key_secret"`
 	AppID           string `help:"Qcloud appid"`
 	SecretID        string `help:"Qcloud secret_id"`
 	SecretKey       string `help:"Qcloud secret_key"`
@@ -1174,7 +1183,7 @@ type CloudaccountUpdateCredentialOptions struct {
 	Password        string `help:"OpenStack|VMware password"`
 	EndpointType    string `help:"OpenStack endpointType"`
 	ClientID        string `help:"Azure tenant_id"`
-	ClientSecret    string `help:"Azure clinet_secret"`
+	ClientSecret    string `help:"Azure client_secret"`
 }
 
 func (opts *CloudaccountUpdateCredentialOptions) Params() (jsonutils.JSONObject, error) {
@@ -1182,9 +1191,18 @@ func (opts *CloudaccountUpdateCredentialOptions) Params() (jsonutils.JSONObject,
 }
 
 type CloudaccountSyncOptions struct {
+	_ struct{} `mcp-desc:"同步云账号资源（异步拉取公有云/私有云库存）。ID 用 climc_cloud_account_list 返回的 id/name；常用 force=true 强制同步，可用 region/resources 限定范围。调用后可用 climc_cloud_account_show 查看 sync_status"`
+
 	SCloudAccountIdOptions
 
-	api.SyncRangeInput
+	Force     bool     `help:"Force sync" json:"force" mcp:"true"`
+	FullSync  bool     `help:"Full sync" json:"full_sync" mcp:"true"`
+	DeepSync  bool     `help:"Deep sync" json:"deep_sync" mcp:"true"`
+	Xor       bool     `help:"Incremental xor sync mode" json:"xor" mcp:"true"`
+	Region    []string `help:"Only sync specified regions" json:"region" mcp:"true"`
+	Zone      []string `help:"Only sync specified zones" json:"zone" mcp:"true"`
+	Host      []string `help:"Only sync specified hosts" json:"host" mcp:"true"`
+	Resources []string `help:"Resource types to sync" json:"resources" mcp:"true" choices:"project|compute|network|eip|loadbalancer|objectstore|rds|cache|event|cloudid|dnszone|public_ip|intervpcnetwork|saml_auth|quota|nat|nas|waf|mongodb|es|kafka|app|cdn|container|ipv6_gateway|tablestore|modelarts|vpcpeer|misc|image"`
 }
 
 func (opts *CloudaccountSyncOptions) Params() (jsonutils.JSONObject, error) {
@@ -1202,7 +1220,7 @@ func (opts *CloudaccountEnableAutoSyncOptions) Params() (jsonutils.JSONObject, e
 
 type CloudaccountPublicOptions struct {
 	SCloudAccountIdOptions
-	Scope         string   `help:"public_sccope" choices:"domain|system" json:"scope"`
+	Scope         string   `help:"public scope" choices:"domain|system" json:"scope"`
 	SharedDomains []string `help:"shared domains" json:"shared_domains"`
 	ShareMode     string   `help:"share_mode" choices:"account_domain|provider_domain|system"`
 }
@@ -1259,7 +1277,7 @@ func (opts *ClouaccountChangeOwnerOptions) Params() (jsonutils.JSONObject, error
 
 type ClouaccountChangeProjectOptions struct {
 	SCloudAccountIdOptions
-	PROJECT string `json:"project" help:"target domain"`
+	PROJECT string `json:"project" help:"target project ID or name"`
 }
 
 func (opts *ClouaccountChangeProjectOptions) Params() (jsonutils.JSONObject, error) {

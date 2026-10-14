@@ -16,7 +16,6 @@ const (
 	LLM_CONTAINER_COMFYUI      LLMContainerType = "comfyui"
 	LLM_CONTAINER_OPENCLAW     LLMContainerType = "openclaw"
 	LLM_CONTAINER_HERMES_AGENT LLMContainerType = "hermes-agent"
-	LLM_CONTAINER_LLM_ROUTER   LLMContainerType = "llm-router"
 	LLM_CONTAINER_DESKTOP      LLMContainerType = "desktop"
 )
 
@@ -29,7 +28,6 @@ var (
 		string(LLM_CONTAINER_COMFYUI),
 		string(LLM_CONTAINER_OPENCLAW),
 		string(LLM_CONTAINER_HERMES_AGENT),
-		string(LLM_CONTAINER_LLM_ROUTER),
 		string(LLM_CONTAINER_DESKTOP),
 	)
 	LLM_INSTANT_MODEL_TYPES = sets.NewString(
@@ -39,6 +37,11 @@ var (
 		string(LLM_CONTAINER_COMFYUI),
 		string(LLM_CONTAINER_OPENCLAW),
 	)
+	LLM_INFERENCE_TYPES = sets.NewString(
+		string(LLM_CONTAINER_OLLAMA),
+		string(LLM_CONTAINER_VLLM),
+		string(LLM_CONTAINER_SGLANG),
+	)
 )
 
 func IsLLMContainerType(t string) bool {
@@ -47,6 +50,10 @@ func IsLLMContainerType(t string) bool {
 
 func IsLLMInstantModelType(t string) bool {
 	return LLM_INSTANT_MODEL_TYPES.Has(t)
+}
+
+func IsLLMInferenceType(t string) bool {
+	return LLM_INFERENCE_TYPES.Has(t)
 }
 
 func GetLLMInstantModelContainerType(t LLMContainerType) LLMContainerType {
