@@ -9,7 +9,8 @@ import (
 )
 
 const (
-	SERVICE_TYPE = "llm"
+	SERVICE_TYPE    = "llm"
+	SERVICE_VERSION = ""
 )
 
 type LLMBaseListDetails struct {
@@ -204,6 +205,7 @@ type LLMSyncStatusInput struct {
 }
 
 type LLMRestartInput struct {
+	Force bool `json:"force"`
 }
 
 type LLMRestartTaskInput struct {
@@ -217,6 +219,7 @@ type LLMRestartTaskInput struct {
 
 	RebindVolumeId string
 	OnlyStop       bool
+	Force          bool `json:"force"`
 }
 
 type LLMChangeNetworkInput struct {

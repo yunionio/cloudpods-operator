@@ -234,10 +234,10 @@ func (l *sLinuxRootFs) checkInputPasswd(rootFs IDiskPartition, config *pwquality
 
 	err := config.Validate(password, account)
 	if err != nil && errors.Cause(err) == pwquality.ErrPasswordTooWeak {
-		log.Infof("password %s too weak, try regenerate password", password)
+		log.Infof("password too weak, try regenerate password")
 		npassword := config.GeneratePassword(seclib2.RandomPassword2)
 		if len(npassword) > 0 {
-			log.Infof("regenerate password %s", npassword)
+			log.Infof("regenerate password (not logged)")
 			password = npassword
 		}
 	}
@@ -562,6 +562,9 @@ func (l *sLinuxRootFs) GetArch(rootFs IDiskPartition) string {
 					log.Errorf("readlink of %s: %s", p, err)
 					continue
 				}
+				if mnt := rootFs.GetMountPath(); mnt != "" && !fileutils2.IsPathInside(mnt, rp) {
+					continue
+				}
 				elfHeader, err := elf.Open(rp)
 				if err != nil {
 					log.Errorf("failed read file elf %s: %s", rp, err)
@@ -824,15 +827,19 @@ func (d *sLinuxRootFs) DeployTelegraf(config string) (bool, error) {
 	if err != nil {
 		return false, errors.Wrap(err, "write telegraf config")
 	}
-	output, err := procutils.NewCommand("cp", "-f", TELEGRAF_BINARY_PATH, path.Join(part.GetMountPath(), cloudMonitorPath)).Output()
+	telegrafBin := path.Base(TELEGRAF_BINARY_PATH)
+	err = part.CopyFile(TELEGRAF_BINARY_PATH, path.Join(cloudMonitorPath, telegrafBin))
 	if err != nil {
-		return false, errors.Wrapf(err, "cp telegraf failed %s", output)
+		return false, errors.Wrap(err, "copy telegraf file")
 	}
+
 	// supervise
-	output, err = procutils.NewCommand("cp", "-f", SUPERVISE_BINARY_PATH, path.Join(part.GetMountPath(), cloudMonitorPath)).Output()
+	superviseBin := path.Base(SUPERVISE_BINARY_PATH)
+	err = part.CopyFile(SUPERVISE_BINARY_PATH, path.Join(cloudMonitorPath, superviseBin))
 	if err != nil {
-		return false, errors.Wrapf(err, "cp supervise failed %s", output)
+		return false, errors.Wrap(err, "copy supervise file")
 	}
+
 	err = part.FilePutContents(
 		path.Join(telegrafPath, "run"),
 		fmt.Sprintf("#!/bin/sh\n%s/telegraf -config %s/telegraf.conf", cloudMonitorPath, cloudMonitorPath),
@@ -2462,7 +2469,11 @@ func (d *SCoreOsRootFs) GetLoginAccount(rootFs IDiskPartition, user string, defa
 
 func (d *SCoreOsRootFs) DeployFiles(deploys []*deployapi.DeployContent) error {
 	for _, deploy := range deploys {
-		d.GetConfig().AddWriteFile(deploy.Path, deploy.Content, "", "", false)
+		clean, err := fileutils2.CleanGuestDeployPath(deploy.Path)
+		if err != nil {
+			return errors.Wrap(err, "deploy path")
+		}
+		d.GetConfig().AddWriteFile(clean, deploy.Content, "", "", false)
 	}
 	return nil
 }

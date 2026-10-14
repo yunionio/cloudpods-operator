@@ -43,6 +43,7 @@ import (
 	"yunion.io/x/onecloud/pkg/mcclient"
 	"yunion.io/x/onecloud/pkg/mcclient/auth"
 	identitymod "yunion.io/x/onecloud/pkg/mcclient/modules/identity"
+	imagemod "yunion.io/x/onecloud/pkg/mcclient/modules/image"
 	kubemod "yunion.io/x/onecloud/pkg/mcclient/modules/k8s"
 )
 
@@ -173,6 +174,15 @@ func (m *SContainerManager) ValidateSpec(ctx context.Context, userCred mcclient.
 	if !sets.NewString(apis.ImagePullPolicyAlways, apis.ImagePullPolicyIfNotPresent).Has(string(spec.ImagePullPolicy)) {
 		return httperrors.NewInputParameterError("invalid image_pull_policy %s", spec.ImagePullPolicy)
 	}
+	// ctr == nil means the container is being created, apply the defaults
+	// (command/args/envs) configured on the container_image; when updating the
+	// spec of an existing container keep what the user has set.
+	if err := m.resolveContainerImageId(ctx, userCred, spec, ctr == nil); err != nil {
+		return errors.Wrap(err, "resolve container_image_id")
+	}
+	if spec.Image == "" {
+		return httperrors.NewNotEmptyError("image is required")
+	}
 	if spec.ImageCredentialId != "" {
 		if _, err := m.GetImageCredential(ctx, userCred, spec.ImageCredentialId); err != nil {
 			return errors.Wrapf(err, "get image credential by id: %s", spec.ImageCredentialId)
@@ -232,6 +242,146 @@ func (m *SContainerManager) ValidateSpec(ctx context.Context, userCred mcclient.
 	}
 
 	return nil
+}
+
+// fetchContainerImageObj fetches the container_image resource through the
+// glance service.
+func fetchContainerImageObj(ctx context.Context, userCred mcclient.TokenCredential, imageId string) (jsonutils.JSONObject, error) {
+	s := auth.GetSession(ctx, userCred, options.Options.Region)
+	obj, err := imagemod.ContainerImages.Get(s, imageId, nil)
+	if err != nil {
+		return nil, httperrors.NewGeneralError(errors.Wrapf(err, "get container_image %s", imageId))
+	}
+	return obj, nil
+}
+
+// fetchContainerRegistryObj fetches the container_registry resource through the
+// glance service.
+func fetchContainerRegistryObj(ctx context.Context, userCred mcclient.TokenCredential, registryId string) (jsonutils.JSONObject, error) {
+	s := auth.GetSession(ctx, userCred, options.Options.Region)
+	return imagemod.ContainerRegistries.Get(s, registryId, nil)
+}
+
+func (m *SContainerManager) resolveContainerImageId(ctx context.Context, userCred mcclient.TokenCredential, spec *api.ContainerSpec, applyDefaults bool) error {
+	if spec.ContainerImageId == "" {
+		return nil
+	}
+	obj, err := fetchContainerImageObj(ctx, userCred, spec.ContainerImageId)
+	if err != nil {
+		return err
+	}
+	imageName, _ := obj.GetString("image_name")
+	imageLabel, _ := obj.GetString("image_label")
+	if imageName == "" || imageLabel == "" {
+		return httperrors.NewInputParameterError("container_image %s missing image_name or image_label", spec.ContainerImageId)
+	}
+	spec.ContainerImageId, _ = obj.GetString("id")
+	spec.Image = fmt.Sprintf("%s:%s", imageName, imageLabel)
+	// Credential is owned by container_image (fallback to registry); clear client-provided value first.
+	spec.ImageCredentialId = ""
+	credId, _ := obj.GetString("credential_id")
+	if credId == "" {
+		if registryId, _ := obj.GetString("registry_id"); registryId != "" {
+			regObj, regErr := fetchContainerRegistryObj(ctx, userCred, registryId)
+			if regErr != nil {
+				return httperrors.NewGeneralError(errors.Wrapf(regErr, "get container_registry %s for credential fallback", registryId))
+			}
+			credId, _ = regObj.GetString("credential_id")
+		}
+	}
+	if credId != "" {
+		spec.ImageCredentialId = credId
+	}
+	if applyDefaults {
+		if err := applyContainerImageDefaults(spec, obj); err != nil {
+			return errors.Wrap(err, "apply container_image defaults")
+		}
+	}
+	return nil
+}
+
+// applyContainerImageDefaults applies the defaults of the referenced
+// container_image to the container spec. The container_image wins for
+// command/args when it configures a non-empty value; the envs of the image are
+// merged into the container envs and win on key conflict.
+func applyContainerImageDefaults(spec *api.ContainerSpec, image jsonutils.JSONObject) error {
+	if gotypes.IsNil(image) {
+		return nil
+	}
+	if command, err := image.Get("command"); err == nil {
+		values := make([]string, 0)
+		if err := command.Unmarshal(&values); err != nil {
+			return errors.Wrap(err, "unmarshal container_image command")
+		}
+		// an empty command on the image means "unset", keep what the container has
+		if len(values) > 0 {
+			spec.Command = values
+		}
+	}
+	if args, err := image.Get("args"); err == nil {
+		values := make([]string, 0)
+		if err := args.Unmarshal(&values); err != nil {
+			return errors.Wrap(err, "unmarshal container_image args")
+		}
+		if len(values) > 0 {
+			spec.Args = values
+		}
+	}
+	imageEnvs := make([]*apis.ContainerKeyValue, 0)
+	if envs, err := image.Get("envs"); err == nil {
+		if err := envs.Unmarshal(&imageEnvs); err != nil {
+			return errors.Wrap(err, "unmarshal container_image envs")
+		}
+	}
+	if len(imageEnvs) == 0 && len(spec.Envs) == 0 {
+		return nil
+	}
+	spec.Envs = mergeContainerImageEnvs(spec.Envs, imageEnvs)
+	return nil
+}
+
+// mergeContainerImageEnvs merges the image envs into the container envs. The
+// container envs are the base and keep their order, the image envs override the
+// value of the same key and append the missing keys.
+func mergeContainerImageEnvs(ctrEnvs, imageEnvs []*apis.ContainerKeyValue) []*apis.ContainerKeyValue {
+	out := make([]*apis.ContainerKeyValue, 0, len(ctrEnvs)+len(imageEnvs))
+	indexByKey := make(map[string]int, len(ctrEnvs)+len(imageEnvs))
+	for _, env := range ctrEnvs {
+		if env == nil {
+			continue
+		}
+		key := strings.TrimSpace(env.Key)
+		if key == "" {
+			continue
+		}
+		kv := env
+		if env.Key != key {
+			kv = &apis.ContainerKeyValue{Key: key, Value: env.Value, ValueFrom: env.ValueFrom}
+		}
+		indexByKey[key] = len(out)
+		out = append(out, kv)
+	}
+	for _, env := range imageEnvs {
+		if env == nil {
+			continue
+		}
+		key := strings.TrimSpace(env.Key)
+		if key == "" {
+			continue
+		}
+		if idx, ok := indexByKey[key]; ok {
+			// keep the key spelling of the container side, take the value of the image
+			out[idx] = &apis.ContainerKeyValue{
+				Key:       out[idx].Key,
+				Value:     env.Value,
+				ValueFrom: env.ValueFrom,
+			}
+			continue
+		}
+		indexByKey[key] = len(out)
+		out = append(out, &apis.ContainerKeyValue{Key: key, Value: env.Value, ValueFrom: env.ValueFrom})
+	}
+	return out
 }
 
 func (m *SContainerManager) ValidateSpecEnvs(ctx context.Context, userCred mcclient.TokenCredential, spec *api.ContainerSpec) error {
@@ -696,6 +846,13 @@ func (c *SContainer) PerformStart(ctx context.Context, userCred mcclient.TokenCr
 }
 
 func (c *SContainer) StartStartTask(ctx context.Context, userCred mcclient.TokenCredential, parentTaskId string) error {
+	// Refresh the defaults inherited from the container_image so that changes
+	// made on the image take effect on start/restart. All the start paths
+	// (container-start, container-restart, pod-start, pod-restart and the batch
+	// variants) funnel through here. A failure must not block the start.
+	if err := c.applyContainerImageDefaultsOnStart(ctx, userCred); err != nil {
+		log.Warningf("refresh container_image defaults for container %s: %v", c.GetId(), err)
+	}
 	c.SetStatus(ctx, userCred, api.CONTAINER_STATUS_STARTING, "")
 	task, err := taskman.TaskManager.NewTask(ctx, "ContainerStartTask", c, userCred, nil, parentTaskId, "", nil)
 	if err != nil {
@@ -853,7 +1010,58 @@ func (c *SContainer) GetImageCredential(ctx context.Context, userCred mcclient.T
 	return GetContainerManager().GetImageCredential(ctx, userCred, c.Spec.ImageCredentialId)
 }
 
+func (c *SContainer) ensureContainerImageResolved(ctx context.Context, userCred mcclient.TokenCredential) error {
+	if c.Spec == nil {
+		return httperrors.NewNotEmptyError("container spec is empty")
+	}
+	needResolve := c.Spec.ContainerImageId != "" && c.Spec.Image == ""
+	if needResolve {
+		if _, err := db.Update(c, func() error {
+			if err := GetContainerManager().resolveContainerImageId(ctx, userCred, c.Spec, false); err != nil {
+				return err
+			}
+			if c.Spec.Image == "" {
+				return httperrors.NewInputParameterError("container_image %s resolved empty image", c.Spec.ContainerImageId)
+			}
+			return nil
+		}); err != nil {
+			return errors.Wrap(err, "resolve and persist container_image_id")
+		}
+	}
+	if c.Spec.Image == "" {
+		return httperrors.NewNotEmptyError("image is required")
+	}
+	return nil
+}
+
+// applyContainerImageDefaultsOnStart refreshes command/args/envs of the
+// container spec from the referenced container_image, so that changes made on
+// the image take effect when the container is started or restarted.
+func (c *SContainer) applyContainerImageDefaultsOnStart(ctx context.Context, userCred mcclient.TokenCredential) error {
+	if c.Spec == nil || c.Spec.ContainerImageId == "" {
+		return nil
+	}
+	obj, err := fetchContainerImageObj(ctx, userCred, c.Spec.ContainerImageId)
+	if err != nil {
+		return errors.Wrapf(err, "fetch container_image %s", c.Spec.ContainerImageId)
+	}
+	// db.Update is a no-op when nothing changed, so it is safe to call it here
+	_, err = db.Update(c, func() error {
+		if c.Spec == nil {
+			return httperrors.NewNotEmptyError("container spec is empty")
+		}
+		return applyContainerImageDefaults(c.Spec, obj)
+	})
+	if err != nil {
+		return errors.Wrap(err, "update container spec")
+	}
+	return nil
+}
+
 func (c *SContainer) GetHostPullImageInput(ctx context.Context, userCred mcclient.TokenCredential) (*hostapi.ContainerPullImageInput, error) {
+	if err := c.ensureContainerImageResolved(ctx, userCred); err != nil {
+		return nil, err
+	}
 	input := &hostapi.ContainerPullImageInput{
 		Image:      c.Spec.Image,
 		PullPolicy: c.Spec.ImagePullPolicy,
@@ -944,13 +1152,18 @@ func (c *SContainer) ToHostContainerSpec(ctx context.Context, userCred mcclient.
 	}
 	ctrDevs := make([]*hostapi.ContainerDevice, 0)
 	for _, dev := range c.Spec.Devices {
-		ctrDev, err := GetContainerDeviceDriver(dev.Type).ToHostDevice(dev)
+		ctrDev, err := GetContainerDeviceDriver(dev.Type).ToHostDevice(dev, c.GuestId)
 		if err != nil {
 			return nil, errors.Wrapf(err, "ToHostDevice %s", jsonutils.Marshal(dev))
 		}
 		ctrDevs = append(ctrDevs, ctrDev)
 	}
 
+	pullInput, err := c.GetHostPullImageInput(ctx, userCred)
+	if err != nil {
+		return nil, errors.Wrap(err, "GetHostPullImageInput")
+	}
+	// Copy after resolve so host receives filled Image (never relies on ContainerImageId).
 	spec := c.Spec.ContainerSpec
 	hSpec := &hostapi.ContainerSpec{
 		ContainerSpec: spec,
@@ -958,10 +1171,7 @@ func (c *SContainer) ToHostContainerSpec(ctx context.Context, userCred mcclient.
 		VolumeMounts:  mounts,
 		Devices:       ctrDevs,
 	}
-	pullInput, err := c.GetHostPullImageInput(ctx, userCred)
-	if err != nil {
-		return nil, errors.Wrap(err, "GetHostPullImageInput")
-	}
+	hSpec.Image = pullInput.Image
 	hSpec.ImageCredentialToken = base64.StdEncoding.EncodeToString([]byte(jsonutils.Marshal(pullInput.Auth).String()))
 	secretCredentials, err := c.GetSecretCredentials(ctx, userCred)
 	if err != nil {
@@ -1223,22 +1433,39 @@ func (c *SContainer) getContainerHostCommitInput(ctx context.Context, userCred m
 	}
 	if input.RegistryId != "" {
 		s := auth.GetSession(ctx, userCred, consts.GetRegion())
-		obj, err := kubemod.ContainerRegistries.Get(s, input.RegistryId, nil)
-		if err != nil {
-			return nil, httperrors.NewGeneralError(err)
+		var (
+			obj        jsonutils.JSONObject
+			err        error
+			fromGlance bool
+		)
+		// Prefer glance-managed registry; fall back to kubeserver during migration.
+		obj, err = imagemod.ContainerRegistries.Get(s, input.RegistryId, nil)
+		if err == nil {
+			fromGlance = true
+		} else {
+			obj, err = kubemod.ContainerRegistries.Get(s, input.RegistryId, nil)
+			if err != nil {
+				return nil, httperrors.NewGeneralError(err)
+			}
 		}
 		reg := new(api.KubeServerContainerRegistryDetails)
 		if err := obj.Unmarshal(reg); err != nil {
-			return nil, errors.Wrap(err, "Unmarshal kube server registry details")
+			return nil, errors.Wrap(err, "Unmarshal registry details")
 		}
 		if reg.Config == nil {
-			confObj, err := kubemod.ContainerRegistries.GetSpecific(s, input.RegistryId, "config", nil)
-			if err != nil {
-				return nil, errors.Wrap(err, "Get kube server registry config")
+			var confObj jsonutils.JSONObject
+			var confErr error
+			if fromGlance {
+				confObj, confErr = imagemod.ContainerRegistries.GetSpecific(s, input.RegistryId, "config", nil)
+			} else {
+				confObj, confErr = kubemod.ContainerRegistries.GetSpecific(s, input.RegistryId, "config", nil)
+			}
+			if confErr != nil {
+				return nil, errors.Wrap(confErr, "Get registry config")
 			}
 			reg.Config = new(api.KubeServerContainerRegistryConfig)
 			if err := confObj.Unmarshal(reg.Config); err != nil {
-				return nil, errors.Wrap(err, "Unmarshal kube server registry config")
+				return nil, errors.Wrap(err, "Unmarshal registry config")
 			}
 		}
 		repoUrl = reg.Url

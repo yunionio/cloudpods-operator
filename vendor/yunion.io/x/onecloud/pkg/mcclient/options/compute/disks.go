@@ -23,16 +23,16 @@ import (
 )
 
 type DiskCreateOptions struct {
-	Manager string   `help:"Preferred manager where virtual server should be created" json:"prefer_manager_id"`
-	Region  string   `help:"Preferred region where virtual server should be created" json:"prefer_region_id"`
-	Zone    string   `help:"Preferred zone where virtual server should be created" json:"prefer_zone_id"`
-	Zones   []string `help:"Preferred zones where virtual server should be created" json:"prefer_zones"`
-	Wire    string   `help:"Preferred wire where virtual server should be created" json:"prefer_wire_id"`
-	Host    string   `help:"Preferred host where virtual server should be created" json:"prefer_host_id"`
+	Manager string   `help:"Preferred manager where disk should be created" json:"prefer_manager_id"`
+	Region  string   `help:"Preferred region where disk should be created" json:"prefer_region_id"`
+	Zone    string   `help:"Preferred zone where disk should be created" json:"prefer_zone_id"`
+	Zones   []string `help:"Preferred zones where disk should be created" json:"prefer_zones"`
+	Wire    string   `help:"Preferred wire where disk should be created" json:"prefer_wire_id"`
+	Host    string   `help:"Preferred host where disk should be created" json:"prefer_host_id"`
 	Count   int      `help:"Count to create" json:"count"`
 
 	NAME       string   `help:"Name of the disk"`
-	DISKDESC   string   `help:"Image size or size of virtual disk"`
+	DISKDESC   string   `help:"Disk config, e.g. 'size=10G' or 'image=<id>,size=40G,backend=local'"`
 	Desc       string   `help:"Description" metavar:"Description"`
 	Storage    string   `help:"ID or name of storage where the disk is created"`
 	Hypervisor string   `help:"Hypervisor of this disk, used by schedule"`
@@ -92,6 +92,28 @@ func (o *DiskIdOptions) Params() (jsonutils.JSONObject, error) {
 	return nil, nil
 }
 
+// DiskShowOptions 单独包装，避免 DiskIdOptions 被其它 Perform 复用时误注册。
+type DiskShowOptions struct {
+	_ struct{} `mcp-desc:"查询单块硬盘详情。ID 可用 climc_disk_list 返回的 id/name"`
+
+	DiskIdOptions
+}
+
+type DiskResizeOptions struct {
+	_ struct{} `mcp-desc:"硬盘扩容。DISK 为硬盘 id/name，SIZE 为目标容量（如 100G）；扩容前可用 climc_disk_list / climc_disk_show 确认"`
+
+	DISK string `help:"ID or name of disk"`
+	SIZE string `help:"Size of disk"`
+}
+
+type DiskDeleteOptions struct {
+	_ struct{} `mcp-desc:"删除硬盘。若尚不知 id，先用 climc_disk_list 定位；删除前确认未被虚机占用或已卸载"`
+
+	ID                    []string `help:"ID of disks to delete" metavar:"DISK"`
+	OverridePendingDelete bool     `help:"Delete disk directly instead of pending delete" short-token:"f" mcp:"true"`
+	DeleteSnapshots       bool     `help:"Delete disk snapshots before delete disk" mcp:"true"`
+}
+
 type DiskMigrateOptions struct {
 	DiskIdOptions
 
@@ -115,7 +137,7 @@ func (o *DiskChangeStorageTypeOptions) Params() (jsonutils.JSONObject, error) {
 type DiskResetTemplateOptions struct {
 	DiskIdOptions
 
-	TemplateId string `help:"reset disk tempalte id" json:"template_id"`
+	TemplateId string `help:"reset disk template id" json:"template_id"`
 }
 
 func (o *DiskResetTemplateOptions) Params() (jsonutils.JSONObject, error) {
@@ -143,7 +165,7 @@ func (o *DiskRebuildOptions) Params() (jsonutils.JSONObject, error) {
 		res.TemplateId = &o.TemplateId
 	}
 	if o.Size != "" {
-		res.TemplateId = &o.Size
+		res.Size = &o.Size
 	}
 	if o.Fs != "" {
 		res.Fs = &o.Fs
@@ -177,24 +199,26 @@ func (o *DiskRebuildOptions) Params() (jsonutils.JSONObject, error) {
 }
 
 type DiskListOptions struct {
+	_ struct{} `mcp-desc:"列出硬盘。可用 search/server-id/unused 等过滤；查详情用 climc_disk_show，扩容用 climc_disk_resize，删除用 climc_disk_delete"`
+
 	options.BaseListOptions
-	Unused        *bool    `help:"Show unused disks"`
-	Share         *bool    `help:"Show Share storage disks"`
-	Local         *bool    `help:"Show Local storage disks"`
-	ServerId      []string `help:"Guest ID or name"`
-	GuestStatus   string   `help:"Guest Status"`
+	Unused        *bool    `help:"Show unused disks" mcp:"true"`
+	Share         *bool    `help:"Show Share storage disks" mcp:"true"`
+	Local         *bool    `help:"Show Local storage disks" mcp:"true"`
+	ServerId      []string `help:"Guest ID or name" mcp:"true"`
+	GuestStatus   string   `help:"Guest Status" mcp:"true"`
 	OrderByServer string   `help:"Order By Server"`
-	Storage       string   `help:"Storage ID or name"`
-	Type          string   `help:"Disk type" choices:"sys|data|swap|volume"`
-	CloudType     string   `help:"Public cloud or private cloud" choices:"Public|Private"`
+	Storage       string   `help:"Storage ID or name" mcp:"true"`
+	Type          string   `help:"Disk type" choices:"sys|data|swap|volume" mcp:"true"`
+	CloudType     string   `help:"Public cloud or private cloud" choices:"Public|Private" mcp:"true"`
 
 	OrderByGuestCount string `help:"Order By Guest Count"`
 
-	BillingType string `help:"billing type" choices:"postpaid|prepaid"`
+	BillingType string `help:"billing type" choices:"postpaid|prepaid" mcp:"true"`
 
 	SnapshotpolicyId string `help:"snapshotpolicy id"`
 
-	StorageHostId               string `help:"filter disk by host"`
+	StorageHostId               string `help:"filter disk by host" mcp:"true"`
 	BindingServerSnapshotpolicy *bool  `help:"filter disk by binding server snapshotpolicy" negative:"no-binding-server-snapshotpolicy"`
 	BindingSnapshotpolicy       *bool  `help:"filter disk by binding snapshotpolicy" negative:"no-binding-snapshotpolicy"`
 }

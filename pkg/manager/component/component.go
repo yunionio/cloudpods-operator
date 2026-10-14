@@ -1829,7 +1829,7 @@ func (m *ComponentManager) shouldSyncConfigmap(
 	if oldCfgMap != nil {
 		optStr, ok := oldCfgMap.Data["config"]
 		if ok {
-			if cond(optStr) {
+			if cond != nil && cond(optStr) {
 				return cfgMap, true, nil
 			}
 		}

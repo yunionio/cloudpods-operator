@@ -89,10 +89,10 @@ const (
 	MonitorLoki              = "monitor-loki"
 	MonitorPrometheus        = "prometheus-monitor-monitor-stack-prometheus"
 
-	MonitorBucketThanos                 = "thanos"
-	MonitorBucketLoki                   = "loki"
-	MonitorBucketAiProxy                = "aiproxy-log"
-	MonitorBucketAiProxyRetentionDays   = 90
+	MonitorBucketThanos               = "thanos"
+	MonitorBucketLoki                 = "loki"
+	MonitorBucketAiProxy              = "aiproxy-log"
+	MonitorBucketAiProxyRetentionDays = 90
 )
 
 const (
@@ -411,9 +411,11 @@ const (
 	ServiceTypeScheduledtask = "scheduledtask"
 	ScheduledtaskPort        = 30978
 
-	ServiceNameAPIMap = "apimap"
-	ServiceTypeAPIMap = "apimap"
-	APIMapPort        = 31999
+	ServiceNameApiMap  = "apimap"
+	ServiceTypeApiMap  = "apimap"
+	ApiMapAdminUser    = "apimapadmin"
+	ApiMapAdminProject = SysAdminProject
+	ApiMapPort         = 31999
 
 	ServiceNameReport  = "report"
 	ServiceTypeReport  = "report"

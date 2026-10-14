@@ -1443,17 +1443,35 @@ func (hh *SHostManager) GetPropertyK8sMasterNodeIps(ctx context.Context, userCre
 	if err != nil {
 		return nil, errors.Wrap(err, "list master nodes")
 	}
-	ips := make([]string, 0)
+	ips := map[string]struct{}{}
 	for i := range nodes.Items {
 		for j := range nodes.Items[i].Status.Addresses {
 			if nodes.Items[i].Status.Addresses[j].Type == v1.NodeInternalIP {
-				ips = append(ips, nodes.Items[i].Status.Addresses[j].Address)
+				ips[nodes.Items[i].Status.Addresses[j].Address] = struct{}{}
 			}
 		}
 	}
 	log.Infof("k8s master nodes ips %v", ips)
+	if jsonutils.QueryBoolean(query, "kvm_hosts", false) {
+		hostq := hh.Query("access_ip")
+		hostq = hostq.In("host_type", []string{api.HOST_TYPE_HYPERVISOR, api.HOST_TYPE_KVM, api.HOST_TYPE_CONTAINER})
+		type HostIp struct {
+			AccessIp string
+		}
+		hostIps := make([]HostIp, 0)
+		if err := hostq.All(&hostIps); err != nil && err != sql.ErrNoRows {
+			return nil, err
+		}
+		for i := range hostIps {
+			ips[hostIps[i].AccessIp] = struct{}{}
+		}
+	}
+	ipArr := make([]string, 0, len(ips))
+	for k := range ips {
+		ipArr = append(ipArr, k)
+	}
 	res := jsonutils.NewDict()
-	res.Set("ips", jsonutils.Marshal(ips))
+	res.Set("ips", jsonutils.Marshal(ipArr))
 	return res, nil
 }
 
@@ -3307,6 +3325,23 @@ func (hh *SHost) SyncHostVMs(ctx context.Context, userCred mcclient.TokenCredent
 
 func (hh *SHost) getNetworkOfIPOnHost(ctx context.Context, ipAddr string) (*SNetwork, error) {
 	netInterfaces := hh.GetHostNetInterfaces()
+	// VMware: only associate networks under wires of the same manager_id
+	if hh.HostType == api.HOST_TYPE_ESXI {
+		if len(hh.ManagerId) == 0 {
+			return nil, fmt.Errorf("ESXi host %s has empty manager_id, cannot resolve network for IP %s", hh.Id, ipAddr)
+		}
+		for _, netInterface := range netInterfaces {
+			wire := netInterface.GetWire()
+			if wire == nil || wire.ManagerId != hh.ManagerId {
+				continue
+			}
+			network, err := netInterface.GetCandidateNetworkForIp(ctx, nil, nil, rbacscope.ScopeNone, ipAddr)
+			if err == nil && network != nil {
+				return network, nil
+			}
+		}
+		return nil, fmt.Errorf("IP %s not reachable on ESXi host %s under manager %s", ipAddr, hh.Id, hh.ManagerId)
+	}
 	for _, netInterface := range netInterfaces {
 		network, err := netInterface.GetCandidateNetworkForIp(ctx, nil, nil, rbacscope.ScopeNone, ipAddr)
 		if err == nil && network != nil {
@@ -3526,13 +3561,13 @@ func (manager *SHostManager) totalCountQ(
 
 	q = db.ObjectIdQueryWithPolicyResult(ctx, q, HostManager, policyResult)
 
-	isolatedDevices := IsolatedDeviceManager.Query().SubQuery()
+	isolatedDevices := IsolatedDeviceManager.queryWithoutGuest(IsolatedDeviceManager.Query()).SubQuery()
 	iq := isolatedDevices.Query(
 		isolatedDevices.Field("host_id"),
 		sqlchemy.SUM("isolated_reserved_memory", isolatedDevices.Field("reserved_memory")),
 		sqlchemy.SUM("isolated_reserved_cpu", isolatedDevices.Field("reserved_cpu")),
 		sqlchemy.SUM("isolated_reserved_storage", isolatedDevices.Field("reserved_storage")),
-	).IsNullOrEmpty("guest_id").GroupBy(isolatedDevices.Field("host_id")).SubQuery()
+	).GroupBy(isolatedDevices.Field("host_id")).SubQuery()
 	q = q.LeftJoin(iq, sqlchemy.Equals(q.Field("id"), iq.Field("host_id")))
 	q.AppendField(
 		iq.Field("isolated_reserved_memory"),
@@ -4110,7 +4145,25 @@ func (hh *SHost) GetDevsReservedResource(devs []SIsolatedDevice) *api.IsolatedDe
 		ReservedCpu:     &reservedCpu,
 	}
 	for _, dev := range devs {
-		if !utils.IsInStringArray(dev.DevType, api.VALID_GPU_TYPES) {
+		if !dev.IsKvmExclusiveGPU() {
+			continue
+		}
+		reservedCpu += dev.ReservedCpu
+		reservedMem += dev.ReservedMemory
+		reservedStorage += dev.ReservedStorage
+	}
+	return &reservedResourceForGpu
+}
+
+func (hh *SHost) GetDevsReservedResourceByDevStats(devs []IsolatedDeviceAllocateStat) *api.IsolatedDeviceReservedResourceInput {
+	reservedCpu, reservedMem, reservedStorage := 0, 0, 0
+	reservedResourceForGpu := api.IsolatedDeviceReservedResourceInput{
+		ReservedStorage: &reservedStorage,
+		ReservedMemory:  &reservedMem,
+		ReservedCpu:     &reservedCpu,
+	}
+	for _, dev := range devs {
+		if !dev.IsKvmExclusiveGPU() {
 			continue
 		}
 		reservedCpu += dev.ReservedCpu
@@ -4419,6 +4472,19 @@ func (hh *SHost) GetDetailsIpmi(ctx context.Context, userCred mcclient.TokenCred
 		return nil, err
 	}
 	ret.Set("password", jsonutils.NewString(descryptedPassword))
+	return ret, nil
+}
+
+func (hh *SHost) GetDetailsGuestIsolatedDevicesInitialized(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject) (jsonutils.JSONObject, error) {
+	inited, err := IsolatedDeviceManager.isInitializeDataDone()
+	if err != nil {
+		return nil, err
+	}
+	if !inited {
+		return nil, httperrors.NewResourceNotReadyError("isolated device not isitialized")
+	}
+	ret := jsonutils.NewDict()
+	ret.Set("initialized", jsonutils.NewString("ok"))
 	return ret, nil
 }
 
@@ -5045,6 +5111,9 @@ func fetchIpmiInfo(data api.HostIpmiAttributes, hostId string) (types.SIPMIInfo,
 	}
 	if data.IpmiLanChannel != nil {
 		info.LanChannel = *data.IpmiLanChannel
+	}
+	if data.IpmiCipherSuite != nil {
+		info.CipherSuite = *data.IpmiCipherSuite
 	}
 	if data.IpmiVerified != nil {
 		info.Verified = *data.IpmiVerified
@@ -6915,14 +6984,24 @@ func (host *SHost) SyncHostExternalNics(ctx context.Context, userCred mcclient.T
 						enables = append(enables, extNics[j])
 					}
 				} else {
-					wireId := ""
-					extWire := extNics[j].GetIWire()
-					if extWire != nil {
-						wire, err := WireManager.FetchWireByExternalId(provider.Id, extWire.GetGlobalId())
-						if err != nil {
-							result.AddError(err)
+					wireId := netIfs[i].WireId
+					ipAddr := extNics[j].GetIpAddr()
+					// Proxmox only associates to on-premise wires; do not sync remote L2 wire ids
+					if provider.Provider != api.CLOUD_PROVIDER_PROXMOX {
+						extWire := extNics[j].GetIWire()
+						if extWire != nil {
+							wire, err := WireManager.FetchWireByExternalId(provider.Id, extWire.GetGlobalId())
+							if err != nil {
+								result.AddError(err)
+							} else {
+								wireId = wire.Id
+							}
 						} else {
-							wireId = wire.Id
+							wireId = ""
+						}
+					} else if len(ipAddr) > 0 {
+						if ipWire, werr := WireManager.GetOnPremiseWireOfIp(ipAddr); werr == nil {
+							wireId = ipWire.Id
 						}
 					}
 					// in sync, sync interface and bridge
@@ -7007,7 +7086,25 @@ func (host *SHost) SyncHostExternalNics(ctx context.Context, userCred mcclient.T
 		netif := host.GetNetInterface(enables[i].GetMac(), enables[i].GetVlanId())
 		// always true reserved address pool
 		log.Debugf("enable netif %s", enables[i].GetMac())
-		err = host.EnableNetif(ctx, userCred, netif, "", enables[i].GetIpAddr(), "", "", "", true, true, false, false)
+		ipAddr := enables[i].GetIpAddr()
+		if provider.Provider == api.CLOUD_PROVIDER_PROXMOX && len(ipAddr) > 0 {
+			ipWire, werr := WireManager.GetOnPremiseWireOfIp(ipAddr)
+			if werr != nil {
+				result.AddError(werr)
+				continue
+			}
+			if netif.WireId != ipWire.Id {
+				_, err := db.Update(netif, func() error {
+					netif.WireId = ipWire.Id
+					return nil
+				})
+				if err != nil {
+					result.AddError(err)
+					continue
+				}
+			}
+		}
+		err = host.EnableNetif(ctx, userCred, netif, "", ipAddr, "", "", "", true, true, false, false)
 		if err != nil {
 			result.AddError(err)
 		} else {
@@ -7029,16 +7126,21 @@ func (host *SHost) SyncHostExternalNics(ctx context.Context, userCred mcclient.T
 			strBridge = &bridge
 		}
 		wireId := ""
-		extWire := extNic.GetIWire()
-		if extWire != nil {
-			wire, err := WireManager.FetchWireByExternalId(provider.Id, extWire.GetGlobalId())
-			if err != nil {
-				result.AddError(err)
-			} else {
-				wireId = wire.Id
+		ipAddr := extNic.GetIpAddr()
+		// Proxmox does not sync remote L2 wires; leave wireId empty so addNetif
+		// resolves the on-premise wire via GetOnPremiseWireOfIp.
+		if provider.Provider != api.CLOUD_PROVIDER_PROXMOX {
+			extWire := extNic.GetIWire()
+			if extWire != nil {
+				wire, err := WireManager.FetchWireByExternalId(provider.Id, extWire.GetGlobalId())
+				if err != nil {
+					result.AddError(err)
+				} else {
+					wireId = wire.Id
+				}
 			}
 		}
-		err = host.addNetif(ctx, userCred, extNic.GetMac(), extNic.GetVlanId(), wireId, extNic.GetIpAddr(), "", 0,
+		err = host.addNetif(ctx, userCred, extNic.GetMac(), extNic.GetVlanId(), wireId, ipAddr, "", 0,
 			compute.TNicType(extNic.GetNicType()), int(extNic.GetIndex()),
 			extNic.IsLinkUp(), int16(extNic.GetMtu()), false, strNetIf, strBridge, true, true, false, false)
 		if err != nil {
@@ -7335,6 +7437,10 @@ func (host *SHost) RemoteHealthStatus(ctx context.Context) string {
 }
 
 func (host *SHost) GetHostnameByName() string {
+	if host.Hostname != "" {
+		return host.Hostname
+	}
+
 	hostname := host.Name
 	accessIp := strings.Replace(host.AccessIp, ".", "-", -1)
 	if strings.HasSuffix(host.Name, "-"+accessIp) {
@@ -7619,7 +7725,10 @@ func (hh *SHost) GetDetailsJnlp(ctx context.Context, userCred mcclient.TokenCred
 
 func (hh *SHost) PerformInsertIso(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject, data jsonutils.JSONObject) (jsonutils.JSONObject, error) {
 	if utils.IsInStringArray(hh.Status, []string{api.BAREMETAL_READY, api.BAREMETAL_RUNNING}) {
-		imageStr, err := data.GetString("image")
+		imageStr, _ := data.GetString("image")
+		if len(imageStr) == 0 {
+			return nil, httperrors.NewInputParameterError("missing image")
+		}
 		image, err := CachedimageManager.getImageInfo(ctx, userCred, imageStr, false)
 		if err != nil {
 			if err == sql.ErrNoRows {
@@ -8202,10 +8311,10 @@ func (h *SHost) GetDetailsApiStats(ctx context.Context, userCred mcclient.TokenC
 }
 
 func (hh *SHost) GetDetailsIsolatedDeviceNumaStats(ctx context.Context, userCred mcclient.TokenCredential, input *api.HostIsolatedDeviceNumaStatsInput) (jsonutils.JSONObject, error) {
-	if !utils.IsInStringArray(input.DevType, api.VALID_PASSTHROUGH_TYPES) {
-		return nil, httperrors.NewInputParameterError("dev_type %s is invalid", input.DevType)
+	if input.Model == "" {
+		return nil, httperrors.NewMissingParameterError("model")
 	}
-	stats, err := IsolatedDeviceManager.GetHostAllocatedIsolatedDeviceNumaStats(input.DevType, hh.Id)
+	stats, err := IsolatedDeviceManager.GetHostAllocatedIsolatedDeviceNumaStats(input.Model, hh.Id)
 	if err != nil {
 		return nil, err
 	}

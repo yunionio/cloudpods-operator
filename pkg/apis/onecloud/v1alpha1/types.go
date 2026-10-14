@@ -137,7 +137,7 @@ const (
 
 	ScheduledtaskComponentType ComponentType = "scheduledtask"
 
-	APIMapComponentType ComponentType = "apimap"
+	ApiMapComponentType ComponentType = "apimap"
 
 	MonitorStackComponentType ComponentType = "monitor-stack"
 
@@ -348,7 +348,8 @@ type OnecloudClusterSpec struct {
 	MonitorStack MonitorStackSpec `json:"monitorStack"`
 
 	Scheduledtask DeploymentServicePortSpec `json:"scheduledtask"`
-	APIMap        DeploymentServicePortSpec `json:"apiMap"`
+
+	ApiMap DeploymentServicePortSpec `json:"apimap"`
 
 	Report     DeploymentServicePortSpec `json:"report"`
 	EChartsSSR EChartsSSRSpec            `json:"echartsSSR"`
@@ -415,7 +416,7 @@ type OnecloudClusterStatus struct {
 	Cloudmon        DeploymentStatus     `json:"cloudmon,omitempty"`
 	MonitorStack    MonitorStackStatus   `json:"monitorStack,omitempty"`
 	Scheduledtask   DeploymentStatus     `json:"scheduledtask,omitempty"`
-	APIMap          DeploymentStatus     `json:"apiMap,omitempty"`
+	APIMap          DeploymentStatus     `json:"apimap,omitempty"`
 	Report          DeploymentStatus     `json:"report,omitempty"`
 	ECharts         DeploymentStatus     `json:"echarts,omitempty"`
 	BastionHost     DeploymentStatus     `json:"bastionHost,omitempty"`
@@ -646,6 +647,7 @@ type WebconsoleSpec struct {
 
 type DeploymentServicePortSpec struct {
 	DeploymentSpec
+
 	Service  ServiceSpec   `json:"service"`
 	DbEngine TDBEngineType `json:"db_engine"`
 }
@@ -1230,6 +1232,10 @@ type VpcAgentConfig struct {
 	ServiceCommonOptions
 }
 
+type APIMapConfig struct {
+	ServiceCommonOptions
+}
+
 type ItsmConfig struct {
 	ServiceDBCommonOptions
 	SecondDatabase string `json:"secondDatabase"`
@@ -1290,4 +1296,5 @@ type OnecloudClusterConfig struct {
 	LLM             ServiceDBCommonOptions    `json:"llm"`
 	McpServer       ServiceDBCommonOptions    `json:"mcpServer"`
 	AiProxy         ServiceDBCommonOptions    `json:"aiproxy"`
+	ApiMap          APIMapConfig              `json:"apimap"`
 }
