@@ -529,6 +529,7 @@ func (h *VolumeHelper) addLibModulesVolume() *VolumeHelper {
 }
 
 func (h *VolumeHelper) addOvsVolumes() *VolumeHelper {
+	var bidirectional = corev1.MountPropagationBidirectional
 	volSrcType := corev1.HostPathDirectoryOrCreate
 	h.volumes = append(h.volumes,
 		corev1.Volume{
@@ -563,14 +564,20 @@ func (h *VolumeHelper) addOvsVolumes() *VolumeHelper {
 		corev1.VolumeMount{
 			Name:      "var-run-openvswitch",
 			MountPath: "/var/run/openvswitch",
+
+			MountPropagation: &bidirectional,
 		},
 		corev1.VolumeMount{
 			Name:      "var-log-openvswitch",
 			MountPath: "/var/log/openvswitch",
+
+			MountPropagation: &bidirectional,
 		},
 		corev1.VolumeMount{
 			Name:      "etc-openvswitch",
 			MountPath: "/etc/openvswitch",
+
+			MountPropagation: &bidirectional,
 		},
 	)
 	return h
