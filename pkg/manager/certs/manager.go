@@ -50,34 +50,35 @@ func (c *CertsManager) CreateOrUpdate(oc *v1alpha1.OnecloudCluster) error {
 		if err := c.certControl.CreateCert(oc); err != nil {
 			return errors.Wrap(err, "create cluster cert")
 		}
-		return nil
-	} else {
-		// already exists, update it
-		// TODO
-		//return nil
+	} else if err := c.certControl.UpdateCert(oc); err != nil {
+		return errors.Wrap(err, "update cluster cert")
 	}
 
 	if !oc.Spec.Etcd.Disable {
 		if oc.Spec.Etcd.EnableTls != nil && !*oc.Spec.Etcd.EnableTls {
 			return nil
 		}
+		needCreate := false
 		for _, secretName := range []string{constants.EtcdServerSecret, constants.EtcdClientSecret, constants.EtcdPeerSecret} {
 			_, err := c.secretLister.Secrets(ns).Get(secretName)
 			if err != nil {
 				if !apierrors.IsNotFound(err) {
 					return err
 				}
-				createdSecrets := false
-				oc.Spec.Etcd.CreatedSecrets = &createdSecrets
-				if err := c.certControl.CreateEtcdCert(oc); err != nil {
-					return errors.Wrap(err, "create cluster cert")
-				}
-				return nil
-			} else {
-				// already exists, update it
-				// TODO
-				continue
+				needCreate = true
+				break
 			}
+		}
+		if needCreate {
+			createdSecrets := false
+			oc.Spec.Etcd.CreatedSecrets = &createdSecrets
+			if err := c.certControl.CreateEtcdCert(oc); err != nil {
+				return errors.Wrap(err, "create etcd cert")
+			}
+			return nil
+		}
+		if err := c.certControl.UpdateEtcdCert(oc); err != nil {
+			return errors.Wrap(err, "update etcd cert")
 		}
 	}
 	return nil

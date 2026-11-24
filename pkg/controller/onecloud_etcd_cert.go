@@ -14,6 +14,7 @@ import (
 
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
+	"yunion.io/x/onecloud-operator/pkg/util/pkiutil"
 )
 
 func NewEtcdClusterCACert() *OnecloudCert {
@@ -147,6 +148,44 @@ func (c *realOnecloudCertControl) CreateEtcdCert(oc *v1alpha1.OnecloudCluster) e
 			log.Errorf("Delete secret %s failed: %s", secretName, err)
 		}
 	}
+	return c.applyEtcdCerts(oc, true)
+}
+
+// UpdateEtcdCert renews etcd TLS certificates when any leaf cert is expired or within renew window.
+func (c *realOnecloudCertControl) UpdateEtcdCert(oc *v1alpha1.OnecloudCluster) error {
+	ns := oc.GetNamespace()
+	needRenew := false
+	for _, item := range []struct {
+		secretName string
+		certKey    string
+	}{
+		{constants.EtcdServerSecret, nameForCert(constants.EtcdServerName)},
+		{constants.EtcdClientSecret, nameForCert(constants.EtcdClientName)},
+		{constants.EtcdPeerSecret, nameForCert(constants.EtcdPeerName)},
+	} {
+		secret, err := c.kubeCli.CoreV1().Secrets(ns).Get(context.Background(), item.secretName, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		certPEM, ok := secret.Data[item.certKey]
+		if !ok || len(certPEM) == 0 {
+			needRenew = true
+			break
+		}
+		cert, err := pkiutil.ParseCertPEM(certPEM)
+		if err != nil || pkiutil.NeedsRenewal(cert) {
+			needRenew = true
+			break
+		}
+	}
+	if !needRenew {
+		return nil
+	}
+	log.Infof("renewing etcd TLS certificates for cluster %s/%s", ns, oc.GetName())
+	return c.applyEtcdCerts(oc, false)
+}
+
+func (c *realOnecloudCertControl) applyEtcdCerts(oc *v1alpha1.OnecloudCluster, createOnly bool) error {
 	caCert := NewEtcdClusterCACert()
 	config, err := caCert.GetConfig(oc)
 	if err != nil {
@@ -157,63 +196,74 @@ func (c *realOnecloudCertControl) CreateEtcdCert(oc *v1alpha1.OnecloudCluster) e
 		return err
 	}
 
-	// server
-	store := newCertsStore()
-	if err := store.WriteCert(constants.EtcdServerCACertName, cert); err != nil {
-		return err
+	type etcdCertSpec struct {
+		secretName string
+		caName     string
+		build      func(caName string) *OnecloudCert
 	}
-	svcCerts := NewEtcdServerCert(caCert.BaseName, constants.EtcdServerName, constants.EtcdServerCertName)
-	svcCert, svcKey, err := svcCerts.CreateFromCA(oc, cert, key)
-	if err != nil {
-		return err
-	}
-	if err := store.WriteCertAndKey(svcCerts.BaseName, svcCert, svcKey); err != nil {
-		return err
-	}
-	certSecret := newEtcdSecretFromStore(oc, constants.EtcdServerSecret, store)
-	_, err = c.kubeCli.CoreV1().Secrets(oc.GetNamespace()).Create(context.Background(), certSecret, metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-
-	// client
-	store = newCertsStore()
-	if err := store.WriteCert(constants.EtcdClientCACertName, cert); err != nil {
-		return err
-	}
-	cliCerts := NewEtcdClientCert(caCert.BaseName, constants.EtcdClientName, constants.EtcdClientCertName)
-	cliCert, cliKey, err := cliCerts.CreateFromCA(oc, cert, key)
-	if err != nil {
-		return err
-	}
-	if err := store.WriteCertAndKey(cliCerts.BaseName, cliCert, cliKey); err != nil {
-		return err
-	}
-	certSecret = newEtcdSecretFromStore(oc, constants.EtcdClientSecret, store)
-	_, err = c.kubeCli.CoreV1().Secrets(oc.GetNamespace()).Create(context.Background(), certSecret, metav1.CreateOptions{})
-	if err != nil {
-		return err
+	specs := []etcdCertSpec{
+		{
+			secretName: constants.EtcdServerSecret,
+			caName:     constants.EtcdServerCACertName,
+			build: func(caName string) *OnecloudCert {
+				return NewEtcdServerCert(caName, constants.EtcdServerName, constants.EtcdServerCertName)
+			},
+		},
+		{
+			secretName: constants.EtcdClientSecret,
+			caName:     constants.EtcdClientCACertName,
+			build: func(caName string) *OnecloudCert {
+				return NewEtcdClientCert(caName, constants.EtcdClientName, constants.EtcdClientCertName)
+			},
+		},
+		{
+			secretName: constants.EtcdPeerSecret,
+			caName:     constants.EtcdPeerCACertName,
+			build: func(caName string) *OnecloudCert {
+				return NewEtcdPeerCert(caName, constants.EtcdPeerName, constants.EtcdPeerCertName)
+			},
+		},
 	}
 
-	// peer
-	store = newCertsStore()
-	if err := store.WriteCert(constants.EtcdPeerCACertName, cert); err != nil {
-		return err
+	for _, spec := range specs {
+		store := newCertsStore()
+		if err := store.WriteCert(spec.caName, cert); err != nil {
+			return err
+		}
+		leaf := spec.build(caCert.BaseName)
+		leafCert, leafKey, err := leaf.CreateFromCA(oc, cert, key)
+		if err != nil {
+			return err
+		}
+		if err := store.WriteCertAndKey(leaf.BaseName, leafCert, leafKey); err != nil {
+			return err
+		}
+		if err := c.writeEtcdSecret(oc, spec.secretName, store, createOnly); err != nil {
+			return err
+		}
 	}
-	peerCerts := NewEtcdPeerCert(caCert.BaseName, constants.EtcdPeerName, constants.EtcdPeerCertName)
-	peerCert, peerKey, err := peerCerts.CreateFromCA(oc, cert, key)
-	if err != nil {
-		return err
-	}
-	if err := store.WriteCertAndKey(peerCerts.BaseName, peerCert, peerKey); err != nil {
-		return err
-	}
-	certSecret = newEtcdSecretFromStore(oc, constants.EtcdPeerSecret, store)
-	_, err = c.kubeCli.CoreV1().Secrets(oc.GetNamespace()).Create(context.Background(), certSecret, metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
+	return nil
+}
 
+func (c *realOnecloudCertControl) writeEtcdSecret(oc *v1alpha1.OnecloudCluster, secretName string, store CertsStore, createOnly bool) error {
+	ns := oc.GetNamespace()
+	if createOnly {
+		certSecret := newEtcdSecretFromStore(oc, secretName, store)
+		_, err := c.kubeCli.CoreV1().Secrets(ns).Create(context.Background(), certSecret, metav1.CreateOptions{})
+		return err
+	}
+	secret, err := c.kubeCli.CoreV1().Secrets(ns).Get(context.Background(), secretName, metav1.GetOptions{})
+	if err != nil {
+		certSecret := newEtcdSecretFromStore(oc, secretName, store)
+		_, err = c.kubeCli.CoreV1().Secrets(ns).Create(context.Background(), certSecret, metav1.CreateOptions{})
+		return err
+	}
+	secret.Data = store
+	_, err = c.kubeCli.CoreV1().Secrets(ns).Update(context.Background(), secret, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	c.RecordUpdateEvent(oc, secret, nil)
 	return nil
 }
 
