@@ -28,6 +28,11 @@ import (
 const (
 	oneday       = time.Hour * 24
 	duration365d = oneday * 365
+
+	// CertificateValidity is the lifetime of leaf certificates (service / etcd).
+	CertificateValidity = oneday * 800
+	// CertificateRenewBefore triggers renewal when remaining validity is below this duration.
+	CertificateRenewBefore = oneday * 90
 )
 
 const (
@@ -54,6 +59,39 @@ func EncodeCertPEM(cert *x509.Certificate) []byte {
 		Bytes: cert.Raw,
 	}
 	return pem.EncodeToMemory(&block)
+}
+
+// ParseCertPEM parses the first certificate from PEM bytes.
+func ParseCertPEM(certData []byte) (*x509.Certificate, error) {
+	certs, err := certutil.ParseCertsPEM(certData)
+	if err != nil {
+		return nil, errors.Wrap(err, "parse certificate PEM")
+	}
+	if len(certs) == 0 {
+		return nil, errors.New("no certificate found in PEM data")
+	}
+	return certs[0], nil
+}
+
+// ParsePrivateKeyPEM parses a private key from PEM bytes.
+func ParsePrivateKeyPEM(keyData []byte) (crypto.Signer, error) {
+	privKey, err := keyutil.ParsePrivateKeyPEM(keyData)
+	if err != nil {
+		return nil, errors.Wrap(err, "parse private key PEM")
+	}
+	key, ok := privKey.(crypto.Signer)
+	if !ok {
+		return nil, errors.New("private key is not a crypto.Signer")
+	}
+	return key, nil
+}
+
+// NeedsRenewal reports whether cert should be renewed (expired or within renew window).
+func NeedsRenewal(cert *x509.Certificate) bool {
+	if cert == nil {
+		return true
+	}
+	return time.Now().After(cert.NotAfter.Add(-CertificateRenewBefore))
 }
 
 func pathForCert(pkiPath, name string) string {
@@ -174,7 +212,7 @@ func NewSignedCert(cfg *certutil.Config, key crypto.Signer, caCert *x509.Certifi
 		IPAddresses:  cfg.AltNames.IPs,
 		SerialNumber: serial,
 		NotBefore:    caCert.NotBefore,
-		NotAfter:     time.Now().Add(oneday * 800).UTC(),
+		NotAfter:     time.Now().Add(CertificateValidity).UTC(),
 		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:  cfg.Usages,
 	}
