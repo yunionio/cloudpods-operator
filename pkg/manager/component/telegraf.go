@@ -171,7 +171,12 @@ func (m *telegrafManager) newTelegrafDaemonSet(
 	if err != nil {
 		return nil, errors.Wrap(err, "new daemonset")
 	}
-	ds.Spec.Template.Spec.HostPID = false
+	// telegraf's nvidia_smi input runs nvidia-smi inside the container. Without
+	// the host PID namespace NVML only reports processes in the container's own
+	// namespace, so GPU process metrics come back empty/zero even though the
+	// host's nvidia-smi sees them. Keep the host PID namespace like the host
+	// component does.
+	ds.Spec.Template.Spec.HostPID = true
 	ds.Spec.Template.Spec.ServiceAccountName = constants.ServiceAccountOnecloudOperator
 	/* set host pod max maxUnavailable count, default 1 */
 	if ds.Spec.UpdateStrategy.RollingUpdate == nil {
