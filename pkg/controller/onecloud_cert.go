@@ -29,20 +29,18 @@ import (
 	certutil "k8s.io/client-go/util/cert"
 	"k8s.io/client-go/util/keyutil"
 
+	"yunion.io/x/log"
+
 	"yunion.io/x/onecloud-operator/pkg/apis/constants"
 	"yunion.io/x/onecloud-operator/pkg/apis/onecloud/v1alpha1"
 	"yunion.io/x/onecloud-operator/pkg/util/pkiutil"
 )
 
 type OnecloudCertControlInterface interface {
-	// CreateCert
 	CreateCert(oc *v1alpha1.OnecloudCluster) error
-	// UpdateCert
-	//UpdateCert(oc *v1alpha1.OnecloudCluster)
-
-	// GetCertSecret return certs secret
-	// GetCertSecret(oc *v1alpha1.OnecloudCluster) (*corev1.Secret, error)
+	UpdateCert(oc *v1alpha1.OnecloudCluster) error
 	CreateEtcdCert(oc *v1alpha1.OnecloudCluster) error
+	UpdateEtcdCert(oc *v1alpha1.OnecloudCluster) error
 }
 
 type realOnecloudCertControl struct {
@@ -97,6 +95,90 @@ func (c *realOnecloudCertControl) CreateCert(oc *v1alpha1.OnecloudCluster) error
 	certSecret := newSecretFromStore(oc, store)
 	_, err = c.kubeCli.CoreV1().Secrets(oc.GetNamespace()).Create(context.Background(), certSecret, metav1.CreateOptions{})
 	return err
+}
+
+// UpdateCert renews cluster service certificates when they are expired or within renew window.
+// Prefer reusing the existing CA when it is still valid; otherwise recreate CA + service certs.
+func (c *realOnecloudCertControl) UpdateCert(oc *v1alpha1.OnecloudCluster) error {
+	ns := oc.GetNamespace()
+	name := ClustercertSecretName(oc)
+	secret, err := c.kubeCli.CoreV1().Secrets(ns).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		return errors.Wrapf(err, "get cert secret %s/%s", ns, name)
+	}
+
+	svcCertPEM, ok := secret.Data[constants.ServiceCertName]
+	if !ok || len(svcCertPEM) == 0 {
+		log.Infof("cluster cert secret %s missing %s, recreating", name, constants.ServiceCertName)
+		return c.replaceClusterCertSecret(oc, secret)
+	}
+	svcCert, err := pkiutil.ParseCertPEM(svcCertPEM)
+	if err != nil {
+		log.Warningf("parse %s in %s failed: %v, recreating", constants.ServiceCertName, name, err)
+		return c.replaceClusterCertSecret(oc, secret)
+	}
+	if !pkiutil.NeedsRenewal(svcCert) {
+		return nil
+	}
+
+	log.Infof("renewing cluster service certificate %s (notAfter=%s)", name, svcCert.NotAfter.UTC().Format("2006-01-02"))
+
+	caCertPEM, ok := secret.Data[constants.CACertName]
+	if !ok {
+		return c.replaceClusterCertSecret(oc, secret)
+	}
+	caKeyPEM, ok := secret.Data[constants.CAKeyName]
+	if !ok {
+		return c.replaceClusterCertSecret(oc, secret)
+	}
+	caCert, err := pkiutil.ParseCertPEM(caCertPEM)
+	if err != nil || pkiutil.NeedsRenewal(caCert) {
+		log.Infof("CA certificate needs renewal or is invalid, recreating full cert pair for %s", name)
+		return c.replaceClusterCertSecret(oc, secret)
+	}
+	caKey, err := pkiutil.ParsePrivateKeyPEM(caKeyPEM)
+	if err != nil {
+		log.Warningf("parse CA key in %s failed: %v, recreating", name, err)
+		return c.replaceClusterCertSecret(oc, secret)
+	}
+
+	svcCerts := NewServiceCert(constants.CACertAndKeyBaseName, constants.ServiceCertAndKeyBaseName, constants.ServiceCertName)
+	newSvcCert, newSvcKey, err := svcCerts.CreateFromCA(oc, caCert, caKey)
+	if err != nil {
+		return errors.Wrap(err, "create service cert from existing CA")
+	}
+
+	store := newCertsStore()
+	store[constants.CACertName] = caCertPEM
+	store[constants.CAKeyName] = caKeyPEM
+	if err := store.WriteCertAndKey(svcCerts.BaseName, newSvcCert, newSvcKey); err != nil {
+		return err
+	}
+	if err := store.WriteCertAndKey("tls", newSvcCert, newSvcKey); err != nil {
+		return err
+	}
+	secret.Data = store
+	_, err = c.kubeCli.CoreV1().Secrets(ns).Update(context.Background(), secret, metav1.UpdateOptions{})
+	if err != nil {
+		return errors.Wrapf(err, "update cert secret %s", name)
+	}
+	c.RecordUpdateEvent(oc, secret, nil)
+	log.Infof("renewed cluster service certificate %s, new notAfter=%s", name, newSvcCert.NotAfter.UTC().Format("2006-01-02"))
+	return nil
+}
+
+func (c *realOnecloudCertControl) replaceClusterCertSecret(oc *v1alpha1.OnecloudCluster, secret *corev1.Secret) error {
+	store, err := CreateCertPair(oc)
+	if err != nil {
+		return err
+	}
+	secret.Data = store
+	_, err = c.kubeCli.CoreV1().Secrets(oc.GetNamespace()).Update(context.Background(), secret, metav1.UpdateOptions{})
+	if err != nil {
+		return errors.Wrap(err, "replace cluster cert secret")
+	}
+	c.RecordUpdateEvent(oc, secret, nil)
+	return nil
 }
 
 type CertsStore map[string][]byte
