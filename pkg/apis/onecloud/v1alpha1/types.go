@@ -692,6 +692,11 @@ type MeterSpec struct {
 	Service ServiceSpec `json:"service"`
 
 	DbEngine TDBEngineType `json:"db_engine"`
+
+	// MountDataPVC mounts a PVC at /opt/yunion/meter so downloaded billing/rates
+	// files survive pod restarts. Default false (ephemeral container FS);
+	// enable for large-bill testing to avoid re-downloading after restart.
+	MountDataPVC bool `json:"mountDataPVC,omitempty"`
 }
 
 type InfluxdbSpec struct {
