@@ -137,6 +137,13 @@ func (m *meterManager) getConfigMap(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.
 	return m.newServiceConfigMap(v1alpha1.MeterComponentType, "", oc, opt), false, nil
 }
 
+func (m *meterManager) getPVC(oc *v1alpha1.OnecloudCluster, zone string) (*corev1.PersistentVolumeClaim, error) {
+	if !oc.Spec.Meter.MountDataPVC {
+		return nil, nil
+	}
+	return m.ComponentManager.newPVC(v1alpha1.MeterComponentType, oc, oc.Spec.Meter.StatefulDeploymentSpec)
+}
+
 func (m *meterManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1.OnecloudClusterConfig, zone string) (*apps.Deployment, error) {
 	deploy, err := m.newCloudServiceSinglePortDeploymentWithReadinessProbePath(
 		v1alpha1.MeterComponentType, "", oc, &oc.Spec.Meter.DeploymentSpec,
@@ -146,6 +153,36 @@ func (m *meterManager) getDeployment(oc *v1alpha1.OnecloudCluster, cfg *v1alpha1
 	if err != nil {
 		return nil, errors.Wrap(err, "newCloudServiceSinglePortDeploymentWithReadinessProbePath")
 	}
+	if !oc.Spec.Meter.MountDataPVC {
+		return deploy, nil
+	}
+
+	// Persist downloaded billing/rates files across pod restarts.
+	dataVolName := "data"
+	dataMount := corev1.VolumeMount{
+		Name:      dataVolName,
+		MountPath: constants.MeterDataStore,
+	}
+	pod := &deploy.Spec.Template.Spec
+	pod.Volumes = append(pod.Volumes, corev1.Volume{
+		Name: dataVolName,
+		VolumeSource: corev1.VolumeSource{
+			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+				ClaimName: m.newPvcName(oc.GetName(), oc.Spec.Meter.StorageClassName, v1alpha1.MeterComponentType),
+				ReadOnly:  false,
+			},
+		},
+	})
+	for i := range pod.InitContainers {
+		pod.InitContainers[i].VolumeMounts = append(pod.InitContainers[i].VolumeMounts, dataMount)
+	}
+	for i := range pod.Containers {
+		pod.Containers[i].VolumeMounts = append(pod.Containers[i].VolumeMounts, dataMount)
+	}
+	// Keep controller nodeAffinity so WaitForFirstConsumer binds PVC on the
+	// same node as meter (avoid scheduling onto workers that cannot pull the
+	// local-path helper image).
+	deploy.Spec.Strategy.Type = apps.RecreateDeploymentStrategyType
 	return deploy, nil
 }
 
